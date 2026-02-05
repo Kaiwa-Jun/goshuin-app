@@ -107,6 +107,22 @@ npm run typecheck
 
 ## Phase 3: CI/CD
 
+### ブランチ戦略
+
+```
+main        ← 本番用（直接pushしない）
+  ↑
+develop     ← 開発用（デフォルトブランチ、PRのマージ先）
+  ↑
+feature/*   ← 機能開発ブランチ
+```
+
+**ルール**:
+
+- PRは `develop` ブランチに向けて作成する
+- `main` へのマージはリリース時のみ（develop → main）
+- 機能開発は `feature/*` ブランチで行う
+
 ### ローカル (Husky)
 
 | Hook       | 実行タイミング  | 内容                            |
@@ -181,11 +197,18 @@ npm run prepare
 
 ### PRの作成
 
+PRは必ず `develop` ブランチに向けて作成する。
+
 ```
 # Good: 具体的な指示
-「このブランチの変更をコミットして、PRを作成して。
+「このブランチの変更をコミットして、developに向けてPRを作成して。
 変更内容をサマリにまとめて」
 
 # Bad: 曖昧
 「PRお願い」
+```
+
+```bash
+# PR作成コマンド例
+gh pr create --base develop --title "feat: 機能名" --body "説明"
 ```
