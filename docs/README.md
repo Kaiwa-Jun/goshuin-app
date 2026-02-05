@@ -19,24 +19,26 @@ docs/
 │   ├── ui-design.md           # UI設計 v6（画面仕様・遷移フロー）
 │   └── stitch.md              # Stitchデザインデータの取り込みガイド
 ├── project/                   # プロジェクト管理
-│   └── roadmap.md             # TODO・ロードマップ
+│   ├── roadmap.md             # TODO・ロードマップ
+│   └── development-workflow.md # 開発ワークフロー
 └── issues/                    # Issue別詳細設計
     └── README.md              # Issue設計ドキュメントの運用ガイド
 ```
 
 ## ドキュメントステータス
 
-| ドキュメント | ステータス |
-|---|---|
-| プロダクト概要 | 完了 |
-| 要件定義 | 完了 |
-| 技術設計 | 完了 |
-| 競合・市場分析 | 完了 |
-| 収益化 | 完了 |
-| UI設計 v6 | 完了 |
-| Stitchデザイン | 取り込み予定 |
-| ユーザーリサーチ | 未完了（ヒアリング待ち） |
-| TODO / ロードマップ | 進行中 |
+| ドキュメント        | ステータス               |
+| ------------------- | ------------------------ |
+| プロダクト概要      | 完了                     |
+| 要件定義            | 完了                     |
+| 技術設計            | 完了                     |
+| 競合・市場分析      | 完了                     |
+| 収益化              | 完了                     |
+| UI設計 v6           | 完了                     |
+| Stitchデザイン      | 取り込み予定             |
+| ユーザーリサーチ    | 未完了（ヒアリング待ち） |
+| TODO / ロードマップ | 進行中                   |
+| 開発ワークフロー    | 完了                     |
 
 ## Stitchデザインデータについて
 
@@ -52,3 +54,13 @@ UIデザインは [Stitch](https://stitch.withgoogle.com/) で作成していま
 `docs/issues/` ディレクトリには、Issue単位でClaude Codeとやりとりして作成した詳細設計ドキュメントを格納します。
 
 運用フローについては [docs/issues/README.md](./issues/README.md) を参照してください。
+
+## 開発ワークフローについて
+
+TDD（テスト駆動開発）と仕様駆動開発を組み合わせた開発フローを採用しています。
+
+- **Phase 1**: 探索・計画 (Plan Mode)
+- **Phase 2**: TDD実装 (Red → Green → Refactor)
+- **Phase 3**: CI/CD (Husky + GitHub Actions)
+
+詳細は [docs/project/development-workflow.md](./project/development-workflow.md) を参照してください。
