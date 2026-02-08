@@ -18,10 +18,13 @@
     "prepare": "husky"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.95.3",
     "expo": "~52.0.0",
+    "expo-sqlite": "~16.0.10",
     "expo-status-bar": "~2.0.0",
     "react": "18.3.1",
-    "react-native": "0.76.0"
+    "react-native": "0.76.0",
+    "react-native-url-polyfill": "^3.0.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.0",
