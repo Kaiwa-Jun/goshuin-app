@@ -9,10 +9,12 @@ import {
   ViewToken,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Location from 'expo-location';
 
 import { OnboardingIcon } from '@components/animated/OnboardingIcon';
 import { Button } from '@components/common/Button';
 import { PageIndicator } from '@components/common/PageIndicator';
+import { useOnboarding } from '@hooks/useOnboarding';
 import type { RootStackScreenProps } from '@/navigation/types';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
@@ -59,6 +61,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 export function OnboardingScreen({ navigation }: Props) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef<FlatList<SlideData>>(null);
+  const { completeOnboarding } = useOnboarding();
 
   const onViewableItemsChanged = useCallback(
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {
@@ -78,10 +81,17 @@ export function OnboardingScreen({ navigation }: Props) {
   };
 
   const handleSkip = () => {
+    completeOnboarding();
     navigation.navigate('MainTabs', { screen: 'MapTab', params: { screen: 'Map' } });
   };
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
+    try {
+      await Location.requestForegroundPermissionsAsync();
+    } catch {
+      // エラーでもオンボーディングは完了させる
+    }
+    completeOnboarding();
     navigation.navigate('MainTabs', { screen: 'MapTab', params: { screen: 'Map' } });
   };
 
