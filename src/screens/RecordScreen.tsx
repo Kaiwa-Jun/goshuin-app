@@ -3,6 +3,7 @@ import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput } from 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Button } from '@components/common/Button';
+import { Header } from '@components/common/Header';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { spacing, borderRadius } from '@theme/spacing';
@@ -27,17 +28,7 @@ export function RecordScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.headerButton}
-          testID="close-button"
-        >
-          <MaterialIcons name="close" size={24} color={colors.gray[800]} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>御朱印を記録</Text>
-        <View style={styles.headerButton} />
-      </View>
+      <Header title="御朱印を記録" variant="modal" onClose={() => navigation.goBack()} />
 
       <ScrollView
         style={styles.scrollView}
@@ -96,25 +87,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray[200],
-  },
-  headerButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    ...typography.h3,
-    color: colors.gray[800],
   },
   scrollView: {
     flex: 1,

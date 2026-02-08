@@ -1,11 +1,12 @@
 import React from 'react';
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { Badge } from '@components/common/Badge';
 import { Button } from '@components/common/Button';
 import { Card } from '@components/common/Card';
+import { Header } from '@components/common/Header';
 import type { MapStackScreenProps } from '@/navigation/types';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
@@ -48,13 +49,7 @@ export function SpotDetailScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container} testID="spot-detail-screen">
-      <View style={styles.header}>
-        <TouchableOpacity onPress={handleBack} testID="back-button">
-          <MaterialIcons name="arrow-back" size={24} color={colors.gray[800]} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>スポット詳細</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      <Header title="スポット詳細" onBack={handleBack} />
 
       <FlatList
         data={MOCK_STAMPS}
@@ -125,21 +120,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.white,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  headerTitle: {
-    ...typography.h3,
-    color: colors.gray[800],
-    flex: 1,
-    textAlign: 'center',
-  },
-  headerSpacer: {
-    width: 24,
   },
   scrollContent: {
     paddingHorizontal: spacing.lg,

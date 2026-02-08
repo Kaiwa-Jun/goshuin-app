@@ -57,7 +57,7 @@ describe('SpotDetailScreen', () => {
     const { getByTestId } = render(
       <SpotDetailScreen navigation={mockNavigation as never} route={mockRoute} />
     );
-    expect(getByTestId('back-button')).toBeTruthy();
+    expect(getByTestId('header-back-button')).toBeTruthy();
   });
 
   it('displays header title', () => {
@@ -109,7 +109,7 @@ describe('SpotDetailScreen', () => {
     const { getByTestId } = render(
       <SpotDetailScreen navigation={mockNavigation as never} route={mockRoute} />
     );
-    fireEvent.press(getByTestId('back-button'));
+    fireEvent.press(getByTestId('header-back-button'));
     expect(mockNavigation.goBack).toHaveBeenCalled();
   });
 

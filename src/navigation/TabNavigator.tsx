@@ -8,6 +8,7 @@ import { GalleryStack } from '@/navigation/GalleryStack';
 import { CollectionScreen } from '@screens/CollectionScreen';
 import { SettingsScreen } from '@screens/SettingsScreen';
 import { useAuth } from '@hooks/useAuth';
+import { colors } from '@theme/colors';
 import type { MainTabParamList, RootStackParamList } from '@/navigation/types';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -22,7 +23,7 @@ export function TabNavigator() {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#F97316',
+        tabBarActiveTintColor: colors.primary[500],
       }}
     >
       <Tab.Screen
