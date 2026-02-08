@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "御朱印コレクション",
+    "slug": "goshuin-app",
+    "version": "0.1.0",
+    "scheme": "com.goshuin.app",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.goshuin.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "周辺の神社仏閣を表示するために位置情報を使用します",
+        "NSCameraUsageDescription": "御朱印を撮影するためにカメラを使用します",
+        "NSPhotoLibraryUsageDescription": "御朱印の画像を選択するためにフォトライブラリを使用します"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.goshuin.app",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE"
+      ]
+    },
+    "plugins": ["expo-location", "expo-image-picker", "expo-camera", "expo-asset"]
+  }
+}
