@@ -10,6 +10,7 @@ export type RootStackParamList = {
   Record: undefined;
   RecordComplete: undefined;
   Login: undefined;
+  Error: { type: 'network' | 'location' | 'upload' };
 };
 
 export type MainTabParamList = {

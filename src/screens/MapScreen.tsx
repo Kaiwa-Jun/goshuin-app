@@ -1,25 +1,96 @@
-import { StyleSheet, Text, View } from 'react-native';
+import React from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { MaterialIcons } from '@expo/vector-icons';
 
+import { FABButton } from '@components/animated/FABButton';
+import { SearchBar } from '@components/common/SearchBar';
 import type { MapStackScreenProps } from '@/navigation/types';
+import { colors } from '@theme/colors';
+import { typography } from '@theme/typography';
+import { spacing, borderRadius } from '@theme/spacing';
+import { shadows } from '@theme/shadows';
 
 type Props = MapStackScreenProps<'Map'>;
 
-export function MapScreen(_props: Props) {
+export function MapScreen({ navigation }: Props) {
+  const handleFABPress = () => {
+    const parent = navigation.getParent();
+    if (parent) {
+      parent.navigate('Record');
+    }
+  };
+
+  const handleFilterPress = () => {
+    // TODO: フィルタードロップダウン表示
+  };
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.text}>Map</Text>
-    </View>
+    <SafeAreaView style={styles.container} edges={['top']} testID="map-screen">
+      <View style={styles.searchRow}>
+        <View style={styles.searchBarWrapper}>
+          <SearchBar />
+        </View>
+        <TouchableOpacity
+          style={styles.filterButton}
+          onPress={handleFilterPress}
+          activeOpacity={0.7}
+          testID="filter-button"
+        >
+          <MaterialIcons name="filter-list" size={24} color={colors.gray[600]} />
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.mapPlaceholder} testID="map-area">
+        <MaterialIcons name="map" size={48} color={colors.gray[300]} />
+        <Text style={styles.mapPlaceholderText}>地図エリア</Text>
+      </View>
+
+      <View style={styles.fabContainer}>
+        <FABButton onPress={handleFABPress} />
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: colors.surface,
   },
-  text: {
-    fontSize: 24,
-    fontWeight: 'bold',
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    gap: spacing.sm,
+  },
+  searchBarWrapper: {
+    flex: 1,
+  },
+  filterButton: {
+    width: 44,
+    height: 44,
+    borderRadius: borderRadius.lg,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.sm,
+  },
+  mapPlaceholder: {
+    flex: 1,
+    backgroundColor: colors.gray[100],
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+  },
+  mapPlaceholderText: {
+    ...typography.body,
+    color: colors.gray[400],
+  },
+  fabContainer: {
+    position: 'absolute',
+    bottom: 20,
+    alignSelf: 'center',
   },
 });

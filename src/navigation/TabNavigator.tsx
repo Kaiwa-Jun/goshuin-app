@@ -1,7 +1,7 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Text } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 
 import { MapStack } from '@/navigation/MapStack';
 import { GalleryStack } from '@/navigation/GalleryStack';
@@ -30,7 +30,7 @@ export function TabNavigator() {
         component={MapStack}
         options={{
           title: '地図',
-          tabBarIcon: ({ color }) => <Text style={{ color }}>🗺</Text>,
+          tabBarIcon: ({ color }) => <MaterialIcons name="explore" size={24} color={color} />,
         }}
       />
       <Tab.Screen
@@ -38,7 +38,7 @@ export function TabNavigator() {
         component={GalleryStack}
         options={{
           title: 'ギャラリー',
-          tabBarIcon: ({ color }) => <Text style={{ color }}>📷</Text>,
+          tabBarIcon: ({ color }) => <MaterialIcons name="photo-library" size={24} color={color} />,
         }}
         listeners={() => ({
           tabPress: e => {
@@ -54,7 +54,7 @@ export function TabNavigator() {
         component={CollectionScreen}
         options={{
           title: 'コレクション',
-          tabBarIcon: ({ color }) => <Text style={{ color }}>🏆</Text>,
+          tabBarIcon: ({ color }) => <MaterialIcons name="emoji-events" size={24} color={color} />,
         }}
         listeners={() => ({
           tabPress: e => {
@@ -70,7 +70,7 @@ export function TabNavigator() {
         component={SettingsScreen}
         options={{
           title: '設定',
-          tabBarIcon: ({ color }) => <Text style={{ color }}>⚙</Text>,
+          tabBarIcon: ({ color }) => <MaterialIcons name="settings" size={24} color={color} />,
         }}
       />
     </Tab.Navigator>

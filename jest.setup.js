@@ -43,6 +43,15 @@ Object.defineProperty(global, 'localStorage', {
   value: localStorageMock,
 });
 
+// @expo/vector-icons mock
+jest.mock('@expo/vector-icons', () => {
+  const React = require('react');
+  const MockIcon = props => React.createElement('Text', props, props.name);
+  return {
+    MaterialIcons: MockIcon,
+  };
+});
+
 // Silence console during tests (optional)
 // global.console = {
 //   ...console,
