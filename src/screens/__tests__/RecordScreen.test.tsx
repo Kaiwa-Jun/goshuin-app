@@ -70,7 +70,7 @@ describe('RecordScreen', () => {
 
   it('navigates back on close button press', () => {
     const { getByTestId } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
-    fireEvent.press(getByTestId('close-button'));
+    fireEvent.press(getByTestId('header-close-button'));
     expect(mockNavigation.goBack).toHaveBeenCalled();
   });
 

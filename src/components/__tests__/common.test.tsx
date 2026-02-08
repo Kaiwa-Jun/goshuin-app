@@ -1,10 +1,15 @@
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { render, fireEvent } from '@testing-library/react-native';
 import { Button } from '@components/common/Button';
 import { Badge } from '@components/common/Badge';
 import { Card } from '@components/common/Card';
 import { SearchBar } from '@components/common/SearchBar';
 import { PageIndicator } from '@components/common/PageIndicator';
+import { LoadingIndicator } from '@components/common/LoadingIndicator';
+import { TextInput } from '@components/common/TextInput';
+import { Header } from '@components/common/Header';
+import { Modal } from '@components/common/Modal';
+import { MapPin } from '@components/common/MapPin';
 import { Text } from 'react-native';
 
 describe('Common Components', () => {
@@ -101,6 +106,180 @@ describe('Common Components', () => {
       const { getAllByTestId } = render(<PageIndicator total={4} current={2} />);
       expect(getAllByTestId('dot-active')).toHaveLength(1);
       expect(getAllByTestId('dot-inactive')).toHaveLength(3);
+    });
+  });
+
+  describe('LoadingIndicator', () => {
+    it('renders with default props', () => {
+      const { getByTestId } = render(<LoadingIndicator />);
+      expect(getByTestId('loading-indicator')).toBeTruthy();
+    });
+
+    it('renders with message', () => {
+      const { getByTestId } = render(<LoadingIndicator message="読み込み中..." />);
+      expect(getByTestId('loading-message')).toBeTruthy();
+    });
+
+    it('does not render message when not provided', () => {
+      const { queryByTestId } = render(<LoadingIndicator />);
+      expect(queryByTestId('loading-message')).toBeNull();
+    });
+
+    it('renders fullScreen variant', () => {
+      const { getByTestId } = render(<LoadingIndicator fullScreen />);
+      expect(getByTestId('loading-indicator')).toBeTruthy();
+    });
+  });
+
+  describe('TextInput', () => {
+    it('renders with placeholder', () => {
+      const { getByTestId, getByPlaceholderText } = render(
+        <TextInput placeholder="入力してください" />
+      );
+      expect(getByTestId('text-input')).toBeTruthy();
+      expect(getByPlaceholderText('入力してください')).toBeTruthy();
+    });
+
+    it('renders with label', () => {
+      const { getByTestId } = render(<TextInput label="名前" />);
+      expect(getByTestId('text-input-label')).toBeTruthy();
+    });
+
+    it('renders error message', () => {
+      const { getByTestId } = render(<TextInput error="入力必須です" />);
+      expect(getByTestId('text-input-error')).toBeTruthy();
+    });
+
+    it('does not render label when not provided', () => {
+      const { queryByTestId } = render(<TextInput />);
+      expect(queryByTestId('text-input-label')).toBeNull();
+    });
+
+    it('does not render error when not provided', () => {
+      const { queryByTestId } = render(<TextInput />);
+      expect(queryByTestId('text-input-error')).toBeNull();
+    });
+
+    it('calls onChangeText', () => {
+      const onChangeText = jest.fn();
+      const { getByTestId } = render(<TextInput onChangeText={onChangeText} />);
+      fireEvent.changeText(getByTestId('text-input'), 'テスト');
+      expect(onChangeText).toHaveBeenCalledWith('テスト');
+    });
+  });
+
+  describe('Header', () => {
+    it('renders with title', () => {
+      const { getByTestId } = render(<Header title="テストタイトル" />);
+      expect(getByTestId('header')).toBeTruthy();
+      expect(getByTestId('header-title')).toBeTruthy();
+    });
+
+    it('renders back button when onBack provided', () => {
+      const { getByTestId } = render(<Header title="テスト" onBack={() => {}} />);
+      expect(getByTestId('header-back-button')).toBeTruthy();
+    });
+
+    it('renders close button when onClose provided', () => {
+      const { getByTestId } = render(<Header title="テスト" onClose={() => {}} />);
+      expect(getByTestId('header-close-button')).toBeTruthy();
+    });
+
+    it('calls onBack when back button pressed', () => {
+      const onBack = jest.fn();
+      const { getByTestId } = render(<Header title="テスト" onBack={onBack} />);
+      fireEvent.press(getByTestId('header-back-button'));
+      expect(onBack).toHaveBeenCalled();
+    });
+
+    it('calls onClose when close button pressed', () => {
+      const onClose = jest.fn();
+      const { getByTestId } = render(<Header title="テスト" onClose={onClose} />);
+      fireEvent.press(getByTestId('header-close-button'));
+      expect(onClose).toHaveBeenCalled();
+    });
+
+    it('renders rightElement', () => {
+      const { getByText } = render(<Header title="テスト" rightElement={<Text>右</Text>} />);
+      expect(getByText('右')).toBeTruthy();
+    });
+  });
+
+  describe('Modal', () => {
+    it('renders when visible', () => {
+      const { getByTestId } = render(
+        <Modal visible onClose={() => {}}>
+          <Text>モーダル内容</Text>
+        </Modal>
+      );
+      expect(getByTestId('modal-overlay')).toBeTruthy();
+      expect(getByTestId('modal-content')).toBeTruthy();
+    });
+
+    it('renders with title', () => {
+      const { getByTestId } = render(
+        <Modal visible onClose={() => {}} title="テストモーダル">
+          <Text>内容</Text>
+        </Modal>
+      );
+      expect(getByTestId('modal-title')).toBeTruthy();
+    });
+
+    it('does not render title when not provided', () => {
+      const { queryByTestId } = render(
+        <Modal visible onClose={() => {}}>
+          <Text>内容</Text>
+        </Modal>
+      );
+      expect(queryByTestId('modal-title')).toBeNull();
+    });
+
+    it('renders children', () => {
+      const { getByText } = render(
+        <Modal visible onClose={() => {}}>
+          <Text>子要素テスト</Text>
+        </Modal>
+      );
+      expect(getByText('子要素テスト')).toBeTruthy();
+    });
+
+    it('calls onClose on backdrop press when closeOnBackdrop is true', () => {
+      const onClose = jest.fn();
+      const { getByTestId } = render(
+        <Modal visible onClose={onClose} closeOnBackdrop>
+          <Text>内容</Text>
+        </Modal>
+      );
+      fireEvent.press(getByTestId('modal-overlay'));
+      expect(onClose).toHaveBeenCalled();
+    });
+  });
+
+  describe('MapPin', () => {
+    it('renders shrine-visited pin', () => {
+      const { getByTestId } = render(<MapPin type="shrine-visited" />);
+      expect(getByTestId('map-pin-shrine-visited')).toBeTruthy();
+    });
+
+    it('renders temple-visited pin', () => {
+      const { getByTestId } = render(<MapPin type="temple-visited" />);
+      expect(getByTestId('map-pin-temple-visited')).toBeTruthy();
+    });
+
+    it('renders unvisited pin', () => {
+      const { getByTestId } = render(<MapPin type="unvisited" />);
+      expect(getByTestId('map-pin-unvisited')).toBeTruthy();
+    });
+
+    it('renders current-location pin with pulse', () => {
+      const { getByTestId } = render(<MapPin type="current-location" />);
+      expect(getByTestId('map-pin-current-location')).toBeTruthy();
+      expect(getByTestId('map-pin-pulse')).toBeTruthy();
+    });
+
+    it('does not render pulse for non-current-location pins', () => {
+      const { queryByTestId } = render(<MapPin type="shrine-visited" />);
+      expect(queryByTestId('map-pin-pulse')).toBeNull();
     });
   });
 });
