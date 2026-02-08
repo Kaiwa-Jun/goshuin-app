@@ -199,3 +199,40 @@ gh pr create --base develop --title "タイトル" --body "..."
 ### 3. ユーザーへの案内
 
 PR の URL を含めて案内する（案内テンプレートは CLAUDE.md を参照）。
+
+## PR マージ後: Issue クローズ
+
+ユーザーから「マージして」と指示されたら、以下を一連で実行する。
+
+### 1. PR をマージ
+
+```bash
+gh pr merge {PR番号} --merge
+```
+
+### 2. 対象 Issue をクローズ
+
+マージ完了後、今回の実装対象となっている GitHub Issue を確認し、クローズする。
+
+```bash
+gh issue close {Issue番号} --comment "Closed via PR #{PR番号}"
+```
+
+**Issue 番号の特定方法**:
+
+- ブランチ名 `feature/issue-{番号}-{概要}` から番号を取得
+- または PR タイトル・コミットメッセージ内の `#Issue番号` から取得
+
+### 3. ユーザーへの案内
+
+```
+---
+マージ & Issue クローズが完了しました。
+
+PR: {PR の URL}（マージ済み）
+Issue: #{Issue番号}（クローズ済み）
+
+次のステップ:
+- 次の Issue に取り掛かる場合は `/clear` してから Issue 番号を指示してください
+---
+```
