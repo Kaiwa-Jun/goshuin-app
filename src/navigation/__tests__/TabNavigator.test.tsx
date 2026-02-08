@@ -121,7 +121,7 @@ describe('TabNavigator', () => {
       isAuthenticated: true,
     });
 
-    const { getByText, queryByText } = renderTabNavigator();
+    const { getByText, queryByText, getByTestId } = renderTabNavigator();
 
     await waitFor(() => {
       expect(getByText('ギャラリー')).toBeTruthy();
@@ -130,7 +130,7 @@ describe('TabNavigator', () => {
     fireEvent.press(getByText('ギャラリー'));
 
     await waitFor(() => {
-      expect(getByText('Gallery')).toBeTruthy();
+      expect(getByTestId('gallery-list')).toBeTruthy();
     });
 
     expect(queryByText('Login Screen')).toBeNull();

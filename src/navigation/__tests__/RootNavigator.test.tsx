@@ -44,10 +44,10 @@ describe('RootNavigator', () => {
       completeOnboarding: jest.fn(),
     });
 
-    const { queryByText } = renderWithNavigation();
+    const { queryByTestId } = renderWithNavigation();
 
-    expect(queryByText('Onboarding')).toBeNull();
-    expect(queryByText('Map')).toBeNull();
+    expect(queryByTestId('onboarding-screen')).toBeNull();
+    expect(queryByTestId('map-screen')).toBeNull();
   });
 
   it('shows Onboarding screen when onboarding is not completed', async () => {
@@ -57,10 +57,10 @@ describe('RootNavigator', () => {
       completeOnboarding: jest.fn(),
     });
 
-    const { getByText } = renderWithNavigation();
+    const { getByTestId } = renderWithNavigation();
 
     await waitFor(() => {
-      expect(getByText('Onboarding')).toBeTruthy();
+      expect(getByTestId('onboarding-screen')).toBeTruthy();
     });
   });
 
@@ -71,10 +71,10 @@ describe('RootNavigator', () => {
       completeOnboarding: jest.fn(),
     });
 
-    const { getByText } = renderWithNavigation();
+    const { getByTestId } = renderWithNavigation();
 
     await waitFor(() => {
-      expect(getByText('Map')).toBeTruthy();
+      expect(getByTestId('map-screen')).toBeTruthy();
     });
   });
 });
