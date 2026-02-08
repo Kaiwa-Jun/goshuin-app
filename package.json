@@ -18,29 +18,41 @@
     "prepare": "husky"
   },
   "dependencies": {
-    "expo": "~52.0.0",
-    "expo-status-bar": "~2.0.0",
-    "react": "18.3.1",
-    "react-native": "0.76.0"
+    "@react-navigation/bottom-tabs": "^7.12.0",
+    "@react-navigation/native": "^7.1.28",
+    "expo": "^54.0.33",
+    "expo-asset": "~12.0.12",
+    "expo-camera": "~17.0.10",
+    "expo-image-picker": "~17.0.10",
+    "expo-location": "~19.0.8",
+    "expo-status-bar": "~3.0.9",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-maps": "1.20.1",
+    "react-native-safe-area-context": "~5.6.0",
+    "react-native-screens": "~4.16.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.0",
-    "@testing-library/react-native": "^12.4.0",
+    "@testing-library/react-native": "^13.3.3",
     "@types/jest": "^29.5.12",
-    "@types/react": "~18.3.0",
+    "@types/react": "~19.1.10",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
+    "babel-plugin-module-resolver": "^5.0.2",
+    "babel-preset-expo": "^54.0.10",
     "eslint": "^8.57.0",
-    "eslint-config-expo": "~8.0.0",
+    "eslint-config-expo": "~10.0.0",
     "eslint-config-prettier": "^9.1.0",
+    "eslint-import-resolver-typescript": "^4.4.4",
     "eslint-plugin-prettier": "^5.1.0",
     "husky": "^9.0.0",
     "jest": "^29.7.0",
-    "jest-expo": "~52.0.0",
+    "jest-expo": "~54.0.17",
     "lint-staged": "^15.2.0",
     "prettier": "^3.2.0",
-    "react-test-renderer": "18.3.1",
-    "typescript": "~5.3.3"
+    "react-test-renderer": "^19.1.0",
+    "typescript": "~5.9.2"
   },
   "lint-staged": {
     "*.{ts,tsx}": [

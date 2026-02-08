@@ -12,6 +12,16 @@ module.exports = {
     sourceType: 'module',
   },
   plugins: ['@typescript-eslint'],
+  settings: {
+    'import/resolver': {
+      typescript: {
+        project: './tsconfig.json',
+      },
+      node: {
+        extensions: ['.ts', '.tsx', '.js', '.jsx'],
+      },
+    },
+  },
   rules: {
     // TypeScript
     '@typescript-eslint/no-unused-vars': [
