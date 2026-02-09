@@ -34,6 +34,53 @@ jest.mock('@hooks/useAuth', () => ({
   }),
 }));
 
+// Mock hooks used by MapScreen
+jest.mock('@hooks/useLocation', () => ({
+  useLocation: () => ({
+    location: { latitude: 38.2682, longitude: 140.8694 },
+    isLoading: false,
+    error: null,
+    permissionStatus: 'granted',
+    refreshLocation: jest.fn(),
+  }),
+}));
+
+jest.mock('@hooks/useSpots', () => ({
+  useSpots: () => ({
+    spots: [],
+    allSpots: [],
+    isLoading: false,
+    error: null,
+  }),
+}));
+
+jest.mock('@hooks/useUserStamps', () => ({
+  useUserStamps: () => ({
+    visitedSpotIds: new Set(),
+    isLoading: false,
+  }),
+}));
+
+jest.mock('@hooks/useMapSearch', () => ({
+  useMapSearch: () => ({
+    query: '',
+    setQuery: jest.fn(),
+    suggestions: [],
+    showSuggestions: false,
+    setShowSuggestions: jest.fn(),
+    nearbySpots: [],
+    clearSearch: jest.fn(),
+  }),
+}));
+
+jest.mock('@hooks/useSpotDetail', () => ({
+  useSpotDetail: () => ({
+    spot: null,
+    isLoading: false,
+    error: null,
+  }),
+}));
+
 function renderWithNavigation() {
   return render(
     <NavigationContainer>

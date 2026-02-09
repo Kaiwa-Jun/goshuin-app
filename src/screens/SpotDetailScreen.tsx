@@ -1,5 +1,5 @@
 import React from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 
@@ -7,6 +7,7 @@ import { Badge } from '@components/common/Badge';
 import { Button } from '@components/common/Button';
 import { Card } from '@components/common/Card';
 import { Header } from '@components/common/Header';
+import { useSpotDetail } from '@hooks/useSpotDetail';
 import type { MapStackScreenProps } from '@/navigation/types';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
@@ -14,19 +15,10 @@ import { spacing, borderRadius } from '@theme/spacing';
 
 type Props = MapStackScreenProps<'SpotDetail'>;
 
-interface MockStamp {
-  id: string;
-  date: string;
-}
+export function SpotDetailScreen({ navigation, route }: Props) {
+  const { spotId } = route.params;
+  const { spot, isLoading, error } = useSpotDetail(spotId);
 
-const MOCK_STAMPS: MockStamp[] = [
-  { id: '1', date: '2024/01/15' },
-  { id: '2', date: '2023/05/20' },
-  { id: '3', date: '2022/09/10' },
-  { id: '4', date: '2022/03/05' },
-];
-
-export function SpotDetailScreen({ navigation }: Props) {
   const handleBack = () => {
     navigation.goBack();
   };
@@ -38,80 +30,78 @@ export function SpotDetailScreen({ navigation }: Props) {
     }
   };
 
-  const renderStampItem = ({ item }: { item: MockStamp }) => (
-    <View style={styles.stampItem} testID="stamp-item">
-      <View style={styles.stampImagePlaceholder}>
-        <MaterialIcons name="image" size={32} color={colors.gray[300]} />
-      </View>
-      <Text style={styles.stampDate}>{item.date}</Text>
-    </View>
-  );
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container} testID="spot-detail-screen">
+        <Header title="スポット詳細" onBack={handleBack} />
+        <View style={styles.centerContent} testID="spot-detail-loading">
+          <ActivityIndicator size="large" color={colors.primary[500]} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error || !spot) {
+    return (
+      <SafeAreaView style={styles.container} testID="spot-detail-screen">
+        <Header title="スポット詳細" onBack={handleBack} />
+        <View style={styles.centerContent} testID="spot-detail-error">
+          <MaterialIcons name="error-outline" size={48} color={colors.gray[400]} />
+          <Text style={styles.errorText}>{error ?? 'スポットが見つかりません'}</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const badgeType = spot.type === 'shrine' ? 'shrine' : 'temple';
 
   return (
     <SafeAreaView style={styles.container} testID="spot-detail-screen">
       <Header title="スポット詳細" onBack={handleBack} />
 
-      <FlatList
-        data={MOCK_STAMPS}
-        renderItem={renderStampItem}
-        keyExtractor={item => item.id}
-        numColumns={2}
-        columnWrapperStyle={styles.stampRow}
-        contentContainerStyle={styles.scrollContent}
-        ListHeaderComponent={
-          <>
-            <View style={styles.badgeRow}>
-              <Badge type="shrine" />
-              <Badge type="visited" />
-            </View>
+      <View style={styles.scrollContent}>
+        <View style={styles.badgeRow}>
+          <Badge type={badgeType} />
+        </View>
 
-            <Text style={styles.spotName}>大崎八幡宮</Text>
-            <View style={styles.addressRow}>
-              <MaterialIcons name="place" size={16} color={colors.gray[400]} />
-              <Text style={styles.address}>宮城県仙台市青葉区八幡4-6-1</Text>
-            </View>
+        <Text style={styles.spotName} testID="spot-name">
+          {spot.name}
+        </Text>
+        {spot.address && (
+          <View style={styles.addressRow}>
+            <MaterialIcons name="place" size={16} color={colors.gray[400]} />
+            <Text style={styles.address}>{spot.address}</Text>
+          </View>
+        )}
 
-            <Card style={styles.visitCard}>
-              <View style={styles.visitRow}>
-                <View style={styles.visitItem}>
-                  <Text style={styles.visitLabel}>訪問回数</Text>
-                  <Text style={styles.visitValue}>3回</Text>
-                </View>
-                <View style={styles.visitDivider} />
-                <View style={styles.visitItem}>
-                  <Text style={styles.visitLabel}>最終訪問</Text>
-                  <Text style={styles.visitValue}>2024/01/15</Text>
-                </View>
-              </View>
-            </Card>
-
-            <Button
-              title="ここで記録する"
-              onPress={handleRecord}
-              variant="primary"
-              style={styles.recordButton}
-            />
-
-            <Text style={styles.sectionTitle}>
-              あなたが記録した御朱印（{MOCK_STAMPS.length}件）
-            </Text>
-          </>
-        }
-        ListFooterComponent={
-          <>
-            <Text style={styles.sectionTitle}>アクセス</Text>
-            <View style={styles.miniMap} testID="mini-map">
-              <MaterialIcons name="map" size={32} color={colors.gray[300]} />
-              <Text style={styles.miniMapText}>地図</Text>
+        <Card style={styles.visitCard}>
+          <View style={styles.visitRow}>
+            <View style={styles.visitItem}>
+              <Text style={styles.visitLabel}>種別</Text>
+              <Text style={styles.visitValue}>{spot.type === 'shrine' ? '神社' : '寺院'}</Text>
             </View>
-            <View style={styles.miniMapAddress}>
-              <MaterialIcons name="place" size={16} color={colors.primary[500]} />
-              <Text style={styles.miniMapAddressText}>〒980-0871 宮城県仙台市青葉区八幡4-6-1</Text>
-            </View>
-          </>
-        }
-        testID="stamp-list"
-      />
+          </View>
+        </Card>
+
+        <Button
+          title="ここで記録する"
+          onPress={handleRecord}
+          variant="primary"
+          style={styles.recordButton}
+        />
+
+        <Text style={styles.sectionTitle}>アクセス</Text>
+        <View style={styles.miniMap} testID="mini-map">
+          <MaterialIcons name="map" size={32} color={colors.gray[300]} />
+          <Text style={styles.miniMapText}>地図</Text>
+        </View>
+        {spot.address && (
+          <View style={styles.miniMapAddress}>
+            <MaterialIcons name="place" size={16} color={colors.primary[500]} />
+            <Text style={styles.miniMapAddressText}>{spot.address}</Text>
+          </View>
+        )}
+      </View>
     </SafeAreaView>
   );
 }
@@ -120,6 +110,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.white,
+  },
+  centerContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
+  },
+  errorText: {
+    ...typography.body,
+    color: colors.gray[500],
   },
   scrollContent: {
     paddingHorizontal: spacing.lg,
@@ -144,6 +144,7 @@ const styles = StyleSheet.create({
   address: {
     ...typography.bodySmall,
     color: colors.gray[500],
+    flex: 1,
   },
   visitCard: {
     marginBottom: spacing.lg,
@@ -165,11 +166,6 @@ const styles = StyleSheet.create({
     ...typography.h3,
     color: colors.gray[900],
   },
-  visitDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: colors.gray[200],
-  },
   recordButton: {
     marginBottom: spacing.xl,
   },
@@ -178,25 +174,6 @@ const styles = StyleSheet.create({
     color: colors.gray[800],
     marginBottom: spacing.md,
     marginTop: spacing.lg,
-  },
-  stampRow: {
-    gap: spacing.md,
-  },
-  stampItem: {
-    flex: 1,
-    gap: spacing.xs,
-  },
-  stampImagePlaceholder: {
-    aspectRatio: 1,
-    backgroundColor: colors.gray[100],
-    borderRadius: borderRadius.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stampDate: {
-    ...typography.caption,
-    color: colors.gray[500],
-    textAlign: 'center',
   },
   miniMap: {
     height: 150,
