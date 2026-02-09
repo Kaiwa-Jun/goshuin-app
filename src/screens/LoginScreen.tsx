@@ -1,8 +1,9 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 
+import { useAuth } from '@hooks/useAuth';
 import type { RootStackScreenProps } from '@/navigation/types';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
@@ -12,8 +13,19 @@ import { shadows } from '@theme/shadows';
 type Props = RootStackScreenProps<'Login'>;
 
 export function LoginScreen({ navigation }: Props) {
-  const handleGoogleLogin = () => {
-    // TODO: Supabase Auth with Google OAuth
+  const { signInWithGoogle, isSigningIn } = useAuth();
+
+  const handleGoogleLogin = async () => {
+    const result = await signInWithGoogle();
+
+    if (result.success) {
+      navigation.goBack();
+      return;
+    }
+
+    if (result.error.code !== 'CANCELLED') {
+      Alert.alert('ログインエラー', result.error.message);
+    }
   };
 
   const handleLater = () => {
@@ -34,16 +46,21 @@ export function LoginScreen({ navigation }: Props) {
           <Text style={styles.loginPrompt}>旅の記録を保存しましょう</Text>
 
           <TouchableOpacity
-            style={styles.googleButton}
+            style={[styles.googleButton, isSigningIn && styles.googleButtonDisabled]}
             onPress={handleGoogleLogin}
             activeOpacity={0.7}
             testID="google-login-button"
+            disabled={isSigningIn}
           >
-            <Text style={styles.googleIcon}>G</Text>
+            {isSigningIn ? (
+              <ActivityIndicator size="small" color={colors.gray[500]} />
+            ) : (
+              <Text style={styles.googleIcon}>G</Text>
+            )}
             <Text style={styles.googleButtonText}>Google でログイン</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={handleLater} testID="later-button">
+          <TouchableOpacity onPress={handleLater} testID="later-button" disabled={isSigningIn}>
             <Text style={styles.laterText}>あとにする</Text>
           </TouchableOpacity>
         </View>
@@ -117,6 +134,9 @@ const styles = StyleSheet.create({
     width: '100%',
     gap: spacing.sm,
     ...shadows.sm,
+  },
+  googleButtonDisabled: {
+    opacity: 0.6,
   },
   googleIcon: {
     fontSize: 20,

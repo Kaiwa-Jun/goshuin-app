@@ -3,6 +3,13 @@ import { NavigationContainer } from '@react-navigation/native';
 
 import { RootNavigator } from '../RootNavigator';
 
+// Mock auth service before importing RootNavigator (it calls configureGoogleSignIn at module scope)
+jest.mock('@services/auth', () => ({
+  configureGoogleSignIn: jest.fn(),
+  signInWithGoogle: jest.fn(),
+  signOut: jest.fn(),
+}));
+
 // Mock environment variables for supabase
 const env = process.env;
 env['EXPO_PUBLIC_SUPABASE_URL'] = 'https://test.supabase.co';
@@ -21,6 +28,9 @@ jest.mock('@hooks/useAuth', () => ({
     session: null,
     isLoading: false,
     isAuthenticated: false,
+    isSigningIn: false,
+    signInWithGoogle: jest.fn(),
+    signOut: jest.fn(),
   }),
 }));
 
