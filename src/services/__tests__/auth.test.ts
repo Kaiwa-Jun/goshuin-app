@@ -1,43 +1,27 @@
-import { configureGoogleSignIn, signInWithGoogle, signOut } from '../auth';
+// [REVERT-TO-NATIVE] テスト全体をネイティブ Google Sign-In に戻す必要あり
+// 詳細: docs/issues/issue-013-revert-to-native-google-signin.md
 
-// Get references to the mocked module (set up in jest.setup.js)
-/* eslint-disable @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires */
-const {
-  GoogleSignin,
-  statusCodes,
-  isErrorWithCode,
-} = require('@react-native-google-signin/google-signin');
-/* eslint-enable @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires */
+import * as WebBrowser from 'expo-web-browser';
+import * as AuthSession from 'expo-auth-session';
+import { signInWithGoogle, signOut } from '../auth';
 
-const mockSignInWithIdToken = jest.fn();
+const mockSignInWithOAuth = jest.fn();
+const mockSetSession = jest.fn();
 const mockSignOut = jest.fn();
 
 jest.mock('@services/supabase', () => ({
   supabase: {
     auth: {
-      signInWithIdToken: (...args: unknown[]) => mockSignInWithIdToken(...args),
+      signInWithOAuth: (...args: unknown[]) => mockSignInWithOAuth(...args),
+      setSession: (...args: unknown[]) => mockSetSession(...args),
       signOut: (...args: unknown[]) => mockSignOut(...args),
     },
   },
 }));
 
-describe('auth service', () => {
+describe('auth service (expo-auth-session)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-  });
-
-  describe('configureGoogleSignIn', () => {
-    it('calls GoogleSignin.configure with webClientId', () => {
-      process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID = 'test-web-client-id';
-      process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID = 'test-ios-client-id';
-
-      configureGoogleSignIn();
-
-      expect(GoogleSignin.configure).toHaveBeenCalledWith({
-        webClientId: 'test-web-client-id',
-        iosClientId: 'test-ios-client-id',
-      });
-    });
   });
 
   describe('signInWithGoogle', () => {
@@ -45,10 +29,15 @@ describe('auth service', () => {
       const mockUser = { id: 'user-123', email: 'test@example.com' };
       const mockSession = { access_token: 'token' };
 
-      (GoogleSignin.signIn as jest.Mock).mockResolvedValue({
-        data: { idToken: 'google-id-token', user: { email: 'test@example.com' } },
+      mockSignInWithOAuth.mockResolvedValue({
+        data: { url: 'https://accounts.google.com/o/oauth2/auth?...' },
+        error: null,
       });
-      mockSignInWithIdToken.mockResolvedValue({
+      (WebBrowser.openAuthSessionAsync as jest.Mock).mockResolvedValue({
+        type: 'success',
+        url: 'com.goshuin.app://auth/callback#access_token=mock-access&refresh_token=mock-refresh',
+      });
+      mockSetSession.mockResolvedValue({
         data: { user: mockUser, session: mockSession },
         error: null,
       });
@@ -60,16 +49,31 @@ describe('auth service', () => {
         user: mockUser,
         session: mockSession,
       });
-      expect(mockSignInWithIdToken).toHaveBeenCalledWith({
+      expect(mockSignInWithOAuth).toHaveBeenCalledWith({
         provider: 'google',
-        token: 'google-id-token',
+        options: {
+          redirectTo: AuthSession.makeRedirectUri(),
+          skipBrowserRedirect: true,
+        },
+      });
+      expect(WebBrowser.openAuthSessionAsync).toHaveBeenCalledWith(
+        'https://accounts.google.com/o/oauth2/auth?...',
+        AuthSession.makeRedirectUri()
+      );
+      expect(mockSetSession).toHaveBeenCalledWith({
+        access_token: 'mock-access',
+        refresh_token: 'mock-refresh',
       });
     });
 
-    it('returns CANCELLED error when user cancels sign-in', async () => {
-      const cancelError = { code: statusCodes.SIGN_IN_CANCELLED };
-      (GoogleSignin.signIn as jest.Mock).mockRejectedValue(cancelError);
-      (isErrorWithCode as jest.Mock).mockReturnValue(true);
+    it('returns CANCELLED error when user cancels browser', async () => {
+      mockSignInWithOAuth.mockResolvedValue({
+        data: { url: 'https://accounts.google.com/o/oauth2/auth?...' },
+        error: null,
+      });
+      (WebBrowser.openAuthSessionAsync as jest.Mock).mockResolvedValue({
+        type: 'cancel',
+      });
 
       const result = await signInWithGoogle();
 
@@ -79,46 +83,93 @@ describe('auth service', () => {
       });
     });
 
-    it('returns NO_ID_TOKEN error when idToken is missing', async () => {
-      (GoogleSignin.signIn as jest.Mock).mockResolvedValue({
-        data: { idToken: null, user: { email: 'test@example.com' } },
+    it('returns SUPABASE_ERROR when OAuth URL retrieval fails', async () => {
+      mockSignInWithOAuth.mockResolvedValue({
+        data: { url: null },
+        error: { message: 'OAuth config error' },
       });
 
       const result = await signInWithGoogle();
 
       expect(result).toEqual({
         success: false,
-        error: { code: 'NO_ID_TOKEN', message: 'Google認証トークンの取得に失敗しました' },
+        error: { code: 'SUPABASE_ERROR', message: 'OAuth config error' },
       });
     });
 
-    it('returns SUPABASE_ERROR when Supabase auth fails', async () => {
-      (GoogleSignin.signIn as jest.Mock).mockResolvedValue({
-        data: { idToken: 'google-id-token', user: { email: 'test@example.com' } },
+    it('returns SUPABASE_ERROR when OAuth URL is missing without error', async () => {
+      mockSignInWithOAuth.mockResolvedValue({
+        data: { url: null },
+        error: null,
       });
-      mockSignInWithIdToken.mockResolvedValue({
+
+      const result = await signInWithGoogle();
+
+      expect(result).toEqual({
+        success: false,
+        error: { code: 'SUPABASE_ERROR', message: 'OAuth URL取得失敗' },
+      });
+    });
+
+    it('returns NO_ID_TOKEN when tokens are missing from redirect URL', async () => {
+      mockSignInWithOAuth.mockResolvedValue({
+        data: { url: 'https://accounts.google.com/o/oauth2/auth?...' },
+        error: null,
+      });
+      (WebBrowser.openAuthSessionAsync as jest.Mock).mockResolvedValue({
+        type: 'success',
+        url: 'com.goshuin.app://auth/callback#no_tokens_here=true',
+      });
+
+      const result = await signInWithGoogle();
+
+      expect(result).toEqual({
+        success: false,
+        error: { code: 'NO_ID_TOKEN', message: 'トークンの取得に失敗しました' },
+      });
+    });
+
+    it('returns SUPABASE_ERROR when setSession fails', async () => {
+      mockSignInWithOAuth.mockResolvedValue({
+        data: { url: 'https://accounts.google.com/o/oauth2/auth?...' },
+        error: null,
+      });
+      (WebBrowser.openAuthSessionAsync as jest.Mock).mockResolvedValue({
+        type: 'success',
+        url: 'com.goshuin.app://auth/callback#access_token=mock-access&refresh_token=mock-refresh',
+      });
+      mockSetSession.mockResolvedValue({
         data: { user: null, session: null },
-        error: { message: 'Invalid token' },
+        error: { message: 'Session error' },
       });
 
       const result = await signInWithGoogle();
 
       expect(result).toEqual({
         success: false,
-        error: { code: 'SUPABASE_ERROR', message: 'Invalid token' },
+        error: { code: 'SUPABASE_ERROR', message: 'Session error' },
       });
     });
 
-    it('returns UNKNOWN_ERROR for unexpected errors', async () => {
-      const unknownError = new Error('Something went wrong');
-      (GoogleSignin.signIn as jest.Mock).mockRejectedValue(unknownError);
-      (isErrorWithCode as jest.Mock).mockReturnValue(false);
+    it('returns SUPABASE_ERROR when setSession returns no user/session', async () => {
+      mockSignInWithOAuth.mockResolvedValue({
+        data: { url: 'https://accounts.google.com/o/oauth2/auth?...' },
+        error: null,
+      });
+      (WebBrowser.openAuthSessionAsync as jest.Mock).mockResolvedValue({
+        type: 'success',
+        url: 'com.goshuin.app://auth/callback#access_token=mock-access&refresh_token=mock-refresh',
+      });
+      mockSetSession.mockResolvedValue({
+        data: { user: null, session: null },
+        error: null,
+      });
 
       const result = await signInWithGoogle();
 
       expect(result).toEqual({
         success: false,
-        error: { code: 'UNKNOWN_ERROR', message: 'Something went wrong' },
+        error: { code: 'SUPABASE_ERROR', message: 'セッション設定失敗' },
       });
     });
   });
@@ -126,13 +177,11 @@ describe('auth service', () => {
   describe('signOut', () => {
     it('returns success when sign-out succeeds', async () => {
       mockSignOut.mockResolvedValue({ error: null });
-      (GoogleSignin.signOut as jest.Mock).mockResolvedValue(undefined);
 
       const result = await signOut();
 
       expect(result).toEqual({ success: true });
       expect(mockSignOut).toHaveBeenCalled();
-      expect(GoogleSignin.signOut).toHaveBeenCalled();
     });
 
     it('returns error when Supabase sign-out fails', async () => {

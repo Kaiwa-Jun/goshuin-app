@@ -42,7 +42,7 @@
       "expo-image-picker",
       "expo-camera",
       "expo-asset",
-      "@react-native-google-signin/google-signin"
+      "expo-web-browser"
     ],
     "extra": {
       "eas": {
