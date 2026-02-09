@@ -43,25 +43,25 @@ Object.defineProperty(global, 'localStorage', {
   value: localStorageMock,
 });
 
-// @react-native-google-signin/google-signin mock
-jest.mock('@react-native-google-signin/google-signin', () => ({
-  GoogleSignin: {
-    configure: jest.fn(),
-    hasPlayServices: jest.fn(() => Promise.resolve(true)),
-    signIn: jest.fn(() =>
-      Promise.resolve({ data: { idToken: 'mock-id-token', user: { email: 'test@example.com' } } })
-    ),
-    signOut: jest.fn(() => Promise.resolve()),
-    isSignedIn: jest.fn(() => Promise.resolve(false)),
-    getCurrentUser: jest.fn(() => Promise.resolve(null)),
-  },
-  statusCodes: {
-    SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED',
-    IN_PROGRESS: 'IN_PROGRESS',
-    PLAY_SERVICES_NOT_AVAILABLE: 'PLAY_SERVICES_NOT_AVAILABLE',
-  },
-  isErrorWithCode: jest.fn(error => error && typeof error === 'object' && 'code' in error),
+// [REVERT-TO-NATIVE] ネイティブ版に戻す際に @react-native-google-signin/google-signin モックを復活
+// expo-auth-session mock
+jest.mock('expo-auth-session', () => ({
+  makeRedirectUri: jest.fn(() => 'com.goshuin.app://auth/callback'),
 }));
+
+// expo-web-browser mock
+jest.mock('expo-web-browser', () => ({
+  openAuthSessionAsync: jest.fn(() =>
+    Promise.resolve({
+      type: 'success',
+      url: 'com.goshuin.app://auth/callback#access_token=mock-access&refresh_token=mock-refresh',
+    })
+  ),
+  maybeCompleteAuthSession: jest.fn(),
+}));
+
+// expo-crypto mock
+jest.mock('expo-crypto', () => ({}));
 
 // @expo/vector-icons mock
 jest.mock('@expo/vector-icons', () => {

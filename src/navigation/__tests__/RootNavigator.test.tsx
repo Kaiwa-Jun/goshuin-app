@@ -3,9 +3,8 @@ import { NavigationContainer } from '@react-navigation/native';
 
 import { RootNavigator } from '../RootNavigator';
 
-// Mock auth service before importing RootNavigator (it calls configureGoogleSignIn at module scope)
+// Mock auth service
 jest.mock('@services/auth', () => ({
-  configureGoogleSignIn: jest.fn(),
   signInWithGoogle: jest.fn(),
   signOut: jest.fn(),
 }));
