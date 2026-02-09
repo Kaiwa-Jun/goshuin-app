@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { FABButton } from '@components/animated/FABButton';
 import { SearchBar } from '@components/common/SearchBar';
+import { LoginPromptModal } from '@components/common/LoginPromptModal';
+import { useAuth } from '@hooks/useAuth';
 import type { MapStackScreenProps } from '@/navigation/types';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
@@ -14,11 +16,27 @@ import { shadows } from '@theme/shadows';
 type Props = MapStackScreenProps<'Map'>;
 
 export function MapScreen({ navigation }: Props) {
-  const handleFABPress = () => {
+  const { isAuthenticated } = useAuth();
+  const [showLoginModal, setShowLoginModal] = useState(false);
+
+  const navigateToRecord = () => {
     const parent = navigation.getParent();
     if (parent) {
       parent.navigate('Record');
     }
+  };
+
+  const handleFABPress = () => {
+    if (isAuthenticated) {
+      navigateToRecord();
+    } else {
+      setShowLoginModal(true);
+    }
+  };
+
+  const handleLoginSuccess = () => {
+    setShowLoginModal(false);
+    navigateToRecord();
   };
 
   const handleFilterPress = () => {
@@ -49,6 +67,12 @@ export function MapScreen({ navigation }: Props) {
       <View style={styles.fabContainer}>
         <FABButton onPress={handleFABPress} />
       </View>
+
+      <LoginPromptModal
+        visible={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        onLoginSuccess={handleLoginSuccess}
+      />
     </SafeAreaView>
   );
 }

@@ -11,6 +11,13 @@ jest.mock('@supabase/supabase-js', () => ({
 
 jest.mock('react-native-url-polyfill/auto', () => {});
 
+const mockAsyncStorage = {
+  getItem: jest.fn(),
+  setItem: jest.fn(),
+  removeItem: jest.fn(),
+};
+jest.mock('@react-native-async-storage/async-storage', () => mockAsyncStorage);
+
 describe('Supabase client', () => {
   beforeEach(() => {
     jest.resetModules();
@@ -31,7 +38,7 @@ describe('Supabase client', () => {
       'test-anon-key',
       expect.objectContaining({
         auth: expect.objectContaining({
-          storage: globalThis.localStorage,
+          storage: mockAsyncStorage,
           autoRefreshToken: true,
           persistSession: true,
           detectSessionInUrl: false,

@@ -1,6 +1,6 @@
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-
+import { configureGoogleSignIn } from '@services/auth';
 import { TabNavigator } from '@/navigation/TabNavigator';
 import { OnboardingScreen } from '@screens/OnboardingScreen';
 import { LoginScreen } from '@screens/LoginScreen';
@@ -8,6 +8,8 @@ import { RecordScreen } from '@screens/RecordScreen';
 import { RecordCompleteScreen } from '@screens/RecordCompleteScreen';
 import { useOnboarding } from '@hooks/useOnboarding';
 import type { RootStackParamList } from '@/navigation/types';
+
+configureGoogleSignIn();
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
