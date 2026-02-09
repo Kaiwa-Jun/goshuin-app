@@ -92,6 +92,23 @@ describe('Common Components', () => {
       const { getByPlaceholderText } = render(<SearchBar placeholder="カスタム検索" />);
       expect(getByPlaceholderText('カスタム検索')).toBeTruthy();
     });
+
+    it('shows clear button when showClearButton is true', () => {
+      const { getByTestId } = render(<SearchBar showClearButton />);
+      expect(getByTestId('search-clear-button')).toBeTruthy();
+    });
+
+    it('does not show clear button by default', () => {
+      const { queryByTestId } = render(<SearchBar />);
+      expect(queryByTestId('search-clear-button')).toBeNull();
+    });
+
+    it('calls onClear when clear button is pressed', () => {
+      const onClear = jest.fn();
+      const { getByTestId } = render(<SearchBar showClearButton onClear={onClear} />);
+      fireEvent.press(getByTestId('search-clear-button'));
+      expect(onClear).toHaveBeenCalled();
+    });
   });
 
   describe('PageIndicator', () => {

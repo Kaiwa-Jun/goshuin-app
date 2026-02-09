@@ -19,7 +19,8 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "周辺の神社仏閣を表示するために位置情報を使用します",
         "NSCameraUsageDescription": "御朱印を撮影するためにカメラを使用します",
-        "NSPhotoLibraryUsageDescription": "御朱印の画像を選択するためにフォトライブラリを使用します"
+        "NSPhotoLibraryUsageDescription": "御朱印の画像を選択するためにフォトライブラリを使用します",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -29,10 +30,11 @@
       },
       "package": "com.goshuin.app",
       "permissions": [
-        "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION",
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE"
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "plugins": [
@@ -41,6 +43,11 @@
       "expo-camera",
       "expo-asset",
       "@react-native-google-signin/google-signin"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "af009af9-0638-469e-aa68-0b6ce445f8db"
+      }
+    }
   }
 }

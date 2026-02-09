@@ -11,6 +11,7 @@ jest.mock('react-native-safe-area-context', () => {
     SafeAreaView: ({ children, ...props }: { children: React.ReactNode; [key: string]: unknown }) =>
       React.createElement(View, props, children),
     SafeAreaProvider: ({ children }: { children: React.ReactNode }) => children,
+    useSafeAreaInsets: () => ({ top: 47, bottom: 34, left: 0, right: 0 }),
   };
 });
 
@@ -26,6 +27,83 @@ let mockUseAuthReturn = {
 
 jest.mock('@hooks/useAuth', () => ({
   useAuth: () => mockUseAuthReturn,
+}));
+
+const mockLocation = { latitude: 38.2682, longitude: 140.8694 };
+
+jest.mock('@hooks/useLocation', () => ({
+  useLocation: () => ({
+    location: mockLocation,
+    isLoading: false,
+    error: null,
+    permissionStatus: 'granted',
+    refreshLocation: jest.fn(),
+  }),
+}));
+
+const mockSpots = [
+  {
+    id: 'spot-1',
+    name: 'Test Shrine',
+    lat: 38.27,
+    lng: 140.87,
+    type: 'shrine',
+    status: 'active',
+    address: null,
+    created_by_user_id: null,
+    merged_into_spot_id: null,
+    created_at: '2024-01-01',
+    updated_at: '2024-01-01',
+  },
+  {
+    id: 'spot-2',
+    name: 'Test Temple',
+    lat: 38.28,
+    lng: 140.88,
+    type: 'temple',
+    status: 'active',
+    address: null,
+    created_by_user_id: null,
+    merged_into_spot_id: null,
+    created_at: '2024-01-01',
+    updated_at: '2024-01-01',
+  },
+];
+
+jest.mock('@hooks/useSpots', () => ({
+  useSpots: () => ({
+    spots: mockSpots,
+    allSpots: mockSpots,
+    isLoading: false,
+    error: null,
+  }),
+}));
+
+const mockVisitedSpotIds = new Set(['spot-1']);
+
+jest.mock('@hooks/useUserStamps', () => ({
+  useUserStamps: () => ({
+    visitedSpotIds: mockVisitedSpotIds,
+    isLoading: false,
+  }),
+}));
+
+const mockSetQuery = jest.fn();
+const mockSetShowSuggestions = jest.fn();
+const mockClearSearch = jest.fn();
+
+let mockUseMapSearchReturn = {
+  query: '',
+  setQuery: mockSetQuery,
+  suggestions: [] as { spot: (typeof mockSpots)[0]; distance: number }[],
+  showSuggestions: false,
+  setShowSuggestions: mockSetShowSuggestions,
+  nearbySpots: mockSpots.map(s => ({ spot: s, distance: 1.5 })),
+  clearSearch: mockClearSearch,
+};
+
+jest.mock('@hooks/useMapSearch', () => ({
+  useMapSearch: () => mockUseMapSearchReturn,
 }));
 
 const mockParentNavigate = jest.fn();
@@ -64,6 +142,15 @@ describe('MapScreen', () => {
       signInWithGoogle: jest.fn(),
       signOut: jest.fn(),
     };
+    mockUseMapSearchReturn = {
+      query: '',
+      setQuery: mockSetQuery,
+      suggestions: [],
+      showSuggestions: false,
+      setShowSuggestions: mockSetShowSuggestions,
+      nearbySpots: mockSpots.map(s => ({ spot: s, distance: 1.5 })),
+      clearSearch: mockClearSearch,
+    };
   });
 
   it('renders without crashing', () => {
@@ -80,19 +167,19 @@ describe('MapScreen', () => {
     expect(getByTestId('search-bar')).toBeTruthy();
   });
 
-  it('displays filter button', () => {
+  it('displays MapView', () => {
     const { getByTestId } = render(
       <MapScreen navigation={mockNavigation as never} route={mockRoute} />
     );
-    expect(getByTestId('filter-button')).toBeTruthy();
+    expect(getByTestId('map-view')).toBeTruthy();
   });
 
-  it('displays map area placeholder', () => {
-    const { getByTestId, getByText } = render(
+  it('displays current location marker', () => {
+    const { getByTestId } = render(
       <MapScreen navigation={mockNavigation as never} route={mockRoute} />
     );
-    expect(getByTestId('map-area')).toBeTruthy();
-    expect(getByText('地図エリア')).toBeTruthy();
+    expect(getByTestId('current-location-marker')).toBeTruthy();
+    expect(getByTestId('map-pin-current-location')).toBeTruthy();
   });
 
   it('displays FAB button', () => {
@@ -100,6 +187,130 @@ describe('MapScreen', () => {
       <MapScreen navigation={mockNavigation as never} route={mockRoute} />
     );
     expect(getByTestId('fab-button')).toBeTruthy();
+  });
+
+  describe('Spot markers', () => {
+    it('renders spot markers', () => {
+      const { getByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+      expect(getByTestId('spot-marker-spot-1')).toBeTruthy();
+      expect(getByTestId('spot-marker-spot-2')).toBeTruthy();
+    });
+
+    it('shows correct pin types based on visited status', () => {
+      const { getByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+      expect(getByTestId('map-pin-shrine-visited')).toBeTruthy();
+      expect(getByTestId('map-pin-unvisited')).toBeTruthy();
+    });
+
+    it('navigates to SpotDetail when marker is pressed', () => {
+      const { getByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      fireEvent.press(getByTestId('spot-marker-spot-1'));
+      expect(mockNavigation.navigate).toHaveBeenCalledWith('SpotDetail', { spotId: 'spot-1' });
+    });
+  });
+
+  describe('Search suggestions', () => {
+    it('shows suggestions list when showSuggestions is true and has nearby spots', () => {
+      mockUseMapSearchReturn = {
+        ...mockUseMapSearchReturn,
+        showSuggestions: true,
+      };
+
+      const { getByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+      expect(getByTestId('suggestions-list')).toBeTruthy();
+    });
+
+    it('does not show suggestions when showSuggestions is false', () => {
+      mockUseMapSearchReturn = {
+        ...mockUseMapSearchReturn,
+        showSuggestions: false,
+      };
+
+      const { queryByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+      expect(queryByTestId('suggestions-list')).toBeNull();
+    });
+
+    it('navigates to SpotDetail when suggestion is pressed', () => {
+      mockUseMapSearchReturn = {
+        ...mockUseMapSearchReturn,
+        showSuggestions: true,
+      };
+
+      const { getByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      fireEvent.press(getByTestId('suggestion-spot-1'));
+      expect(mockNavigation.navigate).toHaveBeenCalledWith('SpotDetail', { spotId: 'spot-1' });
+    });
+  });
+
+  describe('Filter button', () => {
+    it('hides filter button when not authenticated', () => {
+      const { queryByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+      expect(queryByTestId('filter-button')).toBeNull();
+    });
+
+    it('shows filter button when authenticated', () => {
+      mockUseAuthReturn = {
+        ...mockUseAuthReturn,
+        isAuthenticated: true,
+        user: { id: 'user-123' } as never,
+      };
+
+      const { getByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+      expect(getByTestId('filter-button')).toBeTruthy();
+    });
+
+    it('shows filter dropdown when filter button is pressed', () => {
+      mockUseAuthReturn = {
+        ...mockUseAuthReturn,
+        isAuthenticated: true,
+        user: { id: 'user-123' } as never,
+      };
+
+      const { getByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      fireEvent.press(getByTestId('filter-button'));
+      expect(getByTestId('filter-dropdown')).toBeTruthy();
+      expect(getByTestId('filter-option-all')).toBeTruthy();
+      expect(getByTestId('filter-option-visited')).toBeTruthy();
+    });
+
+    it('closes filter dropdown when overlay is pressed', () => {
+      mockUseAuthReturn = {
+        ...mockUseAuthReturn,
+        isAuthenticated: true,
+        user: { id: 'user-123' } as never,
+      };
+
+      const { getByTestId, queryByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      fireEvent.press(getByTestId('filter-button'));
+      expect(getByTestId('filter-dropdown')).toBeTruthy();
+
+      fireEvent.press(getByTestId('filter-overlay'));
+      expect(queryByTestId('filter-dropdown')).toBeNull();
+    });
   });
 
   describe('FAB press with authentication', () => {
@@ -134,10 +345,7 @@ describe('MapScreen', () => {
         <MapScreen navigation={mockNavigation as never} route={mockRoute} />
       );
 
-      // Show modal
       fireEvent.press(getByTestId('fab-button'));
-
-      // Press login in modal
       fireEvent.press(getByTestId('modal-google-login-button'));
 
       await waitFor(() => {
@@ -150,11 +358,9 @@ describe('MapScreen', () => {
         <MapScreen navigation={mockNavigation as never} route={mockRoute} />
       );
 
-      // Show modal
       fireEvent.press(getByTestId('fab-button'));
       expect(queryByText('ログインが必要です')).toBeTruthy();
 
-      // Close modal
       fireEvent.press(getByTestId('modal-later-button'));
       expect(queryByText('ログインが必要です')).toBeNull();
     });

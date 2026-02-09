@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TextInput, StyleSheet } from 'react-native';
+import { View, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
@@ -11,6 +11,8 @@ interface SearchBarProps {
   value?: string;
   onChangeText?: (text: string) => void;
   onFocus?: () => void;
+  onClear?: () => void;
+  showClearButton?: boolean;
 }
 
 export const SearchBar: React.FC<SearchBarProps> = ({
@@ -18,6 +20,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   value,
   onChangeText,
   onFocus,
+  onClear,
+  showClearButton = false,
 }) => {
   return (
     <View style={styles.container} testID="search-bar">
@@ -29,7 +33,13 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         value={value}
         onChangeText={onChangeText}
         onFocus={onFocus}
+        testID="search-input"
       />
+      {showClearButton && (
+        <TouchableOpacity onPress={onClear} testID="search-clear-button" activeOpacity={0.7}>
+          <MaterialIcons name="close" size={20} color={colors.gray[400]} />
+        </TouchableOpacity>
+      )}
     </View>
   );
 };

@@ -72,10 +72,52 @@ jest.mock('@expo/vector-icons', () => {
   };
 });
 
-// Silence console during tests (optional)
-// global.console = {
-//   ...console,
-//   log: jest.fn(),
-//   debug: jest.fn(),
-//   info: jest.fn(),
-// };
+// react-native-safe-area-context mock
+jest.mock('react-native-safe-area-context', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  const insets = { top: 47, bottom: 34, left: 0, right: 0 };
+  const frame = { x: 0, y: 0, width: 390, height: 844 };
+  return {
+    SafeAreaView: React.forwardRef((props, ref) =>
+      React.createElement(View, { ...props, ref }, props.children)
+    ),
+    SafeAreaProvider: ({ children }) => children,
+    SafeAreaInsetsContext: React.createContext(insets),
+    SafeAreaFrameContext: React.createContext(frame),
+    useSafeAreaInsets: () => insets,
+    useSafeAreaFrame: () => frame,
+    initialWindowMetrics: { insets, frame },
+  };
+});
+
+// react-native-maps mock
+jest.mock('react-native-maps', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  const MockMapView = React.forwardRef((props, ref) =>
+    React.createElement(View, { ...props, testID: props.testID || 'map-view', ref }, props.children)
+  );
+  MockMapView.displayName = 'MapView';
+  const MockMarker = props =>
+    React.createElement(View, { ...props, testID: props.testID || 'marker' }, props.children);
+  MockMarker.displayName = 'Marker';
+  return { __esModule: true, default: MockMapView, Marker: MockMarker, PROVIDER_GOOGLE: 'google' };
+});
+
+// expo-location mock
+jest.mock('expo-location', () => ({
+  getForegroundPermissionsAsync: jest.fn(() => Promise.resolve({ status: 'granted' })),
+  getCurrentPositionAsync: jest.fn(() =>
+    Promise.resolve({ coords: { latitude: 38.2682, longitude: 140.8694 } })
+  ),
+  requestForegroundPermissionsAsync: jest.fn(() => Promise.resolve({ status: 'granted' })),
+  PermissionStatus: {
+    GRANTED: 'granted',
+    DENIED: 'denied',
+    UNDETERMINED: 'undetermined',
+  },
+  Accuracy: {
+    Balanced: 3,
+  },
+}));
