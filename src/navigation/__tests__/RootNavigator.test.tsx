@@ -91,7 +91,55 @@ jest.mock('@hooks/useSpotStamps', () => ({
 
 jest.mock('@services/stamps', () => ({
   getStampImageUrl: (path: string) => `https://example.com/stamps/${path}`,
+  uploadStampImage: jest.fn(),
+  createStamp: jest.fn(),
 }));
+
+jest.mock('@services/spots', () => ({
+  fetchSpotsByBounds: jest.fn().mockResolvedValue([]),
+  fetchSpotById: jest.fn().mockResolvedValue(null),
+  searchSpotsByName: jest.fn().mockResolvedValue([]),
+  createSpot: jest.fn(),
+}));
+
+jest.mock('@hooks/useNearbySpots', () => ({
+  useNearbySpots: () => ({
+    nearbySpots: [],
+    isLoading: false,
+    error: null,
+    searchQuery: '',
+    setSearchQuery: jest.fn(),
+    filteredSpots: [],
+  }),
+}));
+
+jest.mock('@hooks/useRecordForm', () => ({
+  useRecordForm: () => ({
+    selectedSpot: null,
+    imageUri: null,
+    visitedAt: new Date(),
+    memo: '',
+    spotError: null,
+    imageError: null,
+    isSubmitting: false,
+    submitError: null,
+    selectSpot: jest.fn(),
+    setImageUri: jest.fn(),
+    setVisitedAt: jest.fn(),
+    setMemo: jest.fn(),
+    validate: jest.fn(),
+    submit: jest.fn(),
+    reset: jest.fn(),
+  }),
+}));
+
+jest.mock('expo-image-picker', () => ({
+  launchCameraAsync: jest.fn(),
+  launchImageLibraryAsync: jest.fn(),
+  MediaTypeOptions: { Images: 'Images' },
+}));
+
+jest.mock('@react-native-community/datetimepicker', () => 'DateTimePicker');
 
 function renderWithNavigation() {
   return render(

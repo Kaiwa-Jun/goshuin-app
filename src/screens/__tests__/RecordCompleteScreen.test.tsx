@@ -18,10 +18,20 @@ const mockNavigation = {
   getParent: jest.fn(() => ({ navigate: jest.fn() })),
 } as any;
 
-const mockRoute = {
+const mockRouteNoParams = {
   key: 'test',
   name: 'RecordComplete' as const,
   params: undefined,
+};
+
+const mockRouteWithParams = {
+  key: 'test',
+  name: 'RecordComplete' as const,
+  params: {
+    stampImageUrl: 'https://example.com/stamps/user-1/12345.jpg',
+    spotName: '大崎八幡宮',
+    visitCount: 5,
+  },
 };
 
 describe('RecordCompleteScreen', () => {
@@ -31,35 +41,35 @@ describe('RecordCompleteScreen', () => {
 
   it('renders without crashing', () => {
     const { getByText } = render(
-      <RecordCompleteScreen navigation={mockNavigation} route={mockRoute} />
+      <RecordCompleteScreen navigation={mockNavigation} route={mockRouteNoParams} />
     );
     expect(getByText('登録完了！')).toBeTruthy();
   });
 
   it('renders checkmark animation', () => {
     const { getByTestId } = render(
-      <RecordCompleteScreen navigation={mockNavigation} route={mockRoute} />
+      <RecordCompleteScreen navigation={mockNavigation} route={mockRouteNoParams} />
     );
     expect(getByTestId('checkmark-animation')).toBeTruthy();
   });
 
-  it('renders stamp image placeholder', () => {
+  it('renders stamp image placeholder when no params', () => {
     const { getByTestId } = render(
-      <RecordCompleteScreen navigation={mockNavigation} route={mockRoute} />
+      <RecordCompleteScreen navigation={mockNavigation} route={mockRouteNoParams} />
     );
     expect(getByTestId('stamp-image-placeholder')).toBeTruthy();
   });
 
-  it('renders count text', () => {
+  it('renders default count text when no visitCount', () => {
     const { getByText } = render(
-      <RecordCompleteScreen navigation={mockNavigation} route={mockRoute} />
+      <RecordCompleteScreen navigation={mockNavigation} route={mockRouteNoParams} />
     );
-    expect(getByText('33箇所目の御朱印！')).toBeTruthy();
+    expect(getByText('御朱印を記録しました！')).toBeTruthy();
   });
 
   it('renders badge animation', () => {
     const { getByTestId, getByText } = render(
-      <RecordCompleteScreen navigation={mockNavigation} route={mockRoute} />
+      <RecordCompleteScreen navigation={mockNavigation} route={mockRouteNoParams} />
     );
     expect(getByTestId('badge-animation')).toBeTruthy();
     expect(getByText('初めての御朱印')).toBeTruthy();
@@ -67,7 +77,7 @@ describe('RecordCompleteScreen', () => {
 
   it('renders three action buttons', () => {
     const { getByText } = render(
-      <RecordCompleteScreen navigation={mockNavigation} route={mockRoute} />
+      <RecordCompleteScreen navigation={mockNavigation} route={mockRouteNoParams} />
     );
     expect(getByText('もう1枚記録する')).toBeTruthy();
     expect(getByText('地図を見る')).toBeTruthy();
@@ -76,7 +86,7 @@ describe('RecordCompleteScreen', () => {
 
   it('navigates to Record on "record another" press', () => {
     const { getByTestId } = render(
-      <RecordCompleteScreen navigation={mockNavigation} route={mockRoute} />
+      <RecordCompleteScreen navigation={mockNavigation} route={mockRouteNoParams} />
     );
     fireEvent.press(getByTestId('button-record-another'));
     expect(mockNavigation.navigate).toHaveBeenCalledWith('Record');
@@ -84,7 +94,7 @@ describe('RecordCompleteScreen', () => {
 
   it('navigates to MainTabs on "view map" press', () => {
     const { getByTestId } = render(
-      <RecordCompleteScreen navigation={mockNavigation} route={mockRoute} />
+      <RecordCompleteScreen navigation={mockNavigation} route={mockRouteNoParams} />
     );
     fireEvent.press(getByTestId('button-view-map'));
     expect(mockNavigation.navigate).toHaveBeenCalledWith('MainTabs', {
@@ -95,11 +105,34 @@ describe('RecordCompleteScreen', () => {
 
   it('navigates to Collection on "view collection" press', () => {
     const { getByTestId } = render(
-      <RecordCompleteScreen navigation={mockNavigation} route={mockRoute} />
+      <RecordCompleteScreen navigation={mockNavigation} route={mockRouteNoParams} />
     );
     fireEvent.press(getByTestId('button-view-collection'));
     expect(mockNavigation.navigate).toHaveBeenCalledWith('MainTabs', {
       screen: 'Collection',
+    });
+  });
+
+  describe('with params', () => {
+    it('renders stamp image when stampImageUrl is provided', () => {
+      const { getByTestId } = render(
+        <RecordCompleteScreen navigation={mockNavigation} route={mockRouteWithParams} />
+      );
+      expect(getByTestId('stamp-image')).toBeTruthy();
+    });
+
+    it('renders spot name when provided', () => {
+      const { getByText } = render(
+        <RecordCompleteScreen navigation={mockNavigation} route={mockRouteWithParams} />
+      );
+      expect(getByText('大崎八幡宮')).toBeTruthy();
+    });
+
+    it('renders visit count text when visitCount is provided', () => {
+      const { getByText } = render(
+        <RecordCompleteScreen navigation={mockNavigation} route={mockRouteWithParams} />
+      );
+      expect(getByText('5箇所目の御朱印！')).toBeTruthy();
     });
   });
 });
