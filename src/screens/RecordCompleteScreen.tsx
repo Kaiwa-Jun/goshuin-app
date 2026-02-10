@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
+import { Image, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CheckmarkAnimation } from '@components/animated/CheckmarkAnimation';
 import { BadgeAnimation } from '@components/animated/BadgeAnimation';
@@ -10,7 +10,11 @@ import type { RootStackScreenProps } from '@/navigation/types';
 
 type Props = RootStackScreenProps<'RecordComplete'>;
 
-export function RecordCompleteScreen({ navigation }: Props) {
+export function RecordCompleteScreen({ navigation, route }: Props) {
+  const stampImageUrl = route.params?.stampImageUrl;
+  const spotName = route.params?.spotName;
+  const visitCount = route.params?.visitCount;
+
   const handleRecordAnother = () => {
     navigation.navigate('Record');
   };
@@ -30,9 +34,26 @@ export function RecordCompleteScreen({ navigation }: Props) {
 
         <Text style={styles.title}>登録完了！</Text>
 
-        <View style={styles.imagePlaceholder} testID="stamp-image-placeholder" />
+        {stampImageUrl ? (
+          <Image
+            source={{ uri: stampImageUrl }}
+            style={styles.stampImage}
+            resizeMode="cover"
+            testID="stamp-image"
+          />
+        ) : (
+          <View style={styles.imagePlaceholder} testID="stamp-image-placeholder" />
+        )}
 
-        <Text style={styles.countText}>33箇所目の御朱印！</Text>
+        {spotName && (
+          <Text style={styles.spotName} testID="spot-name">
+            {spotName}
+          </Text>
+        )}
+
+        <Text style={styles.countText} testID="visit-count">
+          {visitCount ? `${visitCount}箇所目の御朱印！` : '御朱印を記録しました！'}
+        </Text>
 
         <BadgeAnimation badgeName="初めての御朱印" description="最初の御朱印を記録しました" />
       </View>
@@ -82,11 +103,20 @@ const styles = StyleSheet.create({
     ...typography.h1,
     color: colors.white,
   },
+  stampImage: {
+    width: 160,
+    height: 200,
+    borderRadius: borderRadius.lg,
+  },
   imagePlaceholder: {
     width: 160,
     height: 200,
     borderRadius: borderRadius.lg,
     backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  spotName: {
+    ...typography.h3,
+    color: colors.white,
   },
   countText: {
     ...typography.h3,

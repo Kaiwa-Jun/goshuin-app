@@ -1,5 +1,12 @@
 import React from 'react';
-import { Modal as RNModal, Pressable, StyleSheet, Text } from 'react-native';
+import {
+  Modal as RNModal,
+  Pressable,
+  StyleSheet,
+  Text,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { spacing, borderRadius } from '@theme/spacing';
@@ -35,28 +42,36 @@ export function Modal({
       animationType={variant === 'center' ? 'fade' : 'slide'}
       onRequestClose={onClose}
     >
-      <Pressable
-        style={[styles.overlay, variant === 'bottom' && styles.overlayBottom]}
-        onPress={handleBackdropPress}
-        testID="modal-overlay"
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoiding}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <Pressable
-          style={[styles.content, variant === 'bottom' && styles.contentBottom]}
-          testID="modal-content"
+          style={[styles.overlay, variant === 'bottom' && styles.overlayBottom]}
+          onPress={handleBackdropPress}
+          testID="modal-overlay"
         >
-          {title && (
-            <Text style={styles.title} testID="modal-title">
-              {title}
-            </Text>
-          )}
-          {children}
+          <Pressable
+            style={[styles.content, variant === 'bottom' && styles.contentBottom]}
+            testID="modal-content"
+          >
+            {title && (
+              <Text style={styles.title} testID="modal-title">
+                {title}
+              </Text>
+            )}
+            {children}
+          </Pressable>
         </Pressable>
-      </Pressable>
+      </KeyboardAvoidingView>
     </RNModal>
   );
 }
 
 const styles = StyleSheet.create({
+  keyboardAvoiding: {
+    flex: 1,
+  },
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',

@@ -31,6 +31,33 @@ export async function fetchSpotById(id: string): Promise<Spot | null> {
   return data as Spot;
 }
 
+export async function createSpot(params: {
+  name: string;
+  type: 'shrine' | 'temple';
+  lat: number;
+  lng: number;
+  createdByUserId: string;
+}): Promise<Spot> {
+  const { data, error } = await supabase
+    .from('spots')
+    .insert({
+      name: params.name,
+      type: params.type,
+      lat: params.lat,
+      lng: params.lng,
+      status: 'pending' as const,
+      created_by_user_id: params.createdByUserId,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data as Spot;
+}
+
 export async function searchSpotsByName(query: string): Promise<Spot[]> {
   const { data, error } = await supabase
     .from('spots')

@@ -7,8 +7,8 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 export type RootStackParamList = {
   Onboarding: undefined;
   MainTabs: NavigatorScreenParams<MainTabParamList>;
-  Record: undefined;
-  RecordComplete: undefined;
+  Record: { spotId?: string } | undefined;
+  RecordComplete: { stampImageUrl?: string; spotName?: string; visitCount?: number } | undefined;
   Login: undefined;
   Error: { type: 'network' | 'location' | 'upload' };
 };

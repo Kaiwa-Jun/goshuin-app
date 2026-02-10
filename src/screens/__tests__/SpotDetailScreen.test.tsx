@@ -355,4 +355,14 @@ describe('SpotDetailScreen', () => {
       expect(miniMap).toBeTruthy();
     });
   });
+
+  describe('record navigation', () => {
+    it('navigates to Record with spotId on record button press', () => {
+      const { getByText } = render(
+        <SpotDetailScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+      fireEvent.press(getByText('ここで記録する'));
+      expect(mockParentNavigate).toHaveBeenCalledWith('Record', { spotId: 'spot-1' });
+    });
+  });
 });
