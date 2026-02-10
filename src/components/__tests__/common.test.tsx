@@ -10,6 +10,7 @@ import { TextInput } from '@components/common/TextInput';
 import { Header } from '@components/common/Header';
 import { Modal } from '@components/common/Modal';
 import { MapPin } from '@components/common/MapPin';
+import { SpotMarker } from '@components/common/SpotMarker';
 import { Text } from 'react-native';
 
 describe('Common Components', () => {
@@ -273,30 +274,61 @@ describe('Common Components', () => {
   });
 
   describe('MapPin', () => {
-    it('renders shrine-visited pin', () => {
-      const { getByTestId } = render(<MapPin type="shrine-visited" />);
-      expect(getByTestId('map-pin-shrine-visited')).toBeTruthy();
-    });
-
-    it('renders temple-visited pin', () => {
-      const { getByTestId } = render(<MapPin type="temple-visited" />);
-      expect(getByTestId('map-pin-temple-visited')).toBeTruthy();
-    });
-
-    it('renders unvisited pin', () => {
-      const { getByTestId } = render(<MapPin type="unvisited" />);
-      expect(getByTestId('map-pin-unvisited')).toBeTruthy();
-    });
-
     it('renders current-location pin with pulse', () => {
       const { getByTestId } = render(<MapPin type="current-location" />);
       expect(getByTestId('map-pin-current-location')).toBeTruthy();
       expect(getByTestId('map-pin-pulse')).toBeTruthy();
     });
+  });
 
-    it('does not render pulse for non-current-location pins', () => {
-      const { queryByTestId } = render(<MapPin type="shrine-visited" />);
-      expect(queryByTestId('map-pin-pulse')).toBeNull();
+  describe('SpotMarker', () => {
+    it('renders pin head and tail', () => {
+      const { getByTestId } = render(
+        <SpotMarker color="#EF4444" name="Test Shrine" showLabel={false} />
+      );
+      expect(getByTestId('spot-marker-pin-head')).toBeTruthy();
+      expect(getByTestId('spot-marker-pin-tail')).toBeTruthy();
+    });
+
+    it('shows label when showLabel is true', () => {
+      const { getByTestId, getByText } = render(
+        <SpotMarker color="#EF4444" name="Test Shrine" showLabel />
+      );
+      expect(getByTestId('spot-marker-label')).toBeTruthy();
+      expect(getByText('Test Shrine')).toBeTruthy();
+    });
+
+    it('hides label when showLabel is false', () => {
+      const { queryByTestId } = render(
+        <SpotMarker color="#EF4444" name="Test Shrine" showLabel={false} />
+      );
+      expect(queryByTestId('spot-marker-label')).toBeNull();
+    });
+
+    it('applies the correct color to pin head', () => {
+      const { getByTestId } = render(
+        <SpotMarker color="#A855F7" name="Test Temple" showLabel={false} />
+      );
+      const pinHead = getByTestId('spot-marker-pin-head');
+      const flatStyle = Object.assign({}, ...[].concat(pinHead.props.style));
+      expect(flatStyle).toEqual(expect.objectContaining({ backgroundColor: '#A855F7' }));
+    });
+
+    it('applies the correct color to pin tail', () => {
+      const { getByTestId } = render(
+        <SpotMarker color="#A855F7" name="Test Temple" showLabel={false} />
+      );
+      const pinTail = getByTestId('spot-marker-pin-tail');
+      const flatStyle = Object.assign({}, ...[].concat(pinTail.props.style));
+      expect(flatStyle).toEqual(expect.objectContaining({ borderTopColor: '#A855F7' }));
+    });
+
+    it('truncates long label text with numberOfLines=1', () => {
+      const { getByTestId } = render(
+        <SpotMarker color="#EF4444" name="非常に長いスポット名のテスト" showLabel />
+      );
+      const label = getByTestId('spot-marker-label');
+      expect(label.props.numberOfLines).toBe(1);
     });
   });
 });

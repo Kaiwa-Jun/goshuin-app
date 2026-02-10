@@ -1,13 +1,14 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import MapView, { Marker } from 'react-native-maps';
+import MapView, { Marker, type Region } from 'react-native-maps';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { FABButton } from '@components/animated/FABButton';
 import { SearchBar } from '@components/common/SearchBar';
 import { LoginPromptModal } from '@components/common/LoginPromptModal';
 import { MapPin } from '@components/common/MapPin';
+import { SpotMarker } from '@components/common/SpotMarker';
 import { useAuth } from '@hooks/useAuth';
 import { useLocation } from '@hooks/useLocation';
 import { useSpots } from '@hooks/useSpots';
@@ -21,15 +22,15 @@ import { spacing, borderRadius } from '@theme/spacing';
 import { shadows } from '@theme/shadows';
 
 type Props = MapStackScreenProps<'Map'>;
-type PinType = 'shrine-visited' | 'temple-visited' | 'unvisited' | 'current-location';
 type FilterMode = 'all' | 'visited';
 
 const LATITUDE_DELTA = 0.02;
 const LONGITUDE_DELTA = 0.02;
+const LABEL_VISIBLE_DELTA = 0.08;
 
-function getPinType(spot: Spot, visitedSpotIds: Set<string>): PinType {
-  if (!visitedSpotIds.has(spot.id)) return 'unvisited';
-  return spot.type === 'shrine' ? 'shrine-visited' : 'temple-visited';
+function getPinColor(spot: Spot, visitedSpotIds: Set<string>): string {
+  if (!visitedSpotIds.has(spot.id)) return colors.pin.unvisited;
+  return spot.type === 'shrine' ? colors.pin.shrineVisited : colors.pin.templeVisited;
 }
 
 function formatDistance(km: number): string {
@@ -54,6 +55,8 @@ export function MapScreen({ navigation }: Props) {
   } = useMapSearch(allSpots, location);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showFilter, setShowFilter] = useState(false);
+  const [currentLatitudeDelta, setCurrentLatitudeDelta] = useState(LATITUDE_DELTA);
+  const shouldShowLabels = currentLatitudeDelta <= LABEL_VISIBLE_DELTA;
   const mapRef = useRef<MapView>(null);
   const insets = useSafeAreaInsets();
 
@@ -78,6 +81,10 @@ export function MapScreen({ navigation }: Props) {
     setShowLoginModal(false);
     navigateToRecord();
   };
+
+  const handleRegionChangeComplete = useCallback((region: Region) => {
+    setCurrentLatitudeDelta(region.latitudeDelta);
+  }, []);
 
   const handleMarkerPress = useCallback(
     (spotId: string) => {
@@ -222,6 +229,7 @@ export function MapScreen({ navigation }: Props) {
         initialRegion={region}
         testID="map-view"
         showsUserLocation={false}
+        onRegionChangeComplete={handleRegionChangeComplete}
       >
         {location && (
           <Marker
@@ -237,13 +245,18 @@ export function MapScreen({ navigation }: Props) {
         )}
         {spots.map(spot => (
           <Marker
-            key={spot.id}
+            key={`${spot.id}-${shouldShowLabels ? 'label' : 'pin'}`}
             coordinate={{ latitude: spot.lat, longitude: spot.lng }}
             testID={`spot-marker-${spot.id}`}
-            anchor={{ x: 0.5, y: 0.5 }}
             onPress={() => handleMarkerPress(spot.id)}
+            anchor={{ x: 0.5, y: 1 }}
+            tracksViewChanges={false}
           >
-            <MapPin type={getPinType(spot, visitedSpotIds)} />
+            <SpotMarker
+              color={getPinColor(spot, visitedSpotIds)}
+              name={spot.name}
+              showLabel={shouldShowLabels}
+            />
           </Marker>
         ))}
       </MapView>
