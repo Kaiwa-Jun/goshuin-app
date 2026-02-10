@@ -1,6 +1,7 @@
 import React from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import MapView, { Marker } from 'react-native-maps';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { Badge } from '@components/common/Badge';
@@ -8,6 +9,9 @@ import { Button } from '@components/common/Button';
 import { Card } from '@components/common/Card';
 import { Header } from '@components/common/Header';
 import { useSpotDetail } from '@hooks/useSpotDetail';
+import { useAuth } from '@hooks/useAuth';
+import { useSpotStamps } from '@hooks/useSpotStamps';
+import { getStampImageUrl } from '@services/stamps';
 import type { MapStackScreenProps } from '@/navigation/types';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
@@ -15,9 +19,19 @@ import { spacing, borderRadius } from '@theme/spacing';
 
 type Props = MapStackScreenProps<'SpotDetail'>;
 
+function formatDate(dateStr: string): string {
+  const d = new Date(dateStr);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}/${m}/${day}`;
+}
+
 export function SpotDetailScreen({ navigation, route }: Props) {
   const { spotId } = route.params;
   const { spot, isLoading, error } = useSpotDetail(spotId);
+  const { isAuthenticated } = useAuth();
+  const { stamps, visitCount, latestVisitDate } = useSpotStamps(spotId);
 
   const handleBack = () => {
     navigation.goBack();
@@ -54,14 +68,16 @@ export function SpotDetailScreen({ navigation, route }: Props) {
   }
 
   const badgeType = spot.type === 'shrine' ? 'shrine' : 'temple';
+  const showVisited = isAuthenticated && visitCount > 0;
 
   return (
     <SafeAreaView style={styles.container} testID="spot-detail-screen">
       <Header title="スポット詳細" onBack={handleBack} />
 
-      <View style={styles.scrollContent}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.badgeRow}>
           <Badge type={badgeType} />
+          {showVisited && <Badge type="visited" />}
         </View>
 
         <Text style={styles.spotName} testID="spot-name">
@@ -80,6 +96,20 @@ export function SpotDetailScreen({ navigation, route }: Props) {
               <Text style={styles.visitLabel}>種別</Text>
               <Text style={styles.visitValue}>{spot.type === 'shrine' ? '神社' : '寺院'}</Text>
             </View>
+            {isAuthenticated && visitCount > 0 && (
+              <>
+                <View style={styles.visitItem}>
+                  <Text style={styles.visitLabel}>訪問回数</Text>
+                  <Text style={styles.visitValue}>{visitCount}</Text>
+                </View>
+                <View style={styles.visitItem}>
+                  <Text style={styles.visitLabel}>最終訪問日</Text>
+                  <Text style={styles.visitValue}>
+                    {latestVisitDate ? formatDate(latestVisitDate) : '-'}
+                  </Text>
+                </View>
+              </>
+            )}
           </View>
         </Card>
 
@@ -90,10 +120,39 @@ export function SpotDetailScreen({ navigation, route }: Props) {
           style={styles.recordButton}
         />
 
+        {stamps.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>記録済み御朱印</Text>
+            <View style={styles.stampGrid} testID="stamp-grid">
+              {stamps.map(stamp => (
+                <Image
+                  key={stamp.id}
+                  source={{ uri: getStampImageUrl(stamp.image_path) }}
+                  style={styles.stampImage}
+                  testID={`stamp-image-${stamp.id}`}
+                />
+              ))}
+            </View>
+          </>
+        )}
+
         <Text style={styles.sectionTitle}>アクセス</Text>
-        <View style={styles.miniMap} testID="mini-map">
-          <MaterialIcons name="map" size={32} color={colors.gray[300]} />
-          <Text style={styles.miniMapText}>地図</Text>
+        <View style={styles.miniMapContainer} testID="mini-map">
+          <MapView
+            style={styles.miniMapView}
+            initialRegion={{
+              latitude: spot.lat,
+              longitude: spot.lng,
+              latitudeDelta: 0.005,
+              longitudeDelta: 0.005,
+            }}
+            scrollEnabled={false}
+            zoomEnabled={false}
+            rotateEnabled={false}
+            pitchEnabled={false}
+          >
+            <Marker coordinate={{ latitude: spot.lat, longitude: spot.lng }} />
+          </MapView>
         </View>
         {spot.address && (
           <View style={styles.miniMapAddress}>
@@ -101,7 +160,7 @@ export function SpotDetailScreen({ navigation, route }: Props) {
             <Text style={styles.miniMapAddressText}>{spot.address}</Text>
           </View>
         )}
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -175,17 +234,24 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     marginTop: spacing.lg,
   },
-  miniMap: {
-    height: 150,
-    backgroundColor: colors.gray[100],
-    borderRadius: borderRadius.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
+  stampGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.xs,
   },
-  miniMapText: {
-    ...typography.bodySmall,
-    color: colors.gray[400],
+  stampImage: {
+    width: '31.5%',
+    aspectRatio: 1,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.gray[100],
+  },
+  miniMapContainer: {
+    height: 150,
+    borderRadius: borderRadius.lg,
+    overflow: 'hidden',
+  },
+  miniMapView: {
+    flex: 1,
   },
   miniMapAddress: {
     flexDirection: 'row',

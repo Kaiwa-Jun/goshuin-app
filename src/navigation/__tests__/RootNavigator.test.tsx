@@ -80,6 +80,19 @@ jest.mock('@hooks/useSpotDetail', () => ({
   }),
 }));
 
+jest.mock('@hooks/useSpotStamps', () => ({
+  useSpotStamps: () => ({
+    stamps: [],
+    visitCount: 0,
+    latestVisitDate: null,
+    isLoading: false,
+  }),
+}));
+
+jest.mock('@services/stamps', () => ({
+  getStampImageUrl: (path: string) => `https://example.com/stamps/${path}`,
+}));
+
 function renderWithNavigation() {
   return render(
     <NavigationContainer>
