@@ -73,6 +73,19 @@ jest.mock('@hooks/useSpotDetail', () => ({
   }),
 }));
 
+jest.mock('@hooks/useSpotStamps', () => ({
+  useSpotStamps: () => ({
+    stamps: [],
+    visitCount: 0,
+    latestVisitDate: null,
+    isLoading: false,
+  }),
+}));
+
+jest.mock('@services/stamps', () => ({
+  getStampImageUrl: (path: string) => `https://example.com/stamps/${path}`,
+}));
+
 // Wrap TabNavigator in a RootStack to support Login navigation
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
