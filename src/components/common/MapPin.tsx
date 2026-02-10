@@ -2,27 +2,18 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
 import { colors } from '@theme/colors';
 
-type PinType = 'shrine-visited' | 'temple-visited' | 'unvisited' | 'current-location';
-
 interface MapPinProps {
-  type: PinType;
+  type: 'current-location';
 }
 
-const PIN_CONFIG: Record<PinType, { color: string; size: number }> = {
-  'shrine-visited': { color: colors.pin.shrineVisited, size: 16 },
-  'temple-visited': { color: colors.pin.templeVisited, size: 16 },
-  unvisited: { color: colors.pin.unvisited, size: 12 },
-  'current-location': { color: colors.pin.currentLocation, size: 20 },
-};
+const PIN_CONFIG = { color: colors.pin.currentLocation, size: 20 };
 
 export function MapPin({ type }: MapPinProps) {
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const opacityAnim = useRef(new Animated.Value(0.6)).current;
-  const config = PIN_CONFIG[type];
+  const config = PIN_CONFIG;
 
   useEffect(() => {
-    if (type !== 'current-location') return;
-
     const animation = Animated.loop(
       Animated.parallel([
         Animated.sequence([
@@ -58,22 +49,20 @@ export function MapPin({ type }: MapPinProps) {
 
   return (
     <View style={styles.wrapper} testID={`map-pin-${type}`}>
-      {type === 'current-location' && (
-        <Animated.View
-          testID="map-pin-pulse"
-          style={[
-            styles.pulse,
-            {
-              width: config.size * 2,
-              height: config.size * 2,
-              borderRadius: config.size,
-              backgroundColor: config.color,
-              transform: [{ scale: pulseAnim }],
-              opacity: opacityAnim,
-            },
-          ]}
-        />
-      )}
+      <Animated.View
+        testID="map-pin-pulse"
+        style={[
+          styles.pulse,
+          {
+            width: config.size * 2,
+            height: config.size * 2,
+            borderRadius: config.size,
+            backgroundColor: config.color,
+            transform: [{ scale: pulseAnim }],
+            opacity: opacityAnim,
+          },
+        ]}
+      />
       <View
         style={[
           styles.pin,

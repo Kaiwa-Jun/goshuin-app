@@ -198,12 +198,14 @@ describe('MapScreen', () => {
       expect(getByTestId('spot-marker-spot-2')).toBeTruthy();
     });
 
-    it('shows correct pin types based on visited status', () => {
-      const { getByTestId } = render(
+    it('renders spot markers with SpotMarker children', () => {
+      const { getByTestId, getAllByTestId } = render(
         <MapScreen navigation={mockNavigation as never} route={mockRoute} />
       );
-      expect(getByTestId('map-pin-shrine-visited')).toBeTruthy();
-      expect(getByTestId('map-pin-unvisited')).toBeTruthy();
+      expect(getByTestId('spot-marker-spot-1')).toBeTruthy();
+      expect(getByTestId('spot-marker-spot-2')).toBeTruthy();
+      expect(getAllByTestId('spot-marker-pin-head')).toHaveLength(2);
+      expect(getAllByTestId('spot-marker-pin-tail')).toHaveLength(2);
     });
 
     it('navigates to SpotDetail when marker is pressed', () => {
@@ -310,6 +312,59 @@ describe('MapScreen', () => {
 
       fireEvent.press(getByTestId('filter-overlay'));
       expect(queryByTestId('filter-dropdown')).toBeNull();
+    });
+  });
+
+  describe('Zoom-based label visibility', () => {
+    it('shows labels at initial zoom level (latitudeDelta <= 0.08)', () => {
+      const { getAllByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+      // Initial LATITUDE_DELTA is 0.02, which is <= 0.08, so labels should show
+      expect(getAllByTestId('spot-marker-label')).toHaveLength(2);
+    });
+
+    it('hides labels when zoomed out (latitudeDelta > 0.08)', () => {
+      const { getByTestId, queryAllByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      const mapView = getByTestId('map-view');
+      // Simulate zooming out beyond ~8km range
+      fireEvent(mapView, 'onRegionChangeComplete', {
+        latitude: 38.2682,
+        longitude: 140.8694,
+        latitudeDelta: 0.1,
+        longitudeDelta: 0.1,
+      });
+
+      expect(queryAllByTestId('spot-marker-label')).toHaveLength(0);
+    });
+
+    it('shows labels again when zoomed back in', () => {
+      const { getByTestId, getAllByTestId, queryAllByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      const mapView = getByTestId('map-view');
+
+      // Zoom out
+      fireEvent(mapView, 'onRegionChangeComplete', {
+        latitude: 38.2682,
+        longitude: 140.8694,
+        latitudeDelta: 0.1,
+        longitudeDelta: 0.1,
+      });
+      expect(queryAllByTestId('spot-marker-label')).toHaveLength(0);
+
+      // Zoom back in
+      fireEvent(mapView, 'onRegionChangeComplete', {
+        latitude: 38.2682,
+        longitude: 140.8694,
+        latitudeDelta: 0.05,
+        longitudeDelta: 0.05,
+      });
+      expect(getAllByTestId('spot-marker-label')).toHaveLength(2);
     });
   });
 
