@@ -10,20 +10,40 @@
 
 ## 開発フロー
 
-### Phase 1. 探索・計画 (Plan Mode)
+Issue の実装は以下のフローで進める。全フェーズをメインコンテキスト（リーダー）が統括し、
+探索・計画・実装はすべてサブエージェントに委譲してメインコンテキストの汚染を防ぐ。
 
-新機能や大きな変更の場合:
+### Phase 1. 探索・計画（サブエージェント委譲）
 
-1. Plan Mode で関連コードを探索（Subagentを使用してmain contextを汚さない）
-2. 詳細設計を `docs/issues/issue-XXX-*.md` に保存
-3. `/clear` でコンテキストをクリア
+新機能や大きな変更の場合、**サブエージェントで**探索・計画を行う:
 
-### Phase 1.5. チーム構成の判断
+1. Explore / Plan サブエージェントに関連コードの探索と設計を依頼
+2. サブエージェントが `docs/issues/issue-XXX-*.md` に詳細設計を保存
+3. メインコンテキストはサマリーのみ受け取る（コンテキスト汚染なし）
+4. `/clear` 不要でそのまま次フェーズに移行
 
-Issue の規模に応じてエージェントチームを構成するか判断する。
-詳細は `tdd-workflow` スキルを参照。
+※ メインコンテキスト自身が Plan Mode で探索しない。必ずサブエージェントに委譲すること。
 
-### Phase 2. TDD実装 (Normal Mode)
+### Phase 2. チーム構成・TDD実装
+
+Issue の規模に応じてエージェントチームを構成し、TDD で実装する。
+チーム構成の判断基準と運用フローは `tdd-workflow` スキルを参照。
+
+**利用可能なサブエージェント:**
+
+- `ui-implementer` - 画面UI + テストを TDD で実装（Sonnet）
+- `service-implementer` - サービス層 + テストを TDD で実装（Sonnet）
+- `test-writer` - TDD で単独実装 or 既存コードへのテスト追加（Sonnet）
+- `codebase-explorer` - コードベース探索・調査（Haiku）
+- `security-reviewer` - セキュリティレビュー（Sonnet）
+
+**t-wada 流 TDD の原則:**
+
+- テストを書く人と実装を書く人を分けない。各メンバーが自領域で Red→Green→Refactor を回す
+- ファイル衝突を避けるため、各メンバーの担当ファイルを明確に分割する
+- メンバー数は 2〜4人、タスクは 5〜6個/メンバーが目安
+
+小規模な変更（1〜2ファイル）はチームを構成せず、単独のサブエージェントまたはメインコンテキストで TDD 実装する:
 
 1. **Red**: 失敗するテストを書く
 2. **Green**: テストが通る最小限の実装
@@ -33,9 +53,31 @@ Issue の規模に応じてエージェントチームを構成するか判断�
 
 実装後は必ず以下を実行して検証:
 
+#### 3-1. 自動検証
+
 - `npm test` - テスト実行
 - `npm run lint` - lint チェック
 - `npm run typecheck` - 型チェック
+
+#### 3-2. UI 目視チェック（Chrome DevTools MCP + Expo Web）
+
+画面の実装・変更を含む Issue では、リーダーが Chrome DevTools MCP で UI を目視確認する:
+
+1. Expo Web サーバーを起動: `npx expo start --web --port 8081`
+2. Chrome DevTools MCP で `http://localhost:8081` にナビゲート
+3. 変更した画面のスクリーンショットを取得して以下を確認:
+   - レイアウト崩れがないか
+   - テーマカラー（オレンジ基調）が正しいか
+   - テキスト・アイコンが正しく表示されているか
+4. 基本操作（タブ遷移、ボタンクリック）が動作するか確認
+
+**制約事項:**
+
+- 地図背景は Web 非対応（`react-native-maps` はモック）。マーカー・ラベルは確認可能
+- カメラ機能は Web 非対応
+- スワイプ操作は非対応（ボタン・タブのクリックは OK）
+
+※ UI 変更を含まない Issue（サービス層のみ等）ではスキップ可
 
 ## ユーザーへの次のアクション案内（必須ルール）
 
@@ -53,12 +95,13 @@ Phase 1（計画）が完了しました。
 設計ドキュメント: docs/issues/issue-XXX-yyyy.md
 
 次のステップ:
-1. `/clear` でコンテキストをクリアしてください
-2. その後「docs/issues/issue-XXX-yyyy.md を参照して #XX を実装して」と指示してください
+- チーム構成して実装に進みます（このまま Phase 2 に移行します）
 ---
 ```
 
-**Phase 1.5（チーム判断）→ チーム構成する場合:**
+※ 探索・計画はサブエージェントで実行済みのため `/clear` は不要。
+
+**Phase 2（チーム構成・実装）開始時:**
 
 ```
 ---
@@ -80,6 +123,7 @@ Phase 2（実装）が完了しました。
 - テスト: OK / NG
 - Lint: OK / NG
 - 型チェック: OK / NG
+- UIチェック: OK / スキップ（UI変更なし）
 
 次のステップ:
 - 問題なければ「commit して push して」と指示してください
@@ -116,6 +160,7 @@ Issue #XX をクローズしました。
 - テスト: OK / NG
 - Lint: OK / NG
 - 型チェック: OK / NG
+- UIチェック: OK / スキップ（UI変更なし）
 
 次のステップ:
 - 問題なければ「commit して push して」と指示してください
@@ -147,6 +192,29 @@ src/
 ├── types/          # TypeScript型定義
 └── utils/          # ユーティリティ関数
 ```
+
+## Expo Go での動作確認
+
+- Expo Go で確認するため `expo-dev-client` は使用しない（入れると Expo Go でロードできなくなる）
+- 起動コマンド: `npx expo start --tunnel`（LAN モードでは iPhone からバンドルが取得できないため tunnel 必須）
+
+## Expo Web での UI チェック環境
+
+Chrome DevTools MCP を使って Expo Web 版のスクリーンショット取得・操作を行う。
+
+**前提条件:**
+
+- Chrome がリモートデバッグモードで起動していること
+- 起動方法: Chrome を閉じた後 `/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --remote-debugging-port=9222 --user-data-dir="$TMPDIR/chrome-debug-profile" --no-first-run &`
+
+**Expo Web 起動:**
+
+- `npx expo start --web --port 8081`
+
+**Web 用モック:**
+
+- `metro.config.js` で `react-native-maps` を Web 用スタブ（`src/utils/react-native-maps.web.ts`）に解決
+- 地図背景は Web では描画されないが、マーカーやラベル等の UI 要素は確認可能
 
 ## 重要な参照先
 

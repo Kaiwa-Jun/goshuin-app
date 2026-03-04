@@ -1,9 +1,14 @@
 ---
 name: tdd-workflow
-description: TDD（テスト駆動開発）のワークフローとガイドライン
+description: t-wada流TDD（テスト駆動開発）のワークフローとガイドライン
 ---
 
-# TDDワークフロー
+# TDDワークフロー（t-wada流）
+
+## 核心: テストと実装は分離しない
+
+t-wada 流 TDD の最重要原則: **テストを書く人と実装を書く人を分けない。**
+各メンバーが自分の担当領域で Red→Green→Refactor サイクルを自律的に回す。
 
 ## 実装開始前: チーム構成の判断
 
@@ -12,7 +17,7 @@ Issue の実装に着手する前に、**エージェントチームを構成す
 ### チームを構成すべき条件（いずれかに該当する場合）
 
 1. **3つ以上の独立したファイル群を並行で作成・変更する**
-   - 例: フロントエンド（画面UI）+ バックエンド（サービス層）+ テスト を同時に作る
+   - 例: 画面UI + サービス層 を同時に作る
 2. **複数の専門領域にまたがる調査・レビューが必要**
    - 例: セキュリティ + パフォーマンス + テストカバレッジの並行レビュー
 3. **複数の仮説を並行で検証するデバッグ**
@@ -26,72 +31,76 @@ Issue の実装に着手する前に、**エージェントチームを構成す
 
 ### チーム構成ルール
 
-チームを構成する場合は、以下のルールに従う。
+#### メンバー構成（TDDベース）
 
-#### メンバー構成
+各メンバーが**自分の担当領域でテストも実装も書く**。テスト専任メンバーは作らない。
 
-| ロール | モデル | 説明 |
-|---|---|---|
-| リーダー（自分） | Opus | タスク分割・割り当て・統合。デリゲートモードで調整に専念 |
-| 実装メンバー | Sonnet | 各担当領域のコード実装。1メンバー1領域 |
-| テストメンバー | Sonnet | テストコードの作成（必要な場合のみ別メンバーにする） |
-| レビューメンバー | Sonnet | コードレビュー・セキュリティチェック（必要な場合のみ） |
+| ロール           | モデル | サブエージェント      | 説明                               |
+| ---------------- | ------ | --------------------- | ---------------------------------- |
+| リーダー（自分） | Opus   | -                     | タスク分割・割り当て・統合・検証   |
+| UI担当           | Sonnet | `ui-implementer`      | 画面UI + そのテストをTDDで実装     |
+| サービス担当     | Sonnet | `service-implementer` | サービス層 + そのテストをTDDで実装 |
+
+`test-writer` はTDD全体を1人で進める場合や、既存コードへのテスト追加に使用する。
 
 #### 基本方針
 
+- **各メンバーが自分の領域でTDDサイクルを回す**（テストと実装を分離しない）
 - **メンバーは全員 Sonnet を使用する**（リーダーのみ Opus）
 - **1メンバーにつき1つの明確な担当領域**を割り当てる
 - **ファイルの衝突を避ける**: 各メンバーが編集するファイルが重複しないよう分割
-- **メンバー数は最小限に**: 2〜4人程度。多すぎると調整コストが利益を上回る
-- **タスクは5〜6個/メンバー**: 各メンバーが効率的に作業を進められるサイズ
-- **プラン承認を要求**: 複雑なタスクではメンバーにプラン承認モードを設定
-
-#### チーム構成例
-
-**画面実装の場合（例: 地図画面 #12）:**
-
-```
-チームを作成して地図画面を実装してください。
-- メンバー1（ui）: 地図コンポーネントとUI実装（src/screens/, src/components/map/）
-- メンバー2（service）: Supabaseデータ取得サービス（src/services/, src/hooks/）
-- メンバー3（test）: テストコード作成（src/**/__tests__/）
-各メンバーにはSonnetを使ってください。
-メンバーが実装を始める前にプラン承認を要求してください。
-```
-
-**調査・レビューの場合:**
-
-```
-チームを作成してPR #XXX をレビューしてください。
-- メンバー1: セキュリティの観点でレビュー
-- メンバー2: パフォーマンスの観点でレビュー
-- メンバー3: テストカバレッジの確認
-各メンバーにはSonnetを使ってください。
-互いの発見を共有して議論してください。
-```
+- **メンバー数は 2〜4人**: 多すぎると調整コストが利益を上回る
+- **タスクは 5〜6個/メンバー**: 効率的に作業を進められるサイズ
 
 #### チーム運用の流れ
 
-1. リーダーがタスクリストを作成し、メンバーに割り当てる
-2. リーダーはデリゲートモード（Shift+Tab）で調整に専念
-3. メンバーが作業を完了したら、リーダーが結果を統合
-4. 全タスク完了後、チームをシャットダウン＆クリーンアップ
+1. リーダーが TeamCreate でチームを作成
+2. TaskCreate でタスクリストを作成し、依存関係を設定
+3. Task ツールでメンバーを spawn し、team_name を指定
+4. メンバーにタスクを割り当て（TaskUpdate で owner 設定）
+5. **各メンバーが自分の担当領域で TDD サイクルを回す**
+6. メンバーは完了後に TaskUpdate で completed に更新
+7. リーダーは結果を統合し、検証コマンドを実行
+8. 全タスク完了後、SendMessage で shutdown_request を送信
+9. TeamDelete でクリーンアップ
+
+#### チーム構成例（画面実装）
+
+```
+Issue #15 の登録完了画面を実装するため、エージェントチームを構成します。
+
+チーム構成:
+- ui-worker（ui-implementer）: 画面UI + UIテストをTDDで実装
+- service-worker（service-implementer）: バッジ判定ロジック + サービステストをTDDで実装
+
+ファイル分担:
+- ui-worker: src/screens/RecordCompleteScreen.tsx, src/components/animated/, + 各__tests__/
+- service-worker: src/services/, src/hooks/, + 各__tests__/
+
+各メンバーは Red→Green→Refactor サイクルを厳密に守ること。
+```
 
 ## 基本サイクル: Red → Green → Refactor
 
-チームを構成しない場合（または各メンバーの作業単位で）、以下のTDDサイクルで実装する。
+### 0. TODOリストを作る
 
-### 1. Red（失敗するテストを書く）
+実装対象の仕様から、テストケースの TODO リストを作成。
+**簡単なケースから始めて、徐々に複雑なケースへ進む。**
+
+```
+TODO:
+- [ ] 訪問数が0の場合は「1箇所目！」と表示する
+- [ ] 訪問数が10の場合は「11箇所目！」と表示する
+- [ ] バッジ獲得条件を満たす場合はバッジを表示する
+- [ ] バッジ獲得条件を満たさない場合はバッジを非表示にする
+```
+
+### 1. Red（失敗するテストを1つだけ書く）
 
 ```typescript
-// まず失敗するテストを書く
-describe('validateEmail', () => {
-  it('should return true for valid email', () => {
-    expect(validateEmail('user@example.com')).toBe(true);
-  });
-
-  it('should return false for invalid email', () => {
-    expect(validateEmail('invalid')).toBe(false);
+describe('getVisitCountText', () => {
+  it('訪問数0の場合、「1箇所目！」を返す', () => {
+    expect(getVisitCountText(0)).toBe('1箇所目！');
   });
 });
 ```
@@ -99,41 +108,53 @@ describe('validateEmail', () => {
 テストを実行して**失敗することを確認**:
 
 ```bash
-npm test -- --testPathPattern="validateEmail"
+npm test -- --testPathPattern="getVisitCountText"
 ```
 
 ### 2. Green（テストを通す最小限の実装）
 
 ```typescript
-// テストを通す最小限のコード
-export function validateEmail(email: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+export function getVisitCountText(visitCount: number): string {
+  return '1箇所目！'; // 仮実装（Fake It）でOK
 }
 ```
 
 テストが**通ることを確認**:
 
 ```bash
-npm test -- --testPathPattern="validateEmail"
+npm test -- --testPathPattern="getVisitCountText"
 ```
 
-### 3. Refactor（リファクタリング）
+### 3. Refactor
 
-- テストが通ったままコードを改善
-- 重複を除去、命名を改善、構造を整理
-- リファクタ後も必ずテストを実行
+テストが通ったままコードを改善。この段階ではまだ改善不要かもしれない。
+
+### 4. 次のテストで三角測量
+
+```typescript
+it('訪問数10の場合、「11箇所目！」を返す', () => {
+  expect(getVisitCountText(10)).toBe('11箇所目！');
+});
+```
+
+このテストが失敗するので、仮実装を一般化に追い込む:
+
+```typescript
+export function getVisitCountText(visitCount: number): string {
+  return `${visitCount + 1}箇所目！`;
+}
+```
+
+**このサイクルを小さく繰り返す。**
 
 ## テスト実行コマンド
 
 ```bash
-# 全テスト実行
-npm test
-
-# 特定のファイルのみ
+# 特定のファイルのみ（TDD中はこちらを使う）
 npm test -- --testPathPattern="filename"
 
-# watch モード
-npm test -- --watch
+# 全テスト実行（最終確認時）
+npm test
 ```
 
 ## テストファイル配置
@@ -150,9 +171,23 @@ src/
 │       └── useAuth.test.ts
 ```
 
-## テスト作成のポイント
+## t-wada流の重要テクニック
+
+### 仮実装（Fake It）
+
+まずハードコードで Green にし、次のテストで一般化に追い込む。
+
+### 三角測量（Triangulation）
+
+2つ以上のテストで実装を正しい方向に導く。
+
+### 明白な実装（Obvious Implementation）
+
+実装が明白なら直接書いてよいが、テストが失敗したら仮実装に戻る。
+
+### テスト作成のポイント
 
 1. **1テスト1アサーション** を心がける
 2. **エッジケース**を必ずテスト
-3. **Given-When-Then** パターンで読みやすく
+3. **Arrange-Act-Assert** パターンで構造化
 4. **モックは最小限**に（実装の詳細に依存しない）
