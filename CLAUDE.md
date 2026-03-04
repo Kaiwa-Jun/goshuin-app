@@ -23,6 +23,21 @@
 Issue の規模に応じてエージェントチームを構成するか判断する。
 詳細は `tdd-workflow` スキルを参照。
 
+**利用可能なサブエージェント:**
+
+- `ui-implementer` - 画面UI + テストを TDD で実装（Sonnet）
+- `service-implementer` - サービス層 + テストを TDD で実装（Sonnet）
+- `test-writer` - TDD で単独実装 or 既存コードへのテスト追加（Sonnet）
+- `codebase-explorer` - コードベース探索・調査（Haiku）
+- `security-reviewer` - セキュリティレビュー（Sonnet）
+
+**t-wada 流 TDD の原則:**
+
+- テストを書く人と実装を書く人を分けない。各メンバーが自領域で Red→Green→Refactor を回す
+- ファイル衝突を避けるため、各メンバーの担当ファイルを明確に分割する
+- メンバー数は 2〜4人、タスクは 5〜6個/メンバーが目安
+- 全メンバー完了後にリーダーが `npm test` → `npm run lint` → `npm run typecheck` で検証
+
 ### Phase 2. TDD実装 (Normal Mode)
 
 1. **Red**: 失敗するテストを書く
@@ -147,6 +162,11 @@ src/
 ├── types/          # TypeScript型定義
 └── utils/          # ユーティリティ関数
 ```
+
+## Expo Go での動作確認
+
+- Expo Go で確認するため `expo-dev-client` は使用しない（入れると Expo Go でロードできなくなる）
+- 起動コマンド: `npx expo start --tunnel`（LAN モードでは iPhone からバンドルが取得できないため tunnel 必須）
 
 ## 重要な参照先
 
