@@ -28,13 +28,20 @@ export async function fetchStampsBySpotId(spotId: string): Promise<Stamp[]> {
 }
 
 export async function uploadStampImage(userId: string, imageUri: string): Promise<string> {
-  const response = await fetch(imageUri);
-  const blob = await response.blob();
   const filePath = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+
+  // React Native では fetch(localUri).blob() が空の Blob を返すため、
+  // FormData を使ってアップロードする
+  const formData = new FormData();
+  formData.append('', {
+    uri: imageUri,
+    name: filePath.split('/').pop(),
+    type: 'image/jpeg',
+  } as unknown as Blob);
 
   const { data, error } = await supabase.storage
     .from('goshuin-images')
-    .upload(filePath, blob, { contentType: 'image/jpeg' });
+    .upload(filePath, formData, { contentType: 'multipart/form-data' });
 
   if (error) {
     throw new Error(error.message);
