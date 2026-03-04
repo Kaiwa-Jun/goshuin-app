@@ -105,6 +105,21 @@ jest.mock('react-native-maps', () => {
   return { __esModule: true, default: MockMapView, Marker: MockMarker, PROVIDER_GOOGLE: 'google' };
 });
 
+// expo-linear-gradient mock
+jest.mock('expo-linear-gradient', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    LinearGradient: React.forwardRef((props, ref) =>
+      React.createElement(
+        View,
+        { ...props, testID: props.testID || 'linear-gradient', ref },
+        props.children
+      )
+    ),
+  };
+});
+
 // expo-location mock
 jest.mock('expo-location', () => ({
   getForegroundPermissionsAsync: jest.fn(() => Promise.resolve({ status: 'granted' })),

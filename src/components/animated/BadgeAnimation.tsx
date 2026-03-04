@@ -1,24 +1,77 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Animated } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { spacing } from '@theme/spacing';
 
-interface BadgeAnimationProps {
-  badgeName: string;
+interface BadgeData {
+  name: string;
   description?: string;
 }
 
-export const BadgeAnimation: React.FC<BadgeAnimationProps> = ({ badgeName, description }) => {
+interface BadgeAnimationProps {
+  // Legacy props (backward compat)
+  badgeName?: string;
+  description?: string;
+  // New unified prop
+  badge?: BadgeData | null;
+}
+
+export const BadgeAnimation: React.FC<BadgeAnimationProps> = ({
+  badgeName,
+  description,
+  badge,
+}) => {
+  const scale = useRef(new Animated.Value(0)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+
+  const resolvedName = badge?.name ?? badgeName;
+  const resolvedDescription = badge?.description ?? description;
+
+  useEffect(() => {
+    if (!resolvedName) return;
+
+    scale.setValue(0);
+    opacity.setValue(0);
+
+    Animated.sequence([
+      Animated.delay(1000),
+      Animated.parallel([
+        Animated.sequence([
+          Animated.timing(scale, {
+            toValue: 1.1,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scale, {
+            toValue: 1.0,
+            duration: 150,
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+  }, [resolvedName, scale, opacity]);
+
+  if (!resolvedName) return null;
+
   return (
-    <View style={styles.container} testID="badge-animation">
+    <Animated.View
+      style={[styles.container, { transform: [{ scale }], opacity }]}
+      testID="badge-animation"
+    >
       <View style={styles.iconContainer}>
         <MaterialIcons name="military-tech" size={40} color={colors.warning} />
       </View>
-      <Text style={styles.name}>{badgeName}</Text>
-      {description && <Text style={styles.description}>{description}</Text>}
-    </View>
+      <Text style={styles.name}>{resolvedName}</Text>
+      {resolvedDescription && <Text style={styles.description}>{resolvedDescription}</Text>}
+    </Animated.View>
   );
 };
 

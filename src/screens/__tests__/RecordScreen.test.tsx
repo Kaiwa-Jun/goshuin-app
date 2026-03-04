@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { RecordScreen } from '@screens/RecordScreen';
+import { evaluateNewBadge } from '@services/badges';
 import type { Spot, Stamp } from '@/types/supabase';
 
 jest.mock('react-native-safe-area-context', () => {
@@ -85,8 +86,15 @@ jest.mock('expo-image-picker', () => ({
   launchImageLibraryAsync: jest.fn(),
 }));
 
+const mockFetchVisitedSpotIds = jest.fn();
+
 jest.mock('@services/stamps', () => ({
   getStampImageUrl: (path: string) => `https://example.com/stamps/${path}`,
+  fetchVisitedSpotIds: (...args: unknown[]) => mockFetchVisitedSpotIds(...args),
+}));
+
+jest.mock('@services/badges', () => ({
+  evaluateNewBadge: jest.fn(() => null),
 }));
 
 jest.mock('@services/spots', () => ({
@@ -191,6 +199,7 @@ describe('RecordScreen', () => {
     mockFormState.selectedSpot = fakeSpot;
     mockFormState.imageUri = 'file:///photo.jpg';
     mockSubmit.mockResolvedValue({ success: true, stamp: fakeStamp });
+    mockFetchVisitedSpotIds.mockResolvedValue(new Set(['spot-2']));
 
     const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
 
@@ -203,6 +212,107 @@ describe('RecordScreen', () => {
     await waitFor(() => {
       expect(mockSubmit).toHaveBeenCalled();
       expect(mockNavigation.navigate).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
+    });
+  });
+
+  it('navigates to RecordComplete with visitCount when recording new spot', async () => {
+    const fakeStamp: Stamp = {
+      id: 'stamp-1',
+      user_id: 'user-1',
+      spot_id: 'spot-1',
+      goshuincho_id: null,
+      visited_at: '2024-06-01T00:00:00.000Z',
+      image_path: 'user-1/12345.jpg',
+      memo: '',
+      created_at: '2024-06-01T00:00:00Z',
+      updated_at: '2024-06-01T00:00:00Z',
+    };
+
+    mockFormState.selectedSpot = fakeSpot;
+    mockFormState.imageUri = 'file:///photo.jpg';
+    mockSubmit.mockResolvedValue({ success: true, stamp: fakeStamp });
+    // spot-1 is NOT in visited set -> new spot
+    mockFetchVisitedSpotIds.mockResolvedValue(new Set(['spot-2', 'spot-3']));
+
+    const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent.press(getByText('この内容で記録する'));
+    fireEvent.press(getByText('登録する'));
+
+    await waitFor(() => {
+      expect(mockNavigation.navigate).toHaveBeenCalledWith(
+        'RecordComplete',
+        expect.objectContaining({
+          visitCount: 3, // previousCount=2 + 1 new spot
+        })
+      );
+    });
+  });
+
+  it('navigates to RecordComplete with visitCount when re-visiting spot', async () => {
+    const fakeStamp: Stamp = {
+      id: 'stamp-2',
+      user_id: 'user-1',
+      spot_id: 'spot-1',
+      goshuincho_id: null,
+      visited_at: '2024-06-01T00:00:00.000Z',
+      image_path: 'user-1/12345.jpg',
+      memo: '',
+      created_at: '2024-06-01T00:00:00Z',
+      updated_at: '2024-06-01T00:00:00Z',
+    };
+
+    mockFormState.selectedSpot = fakeSpot;
+    mockFormState.imageUri = 'file:///photo.jpg';
+    mockSubmit.mockResolvedValue({ success: true, stamp: fakeStamp });
+    // spot-1 is already in visited set -> re-visit
+    mockFetchVisitedSpotIds.mockResolvedValue(new Set(['spot-1', 'spot-2']));
+
+    const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent.press(getByText('この内容で記録する'));
+    fireEvent.press(getByText('登録する'));
+
+    await waitFor(() => {
+      expect(mockNavigation.navigate).toHaveBeenCalledWith(
+        'RecordComplete',
+        expect.objectContaining({
+          visitCount: 2, // previousCount=2, no change for re-visit
+        })
+      );
+    });
+  });
+
+  it('navigates to RecordComplete with badge when badge is earned', async () => {
+    const fakeStamp: Stamp = {
+      id: 'stamp-1',
+      user_id: 'user-1',
+      spot_id: 'spot-1',
+      goshuincho_id: null,
+      visited_at: '2024-06-01T00:00:00.000Z',
+      image_path: 'user-1/12345.jpg',
+      memo: '',
+      created_at: '2024-06-01T00:00:00Z',
+      updated_at: '2024-06-01T00:00:00Z',
+    };
+
+    const mockBadge = { name: '初めての御朱印', description: '初めての御朱印を記録しました' };
+    (evaluateNewBadge as jest.Mock).mockReturnValue(mockBadge);
+
+    mockFormState.selectedSpot = fakeSpot;
+    mockFormState.imageUri = 'file:///photo.jpg';
+    mockSubmit.mockResolvedValue({ success: true, stamp: fakeStamp });
+    mockFetchVisitedSpotIds.mockResolvedValue(new Set());
+
+    const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent.press(getByText('この内容で記録する'));
+    fireEvent.press(getByText('登録する'));
+
+    await waitFor(() => {
+      expect(mockNavigation.navigate).toHaveBeenCalledWith(
+        'RecordComplete',
+        expect.objectContaining({
+          badge: mockBadge,
+        })
+      );
     });
   });
 

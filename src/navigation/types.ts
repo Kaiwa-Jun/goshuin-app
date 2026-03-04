@@ -8,7 +8,14 @@ export type RootStackParamList = {
   Onboarding: undefined;
   MainTabs: NavigatorScreenParams<MainTabParamList>;
   Record: { spotId?: string } | undefined;
-  RecordComplete: { stampImageUrl?: string; spotName?: string; visitCount?: number } | undefined;
+  RecordComplete:
+    | {
+        stampImageUrl?: string;
+        spotName?: string;
+        visitCount?: number;
+        badge?: { name: string; description: string } | null;
+      }
+    | undefined;
   Login: undefined;
   Error: { type: 'network' | 'location' | 'upload' };
 };

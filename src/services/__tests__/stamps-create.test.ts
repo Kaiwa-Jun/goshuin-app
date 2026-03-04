@@ -17,34 +17,26 @@ jest.mock('@services/supabase', () => ({
   },
 }));
 
-const mockFetch = jest.fn();
-(global as unknown as { fetch: jest.Mock }).fetch = mockFetch;
-
 describe('uploadStampImage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
   it('returns uploaded path on success', async () => {
-    const mockBlob = new Blob(['image-data'], { type: 'image/jpeg' });
-    mockFetch.mockResolvedValue({ blob: () => Promise.resolve(mockBlob) });
     mockUpload.mockResolvedValue({ data: { path: 'user-1/12345-abc.jpg' }, error: null });
 
     const result = await uploadStampImage('user-1', 'file:///photo.jpg');
 
-    expect(mockFetch).toHaveBeenCalledWith('file:///photo.jpg');
     expect(mockUpload).toHaveBeenCalledWith(
       expect.stringMatching(/^user-1\/\d+-[a-z0-9]+\.jpg$/),
-      mockBlob,
-      { contentType: 'image/jpeg' }
+      expect.any(FormData),
+      { contentType: 'multipart/form-data' }
     );
     expect(typeof result).toBe('string');
     expect(result).toMatch(/^user-1\//);
   });
 
   it('throws error when upload fails', async () => {
-    const mockBlob = new Blob(['image-data'], { type: 'image/jpeg' });
-    mockFetch.mockResolvedValue({ blob: () => Promise.resolve(mockBlob) });
     mockUpload.mockResolvedValue({ data: null, error: { message: 'Upload failed' } });
 
     await expect(uploadStampImage('user-1', 'file:///photo.jpg')).rejects.toThrow('Upload failed');

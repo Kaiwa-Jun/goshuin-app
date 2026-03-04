@@ -23,7 +23,8 @@ import { useRecordForm } from '@hooks/useRecordForm';
 import { useNearbySpots } from '@hooks/useNearbySpots';
 import { useAuth } from '@hooks/useAuth';
 import { useLocation } from '@hooks/useLocation';
-import { getStampImageUrl } from '@services/stamps';
+import { getStampImageUrl, fetchVisitedSpotIds } from '@services/stamps';
+import { evaluateNewBadge } from '@services/badges';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { spacing, borderRadius } from '@theme/spacing';
@@ -54,12 +55,22 @@ export function RecordScreen({ navigation, route }: Props) {
   };
 
   const handleConfirm = async () => {
+    const visitedSpotIds = await fetchVisitedSpotIds();
+    const previousCount = visitedSpotIds.size;
+
     const result = await form.submit();
     setShowConfirm(false);
+
     if (result.success && result.stamp) {
+      const isNewSpot = form.selectedSpot ? !visitedSpotIds.has(form.selectedSpot.id) : false;
+      const currentCount = isNewSpot ? previousCount + 1 : previousCount;
+      const badge = evaluateNewBadge(previousCount, currentCount);
+
       navigation.navigate('RecordComplete', {
         stampImageUrl: getStampImageUrl(result.stamp.image_path),
         spotName: form.selectedSpot?.name,
+        visitCount: currentCount,
+        badge,
       });
     }
   };

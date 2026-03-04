@@ -1,8 +1,11 @@
-import React from 'react';
-import { Image, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { MaterialIcons } from '@expo/vector-icons';
 import { CheckmarkAnimation } from '@components/animated/CheckmarkAnimation';
 import { BadgeAnimation } from '@components/animated/BadgeAnimation';
+import { ConfettiEffect } from '@components/animated/ConfettiEffect';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { spacing, borderRadius } from '@theme/spacing';
@@ -14,6 +17,8 @@ export function RecordCompleteScreen({ navigation, route }: Props) {
   const stampImageUrl = route.params?.stampImageUrl;
   const spotName = route.params?.spotName;
   const visitCount = route.params?.visitCount;
+  const badge = route.params?.badge;
+  const [imageError, setImageError] = useState(false);
 
   const handleRecordAnother = () => {
     navigation.navigate('Record');
@@ -28,69 +33,82 @@ export function RecordCompleteScreen({ navigation, route }: Props) {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <View style={styles.content}>
-        <CheckmarkAnimation size={80} />
+    <LinearGradient
+      colors={[colors.primary[400], colors.primary[500]]}
+      style={styles.gradient}
+      testID="gradient-background"
+    >
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        <ConfettiEffect trigger={true} />
 
-        <Text style={styles.title}>登録完了！</Text>
+        <View style={styles.content}>
+          <CheckmarkAnimation size={80} />
 
-        {stampImageUrl ? (
-          <Image
-            source={{ uri: stampImageUrl }}
-            style={styles.stampImage}
-            resizeMode="cover"
-            testID="stamp-image"
-          />
-        ) : (
-          <View style={styles.imagePlaceholder} testID="stamp-image-placeholder" />
-        )}
+          <Text style={styles.title}>登録完了！</Text>
 
-        {spotName && (
-          <Text style={styles.spotName} testID="spot-name">
-            {spotName}
+          {stampImageUrl && !imageError ? (
+            <Image
+              source={{ uri: stampImageUrl }}
+              style={styles.stampImage}
+              resizeMode="cover"
+              testID="stamp-image"
+              onError={() => setImageError(true)}
+            />
+          ) : (
+            <View style={styles.imagePlaceholder} testID="stamp-image-placeholder">
+              <MaterialIcons name="photo" size={48} color="rgba(255,255,255,0.5)" />
+            </View>
+          )}
+
+          {spotName && (
+            <Text style={styles.spotName} testID="spot-name">
+              {spotName}
+            </Text>
+          )}
+
+          <Text style={styles.countText} testID="visit-count">
+            {visitCount ? `${visitCount}箇所目の御朱印！` : '御朱印を記録しました！'}
           </Text>
-        )}
 
-        <Text style={styles.countText} testID="visit-count">
-          {visitCount ? `${visitCount}箇所目の御朱印！` : '御朱印を記録しました！'}
-        </Text>
+          {badge && <BadgeAnimation badge={badge} />}
+        </View>
 
-        <BadgeAnimation badgeName="初めての御朱印" description="最初の御朱印を記録しました" />
-      </View>
+        <View style={styles.actions}>
+          <TouchableOpacity
+            style={styles.buttonRecordAnother}
+            onPress={handleRecordAnother}
+            testID="button-record-another"
+          >
+            <Text style={styles.buttonRecordAnotherText}>もう1枚記録する</Text>
+          </TouchableOpacity>
 
-      <View style={styles.actions}>
-        <TouchableOpacity
-          style={styles.buttonRecordAnother}
-          onPress={handleRecordAnother}
-          testID="button-record-another"
-        >
-          <Text style={styles.buttonRecordAnotherText}>もう1枚記録する</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.buttonViewMap}
+            onPress={handleViewMap}
+            testID="button-view-map"
+          >
+            <Text style={styles.buttonViewMapText}>地図を見る</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.buttonViewMap}
-          onPress={handleViewMap}
-          testID="button-view-map"
-        >
-          <Text style={styles.buttonViewMapText}>地図を見る</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.buttonViewCollection}
-          onPress={handleViewCollection}
-          testID="button-view-collection"
-        >
-          <Text style={styles.buttonViewCollectionText}>コレクションを確認</Text>
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+          <TouchableOpacity
+            style={styles.buttonViewCollection}
+            onPress={handleViewCollection}
+            testID="button-view-collection"
+          >
+            <Text style={styles.buttonViewCollectionText}>コレクションを確認</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
+  gradient: {
+    flex: 1,
+  },
   container: {
     flex: 1,
-    backgroundColor: colors.primary[500],
   },
   content: {
     flex: 1,
@@ -107,12 +125,15 @@ const styles = StyleSheet.create({
     width: 160,
     height: 200,
     borderRadius: borderRadius.lg,
+    backgroundColor: 'rgba(255,255,255,0.2)',
   },
   imagePlaceholder: {
     width: 160,
     height: 200,
     borderRadius: borderRadius.lg,
     backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   spotName: {
     ...typography.h3,
