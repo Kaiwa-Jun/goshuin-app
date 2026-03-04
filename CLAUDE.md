@@ -53,9 +53,31 @@ Issue の規模に応じてエージェントチームを構成し、TDD で実�
 
 実装後は必ず以下を実行して検証:
 
+#### 3-1. 自動検証
+
 - `npm test` - テスト実行
 - `npm run lint` - lint チェック
 - `npm run typecheck` - 型チェック
+
+#### 3-2. UI 目視チェック（Chrome DevTools MCP + Expo Web）
+
+画面の実装・変更を含む Issue では、リーダーが Chrome DevTools MCP で UI を目視確認する:
+
+1. Expo Web サーバーを起動: `npx expo start --web --port 8081`
+2. Chrome DevTools MCP で `http://localhost:8081` にナビゲート
+3. 変更した画面のスクリーンショットを取得して以下を確認:
+   - レイアウト崩れがないか
+   - テーマカラー（オレンジ基調）が正しいか
+   - テキスト・アイコンが正しく表示されているか
+4. 基本操作（タブ遷移、ボタンクリック）が動作するか確認
+
+**制約事項:**
+
+- 地図背景は Web 非対応（`react-native-maps` はモック）。マーカー・ラベルは確認可能
+- カメラ機能は Web 非対応
+- スワイプ操作は非対応（ボタン・タブのクリックは OK）
+
+※ UI 変更を含まない Issue（サービス層のみ等）ではスキップ可
 
 ## ユーザーへの次のアクション案内（必須ルール）
 
@@ -101,6 +123,7 @@ Phase 2（実装）が完了しました。
 - テスト: OK / NG
 - Lint: OK / NG
 - 型チェック: OK / NG
+- UIチェック: OK / スキップ（UI変更なし）
 
 次のステップ:
 - 問題なければ「commit して push して」と指示してください
@@ -137,6 +160,7 @@ Issue #XX をクローズしました。
 - テスト: OK / NG
 - Lint: OK / NG
 - 型チェック: OK / NG
+- UIチェック: OK / スキップ（UI変更なし）
 
 次のステップ:
 - 問題なければ「commit して push して」と指示してください
@@ -173,6 +197,24 @@ src/
 
 - Expo Go で確認するため `expo-dev-client` は使用しない（入れると Expo Go でロードできなくなる）
 - 起動コマンド: `npx expo start --tunnel`（LAN モードでは iPhone からバンドルが取得できないため tunnel 必須）
+
+## Expo Web での UI チェック環境
+
+Chrome DevTools MCP を使って Expo Web 版のスクリーンショット取得・操作を行う。
+
+**前提条件:**
+
+- Chrome がリモートデバッグモードで起動していること
+- 起動方法: Chrome を閉じた後 `/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --remote-debugging-port=9222 --user-data-dir="$TMPDIR/chrome-debug-profile" --no-first-run &`
+
+**Expo Web 起動:**
+
+- `npx expo start --web --port 8081`
+
+**Web 用モック:**
+
+- `metro.config.js` で `react-native-maps` を Web 用スタブ（`src/utils/react-native-maps.web.ts`）に解決
+- 地図背景は Web では描画されないが、マーカーやラベル等の UI 要素は確認可能
 
 ## 重要な参照先
 
