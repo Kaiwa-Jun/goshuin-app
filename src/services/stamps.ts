@@ -107,3 +107,28 @@ export function getStampImageUrl(imagePath: string): string {
   const { data } = supabase.storage.from('goshuin-images').getPublicUrl(imagePath);
   return data.publicUrl;
 }
+
+export async function updateStamp(
+  stampId: string,
+  params: { visited_at?: string; memo?: string | null }
+): Promise<StampWithSpot> {
+  const { data, error } = await supabase
+    .from('stamps')
+    .update(params)
+    .eq('id', stampId)
+    .select('*, spots!inner(name, type)')
+    .single();
+  if (error) throw new Error(error.message);
+  return data as StampWithSpot;
+}
+
+export async function deleteStampImage(imagePath: string): Promise<void> {
+  const { error } = await supabase.storage.from('goshuin-images').remove([imagePath]);
+  if (error) throw new Error(error.message);
+}
+
+export async function deleteStamp(stampId: string, imagePath: string): Promise<void> {
+  await deleteStampImage(imagePath);
+  const { error } = await supabase.from('stamps').delete().eq('id', stampId);
+  if (error) throw new Error(error.message);
+}

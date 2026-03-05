@@ -4,6 +4,9 @@ import {
   getStampImageUrl,
   fetchAllStamps,
   fetchStampById,
+  updateStamp,
+  deleteStampImage,
+  deleteStamp,
 } from '@services/stamps';
 
 const mockSelect = jest.fn();
@@ -11,14 +14,16 @@ const mockEq = jest.fn();
 const mockOrder = jest.fn();
 const mockFrom = jest.fn();
 const mockGetPublicUrl = jest.fn();
+const mockUpdate = jest.fn();
+const mockDelete = jest.fn();
+const mockRemove = jest.fn();
+const mockStorageFrom = jest.fn();
 
 jest.mock('@services/supabase', () => ({
   supabase: {
     from: (...args: unknown[]) => mockFrom(...args),
     storage: {
-      from: () => ({
-        getPublicUrl: (...args: unknown[]) => mockGetPublicUrl(...args),
-      }),
+      from: (...args: unknown[]) => mockStorageFrom(...args),
     },
   },
 }));
@@ -163,6 +168,7 @@ describe('stamps service', () => {
 
   describe('getStampImageUrl', () => {
     it('returns public URL for stamp image', () => {
+      mockStorageFrom.mockReturnValue({ getPublicUrl: mockGetPublicUrl });
       mockGetPublicUrl.mockReturnValue({
         data: { publicUrl: 'https://example.com/stamps/img/1.jpg' },
       });
@@ -170,6 +176,98 @@ describe('stamps service', () => {
       const result = getStampImageUrl('img/1.jpg');
       expect(mockGetPublicUrl).toHaveBeenCalledWith('img/1.jpg');
       expect(result).toBe('https://example.com/stamps/img/1.jpg');
+    });
+  });
+
+  describe('updateStamp', () => {
+    it('returns updated stamp with spot', async () => {
+      const mockStamp = {
+        id: 'stamp-1',
+        user_id: 'user-1',
+        spot_id: 'spot-1',
+        visited_at: '2024-06-02',
+        image_path: 'img/1.jpg',
+        memo: '更新したメモ',
+        spots: { name: '伊勢神宮', type: 'shrine' },
+      };
+      const mockSingle = jest.fn().mockReturnValue({ data: mockStamp, error: null });
+      mockFrom.mockReturnValue({ update: mockUpdate });
+      mockUpdate.mockReturnValue({ eq: mockEq });
+      mockEq.mockReturnValue({ select: mockSelect });
+      mockSelect.mockReturnValue({ single: mockSingle });
+
+      const result = await updateStamp('stamp-1', {
+        visited_at: '2024-06-02',
+        memo: '更新したメモ',
+      });
+      expect(mockFrom).toHaveBeenCalledWith('stamps');
+      expect(mockUpdate).toHaveBeenCalledWith({ visited_at: '2024-06-02', memo: '更新したメモ' });
+      expect(mockEq).toHaveBeenCalledWith('id', 'stamp-1');
+      expect(mockSelect).toHaveBeenCalledWith('*, spots!inner(name, type)');
+      expect(result).toEqual(mockStamp);
+    });
+
+    it('throws on error', async () => {
+      const mockSingle = jest
+        .fn()
+        .mockReturnValue({ data: null, error: { message: 'update failed' } });
+      mockFrom.mockReturnValue({ update: mockUpdate });
+      mockUpdate.mockReturnValue({ eq: mockEq });
+      mockEq.mockReturnValue({ select: mockSelect });
+      mockSelect.mockReturnValue({ single: mockSingle });
+
+      await expect(updateStamp('stamp-1', { memo: null })).rejects.toThrow('update failed');
+    });
+  });
+
+  describe('deleteStampImage', () => {
+    it('removes image from storage', async () => {
+      mockStorageFrom.mockReturnValue({ remove: mockRemove });
+      mockRemove.mockReturnValue({ error: null });
+
+      await deleteStampImage('img/1.jpg');
+      expect(mockStorageFrom).toHaveBeenCalledWith('goshuin-images');
+      expect(mockRemove).toHaveBeenCalledWith(['img/1.jpg']);
+    });
+
+    it('throws on error', async () => {
+      mockStorageFrom.mockReturnValue({ remove: mockRemove });
+      mockRemove.mockReturnValue({ error: { message: 'storage error' } });
+
+      await expect(deleteStampImage('img/1.jpg')).rejects.toThrow('storage error');
+    });
+  });
+
+  describe('deleteStamp', () => {
+    it('deletes image then DB record', async () => {
+      mockStorageFrom.mockReturnValue({ remove: mockRemove });
+      mockRemove.mockReturnValue({ error: null });
+      mockFrom.mockReturnValue({ delete: mockDelete });
+      mockDelete.mockReturnValue({ eq: mockEq });
+      mockEq.mockReturnValue({ error: null });
+
+      await deleteStamp('stamp-1', 'img/1.jpg');
+      expect(mockRemove).toHaveBeenCalledWith(['img/1.jpg']);
+      expect(mockFrom).toHaveBeenCalledWith('stamps');
+      expect(mockDelete).toHaveBeenCalled();
+      expect(mockEq).toHaveBeenCalledWith('id', 'stamp-1');
+    });
+
+    it('throws if image deletion fails', async () => {
+      mockStorageFrom.mockReturnValue({ remove: mockRemove });
+      mockRemove.mockReturnValue({ error: { message: 'image delete error' } });
+
+      await expect(deleteStamp('stamp-1', 'img/1.jpg')).rejects.toThrow('image delete error');
+    });
+
+    it('throws if DB deletion fails', async () => {
+      mockStorageFrom.mockReturnValue({ remove: mockRemove });
+      mockRemove.mockReturnValue({ error: null });
+      mockFrom.mockReturnValue({ delete: mockDelete });
+      mockDelete.mockReturnValue({ eq: mockEq });
+      mockEq.mockReturnValue({ error: { message: 'db delete error' } });
+
+      await expect(deleteStamp('stamp-1', 'img/1.jpg')).rejects.toThrow('db delete error');
     });
   });
 });

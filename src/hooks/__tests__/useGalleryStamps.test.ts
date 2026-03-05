@@ -8,6 +8,14 @@ jest.mock('@services/stamps', () => ({
   fetchAllStamps: (...args: unknown[]) => mockFetchAllStamps(...args),
 }));
 
+jest.mock('@react-navigation/native', () => ({
+  useFocusEffect: (cb: () => void) => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+    const { useEffect } = require('react');
+    useEffect(cb, [cb]);
+  },
+}));
+
 let mockUser: { id: string } | null = null;
 
 jest.mock('@hooks/useAuth', () => ({

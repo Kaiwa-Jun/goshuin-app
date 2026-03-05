@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { StampDetailScreen } from '@screens/StampDetailScreen';
-import { fetchStampById, getStampImageUrl } from '@services/stamps';
+import { fetchStampById, getStampImageUrl, updateStamp, deleteStamp } from '@services/stamps';
 import type { StampWithSpot } from '@/types/supabase';
 
 jest.mock('react-native-safe-area-context', () => {
@@ -17,10 +17,14 @@ jest.mock('react-native-safe-area-context', () => {
 jest.mock('@services/stamps', () => ({
   fetchStampById: jest.fn(),
   getStampImageUrl: jest.fn((path: string) => `https://example.com/${path}`),
+  updateStamp: jest.fn(),
+  deleteStamp: jest.fn(),
 }));
 
 const mockFetchStampById = fetchStampById as jest.MockedFunction<typeof fetchStampById>;
 const mockGetStampImageUrl = getStampImageUrl as jest.MockedFunction<typeof getStampImageUrl>;
+const mockUpdateStamp = updateStamp as jest.MockedFunction<typeof updateStamp>;
+const mockDeleteStamp = deleteStamp as jest.MockedFunction<typeof deleteStamp>;
 
 const mockNavigation = {
   navigate: jest.fn(),
@@ -152,5 +156,78 @@ describe('StampDetailScreen', () => {
     );
     fireEvent.press(getByTestId('back-button'));
     expect(mockNavigation.goBack).toHaveBeenCalled();
+  });
+
+  it('編集ボタンタップで EditStampModal が表示される', async () => {
+    mockFetchStampById.mockResolvedValue(mockStamp);
+
+    const { getByTestId } = render(
+      <StampDetailScreen navigation={mockNavigation} route={mockRoute} />
+    );
+    await waitFor(() => {
+      expect(getByTestId('edit-button')).toBeTruthy();
+    });
+    fireEvent.press(getByTestId('edit-button'));
+    await waitFor(() => {
+      expect(getByTestId('modal-content')).toBeTruthy();
+    });
+  });
+
+  it('削除ボタンタップで DeleteConfirmModal が表示される', async () => {
+    mockFetchStampById.mockResolvedValue(mockStamp);
+
+    const { getByTestId, getAllByTestId } = render(
+      <StampDetailScreen navigation={mockNavigation} route={mockRoute} />
+    );
+    await waitFor(() => {
+      expect(getByTestId('delete-button')).toBeTruthy();
+    });
+    fireEvent.press(getByTestId('delete-button'));
+    await waitFor(() => {
+      const contents = getAllByTestId('modal-content');
+      expect(contents.length).toBeGreaterThan(0);
+    });
+  });
+
+  it('EditStampModal で保存すると updateStamp が呼ばれ、モーダルが閉じる', async () => {
+    mockFetchStampById.mockResolvedValue(mockStamp);
+    const updatedStamp = { ...mockStamp, visited_at: '2024-03-01' };
+    mockUpdateStamp.mockResolvedValue(updatedStamp);
+
+    const { getByTestId, getByText } = render(
+      <StampDetailScreen navigation={mockNavigation} route={mockRoute} />
+    );
+    await waitFor(() => {
+      expect(getByTestId('edit-button')).toBeTruthy();
+    });
+    fireEvent.press(getByTestId('edit-button'));
+    await waitFor(() => {
+      expect(getByText('保存')).toBeTruthy();
+    });
+    fireEvent.press(getByText('保存'));
+    await waitFor(() => {
+      expect(mockUpdateStamp).toHaveBeenCalled();
+    });
+  });
+
+  it('DeleteConfirmModal で削除すると deleteStamp が呼ばれ、goBack する', async () => {
+    mockFetchStampById.mockResolvedValue(mockStamp);
+    mockDeleteStamp.mockResolvedValue(undefined);
+
+    const { getByTestId, getByText } = render(
+      <StampDetailScreen navigation={mockNavigation} route={mockRoute} />
+    );
+    await waitFor(() => {
+      expect(getByTestId('delete-button')).toBeTruthy();
+    });
+    fireEvent.press(getByTestId('delete-button'));
+    await waitFor(() => {
+      expect(getByText('削除する')).toBeTruthy();
+    });
+    fireEvent.press(getByText('削除する'));
+    await waitFor(() => {
+      expect(mockDeleteStamp).toHaveBeenCalledWith('stamp-1', 'user-1/stamp-1.jpg');
+      expect(mockNavigation.goBack).toHaveBeenCalled();
+    });
   });
 });
