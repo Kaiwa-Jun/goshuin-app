@@ -24,6 +24,27 @@ Issue の実装は以下のフローで進める。全フェーズをメイン�
 
 ※ メインコンテキスト自身が Plan Mode で探索しない。必ずサブエージェントに委譲すること。
 
+### Phase 1.5. デザイン取得（Stitch MCP）
+
+UI変更を含む Issue では、Stitch MCP でデザインデータを取得する:
+
+1. `mcp__stitch__list_screens` で対象画面のスクリーンショットURLを取得
+2. 設計ドキュメント（`docs/issues/issue-XXX-*.md`）にスクリーンショットURLを記載
+3. 細かいスタイル値（グラデーション、影、余白の数値）が必要な場合のみ `mcp__stitch__get_screen` でHTMLコードも取得
+
+**Stitch プロジェクト情報:**
+
+- プロジェクトID: `9044469756277541238`
+- テーマ: カスタムカラー `#f27f0d`、フォント Plus Jakarta Sans、角丸フル
+
+**デザイン参照の優先順位:**
+
+1. **スクリーンショット画像**（メイン） — コンテキスト効率が良く、視覚的に忠実
+2. **HTMLコード**（補助） — 微妙な色・余白・グラデーション値の確認用
+3. **ui-design.md**（仕様） — 画面遷移・UX設計意図の参照用
+
+※ UI変更を含まない Issue ではスキップ可
+
 ### Phase 2. チーム構成・TDD実装
 
 Issue の規模に応じてエージェントチームを構成し、TDD で実装する。
@@ -66,6 +87,7 @@ Issue の規模に応じてエージェントチームを構成し、TDD で実�
 1. Expo Web サーバーを起動: `npx expo start --web --port 8081`
 2. Chrome DevTools MCP で `http://localhost:8081` にナビゲート
 3. 変更した画面のスクリーンショットを取得して以下を確認:
+   - Stitch デザイン（スクリーンショット）との差分がないか
    - レイアウト崩れがないか
    - テーマカラー（オレンジ基調）が正しいか
    - テキスト・アイコンが正しく表示されているか
@@ -221,4 +243,5 @@ Chrome DevTools MCP を使って Expo Web 版のスクリーンショット取�
 - 要件定義: @docs/product/requirements.md
 - 技術設計: @docs/technical/tech-design.md
 - UI設計: @docs/design/ui-design.md
+- デザインデータ: @docs/design/stitch.md（Stitch MCP 取り込みガイド）
 - Issue設計テンプレート: @docs/issues/README.md
