@@ -39,6 +39,13 @@ export interface Stamp {
   updated_at: string;
 }
 
+export interface StampWithSpot extends Stamp {
+  spots: {
+    name: string;
+    type: SpotType;
+  };
+}
+
 export interface Goshuincho {
   id: string;
   user_id: string;

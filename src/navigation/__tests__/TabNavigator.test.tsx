@@ -86,6 +86,28 @@ jest.mock('@services/stamps', () => ({
   getStampImageUrl: (path: string) => `https://example.com/stamps/${path}`,
 }));
 
+jest.mock('@hooks/useGalleryStamps', () => ({
+  useGalleryStamps: () => ({
+    stamps: [
+      {
+        id: 'stamp-1',
+        user_id: 'user-1',
+        spot_id: 'spot-1',
+        goshuincho_id: null,
+        visited_at: '2024-06-01',
+        image_path: 'img/1.jpg',
+        memo: null,
+        created_at: '2024-06-01',
+        updated_at: '2024-06-01',
+        spots: { name: '明治神宮', type: 'shrine' },
+      },
+    ],
+    totalCount: 1,
+    isLoading: false,
+    error: null,
+  }),
+}));
+
 // Wrap TabNavigator in a RootStack to support Login navigation
 const Stack = createNativeStackNavigator<RootStackParamList>();
 

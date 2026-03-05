@@ -1,30 +1,26 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, FlatList, TouchableOpacity, Dimensions } from 'react-native';
+import {
+  StyleSheet,
+  Text,
+  View,
+  FlatList,
+  TouchableOpacity,
+  Dimensions,
+  Image,
+  ActivityIndicator,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { MaterialIcons } from '@expo/vector-icons';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { spacing, borderRadius } from '@theme/spacing';
+import { useGalleryStamps } from '@hooks/useGalleryStamps';
+import { getStampImageUrl } from '@services/stamps';
+import type { StampWithSpot } from '@/types/supabase';
 import type { GalleryStackScreenProps } from '@/navigation/types';
 
 type Props = GalleryStackScreenProps<'Gallery'>;
-
-interface GalleryItem {
-  id: string;
-  spotName: string;
-  date: string;
-}
-
-const MOCK_DATA: GalleryItem[] = [
-  { id: '1', spotName: '明治神宮', date: '2024/01/15' },
-  { id: '2', spotName: '浅草寺', date: '2024/01/10' },
-  { id: '3', spotName: '伏見稲荷大社', date: '2024/01/05' },
-  { id: '4', spotName: '東京大神宮', date: '2023/12/28' },
-  { id: '5', spotName: '鶴岡八幡宮', date: '2023/12/20' },
-  { id: '6', spotName: '清水寺', date: '2023/12/15' },
-  { id: '7', spotName: '出雲大社', date: '2023/12/10' },
-  { id: '8', spotName: '厳島神社', date: '2023/12/05' },
-  { id: '9', spotName: '金閣寺', date: '2023/11/30' },
-];
+type SortOrder = 'date' | 'spot';
 
 const NUM_COLUMNS = 3;
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -32,29 +28,40 @@ const ITEM_MARGIN = spacing.xs;
 const ITEM_SIZE = (SCREEN_WIDTH - spacing.lg * 2 - ITEM_MARGIN * (NUM_COLUMNS - 1)) / NUM_COLUMNS;
 
 export function GalleryScreen({ navigation }: Props) {
-  const [sortLabel, setSortLabel] = useState('日付順');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('date');
+  const { stamps, totalCount, isLoading } = useGalleryStamps(sortOrder);
+
+  const sortLabel = sortOrder === 'date' ? '日付順' : 'スポット順';
 
   const handleToggleSort = () => {
-    setSortLabel(prev => (prev === '日付順' ? 'スポット順' : '日付順'));
+    setSortOrder(prev => (prev === 'date' ? 'spot' : 'date'));
   };
 
-  const handleItemPress = (item: GalleryItem) => {
-    navigation.navigate('StampDetail', { stampId: item.id });
+  const handleItemPress = (stamp: StampWithSpot) => {
+    navigation.navigate('StampDetail', { stampId: stamp.id });
   };
 
-  const renderItem = ({ item, index }: { item: GalleryItem; index: number }) => {
+  const formatDate = (dateStr: string) => dateStr.replace(/-/g, '/');
+
+  const renderItem = ({ item, index }: { item: StampWithSpot; index: number }) => {
     const isMiddleColumn = index % NUM_COLUMNS === 1;
+    const imageUrl = getStampImageUrl(item.image_path);
+
     return (
       <TouchableOpacity
         style={[styles.gridItem, isMiddleColumn && styles.gridItemMiddle]}
         onPress={() => handleItemPress(item)}
         testID={`gallery-item-${item.id}`}
       >
-        <View style={styles.imagePlaceholder} />
+        <Image
+          source={{ uri: imageUrl }}
+          style={styles.stampImage}
+          testID={`stamp-image-${item.id}`}
+        />
         <Text style={styles.itemSpotName} numberOfLines={1}>
-          {item.spotName}
+          {item.spots.name}
         </Text>
-        <Text style={styles.itemDate}>{item.date}</Text>
+        {sortOrder === 'date' && <Text style={styles.itemDate}>{formatDate(item.visited_at)}</Text>}
       </TouchableOpacity>
     );
   };
@@ -71,14 +78,34 @@ export function GalleryScreen({ navigation }: Props) {
         </TouchableOpacity>
       </View>
 
-      <FlatList
-        data={MOCK_DATA}
-        renderItem={renderItem}
-        keyExtractor={item => item.id}
-        numColumns={NUM_COLUMNS}
-        contentContainerStyle={styles.listContent}
-        testID="gallery-list"
-      />
+      {isLoading ? (
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={colors.primary[500]} testID="loading-indicator" />
+        </View>
+      ) : stamps.length === 0 ? (
+        <View style={styles.centerContainer} testID="empty-state">
+          <MaterialIcons name="photo-library" size={48} color={colors.gray[400]} />
+          <Text style={styles.emptyText}>御朱印がまだありません</Text>
+          <Text style={styles.emptySubText}>御朱印を記録して、コレクションを始めましょう</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={stamps}
+          renderItem={renderItem}
+          keyExtractor={item => item.id}
+          numColumns={NUM_COLUMNS}
+          key={sortOrder}
+          contentContainerStyle={styles.listContent}
+          testID="gallery-list"
+        />
+      )}
+
+      {totalCount > 20 && (
+        <View style={styles.premiumBanner} testID="premium-banner">
+          <MaterialIcons name="lock" size={16} color={colors.primary[600]} />
+          <Text style={styles.premiumBannerText}>直近20件のみ表示中。プレミアムで全件表示</Text>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -117,7 +144,7 @@ const styles = StyleSheet.create({
   gridItemMiddle: {
     marginHorizontal: ITEM_MARGIN,
   },
-  imagePlaceholder: {
+  stampImage: {
     width: ITEM_SIZE,
     height: ITEM_SIZE,
     backgroundColor: colors.gray[200],
@@ -131,5 +158,38 @@ const styles = StyleSheet.create({
   itemDate: {
     ...typography.caption,
     color: colors.gray[400],
+  },
+  centerContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
+  },
+  emptyText: {
+    ...typography.h3,
+    color: colors.gray[600],
+    marginTop: spacing.md,
+    textAlign: 'center',
+  },
+  emptySubText: {
+    ...typography.bodySmall,
+    color: colors.gray[400],
+    marginTop: spacing.sm,
+    textAlign: 'center',
+  },
+  premiumBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.primary[50],
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.primary[200],
+  },
+  premiumBannerText: {
+    ...typography.bodySmall,
+    color: colors.primary[700],
+    flex: 1,
   },
 });
