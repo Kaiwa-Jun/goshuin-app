@@ -1,4 +1,10 @@
-import { fetchVisitedSpotIds, fetchStampsBySpotId, getStampImageUrl } from '@services/stamps';
+import {
+  fetchVisitedSpotIds,
+  fetchStampsBySpotId,
+  getStampImageUrl,
+  fetchAllStamps,
+  fetchStampById,
+} from '@services/stamps';
 
 const mockSelect = jest.fn();
 const mockEq = jest.fn();
@@ -76,6 +82,82 @@ describe('stamps service', () => {
 
       const result = await fetchStampsBySpotId('spot-1');
       expect(result).toEqual([]);
+    });
+  });
+
+  describe('fetchAllStamps', () => {
+    it('returns stamps with spots for a given user', async () => {
+      const mockStamps = [
+        {
+          id: 'stamp-1',
+          user_id: 'user-1',
+          spot_id: 'spot-1',
+          visited_at: '2024-06-01',
+          image_path: 'img/1.jpg',
+          spots: { name: '伊勢神宮', type: 'shrine' },
+        },
+        {
+          id: 'stamp-2',
+          user_id: 'user-1',
+          spot_id: 'spot-2',
+          visited_at: '2024-01-15',
+          image_path: 'img/2.jpg',
+          spots: { name: '浅草寺', type: 'temple' },
+        },
+      ];
+      mockFrom.mockReturnValue({ select: mockSelect });
+      mockSelect.mockReturnValue({ eq: mockEq });
+      mockEq.mockReturnValue({ order: mockOrder });
+      mockOrder.mockReturnValue({ data: mockStamps, error: null });
+
+      const result = await fetchAllStamps('user-1');
+      expect(mockFrom).toHaveBeenCalledWith('stamps');
+      expect(mockSelect).toHaveBeenCalledWith('*, spots!inner(name, type)');
+      expect(mockEq).toHaveBeenCalledWith('user_id', 'user-1');
+      expect(mockOrder).toHaveBeenCalledWith('visited_at', { ascending: false });
+      expect(result).toEqual(mockStamps);
+    });
+
+    it('returns empty array on error', async () => {
+      mockFrom.mockReturnValue({ select: mockSelect });
+      mockSelect.mockReturnValue({ eq: mockEq });
+      mockEq.mockReturnValue({ order: mockOrder });
+      mockOrder.mockReturnValue({ data: null, error: { message: 'error' } });
+
+      const result = await fetchAllStamps('user-1');
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('fetchStampById', () => {
+    it('returns a single stamp with spot', async () => {
+      const mockStamp = {
+        id: 'stamp-1',
+        user_id: 'user-1',
+        spot_id: 'spot-1',
+        visited_at: '2024-06-01',
+        image_path: 'img/1.jpg',
+        spots: { name: '伊勢神宮', type: 'shrine' },
+      };
+      const mockSingle = jest.fn().mockReturnValue({ data: mockStamp, error: null });
+      mockFrom.mockReturnValue({ select: mockSelect });
+      mockSelect.mockReturnValue({ eq: mockEq });
+      mockEq.mockReturnValue({ single: mockSingle });
+
+      const result = await fetchStampById('stamp-1');
+      expect(mockFrom).toHaveBeenCalledWith('stamps');
+      expect(mockSelect).toHaveBeenCalledWith('*, spots!inner(name, type)');
+      expect(mockEq).toHaveBeenCalledWith('id', 'stamp-1');
+      expect(result).toEqual(mockStamp);
+    });
+
+    it('throws on error', async () => {
+      const mockSingle = jest.fn().mockReturnValue({ data: null, error: { message: 'not found' } });
+      mockFrom.mockReturnValue({ select: mockSelect });
+      mockSelect.mockReturnValue({ eq: mockEq });
+      mockEq.mockReturnValue({ single: mockSingle });
+
+      await expect(fetchStampById('stamp-1')).rejects.toThrow('not found');
     });
   });
 

@@ -1,5 +1,13 @@
-import React from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import {
+  StyleSheet,
+  Text,
+  View,
+  ScrollView,
+  TouchableOpacity,
+  Image,
+  ActivityIndicator,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Badge } from '@components/common/Badge';
@@ -7,11 +15,33 @@ import { Card } from '@components/common/Card';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { spacing } from '@theme/spacing';
+import { fetchStampById, getStampImageUrl } from '@services/stamps';
+import type { StampWithSpot } from '@/types/supabase';
 import type { GalleryStackScreenProps } from '@/navigation/types';
 
 type Props = GalleryStackScreenProps<'StampDetail'>;
 
-export function StampDetailScreen({ navigation }: Props) {
+export function StampDetailScreen({ navigation, route }: Props) {
+  const { stampId } = route.params;
+  const [stamp, setStamp] = useState<StampWithSpot | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchStampById(stampId)
+      .then(data => {
+        setStamp(data);
+      })
+      .catch(err => {
+        setError(err instanceof Error ? err.message : '取得に失敗しました');
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, [stampId]);
+
+  const formatDate = (dateStr: string) => dateStr.replace(/-/g, '/');
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
@@ -26,22 +56,37 @@ export function StampDetailScreen({ navigation }: Props) {
         <View style={styles.headerButton} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.imageArea} testID="stamp-image">
-          <MaterialIcons name="image" size={48} color={colors.gray[400]} />
+      {isLoading ? (
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={colors.primary[500]} testID="loading-indicator" />
         </View>
-
-        <View style={styles.infoSection}>
-          <Text style={styles.spotName}>明治神宮</Text>
-          <Badge type="shrine" />
-          <Text style={styles.visitDate}>2024年1月15日</Text>
+      ) : error || !stamp ? (
+        <View style={styles.centerContainer} testID="error-state">
+          <MaterialIcons name="error-outline" size={48} color={colors.error} />
+          <Text style={styles.errorText}>データを取得できませんでした</Text>
         </View>
+      ) : (
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <Image
+            source={{ uri: getStampImageUrl(stamp.image_path) }}
+            style={styles.stampImage}
+            testID="stamp-image"
+          />
 
-        <Card style={styles.memoCard}>
-          <Text style={styles.memoLabel}>メモ</Text>
-          <Text style={styles.memoText}>初めての御朱印。天気が良くて気持ちの良い参拝でした。</Text>
-        </Card>
-      </ScrollView>
+          <View style={styles.infoSection}>
+            <Text style={styles.spotName}>{stamp.spots.name}</Text>
+            <Badge type={stamp.spots.type} />
+            <Text style={styles.visitDate}>{formatDate(stamp.visited_at)}</Text>
+          </View>
+
+          {stamp.memo && (
+            <Card style={styles.memoCard}>
+              <Text style={styles.memoLabel}>メモ</Text>
+              <Text style={styles.memoText}>{stamp.memo}</Text>
+            </Card>
+          )}
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
@@ -70,15 +115,25 @@ const styles = StyleSheet.create({
     ...typography.h3,
     color: colors.gray[800],
   },
+  centerContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
+  },
+  errorText: {
+    ...typography.body,
+    color: colors.error,
+    marginTop: spacing.md,
+    textAlign: 'center',
+  },
   scrollContent: {
     paddingBottom: spacing['3xl'],
   },
-  imageArea: {
+  stampImage: {
     width: '100%',
     height: 300,
     backgroundColor: colors.gray[200],
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   infoSection: {
     padding: spacing.lg,

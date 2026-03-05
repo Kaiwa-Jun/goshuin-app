@@ -1,5 +1,5 @@
 import { supabase } from '@services/supabase';
-import type { Stamp } from '@/types/supabase';
+import type { Stamp, StampWithSpot } from '@/types/supabase';
 
 export async function fetchVisitedSpotIds(): Promise<Set<string>> {
   const { data, error } = await supabase.from('stamps').select('spot_id');
@@ -74,6 +74,33 @@ export async function createStamp(params: {
   }
 
   return data as Stamp;
+}
+
+export async function fetchAllStamps(userId: string): Promise<StampWithSpot[]> {
+  const { data, error } = await supabase
+    .from('stamps')
+    .select('*, spots!inner(name, type)')
+    .eq('user_id', userId)
+    .order('visited_at', { ascending: false });
+
+  if (error) {
+    console.warn('fetchAllStamps error:', error.message);
+    return [];
+  }
+  return data as StampWithSpot[];
+}
+
+export async function fetchStampById(stampId: string): Promise<StampWithSpot> {
+  const { data, error } = await supabase
+    .from('stamps')
+    .select('*, spots!inner(name, type)')
+    .eq('id', stampId)
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+  return data as StampWithSpot;
 }
 
 export function getStampImageUrl(imagePath: string): string {
