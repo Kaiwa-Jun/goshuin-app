@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '@hooks/useAuth';
 import { fetchAllStamps } from '@services/stamps';
 import type { StampWithSpot } from '@/types/supabase';
@@ -20,37 +21,39 @@ export function useGalleryStamps(sortOrder: SortOrder): UseGalleryStampsReturn {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!user) {
-      setAllStamps([]);
-      setIsLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-
-    (async () => {
-      try {
-        setIsLoading(true);
-        const data = await fetchAllStamps(user.id);
-        if (!cancelled) {
-          setAllStamps(data);
-          setError(null);
-        }
-      } catch (e) {
-        if (!cancelled) {
-          setAllStamps([]);
-          setError(e instanceof Error ? e.message : '取得に失敗しました');
-        }
-      } finally {
-        if (!cancelled) setIsLoading(false);
+  useFocusEffect(
+    useCallback(() => {
+      if (!user) {
+        setAllStamps([]);
+        setIsLoading(false);
+        return;
       }
-    })();
 
-    return () => {
-      cancelled = true;
-    };
-  }, [user]);
+      let cancelled = false;
+
+      (async () => {
+        try {
+          setIsLoading(true);
+          const data = await fetchAllStamps(user.id);
+          if (!cancelled) {
+            setAllStamps(data);
+            setError(null);
+          }
+        } catch (e) {
+          if (!cancelled) {
+            setAllStamps([]);
+            setError(e instanceof Error ? e.message : '取得に失敗しました');
+          }
+        } finally {
+          if (!cancelled) setIsLoading(false);
+        }
+      })();
+
+      return () => {
+        cancelled = true;
+      };
+    }, [user])
+  );
 
   const stamps = useMemo(() => {
     const sorted = [...allStamps];
