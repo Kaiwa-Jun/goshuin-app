@@ -1,6 +1,7 @@
 import {
   calculateDistance,
   getBoundingBox,
+  formatDistance,
   DEFAULT_RADIUS_KM,
   RADIUS_STEPS,
   MIN_SPOTS_THRESHOLD,
@@ -52,6 +53,24 @@ describe('geo utilities', () => {
       const large = getBoundingBox(38.2682, 140.8694, 5);
       expect(large.maxLat - large.minLat).toBeGreaterThan(small.maxLat - small.minLat);
       expect(large.maxLng - large.minLng).toBeGreaterThan(small.maxLng - small.minLng);
+    });
+  });
+
+  describe('formatDistance', () => {
+    it('formats meters when less than 1km', () => {
+      expect(formatDistance(0.5)).toBe('500m');
+    });
+
+    it('formats km when 1km or more', () => {
+      expect(formatDistance(1.5)).toBe('1.5km');
+    });
+
+    it('rounds meters to nearest integer', () => {
+      expect(formatDistance(0.123)).toBe('123m');
+    });
+
+    it('formats exactly 1km as km', () => {
+      expect(formatDistance(1.0)).toBe('1.0km');
     });
   });
 

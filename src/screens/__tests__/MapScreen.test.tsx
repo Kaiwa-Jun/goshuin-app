@@ -88,24 +88,6 @@ jest.mock('@hooks/useUserStamps', () => ({
   }),
 }));
 
-const mockSetQuery = jest.fn();
-const mockSetShowSuggestions = jest.fn();
-const mockClearSearch = jest.fn();
-
-let mockUseMapSearchReturn = {
-  query: '',
-  setQuery: mockSetQuery,
-  suggestions: [] as { spot: (typeof mockSpots)[0]; distance: number }[],
-  showSuggestions: false,
-  setShowSuggestions: mockSetShowSuggestions,
-  nearbySpots: mockSpots.map(s => ({ spot: s, distance: 1.5 })),
-  clearSearch: mockClearSearch,
-};
-
-jest.mock('@hooks/useMapSearch', () => ({
-  useMapSearch: () => mockUseMapSearchReturn,
-}));
-
 const mockParentNavigate = jest.fn();
 const mockNavigation = {
   navigate: jest.fn(),
@@ -142,15 +124,6 @@ describe('MapScreen', () => {
       signInWithGoogle: jest.fn(),
       signOut: jest.fn(),
     };
-    mockUseMapSearchReturn = {
-      query: '',
-      setQuery: mockSetQuery,
-      suggestions: [],
-      showSuggestions: false,
-      setShowSuggestions: mockSetShowSuggestions,
-      nearbySpots: mockSpots.map(s => ({ spot: s, distance: 1.5 })),
-      clearSearch: mockClearSearch,
-    };
   });
 
   it('renders without crashing', () => {
@@ -165,6 +138,14 @@ describe('MapScreen', () => {
       <MapScreen navigation={mockNavigation as never} route={mockRoute} />
     );
     expect(getByTestId('search-bar')).toBeTruthy();
+  });
+
+  it('navigates to Search screen when search bar is pressed', () => {
+    const { getByTestId } = render(
+      <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+    );
+    fireEvent.press(getByTestId('search-bar'));
+    expect(mockNavigation.navigate).toHaveBeenCalledWith('Search');
   });
 
   it('displays MapView', () => {
@@ -214,46 +195,6 @@ describe('MapScreen', () => {
       );
 
       fireEvent.press(getByTestId('spot-marker-spot-1'));
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('SpotDetail', { spotId: 'spot-1' });
-    });
-  });
-
-  describe('Search suggestions', () => {
-    it('shows suggestions list when showSuggestions is true and has nearby spots', () => {
-      mockUseMapSearchReturn = {
-        ...mockUseMapSearchReturn,
-        showSuggestions: true,
-      };
-
-      const { getByTestId } = render(
-        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
-      );
-      expect(getByTestId('suggestions-list')).toBeTruthy();
-    });
-
-    it('does not show suggestions when showSuggestions is false', () => {
-      mockUseMapSearchReturn = {
-        ...mockUseMapSearchReturn,
-        showSuggestions: false,
-      };
-
-      const { queryByTestId } = render(
-        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
-      );
-      expect(queryByTestId('suggestions-list')).toBeNull();
-    });
-
-    it('navigates to SpotDetail when suggestion is pressed', () => {
-      mockUseMapSearchReturn = {
-        ...mockUseMapSearchReturn,
-        showSuggestions: true,
-      };
-
-      const { getByTestId } = render(
-        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
-      );
-
-      fireEvent.press(getByTestId('suggestion-spot-1'));
       expect(mockNavigation.navigate).toHaveBeenCalledWith('SpotDetail', { spotId: 'spot-1' });
     });
   });

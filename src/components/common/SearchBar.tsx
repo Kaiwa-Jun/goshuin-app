@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, TextInput, StyleSheet, TouchableOpacity, Pressable } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
@@ -13,6 +13,11 @@ interface SearchBarProps {
   onFocus?: () => void;
   onClear?: () => void;
   showClearButton?: boolean;
+  editable?: boolean;
+  onPress?: () => void;
+  autoFocus?: boolean;
+  leftIcon?: 'search' | 'back';
+  onLeftIconPress?: () => void;
 }
 
 export const SearchBar: React.FC<SearchBarProps> = ({
@@ -22,24 +27,56 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   onFocus,
   onClear,
   showClearButton = false,
+  editable = true,
+  onPress,
+  autoFocus = false,
+  leftIcon = 'search',
+  onLeftIconPress,
 }) => {
-  return (
-    <View style={styles.container} testID="search-bar">
-      <MaterialIcons name="search" size={20} color={colors.gray[400]} />
-      <TextInput
-        style={styles.input}
-        placeholder={placeholder}
-        placeholderTextColor={colors.gray[400]}
-        value={value}
-        onChangeText={onChangeText}
-        onFocus={onFocus}
-        testID="search-input"
-      />
+  const iconName = leftIcon === 'back' ? 'arrow-back' : 'search';
+  const iconElement = onLeftIconPress ? (
+    <TouchableOpacity onPress={onLeftIconPress} testID="search-left-icon" activeOpacity={0.7}>
+      <MaterialIcons name={iconName} size={20} color={colors.gray[400]} />
+    </TouchableOpacity>
+  ) : (
+    <MaterialIcons name={iconName} size={20} color={colors.gray[400]} />
+  );
+
+  const content = (
+    <>
+      {iconElement}
+      <View style={styles.inputWrapper} pointerEvents={editable ? 'auto' : 'none'}>
+        <TextInput
+          style={styles.input}
+          placeholder={placeholder}
+          placeholderTextColor={colors.gray[400]}
+          value={value}
+          onChangeText={onChangeText}
+          onFocus={onFocus}
+          editable={editable}
+          autoFocus={autoFocus}
+          testID="search-input"
+        />
+      </View>
       {showClearButton && (
         <TouchableOpacity onPress={onClear} testID="search-clear-button" activeOpacity={0.7}>
           <MaterialIcons name="close" size={20} color={colors.gray[400]} />
         </TouchableOpacity>
       )}
+    </>
+  );
+
+  if (!editable && onPress) {
+    return (
+      <Pressable style={styles.container} testID="search-bar" onPress={onPress}>
+        {content}
+      </Pressable>
+    );
+  }
+
+  return (
+    <View style={styles.container} testID="search-bar">
+      {content}
     </View>
   );
 };
@@ -55,8 +92,10 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     ...shadows.sm,
   },
-  input: {
+  inputWrapper: {
     flex: 1,
+  },
+  input: {
     ...typography.body,
     color: colors.gray[800],
     padding: 0,

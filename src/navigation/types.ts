@@ -30,6 +30,7 @@ export type MainTabParamList = {
 export type MapStackParamList = {
   Map: undefined;
   SpotDetail: { spotId: string };
+  Search: undefined;
 };
 
 export type GalleryStackParamList = {
