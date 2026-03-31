@@ -15,6 +15,7 @@ export const FilterChips: React.FC<FilterChipsProps> = ({ options, selectedKey, 
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
       contentContainerStyle={styles.container}
     >
       {options.map(option => {
