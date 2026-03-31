@@ -46,18 +46,27 @@ export function SearchScreen({ navigation }: Props) {
         </View>
       </View>
 
-      <View style={{ marginTop: searchRowTop + 52 }}>
-        <FilterChips
-          options={FILTER_OPTIONS}
-          selectedKey={filterType}
-          onSelect={key => setFilterType(key as 'all' | 'shrine' | 'temple')}
-        />
-
+      <View style={{ marginTop: searchRowTop + 52, flex: 1 }}>
         {showEmpty ? (
-          <View style={styles.emptyContainer}>
-            <MaterialIcons name="search-off" size={48} color={colors.gray[300]} />
-            <Text style={styles.emptyText}>見つかりませんでした</Text>
-          </View>
+          <FlatList
+            data={[]}
+            renderItem={() => null}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            ListHeaderComponent={
+              <>
+                <FilterChips
+                  options={FILTER_OPTIONS}
+                  selectedKey={filterType}
+                  onSelect={key => setFilterType(key as 'all' | 'shrine' | 'temple')}
+                />
+                <View style={styles.emptyContainer}>
+                  <MaterialIcons name="search-off" size={48} color={colors.gray[300]} />
+                  <Text style={styles.emptyText}>見つかりませんでした</Text>
+                </View>
+              </>
+            }
+          />
         ) : (
           <FlatList
             data={displayData}
@@ -65,7 +74,14 @@ export function SearchScreen({ navigation }: Props) {
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
             ListHeaderComponent={
-              <Text style={styles.sectionTitle}>{hasQuery ? '検索結果' : '近くのスポット'}</Text>
+              <>
+                <FilterChips
+                  options={FILTER_OPTIONS}
+                  selectedKey={filterType}
+                  onSelect={key => setFilterType(key as 'all' | 'shrine' | 'temple')}
+                />
+                <Text style={styles.sectionTitle}>{hasQuery ? '検索結果' : '近くのスポット'}</Text>
+              </>
             }
             renderItem={({ item }) => (
               <SearchResultCard
