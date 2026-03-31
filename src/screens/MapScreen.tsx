@@ -14,6 +14,7 @@ import { useAuth } from '@hooks/useAuth';
 import { useLocation } from '@hooks/useLocation';
 import { useSpots } from '@hooks/useSpots';
 import { useUserStamps } from '@hooks/useUserStamps';
+import { useWishlist } from '@hooks/useWishlist';
 import type { MapStackScreenProps } from '@/navigation/types';
 import type { Spot } from '@/types/supabase';
 import { colors } from '@theme/colors';
@@ -28,15 +29,23 @@ const LATITUDE_DELTA = 0.02;
 const LONGITUDE_DELTA = 0.02;
 const LABEL_VISIBLE_DELTA = 0.08;
 
-function getPinColor(spot: Spot, visitedSpotIds: Set<string>): string {
-  if (!visitedSpotIds.has(spot.id)) return colors.pin.unvisited;
-  return spot.type === 'shrine' ? colors.pin.shrineVisited : colors.pin.templeVisited;
+function getPinColor(
+  spot: Spot,
+  visitedSpotIds: Set<string>,
+  wishlistSpotIds?: Set<string>
+): string {
+  if (visitedSpotIds.has(spot.id)) {
+    return spot.type === 'shrine' ? colors.pin.shrineVisited : colors.pin.templeVisited;
+  }
+  if (wishlistSpotIds?.has(spot.id)) return colors.pin.wishlisted;
+  return colors.pin.unvisited;
 }
 
 export function MapScreen({ navigation, route }: Props) {
   const { isAuthenticated } = useAuth();
   const { location } = useLocation();
   const { visitedSpotIds } = useUserStamps();
+  const { wishlistSpotIds, toggleWishlist } = useWishlist();
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const { spots } = useSpots(location, filterMode, visitedSpotIds);
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -138,6 +147,17 @@ export function MapScreen({ navigation, route }: Props) {
       }
     },
     [isAuthenticated]
+  );
+
+  const handleWishlistToggle = useCallback(
+    (spotId: string) => {
+      if (!isAuthenticated) {
+        setShowLoginModal(true);
+        return;
+      }
+      toggleWishlist(spotId);
+    },
+    [isAuthenticated, toggleWishlist]
   );
 
   const handleFilterPress = () => {
@@ -253,7 +273,7 @@ export function MapScreen({ navigation, route }: Props) {
             tracksViewChanges={false}
           >
             <SpotMarker
-              color={getPinColor(spot, visitedSpotIds)}
+              color={getPinColor(spot, visitedSpotIds, wishlistSpotIds)}
               name={spot.name}
               showLabel={shouldShowLabels}
             />
@@ -272,6 +292,8 @@ export function MapScreen({ navigation, route }: Props) {
         visitedSpotIds={visitedSpotIds}
         onDismiss={handleBottomSheetDismiss}
         onRecord={handleBottomSheetRecord}
+        wishlistSpotIds={wishlistSpotIds}
+        onWishlistToggle={handleWishlistToggle}
       />
 
       <LoginPromptModal

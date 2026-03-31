@@ -6,6 +6,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { Badge } from '@components/common/Badge';
 import { Button } from '@components/common/Button';
 import { Card } from '@components/common/Card';
+import { WishlistButton } from '@components/animated/WishlistButton';
 import { getStampImageUrl } from '@services/stamps';
 import type { Spot, Stamp } from '@/types/supabase';
 import { colors } from '@theme/colors';
@@ -20,6 +21,8 @@ interface SpotDetailContentProps {
   isAuthenticated: boolean;
   onRecord: () => void;
   showMiniMap?: boolean;
+  isWishlisted?: boolean;
+  onWishlistPress?: () => void;
 }
 
 function formatDate(dateStr: string): string {
@@ -38,6 +41,8 @@ export function SpotDetailContent({
   isAuthenticated,
   onRecord,
   showMiniMap = true,
+  isWishlisted,
+  onWishlistPress,
 }: SpotDetailContentProps) {
   const badgeType = spot.type === 'shrine' ? 'shrine' : 'temple';
   const showVisited = isAuthenticated && visitCount > 0;
@@ -49,9 +54,14 @@ export function SpotDetailContent({
         {showVisited && <Badge type="visited" />}
       </View>
 
-      <Text style={styles.spotName} testID="spot-name">
-        {spot.name}
-      </Text>
+      <View style={styles.nameRow}>
+        <Text style={[styles.spotName, styles.spotNameFlex]} testID="spot-name">
+          {spot.name}
+        </Text>
+        {onWishlistPress && isWishlisted !== undefined && (
+          <WishlistButton isWishlisted={isWishlisted} onPress={onWishlistPress} />
+        )}
+      </View>
       {spot.address && (
         <View style={styles.addressRow}>
           <MaterialIcons name="place" size={16} color={colors.gray[400]} />
@@ -147,10 +157,17 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     marginBottom: spacing.md,
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
   spotName: {
     ...typography.h2,
     color: colors.gray[900],
-    marginBottom: spacing.sm,
+  },
+  spotNameFlex: {
+    flex: 1,
   },
   addressRow: {
     flexDirection: 'row',

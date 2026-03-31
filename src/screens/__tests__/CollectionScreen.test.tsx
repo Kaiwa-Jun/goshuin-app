@@ -1,5 +1,5 @@
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { render, fireEvent } from '@testing-library/react-native';
 
 import { CollectionScreen } from '../CollectionScreen';
 import type { MainTabScreenProps } from '@/navigation/types';
@@ -14,6 +14,31 @@ jest.mock('react-native-safe-area-context', () => {
   };
 });
 
+jest.mock('@hooks/useAuth', () => ({
+  useAuth: () => ({
+    user: { id: 'user-1' },
+    isAuthenticated: true,
+  }),
+}));
+
+const mockRefetch = jest.fn();
+let mockWishlistSpots: unknown[] = [];
+
+jest.mock('@hooks/useWishlistSpots', () => ({
+  useWishlistSpots: () => ({
+    spots: mockWishlistSpots,
+    isLoading: false,
+    error: null,
+    refetch: mockRefetch,
+  }),
+}));
+
+const mockRemoveFromWishlist = jest.fn().mockResolvedValue(undefined);
+
+jest.mock('@services/wishlist', () => ({
+  removeFromWishlist: (...args: unknown[]) => mockRemoveFromWishlist(...args),
+}));
+
 const mockNavigation = {
   navigate: jest.fn(),
   goBack: jest.fn(),
@@ -27,6 +52,11 @@ const mockRoute = {
 } as unknown as MainTabScreenProps<'Collection'>['route'];
 
 describe('CollectionScreen', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockWishlistSpots = [];
+  });
+
   it('renders the header', () => {
     const { getByText } = render(
       <CollectionScreen navigation={mockNavigation} route={mockRoute} />
@@ -74,5 +104,62 @@ describe('CollectionScreen', () => {
     expect(getByText('10箇所達成')).toBeTruthy();
     expect(getByText('巡礼者')).toBeTruthy();
     expect(getByText('全国制覇')).toBeTruthy();
+  });
+
+  describe('Wishlist section', () => {
+    it('renders wishlist section title', () => {
+      const { getByText } = render(
+        <CollectionScreen navigation={mockNavigation} route={mockRoute} />
+      );
+      expect(getByText('行きたいリスト')).toBeTruthy();
+    });
+
+    it('renders empty state when no wishlist spots', () => {
+      mockWishlistSpots = [];
+      const { getByText } = render(
+        <CollectionScreen navigation={mockNavigation} route={mockRoute} />
+      );
+      expect(getByText('行きたいスポットをマップで保存しましょう')).toBeTruthy();
+    });
+
+    it('renders wishlist items', () => {
+      mockWishlistSpots = [
+        {
+          id: 'wl-1',
+          user_id: 'user-1',
+          spot_id: 'spot-1',
+          created_at: '2026-01-01T00:00:00Z',
+          spots: { name: '伊勢神宮', type: 'shrine', address: '三重県伊勢市宇治館町1' },
+        },
+      ];
+      const { getByText, getByTestId } = render(
+        <CollectionScreen navigation={mockNavigation} route={mockRoute} />
+      );
+      expect(getByText('伊勢神宮')).toBeTruthy();
+      expect(getByTestId('wishlist-item-spot-1')).toBeTruthy();
+    });
+
+    it('calls removeFromWishlist and refetch when wishlist button is pressed', async () => {
+      mockWishlistSpots = [
+        {
+          id: 'wl-1',
+          user_id: 'user-1',
+          spot_id: 'spot-1',
+          created_at: '2026-01-01T00:00:00Z',
+          spots: { name: '伊勢神宮', type: 'shrine', address: '三重県伊勢市宇治館町1' },
+        },
+      ];
+      const { getByTestId } = render(
+        <CollectionScreen navigation={mockNavigation} route={mockRoute} />
+      );
+
+      fireEvent.press(getByTestId('wishlist-button'));
+
+      // Wait for async operation
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(mockRemoveFromWishlist).toHaveBeenCalledWith('user-1', 'spot-1');
+      expect(mockRefetch).toHaveBeenCalled();
+    });
   });
 });

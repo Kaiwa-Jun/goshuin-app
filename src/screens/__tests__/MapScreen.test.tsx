@@ -131,6 +131,15 @@ jest.mock('@hooks/useUserStamps', () => ({
   }),
 }));
 
+jest.mock('@hooks/useWishlist', () => ({
+  useWishlist: () => ({
+    wishlistSpotIds: new Set(),
+    toggleWishlist: jest.fn(),
+    isLoading: false,
+    isToggling: false,
+  }),
+}));
+
 const mockParentNavigate = jest.fn();
 const mockNavigation = {
   navigate: jest.fn(),

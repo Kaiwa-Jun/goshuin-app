@@ -16,6 +16,8 @@ interface SpotBottomSheetProps {
   visitedSpotIds: Set<string>;
   onDismiss: () => void;
   onRecord: (spotId: string) => void;
+  wishlistSpotIds?: Set<string>;
+  onWishlistToggle?: (spotId: string) => void;
 }
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -28,6 +30,8 @@ export function SpotBottomSheet({
   visitedSpotIds,
   onDismiss,
   onRecord,
+  wishlistSpotIds,
+  onWishlistToggle,
 }: SpotBottomSheetProps) {
   const insets = useSafeAreaInsets();
   const expandedHeight = SCREEN_HEIGHT * 0.85;
@@ -130,6 +134,13 @@ export function SpotBottomSheet({
   }, [spotId, onRecord]);
 
   const isVisited = spotId ? visitedSpotIds.has(spotId) : false;
+  const isWishlisted = spotId && wishlistSpotIds ? wishlistSpotIds.has(spotId) : false;
+
+  const handleWishlistPress = useCallback(() => {
+    if (spotId && onWishlistToggle) {
+      onWishlistToggle(spotId);
+    }
+  }, [spotId, onWishlistToggle]);
 
   if (!spotId || !spot) {
     return null;
@@ -153,7 +164,14 @@ export function SpotBottomSheet({
       </View>
 
       {/* Compact card (hidden when expanded) */}
-      {mode !== 'expanded' && <SpotCompactCard spot={spot} isVisited={isVisited} />}
+      {mode !== 'expanded' && (
+        <SpotCompactCard
+          spot={spot}
+          isVisited={isVisited}
+          isWishlisted={isWishlisted}
+          onWishlistPress={onWishlistToggle ? handleWishlistPress : undefined}
+        />
+      )}
 
       {/* Scrollable detail content (visible when expanded) */}
       {mode === 'expanded' && (
@@ -170,6 +188,8 @@ export function SpotBottomSheet({
             isAuthenticated={isAuthenticated}
             onRecord={handleRecord}
             showMiniMap={false}
+            isWishlisted={isWishlisted}
+            onWishlistPress={onWishlistToggle ? handleWishlistPress : undefined}
           />
         </ScrollView>
       )}

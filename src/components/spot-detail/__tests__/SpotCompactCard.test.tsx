@@ -1,5 +1,5 @@
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { render, fireEvent } from '@testing-library/react-native';
 import { SpotCompactCard } from '../SpotCompactCard';
 import type { Spot } from '@/types/supabase';
 
@@ -65,5 +65,27 @@ describe('SpotCompactCard', () => {
     const spotNoAddress = { ...mockShrine, address: null };
     const { queryByTestId } = render(<SpotCompactCard {...defaultProps} spot={spotNoAddress} />);
     expect(queryByTestId('spot-compact-address')).toBeNull();
+  });
+
+  it('renders wishlist button when props are provided', () => {
+    const onWishlistPress = jest.fn();
+    const { getByTestId } = render(
+      <SpotCompactCard {...defaultProps} isWishlisted={false} onWishlistPress={onWishlistPress} />
+    );
+    expect(getByTestId('wishlist-button')).toBeTruthy();
+  });
+
+  it('does not render wishlist button when props are not provided', () => {
+    const { queryByTestId } = render(<SpotCompactCard {...defaultProps} />);
+    expect(queryByTestId('wishlist-button')).toBeNull();
+  });
+
+  it('calls onWishlistPress when wishlist button is tapped', () => {
+    const onWishlistPress = jest.fn();
+    const { getByTestId } = render(
+      <SpotCompactCard {...defaultProps} isWishlisted={false} onWishlistPress={onWishlistPress} />
+    );
+    fireEvent.press(getByTestId('wishlist-button'));
+    expect(onWishlistPress).toHaveBeenCalledTimes(1);
   });
 });

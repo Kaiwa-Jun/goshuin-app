@@ -52,6 +52,8 @@ describe('SpotBottomSheet', () => {
     visitedSpotIds: new Set(['spot-1']),
     onDismiss: jest.fn(),
     onRecord: jest.fn(),
+    wishlistSpotIds: new Set<string>(),
+    onWishlistToggle: jest.fn(),
   };
 
   it('renders bottom sheet when spotId is provided', () => {

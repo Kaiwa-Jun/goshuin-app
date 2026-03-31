@@ -46,6 +46,7 @@ export const colors = {
   pin: {
     shrineVisited: '#EF4444',
     templeVisited: '#A855F7',
+    wishlisted: '#F59E0B',
     unvisited: '#9CA3AF',
     currentLocation: '#3B82F6',
   },

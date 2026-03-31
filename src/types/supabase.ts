@@ -46,6 +46,21 @@ export interface StampWithSpot extends Stamp {
   };
 }
 
+export interface Wishlist {
+  id: string;
+  user_id: string;
+  spot_id: string;
+  created_at: string;
+}
+
+export interface WishlistWithSpot extends Wishlist {
+  spots: {
+    name: string;
+    type: SpotType;
+    address: string | null;
+  };
+}
+
 export interface Goshuincho {
   id: string;
   user_id: string;
