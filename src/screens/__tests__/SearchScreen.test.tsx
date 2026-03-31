@@ -41,19 +41,6 @@ const mockSpots = [
     created_at: '2024-01-01',
     updated_at: '2024-01-01',
   },
-  {
-    id: 'spot-3',
-    name: '大崎八幡宮',
-    lat: 38.27,
-    lng: 140.86,
-    type: 'shrine' as const,
-    status: 'active' as const,
-    address: '仙台市青葉区八幡4-6-1',
-    created_by_user_id: null,
-    merged_into_spot_id: null,
-    created_at: '2024-01-01',
-    updated_at: '2024-01-01',
-  },
 ];
 
 const mockSetQuery = jest.fn();
@@ -64,7 +51,6 @@ let mockUseSearchScreenReturn = {
   query: '',
   setQuery: mockSetQuery,
   results: [] as { spot: (typeof mockSpots)[0]; distance: number }[],
-  nearbySpots: mockSpots.map(s => ({ spot: s, distance: 1.5 })),
   filterType: 'all' as 'all' | 'shrine' | 'temple',
   setFilterType: mockSetFilterType,
   clearSearch: mockClearSearch,
@@ -72,6 +58,23 @@ let mockUseSearchScreenReturn = {
 
 jest.mock('@hooks/useSearchScreen', () => ({
   useSearchScreen: () => mockUseSearchScreenReturn,
+}));
+
+const mockAddHistory = jest.fn();
+const mockClearHistory = jest.fn();
+
+let mockUseSearchHistoryReturn = {
+  history: [
+    { spotId: 'spot-1', spotName: '仙台東照宮' },
+    { spotId: 'spot-2', spotName: '仙台成田山' },
+  ],
+  isLoading: false,
+  addHistory: mockAddHistory,
+  clearHistory: mockClearHistory,
+};
+
+jest.mock('@hooks/useSearchHistory', () => ({
+  useSearchHistory: () => mockUseSearchHistoryReturn,
 }));
 
 const mockNavigation = {
@@ -104,10 +107,18 @@ describe('SearchScreen', () => {
       query: '',
       setQuery: mockSetQuery,
       results: [],
-      nearbySpots: mockSpots.map(s => ({ spot: s, distance: 1.5 })),
       filterType: 'all',
       setFilterType: mockSetFilterType,
       clearSearch: mockClearSearch,
+    };
+    mockUseSearchHistoryReturn = {
+      history: [
+        { spotId: 'spot-1', spotName: '仙台東照宮' },
+        { spotId: 'spot-2', spotName: '仙台成田山' },
+      ],
+      isLoading: false,
+      addHistory: mockAddHistory,
+      clearHistory: mockClearHistory,
     };
   });
 
@@ -140,74 +151,121 @@ describe('SearchScreen', () => {
     expect(getByTestId('search-bar')).toBeTruthy();
   });
 
-  it('displays filter chips', () => {
-    const { getByTestId } = render(
-      <SearchScreen navigation={mockNavigation as never} route={mockRoute} />
-    );
-    expect(getByTestId('filter-chip-all')).toBeTruthy();
-    expect(getByTestId('filter-chip-shrine')).toBeTruthy();
-    expect(getByTestId('filter-chip-temple')).toBeTruthy();
+  describe('Search history (query empty)', () => {
+    it('displays search history when query is empty', () => {
+      const { getByText } = render(
+        <SearchScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+      expect(getByText('最近の検索')).toBeTruthy();
+      expect(getByText('仙台東照宮')).toBeTruthy();
+      expect(getByText('仙台成田山')).toBeTruthy();
+    });
+
+    it('displays empty history message when no history', () => {
+      mockUseSearchHistoryReturn = {
+        ...mockUseSearchHistoryReturn,
+        history: [],
+      };
+
+      const { getByText } = render(
+        <SearchScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+      expect(getByText('検索履歴はありません')).toBeTruthy();
+    });
+
+    it('navigates to SpotDetail when history item is tapped', () => {
+      const { getAllByTestId } = render(
+        <SearchScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+      fireEvent.press(getAllByTestId('history-item')[0]);
+      expect(mockNavigation.navigate).toHaveBeenCalledWith('SpotDetail', { spotId: 'spot-1' });
+    });
+
+    it('clears history when clear button is pressed', () => {
+      const { getByTestId } = render(
+        <SearchScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+      fireEvent.press(getByTestId('clear-history-button'));
+      expect(mockClearHistory).toHaveBeenCalled();
+    });
   });
 
-  it('calls setFilterType when filter chip is pressed', () => {
-    const { getByTestId } = render(
-      <SearchScreen navigation={mockNavigation as never} route={mockRoute} />
-    );
-    fireEvent.press(getByTestId('filter-chip-shrine'));
-    expect(mockSetFilterType).toHaveBeenCalledWith('shrine');
-  });
+  describe('Search results (query present)', () => {
+    it('displays filter chips when query is present', () => {
+      mockUseSearchScreenReturn = {
+        ...mockUseSearchScreenReturn,
+        query: '仙台',
+        results: [{ spot: mockSpots[0], distance: 1.2 }],
+      };
 
-  it('displays nearby spots when query is empty', () => {
-    const { getByText } = render(
-      <SearchScreen navigation={mockNavigation as never} route={mockRoute} />
-    );
-    expect(getByText('近くのスポット')).toBeTruthy();
-    expect(getByText('仙台東照宮')).toBeTruthy();
-    expect(getByText('仙台成田山')).toBeTruthy();
-    expect(getByText('大崎八幡宮')).toBeTruthy();
-  });
+      const { getByTestId } = render(
+        <SearchScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+      expect(getByTestId('filter-chip-all')).toBeTruthy();
+      expect(getByTestId('filter-chip-shrine')).toBeTruthy();
+      expect(getByTestId('filter-chip-temple')).toBeTruthy();
+    });
 
-  it('displays search results when query has results', () => {
-    mockUseSearchScreenReturn = {
-      ...mockUseSearchScreenReturn,
-      query: '仙台',
-      results: [
-        { spot: mockSpots[0], distance: 1.2 },
-        { spot: mockSpots[1], distance: 3.5 },
-      ],
-    };
+    it('calls setFilterType when filter chip is pressed', () => {
+      mockUseSearchScreenReturn = {
+        ...mockUseSearchScreenReturn,
+        query: '仙台',
+        results: [{ spot: mockSpots[0], distance: 1.2 }],
+      };
 
-    const { getByText } = render(
-      <SearchScreen navigation={mockNavigation as never} route={mockRoute} />
-    );
-    expect(getByText('検索結果')).toBeTruthy();
-  });
+      const { getByTestId } = render(
+        <SearchScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+      fireEvent.press(getByTestId('filter-chip-shrine'));
+      expect(mockSetFilterType).toHaveBeenCalledWith('shrine');
+    });
 
-  it('displays empty message when query has no results', () => {
-    mockUseSearchScreenReturn = {
-      ...mockUseSearchScreenReturn,
-      query: 'xxxxxx',
-      results: [],
-    };
+    it('displays search results', () => {
+      mockUseSearchScreenReturn = {
+        ...mockUseSearchScreenReturn,
+        query: '仙台',
+        results: [
+          { spot: mockSpots[0], distance: 1.2 },
+          { spot: mockSpots[1], distance: 3.5 },
+        ],
+      };
 
-    const { getByText } = render(
-      <SearchScreen navigation={mockNavigation as never} route={mockRoute} />
-    );
-    expect(getByText('見つかりませんでした')).toBeTruthy();
-  });
+      const { getByText } = render(
+        <SearchScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+      expect(getByText('検索結果')).toBeTruthy();
+    });
 
-  it('navigates to SpotDetail when result card is pressed', () => {
-    mockUseSearchScreenReturn = {
-      ...mockUseSearchScreenReturn,
-      query: '仙台',
-      results: [{ spot: mockSpots[0], distance: 1.2 }],
-    };
+    it('displays empty message when query has no results', () => {
+      mockUseSearchScreenReturn = {
+        ...mockUseSearchScreenReturn,
+        query: 'xxxxxx',
+        results: [],
+      };
 
-    const { getAllByTestId } = render(
-      <SearchScreen navigation={mockNavigation as never} route={mockRoute} />
-    );
-    fireEvent.press(getAllByTestId('search-result-card')[0]);
-    expect(mockNavigation.navigate).toHaveBeenCalledWith('SpotDetail', { spotId: 'spot-1' });
+      const { getByText } = render(
+        <SearchScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+      expect(getByText('見つかりませんでした')).toBeTruthy();
+    });
+
+    it('adds spot to history and navigates when result card is pressed', () => {
+      mockUseSearchScreenReturn = {
+        ...mockUseSearchScreenReturn,
+        query: '仙台',
+        results: [{ spot: mockSpots[0], distance: 1.2 }],
+      };
+
+      const { getAllByTestId } = render(
+        <SearchScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+      fireEvent.press(getAllByTestId('search-result-card')[0]);
+      expect(mockAddHistory).toHaveBeenCalledWith({
+        spotId: 'spot-1',
+        spotName: '仙台東照宮',
+      });
+      expect(mockNavigation.navigate).toHaveBeenCalledWith('SpotDetail', { spotId: 'spot-1' });
+    });
   });
 
   it('calls setQuery when text is entered in search bar', () => {
