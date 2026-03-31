@@ -13,7 +13,7 @@ export function MapStack() {
       <Stack.Screen
         name="SpotDetail"
         component={SpotDetailScreen}
-        options={{ title: 'スポット詳細' }}
+        options={{ headerShown: false }}
       />
     </Stack.Navigator>
   );
