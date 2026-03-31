@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker, type Region } from 'react-native-maps';
@@ -32,7 +32,7 @@ function getPinColor(spot: Spot, visitedSpotIds: Set<string>): string {
   return spot.type === 'shrine' ? colors.pin.shrineVisited : colors.pin.templeVisited;
 }
 
-export function MapScreen({ navigation }: Props) {
+export function MapScreen({ navigation, route }: Props) {
   const { isAuthenticated } = useAuth();
   const { location } = useLocation();
   const { visitedSpotIds } = useUserStamps();
@@ -46,6 +46,24 @@ export function MapScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
 
   const searchRowTop = insets.top + spacing.xs;
+
+  useEffect(() => {
+    const focusSpotId = route.params?.focusSpotId;
+    if (!focusSpotId || !mapRef.current) return;
+
+    const spot = spots.find(s => s.id === focusSpotId);
+    if (!spot) return;
+
+    mapRef.current.animateToRegion(
+      {
+        latitude: spot.lat,
+        longitude: spot.lng,
+        latitudeDelta: LATITUDE_DELTA,
+        longitudeDelta: LONGITUDE_DELTA,
+      },
+      500
+    );
+  }, [route.params?.focusSpotId, spots]);
 
   const navigateToRecord = () => {
     const parent = navigation.getParent();

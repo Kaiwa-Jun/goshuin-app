@@ -95,9 +95,16 @@ jest.mock('react-native-safe-area-context', () => {
 jest.mock('react-native-maps', () => {
   const React = require('react');
   const { View } = require('react-native');
-  const MockMapView = React.forwardRef((props, ref) =>
-    React.createElement(View, { ...props, testID: props.testID || 'map-view', ref }, props.children)
-  );
+  const MockMapView = React.forwardRef((props, ref) => {
+    React.useImperativeHandle(ref, () => ({
+      animateToRegion: jest.fn(),
+    }));
+    return React.createElement(
+      View,
+      { ...props, testID: props.testID || 'map-view' },
+      props.children
+    );
+  });
   MockMapView.displayName = 'MapView';
   const MockMarker = props =>
     React.createElement(View, { ...props, testID: props.testID || 'marker' }, props.children);
