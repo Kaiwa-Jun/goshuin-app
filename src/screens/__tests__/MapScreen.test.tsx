@@ -2,18 +2,61 @@ import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { MapScreen } from '@screens/MapScreen';
 
-jest.mock('react-native-safe-area-context', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
-  const React = require('react');
-  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
-  const { View } = require('react-native');
-  return {
-    SafeAreaView: ({ children, ...props }: { children: React.ReactNode; [key: string]: unknown }) =>
-      React.createElement(View, props, children),
-    SafeAreaProvider: ({ children }: { children: React.ReactNode }) => children,
-    useSafeAreaInsets: () => ({ top: 47, bottom: 34, left: 0, right: 0 }),
-  };
-});
+jest.mock('@services/stamps', () => ({
+  fetchStampsBySpotId: jest.fn(() => Promise.resolve([])),
+  getStampImageUrl: jest.fn((path: string) => `https://example.com/${path}`),
+}));
+
+jest.mock('@hooks/useSpotDetail', () => ({
+  useSpotDetail: (spotId: string) => {
+    const spots: Record<string, unknown> = {
+      'spot-1': {
+        spot: {
+          id: 'spot-1',
+          name: 'Test Shrine',
+          lat: 38.27,
+          lng: 140.87,
+          type: 'shrine',
+          status: 'active',
+          address: '宮城県仙台市',
+          created_by_user_id: null,
+          merged_into_spot_id: null,
+          created_at: '2024-01-01',
+          updated_at: '2024-01-01',
+        },
+        isLoading: false,
+        error: null,
+      },
+      'spot-2': {
+        spot: {
+          id: 'spot-2',
+          name: 'Test Temple',
+          lat: 38.28,
+          lng: 140.88,
+          type: 'temple',
+          status: 'active',
+          address: null,
+          created_by_user_id: null,
+          merged_into_spot_id: null,
+          created_at: '2024-01-01',
+          updated_at: '2024-01-01',
+        },
+        isLoading: false,
+        error: null,
+      },
+    };
+    return spots[spotId] ?? { spot: null, isLoading: false, error: null };
+  },
+}));
+
+jest.mock('@hooks/useSpotStamps', () => ({
+  useSpotStamps: () => ({
+    stamps: [],
+    visitCount: 0,
+    latestVisitDate: null,
+    isLoading: false,
+  }),
+}));
 
 let mockUseAuthReturn = {
   user: null,
@@ -49,7 +92,7 @@ const mockSpots = [
     lng: 140.87,
     type: 'shrine',
     status: 'active',
-    address: null,
+    address: '宮城県仙台市',
     created_by_user_id: null,
     merged_into_spot_id: null,
     created_at: '2024-01-01',
@@ -163,7 +206,7 @@ describe('MapScreen', () => {
     expect(getByTestId('map-pin-current-location')).toBeTruthy();
   });
 
-  it('displays FAB button', () => {
+  it('displays FAB button when no spot is selected', () => {
     const { getByTestId } = render(
       <MapScreen navigation={mockNavigation as never} route={mockRoute} />
     );
@@ -189,13 +232,52 @@ describe('MapScreen', () => {
       expect(getAllByTestId('spot-marker-pin-tail')).toHaveLength(2);
     });
 
-    it('navigates to SpotDetail when marker is pressed', () => {
+    it('shows bottom sheet when marker is pressed', () => {
       const { getByTestId } = render(
         <MapScreen navigation={mockNavigation as never} route={mockRoute} />
       );
 
       fireEvent.press(getByTestId('spot-marker-spot-1'));
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('SpotDetail', { spotId: 'spot-1' });
+      expect(getByTestId('bottom-sheet')).toBeTruthy();
+    });
+
+    it('hides FAB when marker is pressed and spot is selected', () => {
+      const { getByTestId, queryByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      fireEvent.press(getByTestId('spot-marker-spot-1'));
+      expect(queryByTestId('fab-button')).toBeNull();
+    });
+  });
+
+  describe('Bottom sheet', () => {
+    it('shows bottom sheet when focusSpotId is provided', () => {
+      const routeWithFocus = {
+        key: 'test',
+        name: 'Map' as const,
+        params: { focusSpotId: 'spot-1' },
+      };
+
+      const { getByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={routeWithFocus} />
+      );
+
+      expect(getByTestId('bottom-sheet')).toBeTruthy();
+    });
+
+    it('hides bottom sheet when map is pressed', () => {
+      const { getByTestId, queryByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      // First show the sheet
+      fireEvent.press(getByTestId('spot-marker-spot-1'));
+      expect(getByTestId('bottom-sheet')).toBeTruthy();
+
+      // Then press the map to dismiss
+      fireEvent.press(getByTestId('map-view'));
+      expect(queryByTestId('bottom-sheet')).toBeNull();
     });
   });
 
@@ -309,23 +391,6 @@ describe('MapScreen', () => {
     });
   });
 
-  describe('Focus spot from search', () => {
-    it('calls animateToRegion when focusSpotId is provided', () => {
-      const routeWithFocus = {
-        key: 'test',
-        name: 'Map' as const,
-        params: { focusSpotId: 'spot-1' },
-      };
-
-      render(<MapScreen navigation={mockNavigation as never} route={routeWithFocus} />);
-
-      // MapView mock should have animateToRegion called
-      // Since react-native-maps is mocked, we verify the component renders without error
-      // and the spot marker is present
-      expect(true).toBe(true);
-    });
-  });
-
   describe('FAB press with authentication', () => {
     it('navigates to Record when authenticated', () => {
       mockUseAuthReturn = {
@@ -339,7 +404,7 @@ describe('MapScreen', () => {
       );
 
       fireEvent.press(getByTestId('fab-button'));
-      expect(mockParentNavigate).toHaveBeenCalledWith('Record');
+      expect(mockParentNavigate).toHaveBeenCalledWith('Record', undefined);
     });
 
     it('shows LoginPromptModal when not authenticated', () => {
@@ -362,7 +427,7 @@ describe('MapScreen', () => {
       fireEvent.press(getByTestId('modal-google-login-button'));
 
       await waitFor(() => {
-        expect(mockParentNavigate).toHaveBeenCalledWith('Record');
+        expect(mockParentNavigate).toHaveBeenCalledWith('Record', undefined);
       });
     });
 

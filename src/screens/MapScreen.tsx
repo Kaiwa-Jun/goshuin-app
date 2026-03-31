@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import MapView, { Marker, type Region } from 'react-native-maps';
+import MapView, { Marker, type MapPressEvent, type Region } from 'react-native-maps';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { FABButton } from '@components/animated/FABButton';
@@ -9,6 +9,7 @@ import { SearchBar } from '@components/common/SearchBar';
 import { LoginPromptModal } from '@components/common/LoginPromptModal';
 import { MapPin } from '@components/common/MapPin';
 import { SpotMarker } from '@components/common/SpotMarker';
+import { SpotBottomSheet } from '@components/spot-detail/SpotBottomSheet';
 import { useAuth } from '@hooks/useAuth';
 import { useLocation } from '@hooks/useLocation';
 import { useSpots } from '@hooks/useSpots';
@@ -41,6 +42,7 @@ export function MapScreen({ navigation, route }: Props) {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showFilter, setShowFilter] = useState(false);
   const [currentLatitudeDelta, setCurrentLatitudeDelta] = useState(LATITUDE_DELTA);
+  const [selectedSpotId, setSelectedSpotId] = useState<string | null>(null);
   const shouldShowLabels = currentLatitudeDelta <= LABEL_VISIBLE_DELTA;
   const mapRef = useRef<MapView>(null);
   const insets = useSafeAreaInsets();
@@ -63,12 +65,21 @@ export function MapScreen({ navigation, route }: Props) {
       },
       500
     );
+
+    setSelectedSpotId(focusSpotId);
   }, [route.params?.focusSpotId, spots]);
 
-  const navigateToRecord = () => {
+  // Clear selection if the selected spot is no longer in the spots list
+  useEffect(() => {
+    if (selectedSpotId && !spots.find(s => s.id === selectedSpotId)) {
+      setSelectedSpotId(null);
+    }
+  }, [selectedSpotId, spots]);
+
+  const navigateToRecord = (spotId?: string) => {
     const parent = navigation.getParent();
     if (parent) {
-      parent.navigate('Record');
+      parent.navigate('Record', spotId ? { spotId } : undefined);
     }
   };
 
@@ -91,9 +102,42 @@ export function MapScreen({ navigation, route }: Props) {
 
   const handleMarkerPress = useCallback(
     (spotId: string) => {
-      navigation.navigate('SpotDetail', { spotId });
+      setSelectedSpotId(spotId);
+
+      const spot = spots.find(s => s.id === spotId);
+      if (spot && mapRef.current) {
+        mapRef.current.animateCamera(
+          {
+            center: {
+              latitude: spot.lat,
+              longitude: spot.lng,
+            },
+          },
+          { duration: 300 }
+        );
+      }
     },
-    [navigation]
+    [spots]
+  );
+
+  const handleMapPress = useCallback((event?: MapPressEvent) => {
+    if (event?.nativeEvent?.action === 'marker-press') return;
+    setSelectedSpotId(null);
+  }, []);
+
+  const handleBottomSheetDismiss = useCallback(() => {
+    setSelectedSpotId(null);
+  }, []);
+
+  const handleBottomSheetRecord = useCallback(
+    (spotId: string) => {
+      if (isAuthenticated) {
+        navigateToRecord(spotId);
+      } else {
+        setShowLoginModal(true);
+      }
+    },
+    [isAuthenticated]
   );
 
   const handleFilterPress = () => {
@@ -185,6 +229,7 @@ export function MapScreen({ navigation, route }: Props) {
         testID="map-view"
         showsUserLocation={false}
         onRegionChangeComplete={handleRegionChangeComplete}
+        onPress={handleMapPress}
       >
         {location && (
           <Marker
@@ -216,9 +261,18 @@ export function MapScreen({ navigation, route }: Props) {
         ))}
       </MapView>
 
-      <View style={styles.fabContainer}>
-        <FABButton onPress={handleFABPress} />
-      </View>
+      {!selectedSpotId && (
+        <View style={styles.fabContainer}>
+          <FABButton onPress={handleFABPress} />
+        </View>
+      )}
+
+      <SpotBottomSheet
+        spotId={selectedSpotId}
+        visitedSpotIds={visitedSpotIds}
+        onDismiss={handleBottomSheetDismiss}
+        onRecord={handleBottomSheetRecord}
+      />
 
       <LoginPromptModal
         visible={showLoginModal}
