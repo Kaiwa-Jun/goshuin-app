@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScrollView, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { ScrollView, TouchableOpacity, Text, StyleSheet, Keyboard } from 'react-native';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { borderRadius, spacing } from '@theme/spacing';
@@ -25,7 +25,10 @@ export const FilterChips: React.FC<FilterChipsProps> = ({ options, selectedKey, 
             key={option.key}
             testID={`filter-chip-${option.key}`}
             accessibilityState={{ selected: isSelected }}
-            onPress={() => onSelect(option.key)}
+            onPress={() => {
+              Keyboard.dismiss();
+              onSelect(option.key);
+            }}
             style={[styles.chip, isSelected ? styles.chipActive : styles.chipInactive]}
           >
             <Text style={[styles.label, isSelected ? styles.labelActive : styles.labelInactive]}>
