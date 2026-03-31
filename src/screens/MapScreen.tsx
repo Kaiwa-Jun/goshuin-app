@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker, type Region } from 'react-native-maps';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -13,7 +13,6 @@ import { useAuth } from '@hooks/useAuth';
 import { useLocation } from '@hooks/useLocation';
 import { useSpots } from '@hooks/useSpots';
 import { useUserStamps } from '@hooks/useUserStamps';
-import { useMapSearch } from '@hooks/useMapSearch';
 import type { MapStackScreenProps } from '@/navigation/types';
 import type { Spot } from '@/types/supabase';
 import { colors } from '@theme/colors';
@@ -33,26 +32,12 @@ function getPinColor(spot: Spot, visitedSpotIds: Set<string>): string {
   return spot.type === 'shrine' ? colors.pin.shrineVisited : colors.pin.templeVisited;
 }
 
-function formatDistance(km: number): string {
-  if (km < 1) return `${Math.round(km * 1000)}m`;
-  return `${km.toFixed(1)}km`;
-}
-
 export function MapScreen({ navigation }: Props) {
   const { isAuthenticated } = useAuth();
   const { location } = useLocation();
   const { visitedSpotIds } = useUserStamps();
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
-  const { spots, allSpots } = useSpots(location, filterMode, visitedSpotIds);
-  const {
-    query,
-    setQuery,
-    suggestions,
-    showSuggestions,
-    setShowSuggestions,
-    nearbySpots,
-    clearSearch,
-  } = useMapSearch(allSpots, location);
+  const { spots } = useSpots(location, filterMode, visitedSpotIds);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showFilter, setShowFilter] = useState(false);
   const [currentLatitudeDelta, setCurrentLatitudeDelta] = useState(LATITUDE_DELTA);
@@ -93,19 +78,6 @@ export function MapScreen({ navigation }: Props) {
     [navigation]
   );
 
-  const handleSuggestionPress = useCallback(
-    (spotId: string) => {
-      setShowSuggestions(false);
-      clearSearch();
-      navigation.navigate('SpotDetail', { spotId });
-    },
-    [navigation, setShowSuggestions, clearSearch]
-  );
-
-  const handleSearchFocus = () => {
-    setShowSuggestions(true);
-  };
-
   const handleFilterPress = () => {
     setShowFilter(!showFilter);
   };
@@ -124,19 +96,11 @@ export function MapScreen({ navigation }: Props) {
       }
     : undefined;
 
-  const displaySuggestions = query ? suggestions : nearbySpots;
-
   return (
     <View style={styles.container} testID="map-screen">
       <View style={[styles.searchRow, { top: searchRowTop }]}>
         <View style={styles.searchBarWrapper}>
-          <SearchBar
-            value={query}
-            onChangeText={setQuery}
-            onFocus={handleSearchFocus}
-            showClearButton={query.length > 0}
-            onClear={clearSearch}
-          />
+          <SearchBar editable={false} onPress={() => navigation.navigate('Search')} />
         </View>
         {isAuthenticated && (
           <TouchableOpacity
@@ -153,33 +117,6 @@ export function MapScreen({ navigation }: Props) {
           </TouchableOpacity>
         )}
       </View>
-
-      {showSuggestions && displaySuggestions.length > 0 && (
-        <View
-          style={[styles.suggestionsContainer, { top: searchRowTop + 52 }]}
-          testID="suggestions-list"
-        >
-          <FlatList
-            data={displaySuggestions}
-            keyExtractor={item => item.spot.id}
-            keyboardShouldPersistTaps="handled"
-            renderItem={({ item }) => (
-              <Pressable
-                style={styles.suggestionItem}
-                onPress={() => handleSuggestionPress(item.spot.id)}
-                testID={`suggestion-${item.spot.id}`}
-              >
-                <View style={styles.suggestionContent}>
-                  <Text style={styles.suggestionName} numberOfLines={1}>
-                    {item.spot.name}
-                  </Text>
-                  <Text style={styles.suggestionDistance}>{formatDistance(item.distance)}</Text>
-                </View>
-              </Pressable>
-            )}
-          />
-        </View>
-      )}
 
       {showFilter && (
         <Pressable
@@ -305,37 +242,6 @@ const styles = StyleSheet.create({
   filterButtonActive: {
     borderWidth: 2,
     borderColor: colors.primary[500],
-  },
-  suggestionsContainer: {
-    position: 'absolute',
-    left: spacing.lg,
-    right: spacing.lg,
-    zIndex: 20,
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.lg,
-    maxHeight: 200,
-    ...shadows.md,
-  },
-  suggestionItem: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.gray[200],
-  },
-  suggestionContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  suggestionName: {
-    ...typography.body,
-    color: colors.gray[800],
-    flex: 1,
-  },
-  suggestionDistance: {
-    ...typography.bodySmall,
-    color: colors.gray[400],
-    marginLeft: spacing.sm,
   },
   filterOverlay: {
     position: 'absolute',

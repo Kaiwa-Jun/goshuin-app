@@ -40,6 +40,11 @@ export function getBoundingBox(lat: number, lng: number, radiusKm: number): Boun
   };
 }
 
+export function formatDistance(km: number): string {
+  if (km < 1) return `${Math.round(km * 1000)}m`;
+  return `${km.toFixed(1)}km`;
+}
+
 export const DEFAULT_RADIUS_KM = 2;
 export const RADIUS_STEPS = [2, 3, 5, 10];
 export const MIN_SPOTS_THRESHOLD = 5;
