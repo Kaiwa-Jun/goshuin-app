@@ -13,14 +13,12 @@ export interface UseSearchScreenReturn {
   query: string;
   setQuery: (text: string) => void;
   results: SpotWithDistance[];
-  nearbySpots: SpotWithDistance[];
   filterType: 'all' | 'shrine' | 'temple';
   setFilterType: (type: 'all' | 'shrine' | 'temple') => void;
   clearSearch: () => void;
 }
 
 const DEBOUNCE_MS = 300;
-const MAX_NEARBY = 3;
 
 export function useSearchScreen(): UseSearchScreenReturn {
   const { location } = useLocation();
@@ -50,8 +48,6 @@ export function useSearchScreen(): UseSearchScreenReturn {
       .sort((a, b) => a.distance - b.distance);
   }, [allSpots, location]);
 
-  const nearbySpots = useMemo(() => spotsWithDistance.slice(0, MAX_NEARBY), [spotsWithDistance]);
-
   const results = useMemo(() => {
     if (!debouncedQuery) return [];
     const lower = debouncedQuery.toLowerCase();
@@ -70,7 +66,6 @@ export function useSearchScreen(): UseSearchScreenReturn {
     query,
     setQuery,
     results,
-    nearbySpots,
     filterType,
     setFilterType,
     clearSearch,

@@ -55,11 +55,10 @@ beforeEach(() => {
 });
 
 describe('useSearchScreen', () => {
-  it('初期状態で query が空、results が空、nearbySpots が返る', () => {
+  it('初期状態で query が空、results が空', () => {
     const { result } = renderHook(() => useSearchScreen());
     expect(result.current.query).toBe('');
     expect(result.current.results).toEqual([]);
-    expect(result.current.nearbySpots).toHaveLength(3);
     expect(result.current.filterType).toBe('all');
   });
 
@@ -127,15 +126,20 @@ describe('useSearchScreen', () => {
     jest.useRealTimers();
   });
 
-  it('nearbySpots は filterType を適用しない（常に最寄り3件）', () => {
+  it('filterType 変更後も results はフィルタに従う', () => {
+    jest.useFakeTimers();
     const { result } = renderHook(() => useSearchScreen());
 
     act(() => {
-      result.current.setFilterType('shrine');
+      result.current.setQuery('e');
+      result.current.setFilterType('temple');
+    });
+    act(() => {
+      jest.advanceTimersByTime(350);
     });
 
-    // filterType が shrine でも nearbySpots は全種別の最寄り3件
-    expect(result.current.nearbySpots).toHaveLength(3);
+    expect(result.current.results.every(r => r.spot.type === 'temple')).toBe(true);
+    jest.useRealTimers();
   });
 
   it('results は距離順にソートされる', () => {
