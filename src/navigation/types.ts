@@ -28,7 +28,7 @@ export type MainTabParamList = {
 };
 
 export type MapStackParamList = {
-  Map: undefined;
+  Map: { focusSpotId?: string } | undefined;
   SpotDetail: { spotId: string };
   Search: undefined;
 };

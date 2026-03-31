@@ -34,11 +34,11 @@ export function SearchScreen({ navigation }: Props) {
 
   const handleResultPress = (spotId: string, spotName: string) => {
     addHistory({ spotId, spotName });
-    navigation.navigate('SpotDetail', { spotId });
+    navigation.navigate('Map', { focusSpotId: spotId });
   };
 
   const handleHistorySelect = (item: SearchHistoryItem) => {
-    navigation.navigate('SpotDetail', { spotId: item.spotId });
+    navigation.navigate('Map', { focusSpotId: item.spotId });
   };
 
   return (

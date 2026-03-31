@@ -178,7 +178,7 @@ describe('SearchScreen', () => {
         <SearchScreen navigation={mockNavigation as never} route={mockRoute} />
       );
       fireEvent.press(getAllByTestId('history-item')[0]);
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('SpotDetail', { spotId: 'spot-1' });
+      expect(mockNavigation.navigate).toHaveBeenCalledWith('Map', { focusSpotId: 'spot-1' });
     });
 
     it('clears history when clear button is pressed', () => {
@@ -264,7 +264,7 @@ describe('SearchScreen', () => {
         spotId: 'spot-1',
         spotName: '仙台東照宮',
       });
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('SpotDetail', { spotId: 'spot-1' });
+      expect(mockNavigation.navigate).toHaveBeenCalledWith('Map', { focusSpotId: 'spot-1' });
     });
   });
 
