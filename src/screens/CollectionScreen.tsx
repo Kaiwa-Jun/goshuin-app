@@ -2,7 +2,12 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Badge } from '@components/common/Badge';
 import { Card } from '@components/common/Card';
+import { WishlistButton } from '@components/animated/WishlistButton';
+import { useAuth } from '@hooks/useAuth';
+import { useWishlistSpots } from '@hooks/useWishlistSpots';
+import { removeFromWishlist } from '@services/wishlist';
 import { colors } from '@theme/colors';
 import { borderRadius, spacing } from '@theme/spacing';
 import { typography } from '@theme/typography';
@@ -31,6 +36,15 @@ const BADGE_DATA = [
 ];
 
 export function CollectionScreen(_props: Props) {
+  const { user } = useAuth();
+  const { spots: wishlistSpots, refetch: refetchWishlist } = useWishlistSpots();
+
+  const handleRemoveFromWishlist = async (spotId: string) => {
+    if (!user) return;
+    await removeFromWishlist(user.id, spotId);
+    refetchWishlist();
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
@@ -74,6 +88,44 @@ export function CollectionScreen(_props: Props) {
             </View>
           ))}
         </Card>
+
+        {/* Wishlist Section */}
+        <Text style={styles.sectionTitle}>行きたいリスト</Text>
+        {wishlistSpots.length === 0 ? (
+          <Card style={styles.wishlistEmptyCard}>
+            <MaterialIcons name="outlined-flag" size={40} color={colors.gray[300]} />
+            <Text style={styles.wishlistEmptyText}>行きたいスポットをマップで保存しましょう</Text>
+          </Card>
+        ) : (
+          wishlistSpots.map(item => (
+            <View key={item.id} testID={`wishlist-item-${item.spot_id}`}>
+              <Card style={styles.wishlistCard}>
+                <View style={styles.wishlistRow}>
+                  <View style={styles.wishlistInfo}>
+                    <Text style={styles.wishlistSpotName} numberOfLines={1}>
+                      {item.spots.name}
+                    </Text>
+                    <View style={styles.wishlistBadgeRow}>
+                      <Badge type={item.spots.type === 'shrine' ? 'shrine' : 'temple'} />
+                    </View>
+                    {item.spots.address && (
+                      <View style={styles.wishlistAddressRow}>
+                        <MaterialIcons name="place" size={14} color={colors.gray[400]} />
+                        <Text style={styles.wishlistAddress} numberOfLines={1}>
+                          {item.spots.address}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  <WishlistButton
+                    isWishlisted={true}
+                    onPress={() => handleRemoveFromWishlist(item.spot_id)}
+                  />
+                </View>
+              </Card>
+            </View>
+          ))
+        )}
 
         {/* Challenge Section */}
         <Text style={styles.sectionTitle}>巡礼チャレンジ</Text>
@@ -195,6 +247,47 @@ const styles = StyleSheet.create({
     color: colors.gray[700],
     width: 28,
     textAlign: 'right',
+  },
+  wishlistEmptyCard: {
+    alignItems: 'center',
+    paddingVertical: spacing.xl,
+    marginBottom: spacing.xl,
+    gap: spacing.sm,
+  },
+  wishlistEmptyText: {
+    ...typography.bodySmall,
+    color: colors.gray[400],
+    textAlign: 'center',
+  },
+  wishlistCard: {
+    marginBottom: spacing.md,
+  },
+  wishlistRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  wishlistInfo: {
+    flex: 1,
+  },
+  wishlistSpotName: {
+    ...typography.body,
+    color: colors.gray[800],
+    marginBottom: spacing.xs,
+  },
+  wishlistBadgeRow: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  wishlistAddressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  wishlistAddress: {
+    ...typography.bodySmall,
+    color: colors.gray[500],
+    flex: 1,
   },
   challengeCard: {
     marginBottom: spacing.md,

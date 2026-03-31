@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import MapView, { Marker, type Region } from 'react-native-maps';
+import MapView, { Marker, type MapPressEvent, type Region } from 'react-native-maps';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { FABButton } from '@components/animated/FABButton';
@@ -9,10 +9,12 @@ import { SearchBar } from '@components/common/SearchBar';
 import { LoginPromptModal } from '@components/common/LoginPromptModal';
 import { MapPin } from '@components/common/MapPin';
 import { SpotMarker } from '@components/common/SpotMarker';
+import { SpotBottomSheet } from '@components/spot-detail/SpotBottomSheet';
 import { useAuth } from '@hooks/useAuth';
 import { useLocation } from '@hooks/useLocation';
 import { useSpots } from '@hooks/useSpots';
 import { useUserStamps } from '@hooks/useUserStamps';
+import { useWishlist } from '@hooks/useWishlist';
 import type { MapStackScreenProps } from '@/navigation/types';
 import type { Spot } from '@/types/supabase';
 import { colors } from '@theme/colors';
@@ -27,20 +29,29 @@ const LATITUDE_DELTA = 0.02;
 const LONGITUDE_DELTA = 0.02;
 const LABEL_VISIBLE_DELTA = 0.08;
 
-function getPinColor(spot: Spot, visitedSpotIds: Set<string>): string {
-  if (!visitedSpotIds.has(spot.id)) return colors.pin.unvisited;
-  return spot.type === 'shrine' ? colors.pin.shrineVisited : colors.pin.templeVisited;
+function getPinColor(
+  spot: Spot,
+  visitedSpotIds: Set<string>,
+  wishlistSpotIds?: Set<string>
+): string {
+  if (visitedSpotIds.has(spot.id)) {
+    return spot.type === 'shrine' ? colors.pin.shrineVisited : colors.pin.templeVisited;
+  }
+  if (wishlistSpotIds?.has(spot.id)) return colors.pin.wishlisted;
+  return colors.pin.unvisited;
 }
 
 export function MapScreen({ navigation, route }: Props) {
   const { isAuthenticated } = useAuth();
   const { location } = useLocation();
   const { visitedSpotIds } = useUserStamps();
+  const { wishlistSpotIds, toggleWishlist } = useWishlist();
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const { spots } = useSpots(location, filterMode, visitedSpotIds);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showFilter, setShowFilter] = useState(false);
   const [currentLatitudeDelta, setCurrentLatitudeDelta] = useState(LATITUDE_DELTA);
+  const [selectedSpotId, setSelectedSpotId] = useState<string | null>(null);
   const shouldShowLabels = currentLatitudeDelta <= LABEL_VISIBLE_DELTA;
   const mapRef = useRef<MapView>(null);
   const insets = useSafeAreaInsets();
@@ -63,12 +74,21 @@ export function MapScreen({ navigation, route }: Props) {
       },
       500
     );
+
+    setSelectedSpotId(focusSpotId);
   }, [route.params?.focusSpotId, spots]);
 
-  const navigateToRecord = () => {
+  // Clear selection if the selected spot is no longer in the spots list
+  useEffect(() => {
+    if (selectedSpotId && !spots.find(s => s.id === selectedSpotId)) {
+      setSelectedSpotId(null);
+    }
+  }, [selectedSpotId, spots]);
+
+  const navigateToRecord = (spotId?: string) => {
     const parent = navigation.getParent();
     if (parent) {
-      parent.navigate('Record');
+      parent.navigate('Record', spotId ? { spotId } : undefined);
     }
   };
 
@@ -91,9 +111,53 @@ export function MapScreen({ navigation, route }: Props) {
 
   const handleMarkerPress = useCallback(
     (spotId: string) => {
-      navigation.navigate('SpotDetail', { spotId });
+      setSelectedSpotId(spotId);
+
+      const spot = spots.find(s => s.id === spotId);
+      if (spot && mapRef.current) {
+        mapRef.current.animateCamera(
+          {
+            center: {
+              latitude: spot.lat,
+              longitude: spot.lng,
+            },
+          },
+          { duration: 300 }
+        );
+      }
     },
-    [navigation]
+    [spots]
+  );
+
+  const handleMapPress = useCallback((event?: MapPressEvent) => {
+    if (event?.nativeEvent?.action === 'marker-press') return;
+    setSelectedSpotId(null);
+  }, []);
+
+  const handleBottomSheetDismiss = useCallback(() => {
+    setSelectedSpotId(null);
+  }, []);
+
+  const handleBottomSheetRecord = useCallback(
+    (spotId: string) => {
+      if (isAuthenticated) {
+        navigateToRecord(spotId);
+      } else {
+        setShowLoginModal(true);
+      }
+    },
+    [isAuthenticated]
+  );
+
+  const handleWishlistToggle = useCallback(
+    (spotId: string) => {
+      if (!isAuthenticated) {
+        setShowLoginModal(true);
+        return;
+      }
+      toggleWishlist(spotId);
+    },
+    [isAuthenticated, toggleWishlist]
   );
 
   const handleFilterPress = () => {
@@ -185,6 +249,7 @@ export function MapScreen({ navigation, route }: Props) {
         testID="map-view"
         showsUserLocation={false}
         onRegionChangeComplete={handleRegionChangeComplete}
+        onPress={handleMapPress}
       >
         {location && (
           <Marker
@@ -208,7 +273,7 @@ export function MapScreen({ navigation, route }: Props) {
             tracksViewChanges={false}
           >
             <SpotMarker
-              color={getPinColor(spot, visitedSpotIds)}
+              color={getPinColor(spot, visitedSpotIds, wishlistSpotIds)}
               name={spot.name}
               showLabel={shouldShowLabels}
             />
@@ -216,9 +281,20 @@ export function MapScreen({ navigation, route }: Props) {
         ))}
       </MapView>
 
-      <View style={styles.fabContainer}>
-        <FABButton onPress={handleFABPress} />
-      </View>
+      {!selectedSpotId && (
+        <View style={styles.fabContainer}>
+          <FABButton onPress={handleFABPress} />
+        </View>
+      )}
+
+      <SpotBottomSheet
+        spotId={selectedSpotId}
+        visitedSpotIds={visitedSpotIds}
+        onDismiss={handleBottomSheetDismiss}
+        onRecord={handleBottomSheetRecord}
+        wishlistSpotIds={wishlistSpotIds}
+        onWishlistToggle={handleWishlistToggle}
+      />
 
       <LoginPromptModal
         visible={showLoginModal}

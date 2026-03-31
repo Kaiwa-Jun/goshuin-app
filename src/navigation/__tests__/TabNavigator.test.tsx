@@ -53,6 +53,28 @@ jest.mock('@hooks/useUserStamps', () => ({
   }),
 }));
 
+jest.mock('@hooks/useWishlist', () => ({
+  useWishlist: () => ({
+    wishlistSpotIds: new Set(),
+    toggleWishlist: jest.fn(),
+    isLoading: false,
+    isToggling: false,
+  }),
+}));
+
+jest.mock('@hooks/useWishlistSpots', () => ({
+  useWishlistSpots: () => ({
+    spots: [],
+    isLoading: false,
+    error: null,
+    refetch: jest.fn(),
+  }),
+}));
+
+jest.mock('@services/wishlist', () => ({
+  removeFromWishlist: jest.fn(),
+}));
+
 jest.mock('@hooks/useMapSearch', () => ({
   useMapSearch: () => ({
     query: '',
