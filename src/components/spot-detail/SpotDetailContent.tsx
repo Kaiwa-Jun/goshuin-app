@@ -1,17 +1,22 @@
-import React from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { Dimensions, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { Badge } from '@components/common/Badge';
 import { Button } from '@components/common/Button';
 import { Card } from '@components/common/Card';
+import { ImagePreviewModal } from '@components/common/ImagePreviewModal';
 import { WishlistButton } from '@components/animated/WishlistButton';
 import { getStampImageUrl } from '@services/stamps';
-import type { Spot, Stamp } from '@/types/supabase';
+import type { Spot, Stamp, PublicStampWithUser } from '@/types/supabase';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { spacing, borderRadius } from '@theme/spacing';
+
+const GRID_GAP = spacing.xs;
+const CONTENT_PADDING = spacing.lg;
+const STAMP_IMAGE_SIZE = (Dimensions.get('window').width - CONTENT_PADDING * 2 - GRID_GAP * 2) / 3;
 
 interface SpotDetailContentProps {
   spot: Spot;
@@ -23,6 +28,7 @@ interface SpotDetailContentProps {
   showMiniMap?: boolean;
   isWishlisted?: boolean;
   onWishlistPress?: () => void;
+  publicStamps?: PublicStampWithUser[];
 }
 
 function formatDate(dateStr: string): string {
@@ -43,9 +49,11 @@ export function SpotDetailContent({
   showMiniMap = true,
   isWishlisted,
   onWishlistPress,
+  publicStamps = [],
 }: SpotDetailContentProps) {
   const badgeType = spot.type === 'shrine' ? 'shrine' : 'temple';
   const showVisited = isAuthenticated && visitCount > 0;
+  const [selectedPublicStamp, setSelectedPublicStamp] = useState<PublicStampWithUser | null>(null);
 
   return (
     <View style={styles.content} testID="spot-detail-content">
@@ -113,6 +121,43 @@ export function SpotDetailContent({
             ))}
           </View>
         </>
+      )}
+
+      {publicStamps.length > 0 && (
+        <>
+          <Text style={styles.sectionTitle}>みんなの御朱印</Text>
+          <View style={styles.stampGrid} testID="public-stamp-grid">
+            {publicStamps.map(ps => (
+              <TouchableOpacity
+                key={ps.id}
+                onPress={() => setSelectedPublicStamp(ps)}
+                testID={`public-stamp-image-${ps.id}`}
+                style={styles.publicStampContainer}
+              >
+                <Image
+                  source={{ uri: getStampImageUrl(ps.image_path) }}
+                  style={styles.publicStampImage}
+                />
+                <View style={styles.publicStampOverlay}>
+                  <Text style={styles.publicStampUserName} numberOfLines={1}>
+                    {ps.profiles.display_name ?? '匿名'}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </>
+      )}
+
+      {selectedPublicStamp && (
+        <ImagePreviewModal
+          visible={!!selectedPublicStamp}
+          onClose={() => setSelectedPublicStamp(null)}
+          imageUrl={getStampImageUrl(selectedPublicStamp.image_path)}
+          userName={selectedPublicStamp.profiles.display_name}
+          memo={selectedPublicStamp.memo}
+          visitedAt={selectedPublicStamp.visited_at}
+        />
       )}
 
       {showMiniMap && (
@@ -215,10 +260,36 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   stampImage: {
-    width: '31.5%',
-    aspectRatio: 1,
+    width: STAMP_IMAGE_SIZE,
+    height: STAMP_IMAGE_SIZE,
     borderRadius: borderRadius.md,
     backgroundColor: colors.gray[100],
+  },
+  publicStampContainer: {
+    width: STAMP_IMAGE_SIZE,
+    position: 'relative',
+  },
+  publicStampImage: {
+    width: STAMP_IMAGE_SIZE,
+    height: STAMP_IMAGE_SIZE,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.gray[100],
+  },
+  publicStampOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+    borderBottomLeftRadius: borderRadius.md,
+    borderBottomRightRadius: borderRadius.md,
+  },
+  publicStampUserName: {
+    ...typography.caption,
+    color: colors.white,
+    textAlign: 'center',
   },
   miniMapContainer: {
     height: 150,

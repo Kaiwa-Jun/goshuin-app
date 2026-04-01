@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import type { Spot, Stamp } from '@/types/supabase';
 import { fetchSpotById } from '@services/spots';
 import { uploadStampImage, createStamp } from '@services/stamps';
+import { fetchProfile } from '@services/profiles';
 import { useAuth } from '@hooks/useAuth';
 
 interface UseRecordFormParams {
@@ -13,6 +14,7 @@ interface UseRecordFormReturn {
   imageUri: string | null;
   visitedAt: Date;
   memo: string;
+  isPublic: boolean;
   spotError: string | null;
   imageError: string | null;
   isSubmitting: boolean;
@@ -21,6 +23,7 @@ interface UseRecordFormReturn {
   setImageUri: (uri: string) => void;
   setVisitedAt: (date: Date) => void;
   setMemo: (text: string) => void;
+  setIsPublic: (value: boolean) => void;
   validate: () => boolean;
   submit: () => Promise<{ success: boolean; stamp?: Stamp }>;
   reset: () => void;
@@ -35,6 +38,8 @@ export function useRecordForm(params?: UseRecordFormParams): UseRecordFormReturn
   const [memo, setMemo] = useState('');
   const [spotError, setSpotError] = useState<string | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
+  const [isPublic, setIsPublic] = useState(false);
+  const [defaultPublic, setDefaultPublic] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -47,6 +52,17 @@ export function useRecordForm(params?: UseRecordFormParams): UseRecordFormReturn
       });
     }
   }, [params?.initialSpotId]);
+
+  useEffect(() => {
+    if (user) {
+      fetchProfile(user.id).then(profile => {
+        if (profile) {
+          setIsPublic(profile.default_stamp_public);
+          setDefaultPublic(profile.default_stamp_public);
+        }
+      });
+    }
+  }, [user]);
 
   const selectSpot = useCallback((spot: Spot) => {
     setSelectedSpot(spot);
@@ -95,6 +111,7 @@ export function useRecordForm(params?: UseRecordFormParams): UseRecordFormReturn
         imagePath,
         visitedAt: visitedAt.toISOString(),
         memo,
+        isPublic: isPublic,
       });
 
       return { success: true, stamp };
@@ -105,24 +122,26 @@ export function useRecordForm(params?: UseRecordFormParams): UseRecordFormReturn
     } finally {
       setIsSubmitting(false);
     }
-  }, [validate, user, imageUri, selectedSpot, visitedAt, memo]);
+  }, [validate, user, imageUri, selectedSpot, visitedAt, memo, isPublic]);
 
   const reset = useCallback(() => {
     setSelectedSpot(null);
     setImageUriState(null);
     setVisitedAt(new Date());
     setMemo('');
+    setIsPublic(defaultPublic);
     setSpotError(null);
     setImageError(null);
     setSubmitError(null);
     setIsSubmitting(false);
-  }, []);
+  }, [defaultPublic]);
 
   return {
     selectedSpot,
     imageUri,
     visitedAt,
     memo,
+    isPublic,
     spotError,
     imageError,
     isSubmitting,
@@ -131,6 +150,7 @@ export function useRecordForm(params?: UseRecordFormParams): UseRecordFormReturn
     setImageUri,
     setVisitedAt,
     setMemo,
+    setIsPublic,
     validate,
     submit,
     reset,

@@ -1,14 +1,22 @@
-import { uploadStampImage, createStamp } from '@services/stamps';
+import { uploadStampImage, createStamp, fetchPublicStampsBySpotId } from '@services/stamps';
 
 const mockFrom = jest.fn();
 const mockUpload = jest.fn();
 const mockInsert = jest.fn();
 const mockSelect = jest.fn();
 const mockSingle = jest.fn();
+const mockEq = jest.fn();
+const mockNeq = jest.fn();
+const mockOrder = jest.fn();
+const mockLimit = jest.fn();
+const mockGetUser = jest.fn();
 
 jest.mock('@services/supabase', () => ({
   supabase: {
     from: (...args: unknown[]) => mockFrom(...args),
+    auth: {
+      getUser: () => mockGetUser(),
+    },
     storage: {
       from: () => ({
         upload: (...args: unknown[]) => mockUpload(...args),
@@ -57,6 +65,7 @@ describe('createStamp', () => {
       visited_at: '2024-06-01',
       image_path: 'user-1/img.jpg',
       memo: 'Great visit',
+      is_public: false,
       created_at: '2024-06-01T00:00:00Z',
       updated_at: '2024-06-01T00:00:00Z',
     };
@@ -81,6 +90,7 @@ describe('createStamp', () => {
       image_path: 'user-1/img.jpg',
       visited_at: '2024-06-01',
       memo: 'Great visit',
+      is_public: false,
     });
     expect(result).toEqual(mockStamp);
   });
@@ -94,6 +104,7 @@ describe('createStamp', () => {
       visited_at: '2024-06-01',
       image_path: 'user-1/img.jpg',
       memo: null,
+      is_public: false,
       created_at: '2024-06-01T00:00:00Z',
       updated_at: '2024-06-01T00:00:00Z',
     };
@@ -110,7 +121,39 @@ describe('createStamp', () => {
       visitedAt: '2024-06-01',
     });
 
-    expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({ memo: null }));
+    expect(mockInsert).toHaveBeenCalledWith(
+      expect.objectContaining({ memo: null, is_public: false })
+    );
+  });
+
+  it('includes is_public: true when isPublic is true', async () => {
+    const mockStamp = {
+      id: 'stamp-3',
+      user_id: 'user-1',
+      spot_id: 'spot-1',
+      goshuincho_id: null,
+      visited_at: '2024-06-01',
+      image_path: 'user-1/img.jpg',
+      memo: null,
+      is_public: true,
+      created_at: '2024-06-01T00:00:00Z',
+      updated_at: '2024-06-01T00:00:00Z',
+    };
+
+    mockFrom.mockReturnValue({ insert: mockInsert });
+    mockInsert.mockReturnValue({ select: mockSelect });
+    mockSelect.mockReturnValue({ single: mockSingle });
+    mockSingle.mockResolvedValue({ data: mockStamp, error: null });
+
+    await createStamp({
+      userId: 'user-1',
+      spotId: 'spot-1',
+      imagePath: 'user-1/img.jpg',
+      visitedAt: '2024-06-01',
+      isPublic: true,
+    });
+
+    expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({ is_public: true }));
   });
 
   it('throws error when DB insert fails', async () => {
@@ -127,5 +170,91 @@ describe('createStamp', () => {
         visitedAt: '2024-06-01',
       })
     ).rejects.toThrow('DB error');
+  });
+});
+
+describe('fetchPublicStampsBySpotId', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('returns public stamps for a spot excluding own stamps', async () => {
+    const mockPublicStamps = [
+      {
+        id: 'stamp-10',
+        user_id: 'other-user',
+        spot_id: 'spot-1',
+        visited_at: '2024-07-01',
+        image_path: 'other/img.jpg',
+        memo: null,
+        is_public: true,
+        goshuincho_id: null,
+        created_at: '2024-07-01T00:00:00Z',
+        updated_at: '2024-07-01T00:00:00Z',
+        profiles: { display_name: 'OtherUser', avatar_url: null },
+      },
+    ];
+
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'my-user-id' } } });
+    mockFrom.mockReturnValue({ select: mockSelect });
+    mockSelect.mockReturnValue({ eq: mockEq });
+    // first eq: spot_id
+    mockEq.mockReturnValueOnce({ eq: mockEq });
+    // second eq: is_public
+    mockEq.mockReturnValueOnce({ order: mockOrder });
+    mockOrder.mockReturnValue({ limit: mockLimit });
+    mockLimit.mockReturnValue({ neq: mockNeq });
+    mockNeq.mockReturnValue({ data: mockPublicStamps, error: null });
+
+    const result = await fetchPublicStampsBySpotId('spot-1');
+
+    expect(mockFrom).toHaveBeenCalledWith('stamps');
+    expect(mockSelect).toHaveBeenCalledWith(
+      '*, profiles!stamps_user_id_profiles_fkey(display_name, avatar_url)'
+    );
+    expect(result).toEqual(mockPublicStamps);
+    expect(result).toHaveLength(1);
+  });
+
+  it('returns public stamps without neq when user is not logged in', async () => {
+    const mockPublicStamps = [
+      {
+        id: 'stamp-10',
+        user_id: 'other-user',
+        spot_id: 'spot-1',
+        visited_at: '2024-07-01',
+        image_path: 'other/img.jpg',
+        memo: null,
+        is_public: true,
+        goshuincho_id: null,
+        created_at: '2024-07-01T00:00:00Z',
+        updated_at: '2024-07-01T00:00:00Z',
+        profiles: { display_name: 'OtherUser', avatar_url: null },
+      },
+    ];
+
+    mockGetUser.mockResolvedValue({ data: { user: null } });
+    mockFrom.mockReturnValue({ select: mockSelect });
+    mockSelect.mockReturnValue({ eq: mockEq });
+    mockEq.mockReturnValueOnce({ eq: mockEq });
+    mockEq.mockReturnValueOnce({ order: mockOrder });
+    mockOrder.mockReturnValue({ limit: mockLimit });
+    mockLimit.mockReturnValue({ data: mockPublicStamps, error: null });
+
+    const result = await fetchPublicStampsBySpotId('spot-1');
+    expect(result).toEqual(mockPublicStamps);
+  });
+
+  it('returns empty array on error', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: null } });
+    mockFrom.mockReturnValue({ select: mockSelect });
+    mockSelect.mockReturnValue({ eq: mockEq });
+    mockEq.mockReturnValueOnce({ eq: mockEq });
+    mockEq.mockReturnValueOnce({ order: mockOrder });
+    mockOrder.mockReturnValue({ limit: mockLimit });
+    mockLimit.mockReturnValue({ data: null, error: { message: 'query error' } });
+
+    const result = await fetchPublicStampsBySpotId('spot-1');
+    expect(result).toEqual([]);
   });
 });

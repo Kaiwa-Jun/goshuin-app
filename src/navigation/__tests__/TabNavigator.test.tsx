@@ -98,9 +98,18 @@ jest.mock('@hooks/useSpotDetail', () => ({
 jest.mock('@hooks/useSpotStamps', () => ({
   useSpotStamps: () => ({
     stamps: [],
+    publicStamps: [],
     visitCount: 0,
     latestVisitDate: null,
     isLoading: false,
+  }),
+}));
+
+jest.mock('@hooks/useDefaultPublicSetting', () => ({
+  useDefaultPublicSetting: () => ({
+    defaultPublic: false,
+    isLoading: false,
+    updateDefaultPublic: jest.fn(),
   }),
 }));
 

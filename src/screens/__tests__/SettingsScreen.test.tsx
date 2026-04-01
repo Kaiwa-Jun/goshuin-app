@@ -17,6 +17,15 @@ jest.mock('react-native-safe-area-context', () => {
 
 const mockSignOut = jest.fn();
 const mockSignInWithGoogle = jest.fn();
+const mockUpdateDefaultPublic = jest.fn();
+
+jest.mock('@hooks/useDefaultPublicSetting', () => ({
+  useDefaultPublicSetting: () => ({
+    defaultPublic: false,
+    isLoading: false,
+    updateDefaultPublic: mockUpdateDefaultPublic,
+  }),
+}));
 
 let mockUseAuthReturn: Record<string, unknown> = {
   user: null,
@@ -155,6 +164,52 @@ describe('SettingsScreen', () => {
       await waitFor(() => {
         expect(Alert.alert).toHaveBeenCalledWith('エラー', 'Failed');
       });
+    });
+  });
+
+  describe('公開設定セクション', () => {
+    it('ログイン時に公開設定セクションが表示されること', () => {
+      mockUseAuthReturn = {
+        ...mockUseAuthReturn,
+        isAuthenticated: true,
+        user: {
+          id: 'user-123',
+          email: 'test@example.com',
+          user_metadata: { full_name: 'テストユーザー' },
+        },
+      };
+
+      const { getByText } = render(
+        <SettingsScreen navigation={mockNavigation} route={mockRoute} />
+      );
+      expect(getByText('公開設定')).toBeTruthy();
+      expect(getByText('御朱印のデフォルト公開設定')).toBeTruthy();
+      expect(getByText('新しく記録する御朱印を自動的に公開します')).toBeTruthy();
+    });
+
+    it('未ログイン時は公開設定セクションが非表示であること', () => {
+      const { queryByText } = render(
+        <SettingsScreen navigation={mockNavigation} route={mockRoute} />
+      );
+      expect(queryByText('公開設定')).toBeNull();
+    });
+
+    it('トグル操作で updateDefaultPublic が呼ばれること', () => {
+      mockUseAuthReturn = {
+        ...mockUseAuthReturn,
+        isAuthenticated: true,
+        user: {
+          id: 'user-123',
+          email: 'test@example.com',
+          user_metadata: { full_name: 'テストユーザー' },
+        },
+      };
+
+      const { getByTestId } = render(
+        <SettingsScreen navigation={mockNavigation} route={mockRoute} />
+      );
+      fireEvent(getByTestId('default-public-toggle'), 'valueChange', true);
+      expect(mockUpdateDefaultPublic).toHaveBeenCalledWith(true);
     });
   });
 

@@ -9,6 +9,7 @@ export interface Profile {
   email: string | null;
   display_name: string | null;
   avatar_url: string | null;
+  default_stamp_public: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -35,6 +36,7 @@ export interface Stamp {
   visited_at: string;
   image_path: string;
   memo: string | null;
+  is_public: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -58,6 +60,13 @@ export interface WishlistWithSpot extends Wishlist {
     name: string;
     type: SpotType;
     address: string | null;
+  };
+}
+
+export interface PublicStampWithUser extends Stamp {
+  profiles: {
+    display_name: string | null;
+    avatar_url: string | null;
   };
 }
 

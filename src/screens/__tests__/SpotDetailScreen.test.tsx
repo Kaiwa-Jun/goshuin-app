@@ -78,6 +78,7 @@ const makeStamp = (overrides: Partial<Stamp> = {}): Stamp => ({
   visited_at: '2024-06-01',
   image_path: 'img/1.jpg',
   memo: null,
+  is_public: false,
   created_at: '2024-06-01',
   updated_at: '2024-06-01',
   ...overrides,

@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import {
   StyleSheet,
+  Switch,
   Text,
   View,
   ScrollView,
@@ -172,6 +173,24 @@ export function RecordScreen({ navigation, route }: Props) {
             />
           </View>
 
+          <View style={styles.publicToggleSection}>
+            <View style={styles.publicToggleRow}>
+              <MaterialIcons
+                name={form.isPublic ? 'public' : 'lock'}
+                size={20}
+                color={form.isPublic ? colors.primary[500] : colors.gray[500]}
+              />
+              <Text style={styles.publicToggleLabel}>この御朱印を公開する</Text>
+              <Switch
+                value={form.isPublic}
+                onValueChange={form.setIsPublic}
+                trackColor={{ false: colors.gray[300], true: colors.primary[200] }}
+                thumbColor={form.isPublic ? colors.primary[500] : colors.gray[100]}
+                testID="public-toggle"
+              />
+            </View>
+          </View>
+
           {form.submitError && (
             <Text style={styles.submitError} testID="submit-error">
               {form.submitError}
@@ -268,6 +287,24 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     textAlignVertical: 'top',
     color: colors.gray[800],
+  },
+  publicToggleSection: {
+    marginTop: spacing.lg,
+  },
+  publicToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.gray[200],
+    borderRadius: borderRadius.lg,
+    backgroundColor: colors.white,
+  },
+  publicToggleLabel: {
+    ...typography.body,
+    color: colors.gray[800],
+    flex: 1,
   },
   submitError: {
     ...typography.bodySmall,

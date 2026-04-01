@@ -207,6 +207,28 @@ describe('stamps service', () => {
       expect(result).toEqual(mockStamp);
     });
 
+    it('updates is_public field', async () => {
+      const mockStamp = {
+        id: 'stamp-1',
+        user_id: 'user-1',
+        spot_id: 'spot-1',
+        visited_at: '2024-06-01',
+        image_path: 'img/1.jpg',
+        memo: null,
+        is_public: true,
+        spots: { name: '伊勢神宮', type: 'shrine' },
+      };
+      const mockSingle = jest.fn().mockReturnValue({ data: mockStamp, error: null });
+      mockFrom.mockReturnValue({ update: mockUpdate });
+      mockUpdate.mockReturnValue({ eq: mockEq });
+      mockEq.mockReturnValue({ select: mockSelect });
+      mockSelect.mockReturnValue({ single: mockSingle });
+
+      const result = await updateStamp('stamp-1', { is_public: true });
+      expect(mockUpdate).toHaveBeenCalledWith({ is_public: true });
+      expect(result).toEqual(mockStamp);
+    });
+
     it('throws on error', async () => {
       const mockSingle = jest
         .fn()
