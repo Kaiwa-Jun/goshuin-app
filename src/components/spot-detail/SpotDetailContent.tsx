@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Dimensions, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { Badge } from '@components/common/Badge';
-import { ImagePreviewModal } from '@components/common/ImagePreviewModal';
+import { ImageGalleryModal, GalleryImage } from '@components/common/ImageGalleryModal';
 import { WishlistButton } from '@components/animated/WishlistButton';
 import { SpotInfoSection } from '@components/spot-detail/SpotInfoSection';
 import { getStampImageUrl } from '@services/stamps';
@@ -30,6 +30,7 @@ interface SpotDetailContentProps {
   onWishlistPress?: () => void;
   publicStamps?: PublicStampWithUser[];
   spotInfo?: ParsedSpotInfo;
+  onGalleryVisibleChange?: (visible: boolean) => void;
 }
 
 export function SpotDetailContent({
@@ -43,10 +44,40 @@ export function SpotDetailContent({
   onWishlistPress,
   publicStamps = [],
   spotInfo,
+  onGalleryVisibleChange,
 }: SpotDetailContentProps) {
   const badgeType = spot.type === 'shrine' ? 'shrine' : 'temple';
   const showVisited = isAuthenticated && visitCount > 0;
-  const [selectedPublicStamp, setSelectedPublicStamp] = useState<PublicStampWithUser | null>(null);
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
+
+  const openGallery = useCallback(
+    (index: number) => {
+      setSelectedImageIndex(index);
+      onGalleryVisibleChange?.(true);
+    },
+    [onGalleryVisibleChange]
+  );
+
+  const closeGallery = useCallback(() => {
+    setSelectedImageIndex(null);
+    onGalleryVisibleChange?.(false);
+  }, [onGalleryVisibleChange]);
+
+  const allGalleryImages: GalleryImage[] = [
+    ...stamps.map(s => ({
+      id: s.id,
+      imageUrl: getStampImageUrl(s.image_path),
+      memo: s.memo,
+      visitedAt: s.visited_at,
+    })),
+    ...publicStamps.map(ps => ({
+      id: ps.id,
+      imageUrl: getStampImageUrl(ps.image_path),
+      userName: ps.profiles.display_name,
+      memo: ps.memo,
+      visitedAt: ps.visited_at,
+    })),
+  ];
 
   return (
     <View style={styles.content} testID="spot-detail-content">
@@ -79,18 +110,22 @@ export function SpotDetailContent({
 
       {(stamps.length > 0 || publicStamps.length > 0) && (
         <View style={styles.stampGrid} testID="stamp-grid">
-          {stamps.map(stamp => (
-            <Image
+          {stamps.map((stamp, index) => (
+            <TouchableOpacity
               key={stamp.id}
-              source={{ uri: getStampImageUrl(stamp.image_path) }}
-              style={styles.stampImage}
+              onPress={() => openGallery(index)}
               testID={`stamp-image-${stamp.id}`}
-            />
+            >
+              <Image
+                source={{ uri: getStampImageUrl(stamp.image_path) }}
+                style={styles.stampImage}
+              />
+            </TouchableOpacity>
           ))}
-          {publicStamps.map(ps => (
+          {publicStamps.map((ps, index) => (
             <TouchableOpacity
               key={ps.id}
-              onPress={() => setSelectedPublicStamp(ps)}
+              onPress={() => openGallery(stamps.length + index)}
               testID={`public-stamp-image-${ps.id}`}
             >
               <Image source={{ uri: getStampImageUrl(ps.image_path) }} style={styles.stampImage} />
@@ -99,14 +134,12 @@ export function SpotDetailContent({
         </View>
       )}
 
-      {selectedPublicStamp && (
-        <ImagePreviewModal
-          visible={!!selectedPublicStamp}
-          onClose={() => setSelectedPublicStamp(null)}
-          imageUrl={getStampImageUrl(selectedPublicStamp.image_path)}
-          userName={selectedPublicStamp.profiles.display_name}
-          memo={selectedPublicStamp.memo}
-          visitedAt={selectedPublicStamp.visited_at}
+      {selectedImageIndex !== null && (
+        <ImageGalleryModal
+          visible={selectedImageIndex !== null}
+          onClose={closeGallery}
+          images={allGalleryImages}
+          initialIndex={selectedImageIndex}
         />
       )}
 
