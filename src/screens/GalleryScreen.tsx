@@ -113,81 +113,88 @@ export function GalleryScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>御朱印</Text>
-      </View>
-
-      <View style={styles.sortRow}>
-        <TouchableOpacity onPress={handleToggleSort} testID="sort-button">
-          <Text style={styles.sortText}>{sortLabel} ▼</Text>
-        </TouchableOpacity>
-      </View>
-
-      {isLoading ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={colors.primary[500]} testID="loading-indicator" />
+    <View style={styles.rootContainer}>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>御朱印</Text>
         </View>
-      ) : stamps.length === 0 ? (
-        <View style={styles.centerContainer} testID="empty-state">
-          <MaterialIcons name="photo-library" size={48} color={colors.gray[400]} />
-          <Text style={styles.emptyText}>御朱印がまだありません</Text>
-          <Text style={styles.emptySubText}>御朱印を記録して、コレクションを始めましょう</Text>
+
+        <View style={styles.sortRow}>
+          <TouchableOpacity onPress={handleToggleSort} testID="sort-button">
+            <Text style={styles.sortText}>{sortLabel} ▼</Text>
+          </TouchableOpacity>
         </View>
-      ) : (
-        <FlatList
-          data={stamps}
-          renderItem={renderItem}
-          keyExtractor={item => item.id}
-          numColumns={NUM_COLUMNS}
-          key={sortOrder}
-          contentContainerStyle={styles.listContent}
-          testID="gallery-list"
-        />
-      )}
 
-      {totalCount > 20 && (
-        <View style={styles.premiumBanner} testID="premium-banner">
-          <MaterialIcons name="lock" size={16} color={colors.primary[600]} />
-          <Text style={styles.premiumBannerText}>直近20件のみ表示中。プレミアムで全件表示</Text>
-        </View>
-      )}
-
-      {selectedImageIndex !== null && (
-        <ImageGalleryModal
-          visible={selectedImageIndex !== null}
-          onClose={() => setSelectedImageIndex(null)}
-          images={galleryImages}
-          initialIndex={selectedImageIndex}
-          onEdit={handleEdit}
-          onDelete={handleDeletePress}
-        />
-      )}
-
-      {currentStamp && (
-        <>
-          <EditStampModal
-            visible={editModalVisible}
-            onClose={() => setEditModalVisible(false)}
-            onSave={onSave}
-            isUpdating={isUpdating}
-            initialVisitedAt={currentStamp.visited_at}
-            initialMemo={currentStamp.memo}
+        {isLoading ? (
+          <View style={styles.centerContainer}>
+            <ActivityIndicator
+              size="large"
+              color={colors.primary[500]}
+              testID="loading-indicator"
+            />
+          </View>
+        ) : stamps.length === 0 ? (
+          <View style={styles.centerContainer} testID="empty-state">
+            <MaterialIcons name="photo-library" size={48} color={colors.gray[400]} />
+            <Text style={styles.emptyText}>御朱印がまだありません</Text>
+            <Text style={styles.emptySubText}>御朱印を記録して、コレクションを始めましょう</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={stamps}
+            renderItem={renderItem}
+            keyExtractor={item => item.id}
+            numColumns={NUM_COLUMNS}
+            key={sortOrder}
+            contentContainerStyle={styles.listContent}
+            testID="gallery-list"
           />
-          <DeleteConfirmModal
-            visible={deleteModalVisible}
-            onClose={() => setDeleteModalVisible(false)}
-            onConfirm={onConfirmDelete}
-            isDeleting={isDeleting}
-            spotName={currentStamp.spots.name}
-          />
-        </>
-      )}
-    </SafeAreaView>
+        )}
+
+        {totalCount > 20 && (
+          <View style={styles.premiumBanner} testID="premium-banner">
+            <MaterialIcons name="lock" size={16} color={colors.primary[600]} />
+            <Text style={styles.premiumBannerText}>直近20件のみ表示中。プレミアムで全件表示</Text>
+          </View>
+        )}
+
+        {currentStamp && (
+          <>
+            <EditStampModal
+              visible={editModalVisible}
+              onClose={() => setEditModalVisible(false)}
+              onSave={onSave}
+              isUpdating={isUpdating}
+              initialVisitedAt={currentStamp.visited_at}
+              initialMemo={currentStamp.memo}
+            />
+            <DeleteConfirmModal
+              visible={deleteModalVisible}
+              onClose={() => setDeleteModalVisible(false)}
+              onConfirm={onConfirmDelete}
+              isDeleting={isDeleting}
+              spotName={currentStamp.spots.name}
+            />
+          </>
+        )}
+      </SafeAreaView>
+      <ImageGalleryModal
+        visible={selectedImageIndex !== null}
+        onClose={() => setSelectedImageIndex(null)}
+        images={galleryImages}
+        initialIndex={selectedImageIndex ?? 0}
+        onEdit={handleEdit}
+        onDelete={handleDeletePress}
+        useModal={false}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  rootContainer: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     backgroundColor: colors.background,
