@@ -31,7 +31,7 @@ const ITEM_SIZE = (SCREEN_WIDTH - spacing.lg * 2 - ITEM_MARGIN * (NUM_COLUMNS - 
 
 export function GalleryScreen() {
   const [sortOrder, setSortOrder] = useState<SortOrder>('date');
-  const { stamps, totalCount, isLoading } = useGalleryStamps(sortOrder);
+  const { stamps, totalCount, isLoading, removeStamp } = useGalleryStamps(sortOrder);
 
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -80,12 +80,16 @@ export function GalleryScreen() {
   );
 
   const onConfirmDelete = useCallback(async () => {
+    const stampId = currentStamp?.id;
     const success = await handleDelete();
     if (success) {
       setDeleteModalVisible(false);
       setSelectedImageIndex(null);
+      if (stampId) {
+        removeStamp(stampId);
+      }
     }
-  }, [handleDelete]);
+  }, [handleDelete, currentStamp?.id, removeStamp]);
 
   const formatDate = (dateStr: string) => dateStr.replace(/-/g, '/');
 
