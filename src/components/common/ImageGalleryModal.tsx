@@ -27,6 +27,8 @@ interface ImageGalleryModalProps {
   onClose: () => void;
   images: GalleryImage[];
   initialIndex: number;
+  onEdit?: (index: number) => void;
+  onDelete?: (index: number) => void;
 }
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -49,6 +51,8 @@ export function ImageGalleryModal({
   onClose,
   images,
   initialIndex,
+  onEdit,
+  onDelete,
 }: ImageGalleryModalProps) {
   // currentIndex is only used for info display (userName, memo, counter)
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
@@ -278,7 +282,29 @@ export function ImageGalleryModal({
           </Text>
         </View>
 
-        <View style={styles.closeButtonContainer}>
+        <View style={styles.topBar}>
+          <View style={styles.topBarActions}>
+            {onEdit && (
+              <MaterialIcons
+                name="edit"
+                size={24}
+                color={colors.white}
+                onPress={() => onEdit(currentIndex)}
+                testID="gallery-edit-button"
+                style={styles.topBarIcon}
+              />
+            )}
+            {onDelete && (
+              <MaterialIcons
+                name="delete"
+                size={24}
+                color={colors.white}
+                onPress={() => onDelete(currentIndex)}
+                testID="gallery-delete-button"
+                style={styles.topBarIcon}
+              />
+            )}
+          </View>
           <MaterialIcons
             name="close"
             size={28}
@@ -312,11 +338,21 @@ const styles = StyleSheet.create({
   image: {
     width: SCREEN_WIDTH,
   },
-  closeButtonContainer: {
+  topBar: {
     position: 'absolute',
     top: spacing['4xl'],
+    left: spacing.lg,
     right: spacing.lg,
     zIndex: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  topBarActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  topBarIcon: {
     padding: spacing.sm,
   },
   infoContainer: {
