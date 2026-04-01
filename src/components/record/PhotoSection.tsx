@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
@@ -11,6 +11,14 @@ interface PhotoSectionProps {
 }
 
 export function PhotoSection({ imageUri, onPress, error }: PhotoSectionProps) {
+  const [imageAspect, setImageAspect] = useState<number>(3 / 4);
+
+  useEffect(() => {
+    if (imageUri) {
+      Image.getSize(imageUri, (w, h) => setImageAspect(w / h));
+    }
+  }, [imageUri]);
+
   return (
     <View>
       <TouchableOpacity
@@ -23,13 +31,10 @@ export function PhotoSection({ imageUri, onPress, error }: PhotoSectionProps) {
           <View style={styles.previewContainer}>
             <Image
               source={{ uri: imageUri }}
-              style={styles.preview}
+              style={[styles.preview, { aspectRatio: imageAspect }]}
               resizeMode="cover"
               testID="photo-preview"
             />
-            <View style={styles.changeButton}>
-              <Text style={styles.changeText}>変更</Text>
-            </View>
           </View>
         ) : (
           <View style={styles.placeholder}>
@@ -68,25 +73,12 @@ const styles = StyleSheet.create({
     color: colors.gray[400],
   },
   previewContainer: {
-    position: 'relative',
-    aspectRatio: 3 / 4,
+    alignItems: 'center',
+    backgroundColor: colors.gray[100],
   },
   preview: {
     width: '100%',
-    height: '100%',
-  },
-  changeButton: {
-    position: 'absolute',
-    top: spacing.sm,
-    right: spacing.sm,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    borderRadius: borderRadius.sm,
-  },
-  changeText: {
-    ...typography.label,
-    color: colors.white,
+    maxHeight: 400,
   },
   errorText: {
     ...typography.caption,

@@ -13,8 +13,7 @@ interface PhotoPickerModalProps {
 }
 
 const pickerOptions = {
-  allowsEditing: true,
-  aspect: [3, 4] as [number, number],
+  allowsEditing: false,
   quality: 0.8,
 };
 

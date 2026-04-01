@@ -49,8 +49,7 @@ describe('PhotoPickerModal', () => {
 
     await waitFor(() => {
       expect(ImagePicker.launchCameraAsync).toHaveBeenCalledWith({
-        allowsEditing: true,
-        aspect: [3, 4],
+        allowsEditing: false,
         quality: 0.8,
       });
       expect(mockOnImageSelected).toHaveBeenCalledWith('file://camera-photo.jpg');
@@ -75,8 +74,7 @@ describe('PhotoPickerModal', () => {
 
     await waitFor(() => {
       expect(ImagePicker.launchImageLibraryAsync).toHaveBeenCalledWith({
-        allowsEditing: true,
-        aspect: [3, 4],
+        allowsEditing: false,
         quality: 0.8,
       });
       expect(mockOnImageSelected).toHaveBeenCalledWith('file://gallery-photo.jpg');
