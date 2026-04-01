@@ -1,5 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { fetchStampById, updateStamp, deleteStamp } from '@services/stamps';
+import {
+  fetchStampById,
+  updateStamp,
+  deleteStamp,
+  uploadStampImage,
+  deleteStampImage,
+} from '@services/stamps';
 import type { StampWithSpot } from '@/types/supabase';
 
 interface UseStampDetailReturn {
@@ -8,7 +14,11 @@ interface UseStampDetailReturn {
   error: string | null;
   isUpdating: boolean;
   isDeleting: boolean;
-  handleUpdate: (params: { visited_at?: string; memo?: string | null }) => Promise<boolean>;
+  handleUpdate: (params: {
+    visited_at?: string;
+    memo?: string | null;
+    newImageUri?: string;
+  }) => Promise<StampWithSpot | null>;
   handleDelete: () => Promise<boolean>;
   refresh: () => void;
 }
@@ -48,21 +58,57 @@ export function useStampDetail(stampId: string): UseStampDetailReturn {
   }, [stampId, refreshTrigger]);
 
   const handleUpdate = useCallback(
-    async (params: { visited_at?: string; memo?: string | null }): Promise<boolean> => {
+    async (params: {
+      visited_at?: string;
+      memo?: string | null;
+      newImageUri?: string;
+    }): Promise<StampWithSpot | null> => {
       setIsUpdating(true);
       setError(null);
       try {
-        const updated = await updateStamp(stampId, params);
-        setStamp(updated);
-        return true;
+        const { newImageUri, ...updateParams } = params;
+        let updated: StampWithSpot;
+
+        if (newImageUri && stamp) {
+          const oldImagePath = stamp.image_path;
+          const newImagePath = await uploadStampImage(stamp.user_id, newImageUri);
+
+          try {
+            updated = await updateStamp(stampId, {
+              ...updateParams,
+              image_path: newImagePath,
+            });
+            setStamp(updated);
+          } catch (dbError) {
+            // DB更新失敗時は新画像を削除してクリーンアップ
+            try {
+              await deleteStampImage(newImagePath);
+            } catch {
+              // クリーンアップ失敗は無視
+            }
+            throw dbError;
+          }
+
+          // 旧画像の削除（失敗してもデータ整合性は保たれている）
+          try {
+            await deleteStampImage(oldImagePath);
+          } catch {
+            console.warn('Failed to delete old image:', oldImagePath);
+          }
+        } else {
+          updated = await updateStamp(stampId, updateParams);
+          setStamp(updated);
+        }
+
+        return updated;
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unknown error');
-        return false;
+        return null;
       } finally {
         setIsUpdating(false);
       }
     },
-    [stampId]
+    [stampId, stamp]
   );
 
   const handleDelete = useCallback(async (): Promise<boolean> => {

@@ -61,7 +61,7 @@ describe('useStampDetail', () => {
     expect(result.current.error).toBe('fetch error');
   });
 
-  it('handleUpdate 成功時に stamp state が更新される', async () => {
+  it('handleUpdate 成功時に stamp state が更新され、更新後のデータが返る', async () => {
     mockFetchStampById.mockResolvedValue(fakeStamp);
     const updatedStamp: StampWithSpot = { ...fakeStamp, memo: '更新メモ' };
     mockUpdateStamp.mockResolvedValue(updatedStamp);
@@ -72,18 +72,18 @@ describe('useStampDetail', () => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    let success: boolean;
+    let returnedStamp: StampWithSpot | null;
     await act(async () => {
-      success = await result.current.handleUpdate({ memo: '更新メモ' });
+      returnedStamp = await result.current.handleUpdate({ memo: '更新メモ' });
     });
 
-    expect(success!).toBe(true);
+    expect(returnedStamp!).toEqual(updatedStamp);
     expect(result.current.stamp).toEqual(updatedStamp);
     expect(result.current.error).toBeNull();
     expect(mockUpdateStamp).toHaveBeenCalledWith('stamp-1', { memo: '更新メモ' });
   });
 
-  it('handleUpdate 失敗時に error が設定される', async () => {
+  it('handleUpdate 失敗時に null が返り error が設定される', async () => {
     mockFetchStampById.mockResolvedValue(fakeStamp);
     mockUpdateStamp.mockRejectedValue(new Error('update failed'));
 
@@ -93,12 +93,12 @@ describe('useStampDetail', () => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    let success: boolean;
+    let returnedStamp: StampWithSpot | null;
     await act(async () => {
-      success = await result.current.handleUpdate({ memo: '更新メモ' });
+      returnedStamp = await result.current.handleUpdate({ memo: '更新メモ' });
     });
 
-    expect(success!).toBe(false);
+    expect(returnedStamp!).toBeNull();
     expect(result.current.error).toBe('update failed');
   });
 

@@ -14,6 +14,7 @@ interface UseGalleryStampsReturn {
   isLoading: boolean;
   error: string | null;
   removeStamp: (stampId: string) => void;
+  updateStamp: (updated: StampWithSpot) => void;
 }
 
 export function useGalleryStamps(sortOrder: SortOrder): UseGalleryStampsReturn {
@@ -60,6 +61,10 @@ export function useGalleryStamps(sortOrder: SortOrder): UseGalleryStampsReturn {
     setAllStamps(prev => prev.filter(s => s.id !== stampId));
   }, []);
 
+  const updateStamp = useCallback((updated: StampWithSpot) => {
+    setAllStamps(prev => prev.map(s => (s.id === updated.id ? updated : s)));
+  }, []);
+
   const stamps = useMemo(() => {
     const sorted = [...allStamps];
     if (sortOrder === 'spot') {
@@ -75,5 +80,6 @@ export function useGalleryStamps(sortOrder: SortOrder): UseGalleryStampsReturn {
     isLoading,
     error,
     removeStamp,
+    updateStamp,
   };
 }
