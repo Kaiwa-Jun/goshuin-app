@@ -79,6 +79,7 @@ const makeStamp = (overrides: Partial<Stamp> = {}): Stamp => ({
   image_path: 'img/1.jpg',
   memo: null,
   is_public: false,
+  extracted_info: null,
   created_at: '2024-06-01',
   updated_at: '2024-06-01',
   ...overrides,
@@ -203,11 +204,11 @@ describe('SpotDetailScreen', () => {
     expect(getAllByText('宮城県仙台市青葉区八幡4-6-1').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('displays record button', () => {
+  it('displays record link', () => {
     const { getByText } = render(
       <SpotDetailScreen navigation={mockNavigation as never} route={mockRoute} />
     );
-    expect(getByText('ここで記録する')).toBeTruthy();
+    expect(getByText('御朱印を記録')).toBeTruthy();
   });
 
   it('displays mini map', () => {
@@ -291,7 +292,7 @@ describe('SpotDetailScreen', () => {
   });
 
   describe('visit info', () => {
-    it('shows visit count and latest visit date when authenticated and visited', () => {
+    it('shows visited badge when authenticated and visited', () => {
       mockIsAuthenticated = true;
       mockUseSpotStampsReturn = {
         stamps: [makeStamp(), makeStamp({ id: 'stamp-2', visited_at: '2024-01-15' })],
@@ -299,20 +300,18 @@ describe('SpotDetailScreen', () => {
         latestVisitDate: '2024-06-01',
         isLoading: false,
       };
-      const { getByText } = render(
+      const { getByTestId } = render(
         <SpotDetailScreen navigation={mockNavigation as never} route={mockRoute} />
       );
-      expect(getByText('2')).toBeTruthy();
-      expect(getByText('2024/06/01')).toBeTruthy();
+      expect(getByTestId('badge-visited')).toBeTruthy();
     });
 
-    it('does not show visit info when not authenticated', () => {
+    it('does not show visited badge when not authenticated', () => {
       mockIsAuthenticated = false;
-      const { queryByText } = render(
+      const { queryByTestId } = render(
         <SpotDetailScreen navigation={mockNavigation as never} route={mockRoute} />
       );
-      expect(queryByText('訪問回数')).toBeNull();
-      expect(queryByText('最終訪問日')).toBeNull();
+      expect(queryByTestId('badge-visited')).toBeNull();
     });
   });
 
@@ -325,10 +324,9 @@ describe('SpotDetailScreen', () => {
         latestVisitDate: '2024-06-01',
         isLoading: false,
       };
-      const { getByText, getByTestId } = render(
+      const { getByTestId } = render(
         <SpotDetailScreen navigation={mockNavigation as never} route={mockRoute} />
       );
-      expect(getByText('記録済み御朱印')).toBeTruthy();
       expect(getByTestId('stamp-grid')).toBeTruthy();
     });
 
@@ -358,11 +356,11 @@ describe('SpotDetailScreen', () => {
   });
 
   describe('record navigation', () => {
-    it('navigates to Record with spotId on record button press', () => {
+    it('navigates to Record with spotId on record link press', () => {
       const { getByText } = render(
         <SpotDetailScreen navigation={mockNavigation as never} route={mockRoute} />
       );
-      fireEvent.press(getByText('ここで記録する'));
+      fireEvent.press(getByText('御朱印を記録'));
       expect(mockParentNavigate).toHaveBeenCalledWith('Record', { spotId: 'spot-1' });
     });
   });

@@ -199,6 +199,7 @@ describe('RecordScreen', () => {
       image_path: 'user-1/12345.jpg',
       memo: '',
       is_public: false,
+      extracted_info: null,
       created_at: '2024-06-01T00:00:00Z',
       updated_at: '2024-06-01T00:00:00Z',
     };
@@ -232,6 +233,7 @@ describe('RecordScreen', () => {
       image_path: 'user-1/12345.jpg',
       memo: '',
       is_public: false,
+      extracted_info: null,
       created_at: '2024-06-01T00:00:00Z',
       updated_at: '2024-06-01T00:00:00Z',
     };
@@ -266,6 +268,7 @@ describe('RecordScreen', () => {
       image_path: 'user-1/12345.jpg',
       memo: '',
       is_public: false,
+      extracted_info: null,
       created_at: '2024-06-01T00:00:00Z',
       updated_at: '2024-06-01T00:00:00Z',
     };
@@ -300,6 +303,7 @@ describe('RecordScreen', () => {
       image_path: 'user-1/12345.jpg',
       memo: '',
       is_public: false,
+      extracted_info: null,
       created_at: '2024-06-01T00:00:00Z',
       updated_at: '2024-06-01T00:00:00Z',
     };
@@ -338,6 +342,11 @@ describe('RecordScreen', () => {
     const { getByTestId } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
     fireEvent(getByTestId('public-toggle'), 'valueChange', true);
     expect(mockSetIsPublic).toHaveBeenCalledWith(true);
+  });
+
+  it('メモ欄の下にガイドテキストが表示されること', () => {
+    const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    expect(getByText(/駐車場の有無、受付時間、アクセス情報などを書くと/)).toBeTruthy();
   });
 
   it('shows submit error when submit fails', async () => {

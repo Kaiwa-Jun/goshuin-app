@@ -4,12 +4,12 @@ import MapView, { Marker } from 'react-native-maps';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { Badge } from '@components/common/Badge';
-import { Button } from '@components/common/Button';
-import { Card } from '@components/common/Card';
 import { ImagePreviewModal } from '@components/common/ImagePreviewModal';
 import { WishlistButton } from '@components/animated/WishlistButton';
+import { SpotInfoSection } from '@components/spot-detail/SpotInfoSection';
 import { getStampImageUrl } from '@services/stamps';
 import type { Spot, Stamp, PublicStampWithUser } from '@/types/supabase';
+import type { ParsedSpotInfo } from '@hooks/useSpotInfo';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { spacing, borderRadius } from '@theme/spacing';
@@ -29,27 +29,20 @@ interface SpotDetailContentProps {
   isWishlisted?: boolean;
   onWishlistPress?: () => void;
   publicStamps?: PublicStampWithUser[];
-}
-
-function formatDate(dateStr: string): string {
-  const d = new Date(dateStr);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}/${m}/${day}`;
+  spotInfo?: ParsedSpotInfo;
 }
 
 export function SpotDetailContent({
   spot,
   stamps,
   visitCount,
-  latestVisitDate,
   isAuthenticated,
   onRecord,
   showMiniMap = true,
   isWishlisted,
   onWishlistPress,
   publicStamps = [],
+  spotInfo,
 }: SpotDetailContentProps) {
   const badgeType = spot.type === 'shrine' ? 'shrine' : 'temple';
   const showVisited = isAuthenticated && visitCount > 0;
@@ -71,82 +64,39 @@ export function SpotDetailContent({
         )}
       </View>
       {spot.address && (
-        <View style={styles.addressRow}>
+        <View style={[styles.addressRow, spotInfo && styles.addressRowCompact]}>
           <MaterialIcons name="place" size={16} color={colors.gray[400]} />
           <Text style={styles.address}>{spot.address}</Text>
         </View>
       )}
 
-      <Card style={styles.visitCard}>
-        <View style={styles.visitRow}>
-          <View style={styles.visitItem}>
-            <Text style={styles.visitLabel}>種別</Text>
-            <Text style={styles.visitValue}>{spot.type === 'shrine' ? '神社' : '寺院'}</Text>
-          </View>
-          {isAuthenticated && visitCount > 0 && (
-            <>
-              <View style={styles.visitItem}>
-                <Text style={styles.visitLabel}>訪問回数</Text>
-                <Text style={styles.visitValue}>{visitCount}</Text>
-              </View>
-              <View style={styles.visitItem}>
-                <Text style={styles.visitLabel}>最終訪問日</Text>
-                <Text style={styles.visitValue}>
-                  {latestVisitDate ? formatDate(latestVisitDate) : '-'}
-                </Text>
-              </View>
-            </>
-          )}
+      {spotInfo && <SpotInfoSection spotInfo={spotInfo} />}
+
+      <TouchableOpacity style={styles.recordLink} onPress={onRecord} testID="record-link">
+        <MaterialIcons name="photo-camera" size={18} color={colors.primary[500]} />
+        <Text style={styles.recordLinkText}>御朱印を記録</Text>
+      </TouchableOpacity>
+
+      {(stamps.length > 0 || publicStamps.length > 0) && (
+        <View style={styles.stampGrid} testID="stamp-grid">
+          {stamps.map(stamp => (
+            <Image
+              key={stamp.id}
+              source={{ uri: getStampImageUrl(stamp.image_path) }}
+              style={styles.stampImage}
+              testID={`stamp-image-${stamp.id}`}
+            />
+          ))}
+          {publicStamps.map(ps => (
+            <TouchableOpacity
+              key={ps.id}
+              onPress={() => setSelectedPublicStamp(ps)}
+              testID={`public-stamp-image-${ps.id}`}
+            >
+              <Image source={{ uri: getStampImageUrl(ps.image_path) }} style={styles.stampImage} />
+            </TouchableOpacity>
+          ))}
         </View>
-      </Card>
-
-      <Button
-        title="ここで記録する"
-        onPress={onRecord}
-        variant="primary"
-        style={styles.recordButton}
-      />
-
-      {stamps.length > 0 && (
-        <>
-          <Text style={styles.sectionTitle}>記録済み御朱印</Text>
-          <View style={styles.stampGrid} testID="stamp-grid">
-            {stamps.map(stamp => (
-              <Image
-                key={stamp.id}
-                source={{ uri: getStampImageUrl(stamp.image_path) }}
-                style={styles.stampImage}
-                testID={`stamp-image-${stamp.id}`}
-              />
-            ))}
-          </View>
-        </>
-      )}
-
-      {publicStamps.length > 0 && (
-        <>
-          <Text style={styles.sectionTitle}>みんなの御朱印</Text>
-          <View style={styles.stampGrid} testID="public-stamp-grid">
-            {publicStamps.map(ps => (
-              <TouchableOpacity
-                key={ps.id}
-                onPress={() => setSelectedPublicStamp(ps)}
-                testID={`public-stamp-image-${ps.id}`}
-                style={styles.publicStampContainer}
-              >
-                <Image
-                  source={{ uri: getStampImageUrl(ps.image_path) }}
-                  style={styles.publicStampImage}
-                />
-                <View style={styles.publicStampOverlay}>
-                  <Text style={styles.publicStampUserName} numberOfLines={1}>
-                    {ps.profiles.display_name ?? '匿名'}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </>
       )}
 
       {selectedPublicStamp && (
@@ -220,33 +170,23 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     marginBottom: spacing.xl,
   },
+  addressRowCompact: {
+    marginBottom: spacing.sm,
+  },
   address: {
     ...typography.bodySmall,
     color: colors.gray[500],
     flex: 1,
   },
-  visitCard: {
-    marginBottom: spacing.lg,
-  },
-  visitRow: {
+  recordLink: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  visitItem: {
-    flex: 1,
-    alignItems: 'center',
     gap: spacing.xs,
-  },
-  visitLabel: {
-    ...typography.caption,
-    color: colors.gray[500],
-  },
-  visitValue: {
-    ...typography.h3,
-    color: colors.gray[900],
-  },
-  recordButton: {
     marginBottom: spacing.xl,
+  },
+  recordLinkText: {
+    ...typography.body,
+    color: colors.primary[500],
   },
   sectionTitle: {
     ...typography.h3,
@@ -264,32 +204,6 @@ const styles = StyleSheet.create({
     height: STAMP_IMAGE_SIZE,
     borderRadius: borderRadius.md,
     backgroundColor: colors.gray[100],
-  },
-  publicStampContainer: {
-    width: STAMP_IMAGE_SIZE,
-    position: 'relative',
-  },
-  publicStampImage: {
-    width: STAMP_IMAGE_SIZE,
-    height: STAMP_IMAGE_SIZE,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.gray[100],
-  },
-  publicStampOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 2,
-    borderBottomLeftRadius: borderRadius.md,
-    borderBottomRightRadius: borderRadius.md,
-  },
-  publicStampUserName: {
-    ...typography.caption,
-    color: colors.white,
-    textAlign: 'center',
   },
   miniMapContainer: {
     height: 150,

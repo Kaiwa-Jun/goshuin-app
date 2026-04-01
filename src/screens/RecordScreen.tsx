@@ -173,6 +173,11 @@ export function RecordScreen({ navigation, route }: Props) {
             />
           </View>
 
+          <Text style={styles.memoGuide}>
+            駐車場の有無、受付時間、アクセス情報などを書くと、{'\n'}
+            スポット情報として自動的に反映されます
+          </Text>
+
           <View style={styles.publicToggleSection}>
             <View style={styles.publicToggleRow}>
               <MaterialIcons
@@ -287,6 +292,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     textAlignVertical: 'top',
     color: colors.gray[800],
+  },
+  memoGuide: {
+    ...typography.caption,
+    color: colors.gray[400],
+    marginTop: spacing.xs,
+    marginBottom: spacing.md,
   },
   publicToggleSection: {
     marginTop: spacing.lg,

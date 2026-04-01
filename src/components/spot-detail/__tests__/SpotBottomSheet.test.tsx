@@ -40,6 +40,13 @@ jest.mock('@hooks/useSpotStamps', () => ({
   }),
 }));
 
+jest.mock('@hooks/useSpotInfo', () => ({
+  useSpotInfo: () => ({
+    spotInfo: null,
+    isLoading: false,
+  }),
+}));
+
 jest.mock('@hooks/useAuth', () => ({
   useAuth: () => ({
     isAuthenticated: true,
