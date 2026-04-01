@@ -4,7 +4,13 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { TabNavigator } from '../TabNavigator';
 import type { RootStackParamList } from '@/navigation/types';
-import { Text } from 'react-native';
+import { Text, Image } from 'react-native';
+
+jest
+  .spyOn(Image, 'getSize')
+  .mockImplementation((_uri: string, success: (width: number, height: number) => void) => {
+    success(800, 1200);
+  });
 
 // Mock environment variables for supabase
 const env = process.env;

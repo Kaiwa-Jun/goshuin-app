@@ -29,6 +29,8 @@ interface ImageGalleryModalProps {
   initialIndex: number;
   onEdit?: (index: number) => void;
   onDelete?: (index: number) => void;
+  /** When false, renders as absolute-positioned View instead of Modal to avoid native modal flicker. */
+  useModal?: boolean;
 }
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -53,6 +55,7 @@ export function ImageGalleryModal({
   initialIndex,
   onEdit,
   onDelete,
+  useModal = true,
 }: ImageGalleryModalProps) {
   // currentIndex is only used for info display (userName, memo, counter)
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
@@ -61,7 +64,7 @@ export function ImageGalleryModal({
   // Single animated value for the entire strip position
   const stripX = useRef(new Animated.Value(-initialIndex * SCREEN_WIDTH)).current;
   const panY = useRef(new Animated.Value(0)).current;
-  const opacity = useRef(new Animated.Value(1)).current;
+  const opacity = useRef(new Animated.Value(useModal ? 1 : 0)).current;
 
   const gestureStartTime = useRef(0);
   const directionLocked = useRef<'horizontal' | 'vertical' | null>(null);
@@ -69,20 +72,34 @@ export function ImageGalleryModal({
   const settledIndex = useRef(initialIndex);
   // baseX is the strip translateX when settled (no drag offset)
   const baseX = useRef(-initialIndex * SCREEN_WIDTH);
+  // Ref to track images.length for PanResponder closures
+  const imagesLengthRef = useRef(images.length);
+  imagesLengthRef.current = images.length;
+
+  // Reset animated values synchronously during render (not in useEffect)
+  // to avoid 1-frame flicker when reopening after a swipe-dismiss
+  const prevVisible = useRef(false);
+  if (visible && !prevVisible.current) {
+    settledIndex.current = initialIndex;
+    baseX.current = -initialIndex * SCREEN_WIDTH;
+    stripX.setValue(-initialIndex * SCREEN_WIDTH);
+    panY.setValue(0);
+    opacity.setValue(1);
+  }
+  if (!visible && prevVisible.current && !useModal) {
+    opacity.setValue(0);
+  }
+  prevVisible.current = visible;
 
   useEffect(() => {
     if (visible) {
       setCurrentIndex(initialIndex);
-      settledIndex.current = initialIndex;
-      baseX.current = -initialIndex * SCREEN_WIDTH;
-      stripX.setValue(-initialIndex * SCREEN_WIDTH);
-      panY.setValue(0);
-      opacity.setValue(1);
     }
-  }, [visible, initialIndex, stripX, panY, opacity]);
+  }, [visible, initialIndex]);
 
+  // Preload image sizes regardless of visibility so heights are ready when modal opens
   useEffect(() => {
-    if (!visible || images.length === 0) return;
+    if (images.length === 0) return;
     images.forEach(img => {
       if (imageHeights[img.id] !== undefined) return;
       Image.getSize(
@@ -95,7 +112,7 @@ export function ImageGalleryModal({
         }
       );
     });
-  }, [visible, images, imageHeights]);
+  }, [images, imageHeights]);
 
   const navigateTo = useCallback(
     (newIndex: number, animated: boolean) => {
@@ -118,62 +135,11 @@ export function ImageGalleryModal({
     [stripX]
   );
 
-  const handleTap = useCallback(
-    (locationX: number) => {
-      const idx = settledIndex.current;
-      if (locationX < SCREEN_WIDTH / 2) {
-        if (idx > 0) navigateTo(idx - 1, false);
-      } else {
-        if (idx < images.length - 1) navigateTo(idx + 1, false);
-      }
-    },
-    [images.length, navigateTo]
-  );
-
-  const handleHorizontalRelease = useCallback(
-    (dx: number, vx: number) => {
-      const idx = settledIndex.current;
-      if ((dx < -SWIPE_THRESHOLD || vx < -VELOCITY_THRESHOLD) && idx < images.length - 1) {
-        navigateTo(idx + 1, true);
-      } else if ((dx > SWIPE_THRESHOLD || vx > VELOCITY_THRESHOLD) && idx > 0) {
-        navigateTo(idx - 1, true);
-      } else {
-        // Snap back
-        Animated.spring(stripX, {
-          toValue: baseX.current,
-          useNativeDriver: true,
-        }).start();
-      }
-    },
-    [images.length, stripX, navigateTo]
-  );
-
-  const handleVerticalRelease = useCallback(
-    (dy: number, vy: number) => {
-      if (dy > DISMISS_THRESHOLD || vy > VELOCITY_THRESHOLD) {
-        Animated.parallel([
-          Animated.timing(panY, {
-            toValue: SCREEN_HEIGHT,
-            duration: 250,
-            useNativeDriver: true,
-          }),
-          Animated.timing(opacity, {
-            toValue: 0,
-            duration: 250,
-            useNativeDriver: true,
-          }),
-        ]).start(() => {
-          onClose();
-        });
-      } else {
-        Animated.parallel([
-          Animated.spring(panY, { toValue: 0, useNativeDriver: true }),
-          Animated.spring(opacity, { toValue: 1, useNativeDriver: true }),
-        ]).start();
-      }
-    },
-    [onClose, panY, opacity]
-  );
+  // Use refs so PanResponder always calls the latest versions
+  const navigateToRef = useRef(navigateTo);
+  navigateToRef.current = navigateTo;
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   const panResponder = useRef(
     PanResponder.create({
@@ -209,14 +175,54 @@ export function ImageGalleryModal({
           Math.abs(gs.dy) < TAP_MAX_DISTANCE;
 
         if (isTap) {
-          handleTap(evt.nativeEvent.locationX);
+          // Tap handling - use refs for latest values
+          const idx = settledIndex.current;
+          const len = imagesLengthRef.current;
+          if (evt.nativeEvent.locationX < SCREEN_WIDTH / 2) {
+            if (idx > 0) navigateToRef.current(idx - 1, false);
+          } else {
+            if (idx < len - 1) navigateToRef.current(idx + 1, false);
+          }
           return;
         }
 
         if (directionLocked.current === 'horizontal') {
-          handleHorizontalRelease(gs.dx, gs.vx);
+          // Horizontal swipe - use refs for latest values
+          const idx = settledIndex.current;
+          const len = imagesLengthRef.current;
+          if ((gs.dx < -SWIPE_THRESHOLD || gs.vx < -VELOCITY_THRESHOLD) && idx < len - 1) {
+            navigateToRef.current(idx + 1, true);
+          } else if ((gs.dx > SWIPE_THRESHOLD || gs.vx > VELOCITY_THRESHOLD) && idx > 0) {
+            navigateToRef.current(idx - 1, true);
+          } else {
+            Animated.spring(stripX, {
+              toValue: baseX.current,
+              useNativeDriver: true,
+            }).start();
+          }
         } else if (directionLocked.current === 'vertical') {
-          handleVerticalRelease(gs.dy, gs.vy);
+          // Vertical swipe dismiss
+          if (gs.dy > DISMISS_THRESHOLD || gs.vy > VELOCITY_THRESHOLD) {
+            Animated.parallel([
+              Animated.timing(panY, {
+                toValue: SCREEN_HEIGHT,
+                duration: 250,
+                useNativeDriver: true,
+              }),
+              Animated.timing(opacity, {
+                toValue: 0,
+                duration: 250,
+                useNativeDriver: true,
+              }),
+            ]).start(() => {
+              onCloseRef.current();
+            });
+          } else {
+            Animated.parallel([
+              Animated.spring(panY, { toValue: 0, useNativeDriver: true }),
+              Animated.spring(opacity, { toValue: 1, useNativeDriver: true }),
+            ]).start();
+          }
         } else {
           stripX.setValue(baseX.current);
           panY.setValue(0);
@@ -227,14 +233,16 @@ export function ImageGalleryModal({
     })
   ).current;
 
-  if (!visible || images.length === 0) return null;
+  // For useModal mode: return null when not visible
+  if (useModal && (!visible || images.length === 0)) return null;
 
-  const currentImage = images[currentIndex];
-  if (!currentImage) return null;
+  const currentImage = visible ? images[currentIndex] : null;
 
-  return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
-      <Animated.View style={[styles.overlay, { opacity }]} testID="gallery-overlay">
+  const renderContent = () => {
+    if (!visible || images.length === 0 || !currentImage) return null;
+
+    return (
+      <>
         <Animated.View
           style={[
             styles.stripContainer,
@@ -313,8 +321,29 @@ export function ImageGalleryModal({
             testID="gallery-close-button"
           />
         </View>
-      </Animated.View>
-    </Modal>
+      </>
+    );
+  };
+
+  if (useModal) {
+    return (
+      <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
+        <Animated.View style={[styles.overlay, { opacity }]} testID="gallery-overlay">
+          {renderContent()}
+        </Animated.View>
+      </Modal>
+    );
+  }
+
+  // Absolute positioning mode: always render the overlay, control with opacity + pointerEvents
+  return (
+    <Animated.View
+      style={[styles.overlayAbsolute, { opacity }]}
+      pointerEvents={visible ? 'auto' : 'none'}
+      testID="gallery-overlay"
+    >
+      {renderContent()}
+    </Animated.View>
   );
 }
 
@@ -324,6 +353,18 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(50, 50, 50, 0.85)',
     justifyContent: 'center',
     overflow: 'hidden',
+  },
+  overlayAbsolute: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(50, 50, 50, 0.85)',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    zIndex: 1000,
+    elevation: 1000,
   },
   stripContainer: {
     flex: 1,
