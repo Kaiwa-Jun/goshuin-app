@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
+import { render, fireEvent, act, waitFor } from '@testing-library/react-native';
 import { EditStampModal } from '../EditStampModal';
 
 jest.mock('react-native-safe-area-context', () => {
@@ -23,6 +23,17 @@ jest.mock('@react-native-community/datetimepicker', () => {
   };
 });
 
+jest.mock('expo-image-picker', () => ({
+  launchCameraAsync: jest.fn().mockResolvedValue({
+    canceled: false,
+    assets: [{ uri: 'file:///camera-image.jpg' }],
+  }),
+  launchImageLibraryAsync: jest.fn().mockResolvedValue({
+    canceled: false,
+    assets: [{ uri: 'file:///gallery-image.jpg' }],
+  }),
+}));
+
 describe('EditStampModal', () => {
   const defaultProps = {
     visible: true,
@@ -31,6 +42,7 @@ describe('EditStampModal', () => {
     isUpdating: false,
     initialVisitedAt: '2024-01-15',
     initialMemo: 'テストメモ',
+    initialImageUrl: 'https://example.com/image.jpg',
   };
 
   beforeEach(() => {
@@ -124,5 +136,53 @@ describe('EditStampModal', () => {
     expect(getByText('保存中...')).toBeTruthy();
     const saveButton = getByTestId('button-primary');
     expect(saveButton.props.accessibilityState?.disabled).toBe(true);
+  });
+
+  it('画像サムネイルが表示される', () => {
+    const { getByTestId } = render(<EditStampModal {...defaultProps} />);
+    const image = getByTestId('edit-stamp-image');
+    expect(image.props.source.uri).toBe('https://example.com/image.jpg');
+  });
+
+  it('画像変更トリガーをタップすると写真選択オプションが表示される', () => {
+    const { getByTestId, queryByTestId } = render(<EditStampModal {...defaultProps} />);
+    expect(queryByTestId('photo-options')).toBeNull();
+    fireEvent.press(getByTestId('image-change-trigger'));
+    expect(getByTestId('photo-options')).toBeTruthy();
+    expect(getByTestId('camera-option')).toBeTruthy();
+    expect(getByTestId('gallery-option')).toBeTruthy();
+  });
+
+  it('ギャラリーから画像選択後に onSave に newImageUri が含まれる', async () => {
+    const onSave = jest.fn();
+    const { getByTestId, getByText } = render(<EditStampModal {...defaultProps} onSave={onSave} />);
+
+    fireEvent.press(getByTestId('image-change-trigger'));
+    await act(async () => {
+      fireEvent.press(getByTestId('gallery-option'));
+    });
+
+    await waitFor(() => {
+      expect(getByTestId('edit-stamp-image').props.source.uri).toBe('file:///gallery-image.jpg');
+    });
+
+    fireEvent.press(getByText('保存'));
+
+    expect(onSave).toHaveBeenCalledWith({
+      visited_at: '2024-01-15',
+      memo: 'テストメモ',
+      newImageUri: 'file:///gallery-image.jpg',
+    });
+  });
+
+  it('画像未変更時は onSave に newImageUri が含まれない', () => {
+    const onSave = jest.fn();
+    const { getByText } = render(<EditStampModal {...defaultProps} onSave={onSave} />);
+    fireEvent.press(getByText('保存'));
+
+    expect(onSave).toHaveBeenCalledWith({
+      visited_at: '2024-01-15',
+      memo: 'テストメモ',
+    });
   });
 });

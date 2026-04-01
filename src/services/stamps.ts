@@ -112,7 +112,7 @@ export function getStampImageUrl(imagePath: string): string {
 
 export async function updateStamp(
   stampId: string,
-  params: { visited_at?: string; memo?: string | null; is_public?: boolean }
+  params: { visited_at?: string; memo?: string | null; is_public?: boolean; image_path?: string }
 ): Promise<StampWithSpot> {
   const { data, error } = await supabase
     .from('stamps')

@@ -31,7 +31,13 @@ const ITEM_SIZE = (SCREEN_WIDTH - spacing.lg * 2 - ITEM_MARGIN * (NUM_COLUMNS - 
 
 export function GalleryScreen() {
   const [sortOrder, setSortOrder] = useState<SortOrder>('date');
-  const { stamps, totalCount, isLoading, removeStamp } = useGalleryStamps(sortOrder);
+  const {
+    stamps,
+    totalCount,
+    isLoading,
+    removeStamp,
+    updateStamp: updateGalleryStamp,
+  } = useGalleryStamps(sortOrder);
 
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -70,13 +76,14 @@ export function GalleryScreen() {
   }, []);
 
   const onSave = useCallback(
-    async (params: { visited_at: string; memo: string | null }) => {
-      const success = await handleUpdate(params);
-      if (success) {
+    async (params: { visited_at: string; memo: string | null; newImageUri?: string }) => {
+      const updated = await handleUpdate(params);
+      if (updated) {
+        updateGalleryStamp(updated);
         setEditModalVisible(false);
       }
     },
-    [handleUpdate]
+    [handleUpdate, updateGalleryStamp]
   );
 
   const onConfirmDelete = useCallback(async () => {
@@ -171,6 +178,7 @@ export function GalleryScreen() {
               isUpdating={isUpdating}
               initialVisitedAt={currentStamp.visited_at}
               initialMemo={currentStamp.memo}
+              initialImageUrl={getStampImageUrl(currentStamp.image_path)}
             />
             <DeleteConfirmModal
               visible={deleteModalVisible}
