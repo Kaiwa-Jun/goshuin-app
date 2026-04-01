@@ -36,11 +36,14 @@ const fakeSpot: Spot = {
   updated_at: '2024-01-01',
 };
 
+const mockSetIsPublic = jest.fn();
+
 let mockFormState = {
   selectedSpot: null as Spot | null,
   imageUri: null as string | null,
   visitedAt: new Date('2024-06-01'),
   memo: '',
+  isPublic: false,
   spotError: null as string | null,
   imageError: null as string | null,
   isSubmitting: false,
@@ -49,6 +52,7 @@ let mockFormState = {
   setImageUri: mockSetImageUri,
   setVisitedAt: mockSetVisitedAt,
   setMemo: mockSetMemo,
+  setIsPublic: mockSetIsPublic,
   validate: mockValidate,
   submit: mockSubmit,
   reset: mockReset,
@@ -130,6 +134,7 @@ describe('RecordScreen', () => {
       imageUri: null,
       visitedAt: new Date('2024-06-01'),
       memo: '',
+      isPublic: false,
       spotError: null,
       imageError: null,
       isSubmitting: false,
@@ -138,6 +143,7 @@ describe('RecordScreen', () => {
       setImageUri: mockSetImageUri,
       setVisitedAt: mockSetVisitedAt,
       setMemo: mockSetMemo,
+      setIsPublic: mockSetIsPublic,
       validate: mockValidate,
       submit: mockSubmit,
       reset: mockReset,
@@ -192,6 +198,7 @@ describe('RecordScreen', () => {
       visited_at: '2024-06-01T00:00:00.000Z',
       image_path: 'user-1/12345.jpg',
       memo: '',
+      is_public: false,
       created_at: '2024-06-01T00:00:00Z',
       updated_at: '2024-06-01T00:00:00Z',
     };
@@ -224,6 +231,7 @@ describe('RecordScreen', () => {
       visited_at: '2024-06-01T00:00:00.000Z',
       image_path: 'user-1/12345.jpg',
       memo: '',
+      is_public: false,
       created_at: '2024-06-01T00:00:00Z',
       updated_at: '2024-06-01T00:00:00Z',
     };
@@ -257,6 +265,7 @@ describe('RecordScreen', () => {
       visited_at: '2024-06-01T00:00:00.000Z',
       image_path: 'user-1/12345.jpg',
       memo: '',
+      is_public: false,
       created_at: '2024-06-01T00:00:00Z',
       updated_at: '2024-06-01T00:00:00Z',
     };
@@ -290,6 +299,7 @@ describe('RecordScreen', () => {
       visited_at: '2024-06-01T00:00:00.000Z',
       image_path: 'user-1/12345.jpg',
       memo: '',
+      is_public: false,
       created_at: '2024-06-01T00:00:00Z',
       updated_at: '2024-06-01T00:00:00Z',
     };
@@ -314,6 +324,20 @@ describe('RecordScreen', () => {
         })
       );
     });
+  });
+
+  it('公開トグルが表示されること', () => {
+    const { getByText, getByTestId } = render(
+      <RecordScreen navigation={mockNavigation} route={mockRoute} />
+    );
+    expect(getByText('この御朱印を公開する')).toBeTruthy();
+    expect(getByTestId('public-toggle')).toBeTruthy();
+  });
+
+  it('トグル操作で setIsPublic が呼ばれること', () => {
+    const { getByTestId } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent(getByTestId('public-toggle'), 'valueChange', true);
+    expect(mockSetIsPublic).toHaveBeenCalledWith(true);
   });
 
   it('shows submit error when submit fails', async () => {

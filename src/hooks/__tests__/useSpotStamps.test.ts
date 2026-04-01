@@ -1,11 +1,13 @@
 import { renderHook, waitFor } from '@testing-library/react-native';
 import { useSpotStamps } from '@hooks/useSpotStamps';
-import type { Stamp } from '@/types/supabase';
+import type { Stamp, PublicStampWithUser } from '@/types/supabase';
 
 const mockFetchStampsBySpotId = jest.fn();
+const mockFetchPublicStampsBySpotId = jest.fn();
 
 jest.mock('@services/stamps', () => ({
   fetchStampsBySpotId: (...args: unknown[]) => mockFetchStampsBySpotId(...args),
+  fetchPublicStampsBySpotId: (...args: unknown[]) => mockFetchPublicStampsBySpotId(...args),
 }));
 
 let mockIsAuthenticated = false;
@@ -24,15 +26,32 @@ const makeStamp = (overrides: Partial<Stamp> = {}): Stamp => ({
   visited_at: '2024-06-01',
   image_path: 'img/1.jpg',
   memo: null,
+  is_public: false,
   created_at: '2024-06-01',
   updated_at: '2024-06-01',
   ...overrides,
 });
 
 describe('useSpotStamps', () => {
+  const makePublicStamp = (overrides: Partial<PublicStampWithUser> = {}): PublicStampWithUser => ({
+    id: 'public-stamp-1',
+    user_id: 'other-user',
+    spot_id: 'spot-1',
+    goshuincho_id: null,
+    visited_at: '2024-07-01',
+    image_path: 'img/public.jpg',
+    memo: null,
+    is_public: true,
+    created_at: '2024-07-01',
+    updated_at: '2024-07-01',
+    profiles: { display_name: 'Other User', avatar_url: null },
+    ...overrides,
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
     mockIsAuthenticated = false;
+    mockFetchPublicStampsBySpotId.mockResolvedValue([]);
   });
 
   it('returns empty result when not authenticated', async () => {
@@ -97,5 +116,51 @@ describe('useSpotStamps', () => {
     expect(result.current.stamps).toEqual([]);
     expect(result.current.visitCount).toBe(0);
     expect(result.current.latestVisitDate).toBeNull();
+  });
+
+  it('returns publicStamps when authenticated', async () => {
+    mockIsAuthenticated = true;
+    mockFetchStampsBySpotId.mockResolvedValue([]);
+    const publicStamps = [makePublicStamp()];
+    mockFetchPublicStampsBySpotId.mockResolvedValue(publicStamps);
+
+    const { result } = renderHook(() => useSpotStamps('spot-1'));
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.publicStamps).toEqual(publicStamps);
+    expect(mockFetchPublicStampsBySpotId).toHaveBeenCalledWith('spot-1');
+  });
+
+  it('returns publicStamps even when not authenticated', async () => {
+    mockIsAuthenticated = false;
+    const publicStamps = [makePublicStamp()];
+    mockFetchPublicStampsBySpotId.mockResolvedValue(publicStamps);
+
+    const { result } = renderHook(() => useSpotStamps('spot-1'));
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.stamps).toEqual([]);
+    expect(result.current.publicStamps).toEqual(publicStamps);
+    expect(mockFetchPublicStampsBySpotId).toHaveBeenCalledWith('spot-1');
+  });
+
+  it('returns empty publicStamps on fetch error', async () => {
+    mockIsAuthenticated = true;
+    mockFetchStampsBySpotId.mockResolvedValue([]);
+    mockFetchPublicStampsBySpotId.mockRejectedValue(new Error('Network error'));
+
+    const { result } = renderHook(() => useSpotStamps('spot-1'));
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.publicStamps).toEqual([]);
   });
 });

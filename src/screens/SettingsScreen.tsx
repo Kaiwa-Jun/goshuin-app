@@ -1,9 +1,10 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Card } from '@components/common/Card';
 import { useAuth } from '@hooks/useAuth';
+import { useDefaultPublicSetting } from '@hooks/useDefaultPublicSetting';
 import { colors } from '@theme/colors';
 import { borderRadius, spacing } from '@theme/spacing';
 import { typography } from '@theme/typography';
@@ -13,6 +14,7 @@ type Props = MainTabScreenProps<'Settings'>;
 
 export function SettingsScreen({ navigation }: Props) {
   const { user, isAuthenticated, signOut } = useAuth();
+  const { defaultPublic, updateDefaultPublic } = useDefaultPublicSetting();
 
   const displayName = isAuthenticated
     ? (user?.user_metadata?.full_name as string) || 'ユーザー'
@@ -67,6 +69,30 @@ export function SettingsScreen({ navigation }: Props) {
             </TouchableOpacity>
           )}
         </Card>
+
+        {/* Public Settings Section - only for authenticated users */}
+        {isAuthenticated && (
+          <>
+            <Text style={styles.sectionTitle}>公開設定</Text>
+            <Card style={styles.sectionCard}>
+              <View style={styles.publicRow}>
+                <View style={styles.publicLabelContainer}>
+                  <Text style={styles.rowLabel}>御朱印のデフォルト公開設定</Text>
+                  <Text style={styles.publicDescription}>
+                    新しく記録する御朱印を自動的に公開します
+                  </Text>
+                </View>
+                <Switch
+                  value={defaultPublic}
+                  onValueChange={updateDefaultPublic}
+                  trackColor={{ false: colors.gray[300], true: colors.primary[200] }}
+                  thumbColor={defaultPublic ? colors.primary[500] : colors.gray[100]}
+                  testID="default-public-toggle"
+                />
+              </View>
+            </Card>
+          </>
+        )}
 
         {/* Plan Section */}
         <Text style={styles.sectionTitle}>プラン</Text>
@@ -159,6 +185,20 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.primary[500],
     flex: 1,
+  },
+  publicRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    gap: spacing.md,
+  },
+  publicLabelContainer: {
+    flex: 1,
+  },
+  publicDescription: {
+    ...typography.caption,
+    color: colors.gray[500],
+    marginTop: spacing.xs,
   },
   planRow: {
     paddingVertical: spacing.md,

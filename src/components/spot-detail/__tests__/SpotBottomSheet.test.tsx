@@ -33,6 +33,7 @@ jest.mock('@hooks/useSpotDetail', () => ({
 jest.mock('@hooks/useSpotStamps', () => ({
   useSpotStamps: () => ({
     stamps: [],
+    publicStamps: [],
     visitCount: 2,
     latestVisitDate: '2024-06-15',
     isLoading: false,

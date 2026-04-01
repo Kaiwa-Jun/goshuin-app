@@ -44,6 +44,7 @@ const makeStamp = (overrides: Partial<StampWithSpot> = {}): StampWithSpot => ({
   visited_at: '2024-01-15',
   image_path: 'user-1/stamp-1.jpg',
   memo: null,
+  is_public: false,
   created_at: '2024-01-15T00:00:00Z',
   updated_at: '2024-01-15T00:00:00Z',
   spots: { name: '明治神宮', type: 'shrine' },

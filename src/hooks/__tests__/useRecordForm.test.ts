@@ -6,6 +6,7 @@ const mockFetchSpotById = jest.fn();
 const mockUploadStampImage = jest.fn();
 const mockCreateStamp = jest.fn();
 const mockUseAuth = jest.fn();
+const mockFetchProfile = jest.fn();
 
 jest.mock('@services/spots', () => ({
   fetchSpotById: (...args: unknown[]) => mockFetchSpotById(...args),
@@ -18,6 +19,10 @@ jest.mock('@services/stamps', () => ({
 
 jest.mock('@hooks/useAuth', () => ({
   useAuth: () => mockUseAuth(),
+}));
+
+jest.mock('@services/profiles', () => ({
+  fetchProfile: (...args: unknown[]) => mockFetchProfile(...args),
 }));
 
 const fakeSpot: Spot = {
@@ -42,6 +47,7 @@ const fakeStamp: Stamp = {
   visited_at: '2024-06-01T00:00:00.000Z',
   image_path: 'user-1/12345.jpg',
   memo: '',
+  is_public: false,
   created_at: '2024-06-01T00:00:00Z',
   updated_at: '2024-06-01T00:00:00Z',
 };
@@ -50,6 +56,7 @@ describe('useRecordForm', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseAuth.mockReturnValue({ user: { id: 'user-1' } });
+    mockFetchProfile.mockResolvedValue({ default_stamp_public: false });
   });
 
   it('has correct initial state', () => {
@@ -172,6 +179,7 @@ describe('useRecordForm', () => {
       imagePath: 'user-1/12345.jpg',
       visitedAt: expect.any(String),
       memo: '',
+      isPublic: false,
     });
     expect(result.current.isSubmitting).toBe(false);
   });
@@ -230,5 +238,80 @@ describe('useRecordForm', () => {
     expect(result.current.spotError).toBeNull();
     expect(result.current.imageError).toBeNull();
     expect(result.current.submitError).toBeNull();
+  });
+
+  it('isPublic defaults to false', () => {
+    const { result } = renderHook(() => useRecordForm());
+
+    expect(result.current.isPublic).toBe(false);
+  });
+
+  it('setIsPublic changes isPublic value', () => {
+    const { result } = renderHook(() => useRecordForm());
+
+    act(() => {
+      result.current.setIsPublic(true);
+    });
+
+    expect(result.current.isPublic).toBe(true);
+  });
+
+  it('submit passes isPublic to createStamp', async () => {
+    mockUploadStampImage.mockResolvedValue('user-1/12345.jpg');
+    mockCreateStamp.mockResolvedValue(fakeStamp);
+
+    const { result } = renderHook(() => useRecordForm());
+
+    act(() => {
+      result.current.selectSpot(fakeSpot);
+      result.current.setImageUri('file:///photo.jpg');
+      result.current.setIsPublic(true);
+    });
+
+    await act(async () => {
+      await result.current.submit();
+    });
+
+    expect(mockCreateStamp).toHaveBeenCalledWith({
+      userId: 'user-1',
+      spotId: 'spot-1',
+      imagePath: 'user-1/12345.jpg',
+      visitedAt: expect.any(String),
+      memo: '',
+      isPublic: true,
+    });
+  });
+
+  it('isPublic initializes to true when profile default_stamp_public is true', async () => {
+    mockFetchProfile.mockResolvedValue({ default_stamp_public: true });
+
+    const { result } = renderHook(() => useRecordForm());
+
+    await waitFor(() => {
+      expect(result.current.isPublic).toBe(true);
+    });
+
+    expect(mockFetchProfile).toHaveBeenCalledWith('user-1');
+  });
+
+  it('reset restores isPublic to default value', async () => {
+    mockFetchProfile.mockResolvedValue({ default_stamp_public: true });
+
+    const { result } = renderHook(() => useRecordForm());
+
+    await waitFor(() => {
+      expect(result.current.isPublic).toBe(true);
+    });
+
+    act(() => {
+      result.current.setIsPublic(false);
+    });
+    expect(result.current.isPublic).toBe(false);
+
+    act(() => {
+      result.current.reset();
+    });
+
+    expect(result.current.isPublic).toBe(true);
   });
 });

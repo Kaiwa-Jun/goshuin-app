@@ -1,5 +1,5 @@
 import { supabase } from '@services/supabase';
-import type { Stamp, StampWithSpot } from '@/types/supabase';
+import type { Stamp, StampWithSpot, PublicStampWithUser } from '@/types/supabase';
 
 export async function fetchVisitedSpotIds(): Promise<Set<string>> {
   const { data, error } = await supabase.from('stamps').select('spot_id');
@@ -56,6 +56,7 @@ export async function createStamp(params: {
   imagePath: string;
   visitedAt: string;
   memo?: string;
+  isPublic?: boolean;
 }): Promise<Stamp> {
   const { data, error } = await supabase
     .from('stamps')
@@ -65,6 +66,7 @@ export async function createStamp(params: {
       image_path: params.imagePath,
       visited_at: params.visitedAt,
       memo: params.memo ?? null,
+      is_public: params.isPublic ?? false,
     })
     .select()
     .single();
@@ -110,7 +112,7 @@ export function getStampImageUrl(imagePath: string): string {
 
 export async function updateStamp(
   stampId: string,
-  params: { visited_at?: string; memo?: string | null }
+  params: { visited_at?: string; memo?: string | null; is_public?: boolean }
 ): Promise<StampWithSpot> {
   const { data, error } = await supabase
     .from('stamps')
@@ -120,6 +122,31 @@ export async function updateStamp(
     .single();
   if (error) throw new Error(error.message);
   return data as StampWithSpot;
+}
+
+export async function fetchPublicStampsBySpotId(spotId: string): Promise<PublicStampWithUser[]> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let query = supabase
+    .from('stamps')
+    .select('*, profiles!stamps_user_id_profiles_fkey(display_name, avatar_url)')
+    .eq('spot_id', spotId)
+    .eq('is_public', true)
+    .order('visited_at', { ascending: false })
+    .limit(20);
+
+  if (user) {
+    query = query.neq('user_id', user.id);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    console.warn('fetchPublicStampsBySpotId error:', error.message);
+    return [];
+  }
+  return data as PublicStampWithUser[];
 }
 
 export async function deleteStampImage(imagePath: string): Promise<void> {

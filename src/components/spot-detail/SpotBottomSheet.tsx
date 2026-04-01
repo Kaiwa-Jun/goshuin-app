@@ -36,7 +36,7 @@ export function SpotBottomSheet({
   const insets = useSafeAreaInsets();
   const expandedHeight = SCREEN_HEIGHT * 0.85;
   const { spot } = useSpotDetail(spotId ?? '');
-  const { stamps, visitCount, latestVisitDate } = useSpotStamps(spotId ?? '');
+  const { stamps, visitCount, latestVisitDate, publicStamps } = useSpotStamps(spotId ?? '');
   const { isAuthenticated } = useAuth();
 
   const [mode, setMode] = useState<SheetMode>('hidden');
@@ -190,6 +190,7 @@ export function SpotBottomSheet({
             showMiniMap={false}
             isWishlisted={isWishlisted}
             onWishlistPress={onWishlistToggle ? handleWishlistPress : undefined}
+            publicStamps={publicStamps}
           />
         </ScrollView>
       )}
