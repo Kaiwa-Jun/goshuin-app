@@ -1,6 +1,13 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
+import { Image } from 'react-native';
 import { PhotoSection } from '../PhotoSection';
+
+jest
+  .spyOn(Image, 'getSize')
+  .mockImplementation((_uri: string, success: (width: number, height: number) => void) => {
+    success(300, 400);
+  });
 
 describe('PhotoSection', () => {
   const mockOnPress = jest.fn();
@@ -17,13 +24,12 @@ describe('PhotoSection', () => {
     expect(getByText('写真を追加')).toBeTruthy();
   });
 
-  it('選択済み時に Image コンポーネントと「変更」テキスト表示', () => {
-    const { getByTestId, getByText } = render(
+  it('選択済み時に Image コンポーネント表示', () => {
+    const { getByTestId } = render(
       <PhotoSection imageUri="file://photo.jpg" onPress={mockOnPress} error={null} />
     );
 
     expect(getByTestId('photo-preview')).toBeTruthy();
-    expect(getByText('変更')).toBeTruthy();
   });
 
   it('タップで onPress 呼出', () => {
