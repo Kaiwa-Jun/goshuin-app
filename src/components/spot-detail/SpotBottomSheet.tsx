@@ -6,6 +6,7 @@ import { SpotCompactCard } from './SpotCompactCard';
 import { SpotDetailContent } from './SpotDetailContent';
 import { useSpotDetail } from '@hooks/useSpotDetail';
 import { useSpotStamps } from '@hooks/useSpotStamps';
+import { useSpotInfo } from '@hooks/useSpotInfo';
 import { useAuth } from '@hooks/useAuth';
 import { colors } from '@theme/colors';
 import { borderRadius } from '@theme/spacing';
@@ -37,6 +38,7 @@ export function SpotBottomSheet({
   const expandedHeight = SCREEN_HEIGHT * 0.85;
   const { spot } = useSpotDetail(spotId ?? '');
   const { stamps, visitCount, latestVisitDate, publicStamps } = useSpotStamps(spotId ?? '');
+  const { spotInfo } = useSpotInfo(spotId ?? '');
   const { isAuthenticated } = useAuth();
 
   const [mode, setMode] = useState<SheetMode>('hidden');
@@ -191,6 +193,7 @@ export function SpotBottomSheet({
             isWishlisted={isWishlisted}
             onWishlistPress={onWishlistToggle ? handleWishlistPress : undefined}
             publicStamps={publicStamps}
+            spotInfo={spotInfo ?? undefined}
           />
         </ScrollView>
       )}

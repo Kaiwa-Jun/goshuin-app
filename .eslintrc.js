@@ -35,5 +35,13 @@ module.exports = {
     // General
     'no-console': ['warn', { allow: ['warn', 'error'] }],
   },
-  ignorePatterns: ['node_modules/', '.expo/', 'dist/', 'build/', 'coverage/', '*.config.js'],
+  ignorePatterns: [
+    'node_modules/',
+    '.expo/',
+    'dist/',
+    'build/',
+    'coverage/',
+    '*.config.js',
+    'supabase/functions/',
+  ],
 };

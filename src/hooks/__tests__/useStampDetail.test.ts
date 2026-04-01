@@ -21,6 +21,7 @@ const fakeStamp: StampWithSpot = {
   image_path: 'img/1.jpg',
   memo: 'テストメモ',
   is_public: false,
+  extracted_info: null,
   created_at: '2024-06-01T00:00:00Z',
   updated_at: '2024-06-01T00:00:00Z',
   spots: { name: '伊勢神宮', type: 'shrine' },

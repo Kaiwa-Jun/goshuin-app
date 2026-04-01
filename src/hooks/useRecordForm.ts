@@ -3,6 +3,7 @@ import type { Spot, Stamp } from '@/types/supabase';
 import { fetchSpotById } from '@services/spots';
 import { uploadStampImage, createStamp } from '@services/stamps';
 import { fetchProfile } from '@services/profiles';
+import { triggerExtraction } from '@services/spotInfo';
 import { useAuth } from '@hooks/useAuth';
 
 interface UseRecordFormParams {
@@ -113,6 +114,9 @@ export function useRecordForm(params?: UseRecordFormParams): UseRecordFormReturn
         memo,
         isPublic: isPublic,
       });
+
+      // fire-and-forget: AI抽出はユーザーの投稿体験に影響しない
+      triggerExtraction(stamp.id).catch(() => {});
 
       return { success: true, stamp };
     } catch (error) {

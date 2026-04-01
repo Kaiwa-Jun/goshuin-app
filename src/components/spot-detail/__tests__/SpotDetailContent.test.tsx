@@ -41,6 +41,7 @@ const mockPublicStamps: PublicStampWithUser[] = [
     image_path: 'other-user-1/stamp1.jpg',
     memo: '天気がよかった',
     is_public: true,
+    extracted_info: null,
     created_at: '2024-05-01T00:00:00Z',
     updated_at: '2024-05-01T00:00:00Z',
     profiles: {
@@ -57,6 +58,7 @@ const mockPublicStamps: PublicStampWithUser[] = [
     image_path: 'other-user-2/stamp2.jpg',
     memo: null,
     is_public: true,
+    extracted_info: null,
     created_at: '2024-06-01T00:00:00Z',
     updated_at: '2024-06-01T00:00:00Z',
     profiles: {
@@ -77,24 +79,7 @@ const defaultProps = {
 };
 
 describe('SpotDetailContent - みんなの御朱印', () => {
-  it('publicStamps がある場合「みんなの御朱印」セクションが表示されること', () => {
-    const { getByText } = render(
-      <SpotDetailContent {...defaultProps} publicStamps={mockPublicStamps} />
-    );
-    expect(getByText('みんなの御朱印')).toBeTruthy();
-  });
-
-  it('publicStamps が空の場合セクションが非表示であること', () => {
-    const { queryByText } = render(<SpotDetailContent {...defaultProps} publicStamps={[]} />);
-    expect(queryByText('みんなの御朱印')).toBeNull();
-  });
-
-  it('publicStamps が未指定の場合セクションが非表示であること', () => {
-    const { queryByText } = render(<SpotDetailContent {...defaultProps} />);
-    expect(queryByText('みんなの御朱印')).toBeNull();
-  });
-
-  it('公開御朱印の画像が表示されること', () => {
+  it('publicStamps がある場合グリッドに表示されること', () => {
     const { getByTestId } = render(
       <SpotDetailContent {...defaultProps} publicStamps={mockPublicStamps} />
     );
@@ -102,12 +87,11 @@ describe('SpotDetailContent - みんなの御朱印', () => {
     expect(getByTestId('public-stamp-image-ps-2')).toBeTruthy();
   });
 
-  it('投稿者名がオーバーレイ表示されること', () => {
-    const { getByText } = render(
-      <SpotDetailContent {...defaultProps} publicStamps={mockPublicStamps} />
+  it('publicStamps が空の場合、自分のstampsもなければグリッド非表示', () => {
+    const { queryByTestId } = render(
+      <SpotDetailContent {...defaultProps} stamps={[]} publicStamps={[]} />
     );
-    expect(getByText('ユーザーA')).toBeTruthy();
-    expect(getByText('ユーザーB')).toBeTruthy();
+    expect(queryByTestId('stamp-grid')).toBeNull();
   });
 
   it('画像タップでモーダルが開くこと', () => {

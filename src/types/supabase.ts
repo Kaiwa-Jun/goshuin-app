@@ -28,6 +28,25 @@ export interface Spot {
   updated_at: string;
 }
 
+export interface ExtractedInfo {
+  parking?: { available: boolean; capacity?: number; location?: string };
+  affiliated_shrines?: { name: string; details?: string }[];
+  reception_hours?: { open?: string; close?: string; notes?: string };
+  access_notes?: { type: string; text: string }[];
+}
+
+export interface SpotAggregatedInfo {
+  id: string;
+  spot_id: string;
+  info_type: 'parking' | 'affiliated_shrines' | 'reception_hours' | 'access_notes';
+  info_data: Record<string, unknown>;
+  source_stamp_ids: string[];
+  confidence_score: number;
+  last_reported_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Stamp {
   id: string;
   user_id: string;
@@ -37,6 +56,7 @@ export interface Stamp {
   image_path: string;
   memo: string | null;
   is_public: boolean;
+  extracted_info: ExtractedInfo | null;
   created_at: string;
   updated_at: string;
 }

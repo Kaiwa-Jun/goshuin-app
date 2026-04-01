@@ -7,6 +7,7 @@ const mockUploadStampImage = jest.fn();
 const mockCreateStamp = jest.fn();
 const mockUseAuth = jest.fn();
 const mockFetchProfile = jest.fn();
+const mockTriggerExtraction = jest.fn();
 
 jest.mock('@services/spots', () => ({
   fetchSpotById: (...args: unknown[]) => mockFetchSpotById(...args),
@@ -23,6 +24,10 @@ jest.mock('@hooks/useAuth', () => ({
 
 jest.mock('@services/profiles', () => ({
   fetchProfile: (...args: unknown[]) => mockFetchProfile(...args),
+}));
+
+jest.mock('@services/spotInfo', () => ({
+  triggerExtraction: (...args: unknown[]) => mockTriggerExtraction(...args),
 }));
 
 const fakeSpot: Spot = {
@@ -48,6 +53,7 @@ const fakeStamp: Stamp = {
   image_path: 'user-1/12345.jpg',
   memo: '',
   is_public: false,
+  extracted_info: null,
   created_at: '2024-06-01T00:00:00Z',
   updated_at: '2024-06-01T00:00:00Z',
 };
@@ -57,6 +63,7 @@ describe('useRecordForm', () => {
     jest.clearAllMocks();
     mockUseAuth.mockReturnValue({ user: { id: 'user-1' } });
     mockFetchProfile.mockResolvedValue({ default_stamp_public: false });
+    mockTriggerExtraction.mockResolvedValue(undefined);
   });
 
   it('has correct initial state', () => {
@@ -292,6 +299,41 @@ describe('useRecordForm', () => {
     });
 
     expect(mockFetchProfile).toHaveBeenCalledWith('user-1');
+  });
+
+  it('calls triggerExtraction after successful submit', async () => {
+    mockUploadStampImage.mockResolvedValue('user-1/12345.jpg');
+    mockCreateStamp.mockResolvedValue(fakeStamp);
+
+    const { result } = renderHook(() => useRecordForm());
+
+    act(() => {
+      result.current.selectSpot(fakeSpot);
+      result.current.setImageUri('file:///photo.jpg');
+    });
+
+    await act(async () => {
+      await result.current.submit();
+    });
+
+    expect(mockTriggerExtraction).toHaveBeenCalledWith('stamp-1');
+  });
+
+  it('does not call triggerExtraction on submit failure', async () => {
+    mockUploadStampImage.mockRejectedValue(new Error('Upload failed'));
+
+    const { result } = renderHook(() => useRecordForm());
+
+    act(() => {
+      result.current.selectSpot(fakeSpot);
+      result.current.setImageUri('file:///photo.jpg');
+    });
+
+    await act(async () => {
+      await result.current.submit();
+    });
+
+    expect(mockTriggerExtraction).not.toHaveBeenCalled();
   });
 
   it('reset restores isPublic to default value', async () => {
