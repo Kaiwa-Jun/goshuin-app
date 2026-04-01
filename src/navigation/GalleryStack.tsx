@@ -13,7 +13,7 @@ export function GalleryStack() {
       <Stack.Screen
         name="StampDetail"
         component={StampDetailScreen}
-        options={{ title: '御朱印詳細' }}
+        options={{ headerShown: false }}
       />
     </Stack.Navigator>
   );
