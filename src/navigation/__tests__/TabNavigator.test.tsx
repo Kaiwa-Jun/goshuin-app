@@ -178,7 +178,7 @@ describe('TabNavigator', () => {
 
     await waitFor(() => {
       expect(getByText('地図')).toBeTruthy();
-      expect(getByText('ギャラリー')).toBeTruthy();
+      expect(getByText('御朱印')).toBeTruthy();
       expect(getByText('コレクション')).toBeTruthy();
       expect(getByText('設定')).toBeTruthy();
     });
@@ -195,10 +195,10 @@ describe('TabNavigator', () => {
     const { getByText } = renderTabNavigator();
 
     await waitFor(() => {
-      expect(getByText('ギャラリー')).toBeTruthy();
+      expect(getByText('御朱印')).toBeTruthy();
     });
 
-    fireEvent.press(getByText('ギャラリー'));
+    fireEvent.press(getByText('御朱印'));
 
     await waitFor(() => {
       expect(getByText('Login Screen')).toBeTruthy();
@@ -237,10 +237,10 @@ describe('TabNavigator', () => {
     const { getByText, queryByText, getByTestId } = renderTabNavigator();
 
     await waitFor(() => {
-      expect(getByText('ギャラリー')).toBeTruthy();
+      expect(getByText('御朱印')).toBeTruthy();
     });
 
-    fireEvent.press(getByText('ギャラリー'));
+    fireEvent.press(getByText('御朱印'));
 
     await waitFor(() => {
       expect(getByTestId('gallery-list')).toBeTruthy();
