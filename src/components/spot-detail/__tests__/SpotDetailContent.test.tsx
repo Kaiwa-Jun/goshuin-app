@@ -1,7 +1,14 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
+import { Image } from 'react-native';
 import { SpotDetailContent } from '../SpotDetailContent';
 import type { Spot, PublicStampWithUser } from '@/types/supabase';
+
+jest
+  .spyOn(Image, 'getSize')
+  .mockImplementation((_uri: string, success: (width: number, height: number) => void) => {
+    success(800, 1200);
+  });
 
 jest.mock('react-native-maps', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
@@ -94,11 +101,11 @@ describe('SpotDetailContent - みんなの御朱印', () => {
     expect(queryByTestId('stamp-grid')).toBeNull();
   });
 
-  it('画像タップでモーダルが開くこと', () => {
+  it('画像タップでギャラリーモーダルが開くこと', () => {
     const { getByTestId } = render(
       <SpotDetailContent {...defaultProps} publicStamps={mockPublicStamps} />
     );
     fireEvent.press(getByTestId('public-stamp-image-ps-1'));
-    expect(getByTestId('preview-image')).toBeTruthy();
+    expect(getByTestId('gallery-image')).toBeTruthy();
   });
 });

@@ -42,6 +42,7 @@ export function SpotBottomSheet({
   const { isAuthenticated } = useAuth();
 
   const [mode, setMode] = useState<SheetMode>('hidden');
+  const galleryOpenRef = useRef(false);
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
 
   const compactPosition = SCREEN_HEIGHT - COMPACT_HEIGHT - insets.bottom;
@@ -88,6 +89,7 @@ export function SpotBottomSheet({
       PanResponder.create({
         onStartShouldSetPanResponder: () => false,
         onMoveShouldSetPanResponder: (_, gestureState) => {
+          if (galleryOpenRef.current) return false;
           // Only capture vertical drags
           return (
             Math.abs(gestureState.dy) > 8 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx)
@@ -134,6 +136,10 @@ export function SpotBottomSheet({
       onRecord(spotId);
     }
   }, [spotId, onRecord]);
+
+  const handleGalleryVisibleChange = useCallback((visible: boolean) => {
+    galleryOpenRef.current = visible;
+  }, []);
 
   const isVisited = spotId ? visitedSpotIds.has(spotId) : false;
   const isWishlisted = spotId && wishlistSpotIds ? wishlistSpotIds.has(spotId) : false;
@@ -194,6 +200,7 @@ export function SpotBottomSheet({
             onWishlistPress={onWishlistToggle ? handleWishlistPress : undefined}
             publicStamps={publicStamps}
             spotInfo={spotInfo ?? undefined}
+            onGalleryVisibleChange={handleGalleryVisibleChange}
           />
         </ScrollView>
       )}
