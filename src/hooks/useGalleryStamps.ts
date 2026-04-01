@@ -13,6 +13,7 @@ interface UseGalleryStampsReturn {
   totalCount: number;
   isLoading: boolean;
   error: string | null;
+  removeStamp: (stampId: string) => void;
 }
 
 export function useGalleryStamps(sortOrder: SortOrder): UseGalleryStampsReturn {
@@ -55,6 +56,10 @@ export function useGalleryStamps(sortOrder: SortOrder): UseGalleryStampsReturn {
     }, [user])
   );
 
+  const removeStamp = useCallback((stampId: string) => {
+    setAllStamps(prev => prev.filter(s => s.id !== stampId));
+  }, []);
+
   const stamps = useMemo(() => {
     const sorted = [...allStamps];
     if (sortOrder === 'spot') {
@@ -69,5 +74,6 @@ export function useGalleryStamps(sortOrder: SortOrder): UseGalleryStampsReturn {
     totalCount: allStamps.length,
     isLoading,
     error,
+    removeStamp,
   };
 }

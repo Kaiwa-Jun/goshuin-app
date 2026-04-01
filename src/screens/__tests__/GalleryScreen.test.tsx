@@ -71,6 +71,7 @@ describe('GalleryScreen', () => {
       totalCount: 0,
       isLoading: true,
       error: null,
+      removeStamp: jest.fn(),
     });
 
     const { getByTestId } = render(<GalleryScreen />);
@@ -83,6 +84,7 @@ describe('GalleryScreen', () => {
       totalCount: 1,
       isLoading: false,
       error: null,
+      removeStamp: jest.fn(),
     });
 
     const { getByText } = render(<GalleryScreen />);
@@ -95,6 +97,7 @@ describe('GalleryScreen', () => {
       totalCount: 1,
       isLoading: false,
       error: null,
+      removeStamp: jest.fn(),
     });
 
     const { getByTestId } = render(<GalleryScreen />);
@@ -107,6 +110,7 @@ describe('GalleryScreen', () => {
       totalCount: 0,
       isLoading: false,
       error: null,
+      removeStamp: jest.fn(),
     });
 
     const { getByTestId } = render(<GalleryScreen />);
@@ -119,6 +123,7 @@ describe('GalleryScreen', () => {
       totalCount: 21,
       isLoading: false,
       error: null,
+      removeStamp: jest.fn(),
     });
 
     const { getByTestId } = render(<GalleryScreen />);
@@ -131,6 +136,7 @@ describe('GalleryScreen', () => {
       totalCount: 20,
       isLoading: false,
       error: null,
+      removeStamp: jest.fn(),
     });
 
     const { queryByTestId } = render(<GalleryScreen />);
@@ -143,6 +149,7 @@ describe('GalleryScreen', () => {
       totalCount: 0,
       isLoading: false,
       error: null,
+      removeStamp: jest.fn(),
     });
 
     const { getByTestId, getByText } = render(<GalleryScreen />);
@@ -157,6 +164,7 @@ describe('GalleryScreen', () => {
       totalCount: 1,
       isLoading: false,
       error: null,
+      removeStamp: jest.fn(),
     });
 
     const { getByText } = render(<GalleryScreen />);
@@ -169,6 +177,7 @@ describe('GalleryScreen', () => {
       totalCount: 1,
       isLoading: false,
       error: null,
+      removeStamp: jest.fn(),
     });
 
     const { getByTestId, queryByText } = render(<GalleryScreen />);
@@ -182,6 +191,7 @@ describe('GalleryScreen', () => {
       totalCount: 1,
       isLoading: false,
       error: null,
+      removeStamp: jest.fn(),
     });
 
     const { getByTestId } = render(<GalleryScreen />);
