@@ -22,7 +22,7 @@ interface SpotBottomSheetProps {
 }
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
-const COMPACT_HEIGHT = 180;
+const COMPACT_HEIGHT = 240;
 
 type SheetMode = 'hidden' | 'compact' | 'expanded';
 
@@ -172,6 +172,7 @@ export function SpotBottomSheet({
           isVisited={isVisited}
           isWishlisted={isWishlisted}
           onWishlistPress={onWishlistToggle ? handleWishlistPress : undefined}
+          spotInfo={spotInfo ?? undefined}
         />
       )}
 

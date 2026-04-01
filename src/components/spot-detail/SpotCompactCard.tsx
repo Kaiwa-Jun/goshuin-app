@@ -4,7 +4,9 @@ import { MaterialIcons } from '@expo/vector-icons';
 
 import { Badge } from '@components/common/Badge';
 import { WishlistButton } from '@components/animated/WishlistButton';
+import { SpotInfoSection } from '@components/spot-detail/SpotInfoSection';
 import type { Spot } from '@/types/supabase';
+import type { ParsedSpotInfo } from '@hooks/useSpotInfo';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { spacing } from '@theme/spacing';
@@ -14,6 +16,7 @@ interface SpotCompactCardProps {
   isVisited: boolean;
   isWishlisted?: boolean;
   onWishlistPress?: () => void;
+  spotInfo?: ParsedSpotInfo;
 }
 
 export function SpotCompactCard({
@@ -21,6 +24,7 @@ export function SpotCompactCard({
   isVisited,
   isWishlisted,
   onWishlistPress,
+  spotInfo,
 }: SpotCompactCardProps) {
   const badgeType = spot.type === 'shrine' ? 'shrine' : 'temple';
 
@@ -48,6 +52,7 @@ export function SpotCompactCard({
           <WishlistButton isWishlisted={isWishlisted} onPress={onWishlistPress} />
         )}
       </View>
+      {spotInfo && <SpotInfoSection spotInfo={spotInfo} />}
     </View>
   );
 }
