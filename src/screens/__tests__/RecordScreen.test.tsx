@@ -1,8 +1,15 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { Image } from 'react-native';
 import { RecordScreen } from '@screens/RecordScreen';
 import { evaluateNewBadge } from '@services/badges';
 import type { Spot, Stamp } from '@/types/supabase';
+
+jest
+  .spyOn(Image, 'getSize')
+  .mockImplementation((_uri: string, success: (width: number, height: number) => void) => {
+    success(300, 400);
+  });
 
 jest.mock('react-native-safe-area-context', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
