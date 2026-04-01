@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
+import { Image } from 'react-native';
 import { GalleryScreen } from '@screens/GalleryScreen';
 import { useGalleryStamps } from '@hooks/useGalleryStamps';
 import type { StampWithSpot } from '@/types/supabase';
@@ -18,23 +19,30 @@ jest.mock('@hooks/useGalleryStamps', () => ({
   useGalleryStamps: jest.fn(),
 }));
 
+jest.mock('@hooks/useStampDetail', () => ({
+  useStampDetail: () => ({
+    stamp: null,
+    isLoading: false,
+    error: null,
+    isUpdating: false,
+    isDeleting: false,
+    handleUpdate: jest.fn(),
+    handleDelete: jest.fn(),
+    refresh: jest.fn(),
+  }),
+}));
+
 jest.mock('@services/stamps', () => ({
   getStampImageUrl: jest.fn((path: string) => `https://example.com/${path}`),
 }));
 
+jest
+  .spyOn(Image, 'getSize')
+  .mockImplementation((_uri: string, success: (width: number, height: number) => void) => {
+    success(800, 1200);
+  });
+
 const mockUseGalleryStamps = useGalleryStamps as jest.MockedFunction<typeof useGalleryStamps>;
-
-const mockNavigation = {
-  navigate: jest.fn(),
-  goBack: jest.fn(),
-  getParent: jest.fn(() => ({ navigate: jest.fn() })),
-} as any;
-
-const mockRoute = {
-  key: 'test',
-  name: 'Gallery' as const,
-  params: undefined,
-};
 
 const makeStamp = (overrides: Partial<StampWithSpot> = {}): StampWithSpot => ({
   id: '1',
@@ -65,7 +73,7 @@ describe('GalleryScreen', () => {
       error: null,
     });
 
-    const { getByTestId } = render(<GalleryScreen navigation={mockNavigation} route={mockRoute} />);
+    const { getByTestId } = render(<GalleryScreen />);
     expect(getByTestId('loading-indicator')).toBeTruthy();
   });
 
@@ -77,7 +85,7 @@ describe('GalleryScreen', () => {
       error: null,
     });
 
-    const { getByText } = render(<GalleryScreen navigation={mockNavigation} route={mockRoute} />);
+    const { getByText } = render(<GalleryScreen />);
     expect(getByText('明治神宮')).toBeTruthy();
   });
 
@@ -89,7 +97,7 @@ describe('GalleryScreen', () => {
       error: null,
     });
 
-    const { getByTestId } = render(<GalleryScreen navigation={mockNavigation} route={mockRoute} />);
+    const { getByTestId } = render(<GalleryScreen />);
     expect(getByTestId('stamp-image-1')).toBeTruthy();
   });
 
@@ -101,7 +109,7 @@ describe('GalleryScreen', () => {
       error: null,
     });
 
-    const { getByTestId } = render(<GalleryScreen navigation={mockNavigation} route={mockRoute} />);
+    const { getByTestId } = render(<GalleryScreen />);
     expect(getByTestId('empty-state')).toBeTruthy();
   });
 
@@ -113,7 +121,7 @@ describe('GalleryScreen', () => {
       error: null,
     });
 
-    const { getByTestId } = render(<GalleryScreen navigation={mockNavigation} route={mockRoute} />);
+    const { getByTestId } = render(<GalleryScreen />);
     expect(getByTestId('premium-banner')).toBeTruthy();
   });
 
@@ -125,9 +133,7 @@ describe('GalleryScreen', () => {
       error: null,
     });
 
-    const { queryByTestId } = render(
-      <GalleryScreen navigation={mockNavigation} route={mockRoute} />
-    );
+    const { queryByTestId } = render(<GalleryScreen />);
     expect(queryByTestId('premium-banner')).toBeNull();
   });
 
@@ -139,9 +145,7 @@ describe('GalleryScreen', () => {
       error: null,
     });
 
-    const { getByTestId, getByText } = render(
-      <GalleryScreen navigation={mockNavigation} route={mockRoute} />
-    );
+    const { getByTestId, getByText } = render(<GalleryScreen />);
     expect(getByText('日付順 ▼')).toBeTruthy();
     fireEvent.press(getByTestId('sort-button'));
     expect(getByText('スポット順 ▼')).toBeTruthy();
@@ -155,8 +159,7 @@ describe('GalleryScreen', () => {
       error: null,
     });
 
-    const { getByText } = render(<GalleryScreen navigation={mockNavigation} route={mockRoute} />);
-    // デフォルトは date 順
+    const { getByText } = render(<GalleryScreen />);
     expect(getByText('2024/01/15')).toBeTruthy();
   });
 
@@ -168,14 +171,12 @@ describe('GalleryScreen', () => {
       error: null,
     });
 
-    const { getByTestId, queryByText } = render(
-      <GalleryScreen navigation={mockNavigation} route={mockRoute} />
-    );
+    const { getByTestId, queryByText } = render(<GalleryScreen />);
     fireEvent.press(getByTestId('sort-button'));
     expect(queryByText('2024/01/15')).toBeNull();
   });
 
-  it('アイテムタップで StampDetail に遷移する', () => {
+  it('アイテムタップでギャラリーモーダルが開く', () => {
     mockUseGalleryStamps.mockReturnValue({
       stamps: [makeStamp({ id: 'stamp-abc' })],
       totalCount: 1,
@@ -183,8 +184,8 @@ describe('GalleryScreen', () => {
       error: null,
     });
 
-    const { getByTestId } = render(<GalleryScreen navigation={mockNavigation} route={mockRoute} />);
+    const { getByTestId } = render(<GalleryScreen />);
     fireEvent.press(getByTestId('gallery-item-stamp-abc'));
-    expect(mockNavigation.navigate).toHaveBeenCalledWith('StampDetail', { stampId: 'stamp-abc' });
+    expect(getByTestId('gallery-image')).toBeTruthy();
   });
 });

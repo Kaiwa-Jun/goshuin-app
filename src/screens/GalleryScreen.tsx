@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -15,11 +15,13 @@ import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { spacing, borderRadius } from '@theme/spacing';
 import { useGalleryStamps } from '@hooks/useGalleryStamps';
+import { useStampDetail } from '@hooks/useStampDetail';
 import { getStampImageUrl } from '@services/stamps';
+import { ImageGalleryModal, GalleryImage } from '@components/common/ImageGalleryModal';
+import { EditStampModal } from '@components/stamp-detail/EditStampModal';
+import { DeleteConfirmModal } from '@components/stamp-detail/DeleteConfirmModal';
 import type { StampWithSpot } from '@/types/supabase';
-import type { GalleryStackScreenProps } from '@/navigation/types';
 
-type Props = GalleryStackScreenProps<'Gallery'>;
 type SortOrder = 'date' | 'spot';
 
 const NUM_COLUMNS = 3;
@@ -27,9 +29,18 @@ const SCREEN_WIDTH = Dimensions.get('window').width;
 const ITEM_MARGIN = spacing.xs;
 const ITEM_SIZE = (SCREEN_WIDTH - spacing.lg * 2 - ITEM_MARGIN * (NUM_COLUMNS - 1)) / NUM_COLUMNS;
 
-export function GalleryScreen({ navigation }: Props) {
+export function GalleryScreen() {
   const [sortOrder, setSortOrder] = useState<SortOrder>('date');
   const { stamps, totalCount, isLoading } = useGalleryStamps(sortOrder);
+
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+
+  const currentStamp = selectedImageIndex !== null ? stamps[selectedImageIndex] : null;
+  const { isUpdating, isDeleting, handleUpdate, handleDelete } = useStampDetail(
+    currentStamp?.id ?? ''
+  );
 
   const sortLabel = sortOrder === 'date' ? '日付順' : 'スポット順';
 
@@ -37,9 +48,44 @@ export function GalleryScreen({ navigation }: Props) {
     setSortOrder(prev => (prev === 'date' ? 'spot' : 'date'));
   };
 
-  const handleItemPress = (stamp: StampWithSpot) => {
-    navigation.navigate('StampDetail', { stampId: stamp.id });
-  };
+  const galleryImages: GalleryImage[] = useMemo(
+    () =>
+      stamps.map(s => ({
+        id: s.id,
+        imageUrl: getStampImageUrl(s.image_path),
+        memo: s.memo,
+        visitedAt: s.visited_at,
+      })),
+    [stamps]
+  );
+
+  const handleEdit = useCallback((index: number) => {
+    setSelectedImageIndex(index);
+    setEditModalVisible(true);
+  }, []);
+
+  const handleDeletePress = useCallback((index: number) => {
+    setSelectedImageIndex(index);
+    setDeleteModalVisible(true);
+  }, []);
+
+  const onSave = useCallback(
+    async (params: { visited_at: string; memo: string | null }) => {
+      const success = await handleUpdate(params);
+      if (success) {
+        setEditModalVisible(false);
+      }
+    },
+    [handleUpdate]
+  );
+
+  const onConfirmDelete = useCallback(async () => {
+    const success = await handleDelete();
+    if (success) {
+      setDeleteModalVisible(false);
+      setSelectedImageIndex(null);
+    }
+  }, [handleDelete]);
 
   const formatDate = (dateStr: string) => dateStr.replace(/-/g, '/');
 
@@ -50,7 +96,7 @@ export function GalleryScreen({ navigation }: Props) {
     return (
       <TouchableOpacity
         style={[styles.gridItem, isMiddleColumn && styles.gridItemMiddle]}
-        onPress={() => handleItemPress(item)}
+        onPress={() => setSelectedImageIndex(index)}
         testID={`gallery-item-${item.id}`}
       >
         <Image
@@ -105,6 +151,37 @@ export function GalleryScreen({ navigation }: Props) {
           <MaterialIcons name="lock" size={16} color={colors.primary[600]} />
           <Text style={styles.premiumBannerText}>直近20件のみ表示中。プレミアムで全件表示</Text>
         </View>
+      )}
+
+      {selectedImageIndex !== null && (
+        <ImageGalleryModal
+          visible={selectedImageIndex !== null}
+          onClose={() => setSelectedImageIndex(null)}
+          images={galleryImages}
+          initialIndex={selectedImageIndex}
+          onEdit={handleEdit}
+          onDelete={handleDeletePress}
+        />
+      )}
+
+      {currentStamp && (
+        <>
+          <EditStampModal
+            visible={editModalVisible}
+            onClose={() => setEditModalVisible(false)}
+            onSave={onSave}
+            isUpdating={isUpdating}
+            initialVisitedAt={currentStamp.visited_at}
+            initialMemo={currentStamp.memo}
+          />
+          <DeleteConfirmModal
+            visible={deleteModalVisible}
+            onClose={() => setDeleteModalVisible(false)}
+            onConfirm={onConfirmDelete}
+            isDeleting={isDeleting}
+            spotName={currentStamp.spots.name}
+          />
+        </>
       )}
     </SafeAreaView>
   );

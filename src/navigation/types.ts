@@ -35,7 +35,6 @@ export type MapStackParamList = {
 
 export type GalleryStackParamList = {
   Gallery: undefined;
-  StampDetail: { stampId: string };
 };
 
 // --- Screen Props helpers ---
