@@ -69,7 +69,7 @@ export function GalleryScreen({ navigation }: Props) {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>ギャラリー</Text>
+        <Text style={styles.headerTitle}>御朱印</Text>
       </View>
 
       <View style={styles.sortRow}>

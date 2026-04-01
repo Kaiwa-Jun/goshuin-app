@@ -38,7 +38,7 @@ export function TabNavigator() {
         name="GalleryTab"
         component={GalleryStack}
         options={{
-          title: 'ギャラリー',
+          title: '御朱印',
           tabBarIcon: ({ color }) => <MaterialIcons name="photo-library" size={24} color={color} />,
         }}
         listeners={() => ({
