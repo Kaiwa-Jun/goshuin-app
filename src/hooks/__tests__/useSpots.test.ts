@@ -15,6 +15,7 @@ const makeFakeSpot = (overrides: Partial<Spot> = {}): Spot => ({
   lng: 140.87,
   type: 'shrine',
   address: null,
+  prefecture: null,
   status: 'active',
   created_by_user_id: null,
   merged_into_spot_id: null,
@@ -32,7 +33,7 @@ describe('useSpots', () => {
     const spots = [makeFakeSpot(), makeFakeSpot({ id: 'spot-2', name: 'Test Temple' })];
     mockFetchSpotsByBounds.mockResolvedValue(spots);
 
-    const { result } = renderHook(() => useSpots({ latitude: 38.2682, longitude: 140.8694 }));
+    const { result } = renderHook(() => useSpots({ latitude: 38.2682, longitude: 140.8694 }, null));
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -43,7 +44,7 @@ describe('useSpots', () => {
   });
 
   it('returns empty array when location is null', async () => {
-    const { result } = renderHook(() => useSpots(null));
+    const { result } = renderHook(() => useSpots(null, null));
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -65,7 +66,7 @@ describe('useSpots', () => {
         makeFakeSpot({ id: '5' }),
       ]);
 
-    const { result } = renderHook(() => useSpots({ latitude: 38.2682, longitude: 140.8694 }));
+    const { result } = renderHook(() => useSpots({ latitude: 38.2682, longitude: 140.8694 }, null));
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -86,7 +87,7 @@ describe('useSpots', () => {
 
     const visitedIds = new Set(['spot-1', 'spot-3']);
     const { result } = renderHook(() =>
-      useSpots({ latitude: 38.2682, longitude: 140.8694 }, 'visited', visitedIds)
+      useSpots({ latitude: 38.2682, longitude: 140.8694 }, null, 'visited', visitedIds)
     );
 
     await waitFor(() => {
@@ -103,7 +104,7 @@ describe('useSpots', () => {
 
     const visitedIds = new Set(['spot-1']);
     const { result } = renderHook(() =>
-      useSpots({ latitude: 38.2682, longitude: 140.8694 }, 'all', visitedIds)
+      useSpots({ latitude: 38.2682, longitude: 140.8694 }, null, 'all', visitedIds)
     );
 
     await waitFor(() => {
@@ -111,5 +112,31 @@ describe('useSpots', () => {
     });
 
     expect(result.current.spots).toHaveLength(2);
+  });
+
+  it('fetches spots by map region when provided', async () => {
+    const spots = [makeFakeSpot({ id: 'spot-1' }), makeFakeSpot({ id: 'spot-2' })];
+    mockFetchSpotsByBounds.mockResolvedValue(spots);
+
+    const region = {
+      latitude: 38.27,
+      longitude: 140.87,
+      latitudeDelta: 0.05,
+      longitudeDelta: 0.05,
+    };
+
+    const { result } = renderHook(() => useSpots(null, region));
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.spots).toHaveLength(2);
+    expect(mockFetchSpotsByBounds).toHaveBeenCalledWith({
+      minLat: 38.27 - 0.025,
+      maxLat: 38.27 + 0.025,
+      minLng: 140.87 - 0.025,
+      maxLng: 140.87 + 0.025,
+    });
   });
 });

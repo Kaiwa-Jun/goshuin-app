@@ -47,7 +47,8 @@ export function MapScreen({ navigation, route }: Props) {
   const { visitedSpotIds } = useUserStamps();
   const { wishlistSpotIds, toggleWishlist } = useWishlist();
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
-  const { spots } = useSpots(location, filterMode, visitedSpotIds);
+  const [mapRegion, setMapRegion] = useState<Region | null>(null);
+  const { spots } = useSpots(location, mapRegion, filterMode, visitedSpotIds);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showFilter, setShowFilter] = useState(false);
   const [currentLatitudeDelta, setCurrentLatitudeDelta] = useState(LATITUDE_DELTA);
@@ -107,6 +108,7 @@ export function MapScreen({ navigation, route }: Props) {
 
   const handleRegionChangeComplete = useCallback((region: Region) => {
     setCurrentLatitudeDelta(region.latitudeDelta);
+    setMapRegion(region);
   }, []);
 
   const handleMarkerPress = useCallback(

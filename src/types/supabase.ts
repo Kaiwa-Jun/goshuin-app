@@ -21,6 +21,7 @@ export interface Spot {
   lng: number;
   type: SpotType;
   address: string | null;
+  prefecture: string | null;
   status: SpotStatus;
   created_by_user_id: string | null;
   merged_into_spot_id: string | null;
@@ -88,6 +89,29 @@ export interface PublicStampWithUser extends Stamp {
     display_name: string | null;
     avatar_url: string | null;
   };
+}
+
+export interface Pilgrimage {
+  id: string;
+  name: string;
+  description: string | null;
+  region: string | null;
+  category: string | null;
+  total_spots: number;
+  image_url: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PilgrimageSpot {
+  id: string;
+  pilgrimage_id: string;
+  spot_id: string;
+  sort_order: number | null;
+  label: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Goshuincho {
