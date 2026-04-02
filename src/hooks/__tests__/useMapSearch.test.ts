@@ -11,6 +11,7 @@ const makeFakeSpot = (overrides: Partial<Spot> = {}): Spot => ({
   address: null,
   prefecture: null,
   status: 'active',
+  rank: 3,
   created_by_user_id: null,
   merged_into_spot_id: null,
   created_at: '2024-01-01',

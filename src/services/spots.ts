@@ -2,6 +2,17 @@ import { supabase } from '@services/supabase';
 import type { Spot } from '@/types/supabase';
 import type { BoundingBox } from '@utils/geo';
 
+export async function fetchAllActiveSpots(): Promise<Spot[]> {
+  const { data, error } = await supabase.from('spots').select('*').eq('status', 'active');
+
+  if (error) {
+    console.warn('fetchAllActiveSpots error:', error.message);
+    return [];
+  }
+
+  return data as Spot[];
+}
+
 export async function fetchSpotsByBounds(bounds: BoundingBox): Promise<Spot[]> {
   const { data, error } = await supabase
     .from('spots')

@@ -28,7 +28,15 @@ type FilterMode = 'all' | 'visited';
 
 const LATITUDE_DELTA = 0.02;
 const LONGITUDE_DELTA = 0.02;
-const LABEL_VISIBLE_DELTA = 0.08;
+const LABEL_VISIBLE_DELTA = 0.2;
+
+function getMinRank(latitudeDelta: number): number {
+  if (latitudeDelta > 0.5) return 5;
+  if (latitudeDelta > 0.1) return 4;
+  if (latitudeDelta > 0.02) return 3;
+  if (latitudeDelta > 0.005) return 2;
+  return 1;
+}
 
 function getPinColor(
   spot: Spot,
@@ -49,8 +57,7 @@ export function MapScreen({ navigation, route }: Props) {
   const { wishlistSpotIds, toggleWishlist } = useWishlist();
   const [prefectureSpots, setPrefectureSpots] = useState<Spot[]>([]);
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
-  const [mapRegion, setMapRegion] = useState<Region | null>(null);
-  const { spots } = useSpots(location, mapRegion, filterMode, visitedSpotIds);
+  const { spots } = useSpots(location, filterMode, visitedSpotIds);
   const displaySpots = useMemo(() => {
     if (prefectureSpots.length === 0) return spots;
     const ids = new Set(spots.map(s => s.id));
@@ -67,11 +74,17 @@ export function MapScreen({ navigation, route }: Props) {
 
   const searchRowTop = insets.top + spacing.xs;
 
+  const minRank = getMinRank(currentLatitudeDelta);
+  const visibleSpots = useMemo(
+    () => displaySpots.filter(s => s.rank >= minRank),
+    [displaySpots, minRank]
+  );
+
   useEffect(() => {
     const focusSpotId = route.params?.focusSpotId;
     if (!focusSpotId || !mapRef.current) return;
 
-    const spot = spots.find(s => s.id === focusSpotId);
+    const spot = displaySpots.find(s => s.id === focusSpotId);
     if (!spot) return;
 
     mapRef.current.animateToRegion(
@@ -85,7 +98,7 @@ export function MapScreen({ navigation, route }: Props) {
     );
 
     setSelectedSpotId(focusSpotId);
-  }, [route.params?.focusSpotId, spots]);
+  }, [route.params?.focusSpotId, displaySpots]);
 
   useEffect(() => {
     const focusPrefecture = route.params?.focusPrefecture;
@@ -108,13 +121,6 @@ export function MapScreen({ navigation, route }: Props) {
     })();
   }, [route.params?.focusPrefecture]);
 
-  // Clear selection if the selected spot is no longer in the displaySpots list
-  useEffect(() => {
-    if (selectedSpotId && !displaySpots.find(s => s.id === selectedSpotId)) {
-      setSelectedSpotId(null);
-    }
-  }, [selectedSpotId, displaySpots]);
-
   const navigateToRecord = (spotId?: string) => {
     const parent = navigation.getParent();
     if (parent) {
@@ -135,9 +141,8 @@ export function MapScreen({ navigation, route }: Props) {
     navigateToRecord();
   };
 
-  const handleRegionChangeComplete = useCallback((region: Region) => {
-    setCurrentLatitudeDelta(region.latitudeDelta);
-    setMapRegion(region);
+  const handleRegionChangeComplete = useCallback((r: Region) => {
+    setCurrentLatitudeDelta(r.latitudeDelta);
   }, []);
 
   const handleMarkerPress = useCallback(
@@ -294,9 +299,9 @@ export function MapScreen({ navigation, route }: Props) {
             <MapPin type="current-location" />
           </Marker>
         )}
-        {displaySpots.map(spot => (
+        {visibleSpots.map(spot => (
           <Marker
-            key={`${spot.id}-${filterMode}-${shouldShowLabels ? 'label' : 'pin'}`}
+            key={spot.id}
             coordinate={{ latitude: spot.lat, longitude: spot.lng }}
             testID={`spot-marker-${spot.id}`}
             onPress={() => handleMarkerPress(spot.id)}

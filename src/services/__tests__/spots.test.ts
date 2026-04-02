@@ -32,7 +32,15 @@ describe('spots service', () => {
     mockGte.mockReturnValueOnce({ lte: mockLte });
     mockLte.mockReturnValueOnce({
       data: [
-        { id: '1', name: 'Test Shrine', lat: 38.27, lng: 140.87, type: 'shrine', status: 'active' },
+        {
+          id: '1',
+          name: 'Test Shrine',
+          lat: 38.27,
+          lng: 140.87,
+          type: 'shrine',
+          status: 'active',
+          rank: 3,
+        },
       ],
       error: null,
     });
@@ -128,8 +136,22 @@ describe('spots service', () => {
   describe('fetchSpotsByPrefecture', () => {
     it('指定都道府県のアクティブスポットを返す', async () => {
       const mockSpots = [
-        { id: '1', name: '宮城縣護國神社', type: 'shrine', status: 'active', prefecture: '宮城県' },
-        { id: '2', name: '仙台東照宮', type: 'shrine', status: 'active', prefecture: '宮城県' },
+        {
+          id: '1',
+          name: '宮城縣護國神社',
+          type: 'shrine',
+          status: 'active',
+          rank: 3,
+          prefecture: '宮城県',
+        },
+        {
+          id: '2',
+          name: '仙台東照宮',
+          type: 'shrine',
+          status: 'active',
+          rank: 3,
+          prefecture: '宮城県',
+        },
       ];
 
       mockFrom.mockReturnValue({ select: mockSelect });

@@ -20,7 +20,7 @@ export interface UseNearbySpotsReturn {
 
 export function useNearbySpots(): UseNearbySpotsReturn {
   const { location, isLoading: locationLoading, error: locationError } = useLocation();
-  const { spots, isLoading: spotsLoading, error: spotsError } = useSpots(location, null, 'all');
+  const { spots, isLoading: spotsLoading, error: spotsError } = useSpots(location, 'all');
   const [searchQuery, setSearchQuery] = useState('');
 
   const isLoading = locationLoading || spotsLoading;

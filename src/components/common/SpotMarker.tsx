@@ -19,11 +19,11 @@ export const SpotMarker = React.memo(function SpotMarker({
 }: SpotMarkerProps) {
   return (
     <View style={styles.wrapper}>
-      {showLabel && (
+      <View style={showLabel ? styles.labelVisible : styles.labelHidden}>
         <Text style={styles.label} numberOfLines={1} testID="spot-marker-label">
           {name}
         </Text>
-      )}
+      </View>
       <View style={[styles.pinHead, { backgroundColor: color }]} testID="spot-marker-pin-head" />
       <View style={[styles.pinTail, { borderTopColor: color }]} testID="spot-marker-pin-tail" />
     </View>
@@ -33,6 +33,14 @@ export const SpotMarker = React.memo(function SpotMarker({
 const styles = StyleSheet.create({
   wrapper: {
     alignItems: 'center',
+  },
+  labelVisible: {
+    opacity: 1,
+  },
+  labelHidden: {
+    opacity: 0,
+    height: 0,
+    overflow: 'hidden',
   },
   label: {
     ...typography.caption,

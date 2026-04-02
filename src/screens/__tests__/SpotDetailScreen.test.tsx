@@ -24,6 +24,7 @@ const defaultSpot: Spot = {
   address: '宮城県仙台市青葉区八幡4-6-1',
   prefecture: null,
   status: 'active',
+  rank: 3,
   created_by_user_id: null,
   merged_into_spot_id: null,
   created_at: '2024-01-01',
