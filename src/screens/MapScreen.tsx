@@ -265,7 +265,7 @@ export function MapScreen({ navigation, route }: Props) {
         )}
         {spots.map(spot => (
           <Marker
-            key={`${spot.id}-${shouldShowLabels ? 'label' : 'pin'}`}
+            key={`${spot.id}-${filterMode}-${shouldShowLabels ? 'label' : 'pin'}`}
             coordinate={{ latitude: spot.lat, longitude: spot.lng }}
             testID={`spot-marker-${spot.id}`}
             onPress={() => handleMarkerPress(spot.id)}
