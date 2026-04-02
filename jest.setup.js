@@ -99,6 +99,7 @@ jest.mock('react-native-maps', () => {
     React.useImperativeHandle(ref, () => ({
       animateToRegion: jest.fn(),
       animateCamera: jest.fn(),
+      fitToCoordinates: jest.fn(),
     }));
     return React.createElement(
       View,

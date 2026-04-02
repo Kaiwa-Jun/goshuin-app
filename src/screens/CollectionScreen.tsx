@@ -43,6 +43,16 @@ export function CollectionScreen({ navigation }: Props) {
     navigation.navigate('PilgrimageDetail', { pilgrimageId, pilgrimageName });
   };
 
+  const handleRegionPress = (prefecture: string) => {
+    const parent = navigation.getParent();
+    if (parent) {
+      parent.navigate('MapTab', {
+        screen: 'Map',
+        params: { focusPrefecture: prefecture },
+      });
+    }
+  };
+
   const badges = getAllBadges();
   const badgesWithStatus = badges.map(badge => ({
     ...badge,
@@ -212,7 +222,12 @@ export function CollectionScreen({ navigation }: Props) {
                   ? Math.round((region.visitedCount / region.totalCount) * 100)
                   : 0;
               return (
-                <View key={region.prefecture} style={styles.regionRow}>
+                <TouchableOpacity
+                  key={region.prefecture}
+                  style={styles.regionRow}
+                  onPress={() => handleRegionPress(region.prefecture)}
+                  activeOpacity={0.7}
+                >
                   <MaterialIcons name="location-on" size={20} color={colors.primary[500]} />
                   <Text style={styles.regionName}>{region.prefecture}</Text>
                   <View style={styles.regionProgressContainer}>
@@ -223,7 +238,7 @@ export function CollectionScreen({ navigation }: Props) {
                   <Text style={styles.regionCount}>
                     {region.visitedCount}/{region.totalCount}
                   </Text>
-                </View>
+                </TouchableOpacity>
               );
             })}
           </Card>

@@ -58,6 +58,20 @@ export async function createSpot(params: {
   return data as Spot;
 }
 
+export async function fetchSpotsByPrefecture(prefecture: string): Promise<Spot[]> {
+  const { data, error } = await supabase
+    .from('spots')
+    .select('*')
+    .eq('status', 'active')
+    .eq('prefecture', prefecture);
+
+  if (error) {
+    console.warn('fetchSpotsByPrefecture error:', error.message);
+    return [];
+  }
+  return data as Spot[];
+}
+
 export async function searchSpotsByName(query: string): Promise<Spot[]> {
   const { data, error } = await supabase
     .from('spots')

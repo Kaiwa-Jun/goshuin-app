@@ -2,6 +2,16 @@ import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { MapScreen } from '@screens/MapScreen';
 
+const mockFetchSpotsByPrefecture = jest.fn();
+
+jest.mock('@services/spots', () => ({
+  fetchSpotsByPrefecture: (...args: unknown[]) => mockFetchSpotsByPrefecture(...args),
+}));
+
+jest.mock('@hooks/useSpotInfo', () => ({
+  useSpotInfo: () => ({ spotInfo: null, isLoading: false, error: null }),
+}));
+
 jest.mock('@services/stamps', () => ({
   fetchStampsBySpotId: jest.fn(() => Promise.resolve([])),
   getStampImageUrl: jest.fn((path: string) => `https://example.com/${path}`),
@@ -176,6 +186,7 @@ describe('MapScreen', () => {
       signInWithGoogle: jest.fn(),
       signOut: jest.fn(),
     };
+    mockFetchSpotsByPrefecture.mockResolvedValue([]);
   });
 
   it('renders without crashing', () => {
@@ -450,6 +461,116 @@ describe('MapScreen', () => {
 
       fireEvent.press(getByTestId('modal-later-button'));
       expect(queryByText('ログインが必要です')).toBeNull();
+    });
+  });
+
+  describe('focusPrefecture', () => {
+    const prefectureSpots = [
+      {
+        id: 'pref-spot-1',
+        name: '宮城県神社A',
+        lat: 38.3,
+        lng: 140.9,
+        type: 'shrine',
+        status: 'active',
+        address: '宮城県X市',
+        created_by_user_id: null,
+        merged_into_spot_id: null,
+        created_at: '2024-01-01',
+        updated_at: '2024-01-01',
+      },
+      {
+        id: 'pref-spot-2',
+        name: '宮城県寺院B',
+        lat: 38.35,
+        lng: 140.95,
+        type: 'temple',
+        status: 'active',
+        address: '宮城県Y市',
+        created_by_user_id: null,
+        merged_into_spot_id: null,
+        created_at: '2024-01-01',
+        updated_at: '2024-01-01',
+      },
+    ];
+
+    it('focusPrefecture が渡されると fetchSpotsByPrefecture が呼ばれる', async () => {
+      mockFetchSpotsByPrefecture.mockResolvedValue(prefectureSpots);
+
+      const routeWithPrefecture = {
+        key: 'test',
+        name: 'Map' as const,
+        params: { focusPrefecture: '宮城県' },
+      };
+
+      render(<MapScreen navigation={mockNavigation as never} route={routeWithPrefecture} />);
+
+      await waitFor(() => {
+        expect(mockFetchSpotsByPrefecture).toHaveBeenCalledWith('宮城県');
+      });
+    });
+
+    it('focusPrefecture がない場合は fetchSpotsByPrefecture が呼ばれない', () => {
+      render(<MapScreen navigation={mockNavigation as never} route={mockRoute} />);
+      expect(mockFetchSpotsByPrefecture).not.toHaveBeenCalled();
+    });
+
+    it('prefectureSpots は既存 spots に追加してマーカー表示される', async () => {
+      mockFetchSpotsByPrefecture.mockResolvedValue(prefectureSpots);
+
+      const routeWithPrefecture = {
+        key: 'test',
+        name: 'Map' as const,
+        params: { focusPrefecture: '宮城県' },
+      };
+
+      const { getByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={routeWithPrefecture} />
+      );
+
+      await waitFor(() => {
+        expect(mockFetchSpotsByPrefecture).toHaveBeenCalled();
+      });
+
+      // 既存の spots のマーカーも表示される
+      expect(getByTestId('spot-marker-spot-1')).toBeTruthy();
+      expect(getByTestId('spot-marker-spot-2')).toBeTruthy();
+      // 県内 spots のマーカーも表示される
+      expect(getByTestId('spot-marker-pref-spot-1')).toBeTruthy();
+      expect(getByTestId('spot-marker-pref-spot-2')).toBeTruthy();
+    });
+
+    it('focusPrefecture が消えると prefectureSpots がクリアされる', async () => {
+      mockFetchSpotsByPrefecture.mockResolvedValue(prefectureSpots);
+
+      const routeWithPrefecture = {
+        key: 'test',
+        name: 'Map' as const,
+        params: { focusPrefecture: '宮城県' },
+      };
+
+      const { rerender, queryByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={routeWithPrefecture} />
+      );
+
+      await waitFor(() => {
+        expect(mockFetchSpotsByPrefecture).toHaveBeenCalled();
+      });
+
+      // focusPrefecture なしに変更
+      const routeWithoutPrefecture = {
+        key: 'test',
+        name: 'Map' as const,
+        params: undefined,
+      };
+
+      rerender(<MapScreen navigation={mockNavigation as never} route={routeWithoutPrefecture} />);
+
+      // 県内 spots のマーカーは消える
+      await waitFor(() => {
+        expect(queryByTestId('spot-marker-pref-spot-1')).toBeNull();
+        expect(queryByTestId('spot-marker-pref-spot-2')).toBeNull();
+      });
     });
   });
 });

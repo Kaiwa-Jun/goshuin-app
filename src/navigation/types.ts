@@ -33,7 +33,7 @@ export type MainTabParamList = {
 };
 
 export type MapStackParamList = {
-  Map: { focusSpotId?: string } | undefined;
+  Map: { focusSpotId?: string; focusPrefecture?: string } | undefined;
   SpotDetail: { spotId: string };
   Search: undefined;
 };
