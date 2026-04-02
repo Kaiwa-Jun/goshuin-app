@@ -1,9 +1,10 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker, type MapPressEvent, type Region } from 'react-native-maps';
 import { MaterialIcons } from '@expo/vector-icons';
 
+import { fetchSpotsByPrefecture } from '@services/spots';
 import { FABButton } from '@components/animated/FABButton';
 import { SearchBar } from '@components/common/SearchBar';
 import { LoginPromptModal } from '@components/common/LoginPromptModal';
@@ -46,9 +47,16 @@ export function MapScreen({ navigation, route }: Props) {
   const { location } = useLocation();
   const { visitedSpotIds } = useUserStamps();
   const { wishlistSpotIds, toggleWishlist } = useWishlist();
+  const [prefectureSpots, setPrefectureSpots] = useState<Spot[]>([]);
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [mapRegion, setMapRegion] = useState<Region | null>(null);
   const { spots } = useSpots(location, mapRegion, filterMode, visitedSpotIds);
+  const displaySpots = useMemo(() => {
+    if (prefectureSpots.length === 0) return spots;
+    const ids = new Set(spots.map(s => s.id));
+    const additional = prefectureSpots.filter(s => !ids.has(s.id));
+    return [...spots, ...additional];
+  }, [spots, prefectureSpots]);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showFilter, setShowFilter] = useState(false);
   const [currentLatitudeDelta, setCurrentLatitudeDelta] = useState(LATITUDE_DELTA);
@@ -79,12 +87,33 @@ export function MapScreen({ navigation, route }: Props) {
     setSelectedSpotId(focusSpotId);
   }, [route.params?.focusSpotId, spots]);
 
-  // Clear selection if the selected spot is no longer in the spots list
   useEffect(() => {
-    if (selectedSpotId && !spots.find(s => s.id === selectedSpotId)) {
+    const focusPrefecture = route.params?.focusPrefecture;
+    if (!focusPrefecture) {
+      setPrefectureSpots([]);
+      return;
+    }
+
+    (async () => {
+      const data = await fetchSpotsByPrefecture(focusPrefecture);
+      setPrefectureSpots(data);
+
+      if (data.length > 0 && mapRef.current) {
+        const coords = data.map(s => ({ latitude: s.lat, longitude: s.lng }));
+        mapRef.current.fitToCoordinates(coords, {
+          edgePadding: { top: 100, right: 50, bottom: 50, left: 50 },
+          animated: true,
+        });
+      }
+    })();
+  }, [route.params?.focusPrefecture]);
+
+  // Clear selection if the selected spot is no longer in the displaySpots list
+  useEffect(() => {
+    if (selectedSpotId && !displaySpots.find(s => s.id === selectedSpotId)) {
       setSelectedSpotId(null);
     }
-  }, [selectedSpotId, spots]);
+  }, [selectedSpotId, displaySpots]);
 
   const navigateToRecord = (spotId?: string) => {
     const parent = navigation.getParent();
@@ -115,7 +144,7 @@ export function MapScreen({ navigation, route }: Props) {
     (spotId: string) => {
       setSelectedSpotId(spotId);
 
-      const spot = spots.find(s => s.id === spotId);
+      const spot = displaySpots.find(s => s.id === spotId);
       if (spot && mapRef.current) {
         mapRef.current.animateCamera(
           {
@@ -128,7 +157,7 @@ export function MapScreen({ navigation, route }: Props) {
         );
       }
     },
-    [spots]
+    [displaySpots]
   );
 
   const handleMapPress = useCallback((event?: MapPressEvent) => {
@@ -265,7 +294,7 @@ export function MapScreen({ navigation, route }: Props) {
             <MapPin type="current-location" />
           </Marker>
         )}
-        {spots.map(spot => (
+        {displaySpots.map(spot => (
           <Marker
             key={`${spot.id}-${filterMode}-${shouldShowLabels ? 'label' : 'pin'}`}
             coordinate={{ latitude: spot.lat, longitude: spot.lng }}

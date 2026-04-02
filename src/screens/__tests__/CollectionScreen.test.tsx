@@ -111,10 +111,11 @@ jest.mock('@services/badges', () => ({
 }));
 
 const mockNavigate = jest.fn();
+const mockParentNavigate = jest.fn();
 const mockNavigation = {
   navigate: mockNavigate,
   goBack: jest.fn(),
-  getParent: jest.fn(() => ({ navigate: jest.fn() })),
+  getParent: jest.fn(() => ({ navigate: mockParentNavigate })),
 } as unknown as CollectionStackScreenProps<'CollectionList'>['navigation'];
 
 const mockRoute = {
@@ -247,6 +248,30 @@ describe('CollectionScreen', () => {
     fireEvent.press(getByText('他の巡礼を見る (1)'));
     // 西国三十三所が表示される
     expect(getByText('西国三十三所')).toBeTruthy();
+  });
+
+  describe('地域カードタップでマップへの遷移', () => {
+    it('地域行をタップすると MapTab の focusPrefecture で遷移する', () => {
+      const { getByText } = render(
+        <CollectionScreen navigation={mockNavigation} route={mockRoute} />
+      );
+      fireEvent.press(getByText('宮城県'));
+      expect(mockParentNavigate).toHaveBeenCalledWith('MapTab', {
+        screen: 'Map',
+        params: { focusPrefecture: '宮城県' },
+      });
+    });
+
+    it('別の地域行をタップすると対応する prefecture で遷移する', () => {
+      const { getByText } = render(
+        <CollectionScreen navigation={mockNavigation} route={mockRoute} />
+      );
+      fireEvent.press(getByText('東京都'));
+      expect(mockParentNavigate).toHaveBeenCalledWith('MapTab', {
+        screen: 'Map',
+        params: { focusPrefecture: '東京都' },
+      });
+    });
   });
 
   describe('Wishlist section', () => {

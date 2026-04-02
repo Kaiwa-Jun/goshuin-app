@@ -1,4 +1,9 @@
-import { fetchSpotsByBounds, fetchSpotById, searchSpotsByName } from '@services/spots';
+import {
+  fetchSpotsByBounds,
+  fetchSpotById,
+  searchSpotsByName,
+  fetchSpotsByPrefecture,
+} from '@services/spots';
 import type { BoundingBox } from '@utils/geo';
 
 const mockSelect = jest.fn();
@@ -116,6 +121,39 @@ describe('spots service', () => {
       mockLimit.mockReturnValue({ data: null, error: { message: 'error' } });
 
       const result = await searchSpotsByName('Test');
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('fetchSpotsByPrefecture', () => {
+    it('指定都道府県のアクティブスポットを返す', async () => {
+      const mockSpots = [
+        { id: '1', name: '宮城縣護國神社', type: 'shrine', status: 'active', prefecture: '宮城県' },
+        { id: '2', name: '仙台東照宮', type: 'shrine', status: 'active', prefecture: '宮城県' },
+      ];
+
+      mockFrom.mockReturnValue({ select: mockSelect });
+      mockSelect.mockReturnValue({ eq: mockEq });
+      mockEq.mockReturnValueOnce({ eq: mockEq });
+      mockEq.mockReturnValueOnce({ data: mockSpots, error: null });
+
+      const result = await fetchSpotsByPrefecture('宮城県');
+
+      expect(mockFrom).toHaveBeenCalledWith('spots');
+      expect(mockSelect).toHaveBeenCalledWith('*');
+      expect(mockEq).toHaveBeenCalledWith('status', 'active');
+      expect(mockEq).toHaveBeenCalledWith('prefecture', '宮城県');
+      expect(result).toHaveLength(2);
+      expect(result[0].name).toBe('宮城縣護國神社');
+    });
+
+    it('エラー時は空配列を返す', async () => {
+      mockFrom.mockReturnValue({ select: mockSelect });
+      mockSelect.mockReturnValue({ eq: mockEq });
+      mockEq.mockReturnValueOnce({ eq: mockEq });
+      mockEq.mockReturnValueOnce({ data: null, error: { message: 'DB error' } });
+
+      const result = await fetchSpotsByPrefecture('宮城県');
       expect(result).toEqual([]);
     });
   });
