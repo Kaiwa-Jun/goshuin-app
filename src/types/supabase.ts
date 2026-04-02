@@ -23,6 +23,7 @@ export interface Spot {
   address: string | null;
   prefecture: string | null;
   status: SpotStatus;
+  rank: number;
   created_by_user_id: string | null;
   merged_into_spot_id: string | null;
   created_at: string;

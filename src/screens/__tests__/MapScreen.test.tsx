@@ -28,6 +28,7 @@ jest.mock('@hooks/useSpotDetail', () => ({
           lng: 140.87,
           type: 'shrine',
           status: 'active',
+          rank: 3,
           address: '宮城県仙台市',
           created_by_user_id: null,
           merged_into_spot_id: null,
@@ -45,6 +46,7 @@ jest.mock('@hooks/useSpotDetail', () => ({
           lng: 140.88,
           type: 'temple',
           status: 'active',
+          rank: 3,
           address: null,
           created_by_user_id: null,
           merged_into_spot_id: null,
@@ -102,6 +104,7 @@ const mockSpots = [
     lng: 140.87,
     type: 'shrine',
     status: 'active',
+    rank: 3,
     address: '宮城県仙台市',
     created_by_user_id: null,
     merged_into_spot_id: null,
@@ -115,6 +118,7 @@ const mockSpots = [
     lng: 140.88,
     type: 'temple',
     status: 'active',
+    rank: 3,
     address: null,
     created_by_user_id: null,
     merged_into_spot_id: null,
@@ -367,8 +371,8 @@ describe('MapScreen', () => {
       expect(getAllByTestId('spot-marker-label')).toHaveLength(2);
     });
 
-    it('hides labels when zoomed out (latitudeDelta > 0.08)', () => {
-      const { getByTestId, queryAllByTestId } = render(
+    it('labels are present but hidden when zoomed out (latitudeDelta > 0.08)', () => {
+      const { getByTestId, getAllByTestId } = render(
         <MapScreen navigation={mockNavigation as never} route={mockRoute} />
       );
 
@@ -381,11 +385,12 @@ describe('MapScreen', () => {
         longitudeDelta: 0.1,
       });
 
-      expect(queryAllByTestId('spot-marker-label')).toHaveLength(0);
+      // ラベルは常にレンダリングされるが、opacity で非表示
+      expect(getAllByTestId('spot-marker-label')).toHaveLength(2);
     });
 
     it('shows labels again when zoomed back in', () => {
-      const { getByTestId, getAllByTestId, queryAllByTestId } = render(
+      const { getByTestId, getAllByTestId } = render(
         <MapScreen navigation={mockNavigation as never} route={mockRoute} />
       );
 
@@ -398,7 +403,8 @@ describe('MapScreen', () => {
         latitudeDelta: 0.1,
         longitudeDelta: 0.1,
       });
-      expect(queryAllByTestId('spot-marker-label')).toHaveLength(0);
+      // ラベルは常にレンダリングされる（opacity で制御）
+      expect(getAllByTestId('spot-marker-label')).toHaveLength(2);
 
       // Zoom back in
       fireEvent(mapView, 'onRegionChangeComplete', {
@@ -473,6 +479,7 @@ describe('MapScreen', () => {
         lng: 140.9,
         type: 'shrine',
         status: 'active',
+        rank: 3,
         address: '宮城県X市',
         created_by_user_id: null,
         merged_into_spot_id: null,
@@ -486,6 +493,7 @@ describe('MapScreen', () => {
         lng: 140.95,
         type: 'temple',
         status: 'active',
+        rank: 3,
         address: '宮城県Y市',
         created_by_user_id: null,
         merged_into_spot_id: null,

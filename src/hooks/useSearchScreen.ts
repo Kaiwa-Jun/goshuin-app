@@ -22,7 +22,7 @@ const DEBOUNCE_MS = 300;
 
 export function useSearchScreen(): UseSearchScreenReturn {
   const { location } = useLocation();
-  const { allSpots } = useSpots(location, null, 'all', new Set());
+  const { allSpots } = useSpots(location, 'all', new Set());
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'shrine' | 'temple'>('all');
