@@ -5,7 +5,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 
 import { MapStack } from '@/navigation/MapStack';
 import { GalleryStack } from '@/navigation/GalleryStack';
-import { CollectionScreen } from '@screens/CollectionScreen';
+import { CollectionStack } from '@/navigation/CollectionStack';
 import { SettingsScreen } from '@screens/SettingsScreen';
 import { useAuth } from '@hooks/useAuth';
 import { colors } from '@theme/colors';
@@ -51,10 +51,11 @@ export function TabNavigator() {
         })}
       />
       <Tab.Screen
-        name="Collection"
-        component={CollectionScreen}
+        name="CollectionTab"
+        component={CollectionStack}
         options={{
           title: 'コレクション',
+          headerShown: false,
           tabBarIcon: ({ color }) => <MaterialIcons name="emoji-events" size={24} color={color} />,
         }}
         listeners={() => ({

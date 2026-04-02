@@ -77,6 +77,37 @@ jest.mock('@hooks/useWishlistSpots', () => ({
   }),
 }));
 
+jest.mock('@hooks/useCollectionStats', () => ({
+  useCollectionStats: () => ({
+    spotCount: 0,
+    stampCount: 0,
+    regionStats: [],
+    pilgrimageProgress: [],
+    isLoading: false,
+    error: null,
+    refetch: jest.fn(),
+  }),
+}));
+
+jest.mock('@services/badges', () => ({
+  getAllBadges: () => [],
+}));
+
+jest.mock('@services/pilgrimages', () => ({
+  fetchPilgrimageSpots: jest.fn(() => Promise.resolve([])),
+}));
+
+jest.mock('@services/supabase', () => ({
+  supabase: {
+    from: jest.fn(() => ({
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      order: jest.fn().mockReturnThis(),
+      then: jest.fn(),
+    })),
+  },
+}));
+
 jest.mock('@services/wishlist', () => ({
   removeFromWishlist: jest.fn(),
 }));

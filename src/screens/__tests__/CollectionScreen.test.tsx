@@ -2,7 +2,7 @@ import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
 
 import { CollectionScreen } from '../CollectionScreen';
-import type { MainTabScreenProps } from '@/navigation/types';
+import type { CollectionStackScreenProps } from '@/navigation/types';
 
 jest.mock('react-native-safe-area-context', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
@@ -37,8 +37,30 @@ let mockCollectionStats = {
   spotCount: 10,
   stampCount: 25,
   regionStats: [
-    { prefecture: '宮城県', visitedCount: 5 },
-    { prefecture: '東京都', visitedCount: 3 },
+    {
+      prefecture: '宮城県',
+      visitedCount: 5,
+      totalCount: 10,
+    },
+    { prefecture: '東京都', visitedCount: 3, totalCount: 20 },
+  ],
+  pilgrimageProgress: [
+    {
+      id: 'pilgrimage-1',
+      name: '四国八十八ヶ所',
+      description: null,
+      category: null,
+      totalSpots: 88,
+      visitedCount: 12,
+    },
+    {
+      id: 'pilgrimage-2',
+      name: '西国三十三所',
+      description: null,
+      category: null,
+      totalSpots: 33,
+      visitedCount: 5,
+    },
   ],
   isLoading: false,
   error: null,
@@ -88,17 +110,18 @@ jest.mock('@services/badges', () => ({
   ],
 }));
 
+const mockNavigate = jest.fn();
 const mockNavigation = {
-  navigate: jest.fn(),
+  navigate: mockNavigate,
   goBack: jest.fn(),
   getParent: jest.fn(() => ({ navigate: jest.fn() })),
-} as unknown as MainTabScreenProps<'Collection'>['navigation'];
+} as unknown as CollectionStackScreenProps<'CollectionList'>['navigation'];
 
 const mockRoute = {
   key: 'test',
-  name: 'Collection' as const,
+  name: 'CollectionList' as const,
   params: undefined,
-} as unknown as MainTabScreenProps<'Collection'>['route'];
+} as unknown as CollectionStackScreenProps<'CollectionList'>['route'];
 
 describe('CollectionScreen', () => {
   beforeEach(() => {
@@ -108,8 +131,30 @@ describe('CollectionScreen', () => {
       spotCount: 10,
       stampCount: 25,
       regionStats: [
-        { prefecture: '宮城県', visitedCount: 5 },
-        { prefecture: '東京都', visitedCount: 3 },
+        {
+          prefecture: '宮城県',
+          visitedCount: 5,
+          totalCount: 10,
+        },
+        { prefecture: '東京都', visitedCount: 3, totalCount: 20 },
+      ],
+      pilgrimageProgress: [
+        {
+          id: 'pilgrimage-1',
+          name: '四国八十八ヶ所',
+          description: null,
+          category: null,
+          totalSpots: 88,
+          visitedCount: 12,
+        },
+        {
+          id: 'pilgrimage-2',
+          name: '西国三十三所',
+          description: null,
+          category: null,
+          totalSpots: 33,
+          visitedCount: 5,
+        },
       ],
       isLoading: false,
       error: null,
@@ -131,7 +176,7 @@ describe('CollectionScreen', () => {
     expect(getByText('10')).toBeTruthy();
     expect(getByText('箇所')).toBeTruthy();
     expect(getByText('25')).toBeTruthy();
-    expect(getByText('枚')).toBeTruthy();
+    expect(getByText('御朱印（枚）')).toBeTruthy();
   });
 
   it('地域別データが表示される', () => {
@@ -140,9 +185,9 @@ describe('CollectionScreen', () => {
     );
     expect(getByText('地域別')).toBeTruthy();
     expect(getByText('宮城県')).toBeTruthy();
-    expect(getByText('5箇所')).toBeTruthy();
+    expect(getByText('5/10')).toBeTruthy();
     expect(getByText('東京都')).toBeTruthy();
-    expect(getByText('3箇所')).toBeTruthy();
+    expect(getByText('3/20')).toBeTruthy();
   });
 
   it('地域データが空の場合は空状態を表示する', () => {
@@ -157,20 +202,51 @@ describe('CollectionScreen', () => {
     const { getByText } = render(
       <CollectionScreen navigation={mockNavigation} route={mockRoute} />
     );
-    expect(getByText('バッジ')).toBeTruthy();
+    expect(getByText('獲得バッジ')).toBeTruthy();
     expect(getByText('初めての御朱印')).toBeTruthy();
     expect(getByText('5箇所達成')).toBeTruthy();
     expect(getByText('10箇所達成')).toBeTruthy();
     expect(getByText('全国制覇')).toBeTruthy();
   });
 
-  it('巡礼チャレンジセクションが表示されない', () => {
-    const { queryByText } = render(
+  it('巡礼チャレンジセクションが表示される', () => {
+    const { getByText } = render(
       <CollectionScreen navigation={mockNavigation} route={mockRoute} />
     );
-    expect(queryByText('巡礼チャレンジ')).toBeNull();
-    expect(queryByText('四国八十八ヶ所')).toBeNull();
+    expect(getByText('巡礼チャレンジ')).toBeTruthy();
+    expect(getByText('四国八十八ヶ所')).toBeTruthy();
+    expect(getByText('12/88')).toBeTruthy();
+  });
+
+  it('巡礼チャレンジが空の場合は空状態を表示する', () => {
+    mockCollectionStats = { ...mockCollectionStats, pilgrimageProgress: [] };
+    const { getByText } = render(
+      <CollectionScreen navigation={mockNavigation} route={mockRoute} />
+    );
+    expect(getByText('巡礼チャレンジに挑戦してみましょう')).toBeTruthy();
+  });
+
+  it('巡礼カードをタップすると PilgrimageDetail に遷移する', () => {
+    const { getByText } = render(
+      <CollectionScreen navigation={mockNavigation} route={mockRoute} />
+    );
+    fireEvent.press(getByText('四国八十八ヶ所'));
+    expect(mockNavigate).toHaveBeenCalledWith('PilgrimageDetail', {
+      pilgrimageId: 'pilgrimage-1',
+      pilgrimageName: '四国八十八ヶ所',
+    });
+  });
+
+  it('他の巡礼トグルを押すと追加の巡礼が表示される', () => {
+    const { getByText, queryByText } = render(
+      <CollectionScreen navigation={mockNavigation} route={mockRoute} />
+    );
+    // 最初は西国三十三所は非表示
     expect(queryByText('西国三十三所')).toBeNull();
+    // トグルを押す
+    fireEvent.press(getByText('他の巡礼を見る (1)'));
+    // 西国三十三所が表示される
+    expect(getByText('西国三十三所')).toBeTruthy();
   });
 
   describe('Wishlist section', () => {

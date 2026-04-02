@@ -20,10 +20,15 @@ export type RootStackParamList = {
   Error: { type: 'network' | 'location' | 'upload' };
 };
 
+export type CollectionStackParamList = {
+  CollectionList: undefined;
+  PilgrimageDetail: { pilgrimageId: string; pilgrimageName: string };
+};
+
 export type MainTabParamList = {
   MapTab: NavigatorScreenParams<MapStackParamList>;
   GalleryTab: NavigatorScreenParams<GalleryStackParamList>;
-  Collection: undefined;
+  CollectionTab: NavigatorScreenParams<CollectionStackParamList>;
   Settings: undefined;
 };
 
@@ -58,6 +63,12 @@ export type GalleryStackScreenProps<T extends keyof GalleryStackParamList> = Com
   NativeStackScreenProps<GalleryStackParamList, T>,
   MainTabScreenProps<keyof MainTabParamList>
 >;
+
+export type CollectionStackScreenProps<T extends keyof CollectionStackParamList> =
+  CompositeScreenProps<
+    NativeStackScreenProps<CollectionStackParamList, T>,
+    MainTabScreenProps<keyof MainTabParamList>
+  >;
 
 // --- Global type augmentation ---
 

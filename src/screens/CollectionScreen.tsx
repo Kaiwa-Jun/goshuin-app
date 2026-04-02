@@ -1,5 +1,13 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import {
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Badge } from '@components/common/Badge';
@@ -11,21 +19,28 @@ import { useWishlistSpots } from '@hooks/useWishlistSpots';
 import { getAllBadges } from '@services/badges';
 import { removeFromWishlist } from '@services/wishlist';
 import { colors } from '@theme/colors';
-import { spacing } from '@theme/spacing';
+import { borderRadius, spacing } from '@theme/spacing';
 import { typography } from '@theme/typography';
-import type { MainTabScreenProps } from '@/navigation/types';
+import type { CollectionStackScreenProps } from '@/navigation/types';
 
-type Props = MainTabScreenProps<'Collection'>;
+type Props = CollectionStackScreenProps<'CollectionList'>;
 
-export function CollectionScreen(_props: Props) {
+export function CollectionScreen({ navigation }: Props) {
   const { user } = useAuth();
   const { spots: wishlistSpots, refetch: refetchWishlist } = useWishlistSpots();
-  const { spotCount, stampCount, regionStats, isLoading } = useCollectionStats();
+  const { spotCount, stampCount, regionStats, pilgrimageProgress, isLoading } =
+    useCollectionStats();
+
+  const [showAllPilgrimages, setShowAllPilgrimages] = useState(false);
 
   const handleRemoveFromWishlist = async (spotId: string) => {
     if (!user) return;
     await removeFromWishlist(user.id, spotId);
     refetchWishlist();
+  };
+
+  const handlePilgrimageDetail = (pilgrimageId: string, pilgrimageName: string) => {
+    navigation.navigate('PilgrimageDetail', { pilgrimageId, pilgrimageName });
   };
 
   const badges = getAllBadges();
@@ -34,35 +49,156 @@ export function CollectionScreen(_props: Props) {
     earned: spotCount >= badge.condition.threshold,
   }));
 
+  const topPilgrimage = pilgrimageProgress.length > 0 ? pilgrimageProgress[0] : null;
+  const otherPilgrimages = pilgrimageProgress.slice(1);
+  const progressPercent = topPilgrimage
+    ? Math.round((topPilgrimage.visitedCount / topPilgrimage.totalSpots) * 100)
+    : 0;
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerText}>コレクション</Text>
+      </View>
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.header}>コレクション</Text>
-
-        {/* Achievement Summary */}
-        <View style={styles.summaryRow}>
-          <Card style={styles.summaryCard}>
-            <MaterialIcons name="place" size={28} color={colors.primary[500]} />
-            <Text style={styles.summaryNumber}>
-              {isLoading ? <ActivityIndicator size="small" /> : spotCount}
-            </Text>
-            <Text style={styles.summaryLabel}>箇所</Text>
-          </Card>
-          <Card style={styles.summaryCard}>
-            <MaterialIcons name="collections" size={28} color={colors.primary[500]} />
-            <Text style={styles.summaryNumber}>
-              {isLoading ? <ActivityIndicator size="small" /> : stampCount}
-            </Text>
-            <Text style={styles.summaryLabel}>枚</Text>
-          </Card>
+        {/* Achievement Summary Card */}
+        <View style={styles.summaryCardOuter}>
+          {/* 右上の装飾アイコン */}
+          <View style={styles.summaryDecoration}>
+            <MaterialIcons name="temple-buddhist" size={140} color="rgba(255,255,255,0.1)" />
+          </View>
+          <View style={styles.summaryContent}>
+            <View style={styles.summarySubtitleRow}>
+              <MaterialIcons name="emoji-events" size={16} color={colors.white} />
+              <Text style={styles.summarySubtitle}>これまでの達成</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryNumber}>
+                  {isLoading ? <ActivityIndicator size="small" color={colors.white} /> : spotCount}
+                </Text>
+                <Text style={styles.summaryLabel}>箇所</Text>
+              </View>
+              <View style={styles.summaryDivider} />
+              <View style={styles.summaryItemRight}>
+                <Text style={styles.summaryNumber}>
+                  {isLoading ? <ActivityIndicator size="small" color={colors.white} /> : stampCount}
+                </Text>
+                <Text style={styles.summaryLabel}>御朱印（枚）</Text>
+              </View>
+            </View>
+          </View>
         </View>
+        {/* Badge Section */}
+        <Text style={styles.sectionTitle}>獲得バッジ</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.badgeScrollView}
+          contentContainerStyle={styles.badgeScrollContent}
+        >
+          {badgesWithStatus.map(badge => (
+            <View key={badge.id} style={styles.badgeItem}>
+              <View
+                style={[
+                  styles.badgeCircle,
+                  badge.earned ? styles.badgeEarned : styles.badgeUnearned,
+                ]}
+              >
+                <MaterialIcons
+                  name={badge.earned ? 'military-tech' : 'lock'}
+                  size={28}
+                  color={badge.earned ? colors.white : colors.gray[400]}
+                />
+              </View>
+              <Text style={styles.badgeName}>{badge.name}</Text>
+            </View>
+          ))}
+        </ScrollView>
+
+        {/* Pilgrimage Challenge Section */}
+        <Text style={styles.sectionTitle}>巡礼チャレンジ</Text>
+        {topPilgrimage === null ? (
+          <Card style={styles.pilgrimageEmptyCard}>
+            <MaterialIcons name="explore" size={40} color={colors.gray[300]} />
+            <Text style={styles.pilgrimageEmptyText}>巡礼チャレンジに挑戦してみましょう</Text>
+          </Card>
+        ) : (
+          <>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => handlePilgrimageDetail(topPilgrimage.id, topPilgrimage.name)}
+            >
+              <Card style={styles.pilgrimageCard}>
+                <View style={styles.pilgrimageHeader}>
+                  <Text style={styles.pilgrimageGoalLabel}>現在の目標</Text>
+                  <View style={styles.pilgrimageBadge}>
+                    <Text style={styles.pilgrimageBadgeText}>
+                      {topPilgrimage.visitedCount > 0 ? '進行中' : '未着手'}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.pilgrimageName}>{topPilgrimage.name}</Text>
+                <View style={styles.pilgrimageStatsRow}>
+                  <Text style={styles.pilgrimagePercent}>{progressPercent}%</Text>
+                  <Text style={styles.pilgrimageCount}>
+                    {topPilgrimage.visitedCount}/{topPilgrimage.totalSpots}
+                  </Text>
+                </View>
+                <View style={styles.progressBarBg}>
+                  <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
+                </View>
+              </Card>
+            </TouchableOpacity>
+
+            {otherPilgrimages.length > 0 && (
+              <TouchableOpacity
+                onPress={() => setShowAllPilgrimages(!showAllPilgrimages)}
+                style={styles.toggleButton}
+              >
+                <Text style={styles.toggleText}>
+                  {showAllPilgrimages ? '閉じる' : `他の巡礼を見る (${otherPilgrimages.length})`}
+                </Text>
+                <MaterialIcons
+                  name={showAllPilgrimages ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
+                  size={20}
+                  color={colors.gray[500]}
+                />
+              </TouchableOpacity>
+            )}
+
+            {showAllPilgrimages &&
+              otherPilgrimages.map(p => {
+                const percent = Math.round((p.visitedCount / p.totalSpots) * 100);
+                return (
+                  <TouchableOpacity
+                    key={p.id}
+                    onPress={() => handlePilgrimageDetail(p.id, p.name)}
+                    activeOpacity={0.8}
+                  >
+                    <Card style={styles.pilgrimageCompactCard}>
+                      <Text style={styles.pilgrimageCompactName}>{p.name}</Text>
+                      <View style={styles.progressBarBg}>
+                        <View style={[styles.progressBarFill, { width: `${percent}%` }]} />
+                      </View>
+                      <Text style={styles.pilgrimageCompactCount}>
+                        {p.visitedCount}/{p.totalSpots}
+                      </Text>
+                    </Card>
+                  </TouchableOpacity>
+                );
+              })}
+          </>
+        )}
 
         {/* Region Section */}
-        <Text style={styles.sectionTitle}>地域別</Text>
+        <Text style={[styles.sectionTitle, styles.sectionTitleSpacing]}>地域別</Text>
         {regionStats.length === 0 ? (
           <Card style={styles.regionEmptyCard}>
             <MaterialIcons name="map" size={40} color={colors.gray[300]} />
@@ -70,12 +206,26 @@ export function CollectionScreen(_props: Props) {
           </Card>
         ) : (
           <Card style={styles.sectionCard}>
-            {regionStats.map(region => (
-              <View key={region.prefecture} style={styles.regionRow}>
-                <Text style={styles.regionName}>{region.prefecture}</Text>
-                <Text style={styles.regionCount}>{region.visitedCount}箇所</Text>
-              </View>
-            ))}
+            {regionStats.map(region => {
+              const percent =
+                region.totalCount > 0
+                  ? Math.round((region.visitedCount / region.totalCount) * 100)
+                  : 0;
+              return (
+                <View key={region.prefecture} style={styles.regionRow}>
+                  <MaterialIcons name="location-on" size={20} color={colors.primary[500]} />
+                  <Text style={styles.regionName}>{region.prefecture}</Text>
+                  <View style={styles.regionProgressContainer}>
+                    <View style={styles.progressBarBg}>
+                      <View style={[styles.progressBarFill, { width: `${percent}%` }]} />
+                    </View>
+                  </View>
+                  <Text style={styles.regionCount}>
+                    {region.visitedCount}/{region.totalCount}
+                  </Text>
+                </View>
+              );
+            })}
           </Card>
         )}
 
@@ -92,10 +242,10 @@ export function CollectionScreen(_props: Props) {
               <Card style={styles.wishlistCard}>
                 <View style={styles.wishlistRow}>
                   <View style={styles.wishlistInfo}>
-                    <Text style={styles.wishlistSpotName} numberOfLines={1}>
-                      {item.spots.name}
-                    </Text>
-                    <View style={styles.wishlistBadgeRow}>
+                    <View style={styles.wishlistNameRow}>
+                      <Text style={styles.wishlistSpotName} numberOfLines={1}>
+                        {item.spots.name}
+                      </Text>
                       <Badge type={item.spots.type === 'shrine' ? 'shrine' : 'temple'} />
                     </View>
                     {item.spots.address && (
@@ -116,28 +266,6 @@ export function CollectionScreen(_props: Props) {
             </View>
           ))
         )}
-
-        {/* Badge Section */}
-        <Text style={styles.sectionTitle}>バッジ</Text>
-        <View style={styles.badgeGrid}>
-          {badgesWithStatus.map(badge => (
-            <View key={badge.id} style={styles.badgeItem}>
-              <View
-                style={[
-                  styles.badgeCircle,
-                  badge.earned ? styles.badgeEarned : styles.badgeUnearned,
-                ]}
-              >
-                <MaterialIcons
-                  name={badge.earned ? 'military-tech' : 'lock'}
-                  size={28}
-                  color={badge.earned ? colors.white : colors.gray[400]}
-                />
-              </View>
-              <Text style={styles.badgeName}>{badge.name}</Text>
-            </View>
-          ))}
-        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -148,6 +276,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  header: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  headerText: {
+    ...typography.h2,
+    color: colors.gray[900],
+    fontWeight: 'bold',
+  },
   scrollView: {
     flex: 1,
   },
@@ -155,111 +292,84 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     paddingBottom: spacing['4xl'],
   },
-  header: {
-    ...typography.h2,
-    color: colors.gray[900],
-    marginBottom: spacing.lg,
+  summaryCardOuter: {
+    backgroundColor: colors.primary[500],
+    borderRadius: borderRadius.xl,
+    marginBottom: spacing.xl,
+    overflow: 'hidden',
+    shadowColor: colors.primary[500],
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  summaryDecoration: {
+    position: 'absolute',
+    top: -20,
+    right: -20,
+  },
+  summaryContent: {
+    padding: spacing.xl,
+  },
+  summarySubtitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.xl,
+    opacity: 0.9,
+  },
+  summarySubtitle: {
+    ...typography.label,
+    color: colors.white,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   summaryRow: {
     flexDirection: 'row',
-    gap: spacing.md,
-    marginBottom: spacing.xl,
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
   },
-  summaryCard: {
+  summaryItem: {
     flex: 1,
-    alignItems: 'center',
-    paddingVertical: spacing.xl,
+    gap: spacing.xs,
+  },
+  summaryItemRight: {
+    flex: 1,
+    alignItems: 'flex-end',
+    gap: spacing.xs,
+  },
+  summaryDivider: {
+    width: 1,
+    height: 48,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 1,
+    marginHorizontal: spacing.lg,
   },
   summaryNumber: {
-    ...typography.h1,
-    color: colors.gray[900],
-    marginTop: spacing.sm,
+    fontSize: 48,
+    fontWeight: 'bold',
+    color: colors.white,
+    lineHeight: 52,
   },
   summaryLabel: {
-    ...typography.caption,
-    color: colors.gray[500],
-    marginTop: spacing.xs,
+    ...typography.bodySmall,
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontWeight: '500',
   },
   sectionTitle: {
     ...typography.h3,
     color: colors.gray[800],
     marginBottom: spacing.md,
   },
-  sectionCard: {
+  sectionTitleSpacing: {
+    marginTop: spacing.xl,
+  },
+  badgeScrollView: {
     marginBottom: spacing.xl,
   },
-  regionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.md,
-  },
-  regionName: {
-    ...typography.bodySmall,
-    color: colors.gray[700],
-  },
-  regionEmptyCard: {
-    alignItems: 'center',
-    paddingVertical: spacing.xl,
-    marginBottom: spacing.xl,
-    gap: spacing.sm,
-  },
-  regionEmptyText: {
-    ...typography.bodySmall,
-    color: colors.gray[400],
-    textAlign: 'center',
-  },
-  regionCount: {
-    ...typography.bodySmall,
-    color: colors.gray[700],
-    textAlign: 'right',
-  },
-  wishlistEmptyCard: {
-    alignItems: 'center',
-    paddingVertical: spacing.xl,
-    marginBottom: spacing.xl,
-    gap: spacing.sm,
-  },
-  wishlistEmptyText: {
-    ...typography.bodySmall,
-    color: colors.gray[400],
-    textAlign: 'center',
-  },
-  wishlistCard: {
-    marginBottom: spacing.md,
-  },
-  wishlistRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  wishlistInfo: {
-    flex: 1,
-  },
-  wishlistSpotName: {
-    ...typography.body,
-    color: colors.gray[800],
-    marginBottom: spacing.xs,
-  },
-  wishlistBadgeRow: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-    marginBottom: spacing.xs,
-  },
-  wishlistAddressRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  wishlistAddress: {
-    ...typography.bodySmall,
-    color: colors.gray[500],
-    flex: 1,
-  },
-  badgeGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  badgeScrollContent: {
     gap: spacing.lg,
-    marginBottom: spacing.xl,
+    paddingHorizontal: spacing.xs,
   },
   badgeItem: {
     alignItems: 'center',
@@ -283,5 +393,171 @@ const styles = StyleSheet.create({
     color: colors.gray[600],
     marginTop: spacing.xs,
     textAlign: 'center',
+  },
+  pilgrimageCard: {
+    marginBottom: spacing.sm,
+  },
+  pilgrimageHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  pilgrimageGoalLabel: {
+    ...typography.caption,
+    color: colors.gray[500],
+  },
+  pilgrimageBadge: {
+    backgroundColor: colors.primary[100],
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  pilgrimageBadgeText: {
+    ...typography.caption,
+    color: colors.primary[600],
+  },
+  pilgrimageName: {
+    ...typography.h3,
+    color: colors.gray[800],
+    marginBottom: spacing.sm,
+  },
+  pilgrimageStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  pilgrimagePercent: {
+    ...typography.h2,
+    color: colors.primary[500],
+  },
+  pilgrimageCount: {
+    ...typography.bodySmall,
+    color: colors.gray[500],
+  },
+  progressBarBg: {
+    height: 8,
+    backgroundColor: colors.primary[100],
+    borderRadius: borderRadius.full,
+    overflow: 'hidden',
+    marginBottom: spacing.sm,
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: colors.primary[500],
+    borderRadius: borderRadius.full,
+  },
+  toggleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.sm,
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  toggleText: {
+    ...typography.bodySmall,
+    color: colors.gray[500],
+  },
+  pilgrimageCompactCard: {
+    marginBottom: spacing.sm,
+  },
+  pilgrimageCompactName: {
+    ...typography.body,
+    color: colors.gray[800],
+    marginBottom: spacing.sm,
+  },
+  pilgrimageCompactCount: {
+    ...typography.caption,
+    color: colors.gray[500],
+    textAlign: 'right',
+  },
+  pilgrimageEmptyCard: {
+    alignItems: 'center',
+    paddingVertical: spacing.xl,
+    marginBottom: spacing.xl,
+    gap: spacing.sm,
+  },
+  pilgrimageEmptyText: {
+    ...typography.bodySmall,
+    color: colors.gray[400],
+    textAlign: 'center',
+  },
+  sectionCard: {
+    marginBottom: spacing.xl,
+  },
+  regionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  regionName: {
+    ...typography.bodySmall,
+    color: colors.gray[700],
+    minWidth: 60,
+  },
+  regionProgressContainer: {
+    flex: 1,
+  },
+  regionEmptyCard: {
+    alignItems: 'center',
+    paddingVertical: spacing.xl,
+    marginBottom: spacing.xl,
+    gap: spacing.sm,
+  },
+  regionEmptyText: {
+    ...typography.bodySmall,
+    color: colors.gray[400],
+    textAlign: 'center',
+  },
+  regionCount: {
+    ...typography.bodySmall,
+    color: colors.gray[700],
+    textAlign: 'right',
+    minWidth: 40,
+  },
+  wishlistEmptyCard: {
+    alignItems: 'center',
+    paddingVertical: spacing.xl,
+    marginBottom: spacing.xl,
+    gap: spacing.sm,
+  },
+  wishlistEmptyText: {
+    ...typography.bodySmall,
+    color: colors.gray[400],
+    textAlign: 'center',
+  },
+  wishlistCard: {
+    marginBottom: spacing.md,
+  },
+  wishlistRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  wishlistInfo: {
+    flex: 1,
+  },
+  wishlistNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  wishlistSpotName: {
+    ...typography.body,
+    color: colors.gray[800],
+    flexShrink: 1,
+  },
+  wishlistAddressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  wishlistAddress: {
+    ...typography.bodySmall,
+    color: colors.gray[500],
+    flex: 1,
   },
 });
