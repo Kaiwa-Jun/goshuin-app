@@ -2,16 +2,19 @@ import { useState, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '@hooks/useAuth';
 import { fetchCollectionStats, fetchRegionStats } from '@services/collection';
+import { fetchPilgrimageProgress, type PilgrimageProgress } from '@services/pilgrimages';
 
 interface RegionStat {
   prefecture: string;
   visitedCount: number;
+  totalCount: number;
 }
 
 interface UseCollectionStatsReturn {
   spotCount: number;
   stampCount: number;
   regionStats: RegionStat[];
+  pilgrimageProgress: PilgrimageProgress[];
   isLoading: boolean;
   error: string | null;
   refetch: () => void;
@@ -25,6 +28,7 @@ export function useCollectionStats(): UseCollectionStatsReturn {
   const [spotCount, setSpotCount] = useState(0);
   const [stampCount, setStampCount] = useState(0);
   const [regionStats, setRegionStats] = useState<RegionStat[]>([]);
+  const [pilgrimageProgress, setPilgrimageProgress] = useState<PilgrimageProgress[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -39,6 +43,7 @@ export function useCollectionStats(): UseCollectionStatsReturn {
         setSpotCount(0);
         setStampCount(0);
         setRegionStats([]);
+        setPilgrimageProgress([]);
         setIsLoading(false);
         return;
       }
@@ -48,14 +53,16 @@ export function useCollectionStats(): UseCollectionStatsReturn {
       (async () => {
         try {
           setIsLoading(true);
-          const [stats, regions] = await Promise.all([
+          const [stats, regions, pilgrimages] = await Promise.all([
             fetchCollectionStats(user.id),
             fetchRegionStats(user.id),
+            fetchPilgrimageProgress(user.id),
           ]);
           if (!cancelled) {
             setSpotCount(stats.spotCount);
             setStampCount(stats.stampCount);
             setRegionStats(regions);
+            setPilgrimageProgress(pilgrimages);
             setError(null);
           }
         } catch (e) {
@@ -63,6 +70,7 @@ export function useCollectionStats(): UseCollectionStatsReturn {
             setSpotCount(0);
             setStampCount(0);
             setRegionStats([]);
+            setPilgrimageProgress([]);
             setError(e instanceof Error ? e.message : '取得に失敗しました');
           }
         } finally {
@@ -76,5 +84,5 @@ export function useCollectionStats(): UseCollectionStatsReturn {
     }, [user, refreshKey])
   );
 
-  return { spotCount, stampCount, regionStats, isLoading, error, refetch };
+  return { spotCount, stampCount, regionStats, pilgrimageProgress, isLoading, error, refetch };
 }

@@ -22,19 +22,31 @@ export async function fetchRegionStats(userId: string): Promise<
   {
     prefecture: string;
     visitedCount: number;
+    totalCount: number;
   }[]
 > {
-  const { data, error } = await supabase
+  const { data: stampsData, error: stampsError } = await supabase
     .from('stamps')
     .select('spot_id, spots!inner(prefecture)')
     .eq('user_id', userId);
 
-  if (error) {
-    console.warn('fetchRegionStats error:', error.message);
+  if (stampsError) {
+    console.warn('fetchRegionStats error:', stampsError.message);
     return [];
   }
 
-  const rows = data as unknown as { spot_id: string; spots: { prefecture: string | null } }[];
+  const { data: allSpotsData, error: allSpotsError } = await supabase
+    .from('spots')
+    .select('prefecture')
+    .eq('status', 'active')
+    .not('prefecture', 'is', null);
+
+  if (allSpotsError) {
+    console.warn('fetchRegionStats error:', allSpotsError.message);
+    return [];
+  }
+
+  const rows = stampsData as unknown as { spot_id: string; spots: { prefecture: string | null } }[];
 
   const prefectureMap = new Map<string, Set<string>>();
 
@@ -47,8 +59,17 @@ export async function fetchRegionStats(userId: string): Promise<
     prefectureMap.set(prefecture, spotIds);
   }
 
-  return Array.from(prefectureMap.entries()).map(([prefecture, spotIds]) => ({
+  const totalCountMap = new Map<string, number>();
+  for (const spot of allSpotsData as { prefecture: string }[]) {
+    const current = totalCountMap.get(spot.prefecture) ?? 0;
+    totalCountMap.set(spot.prefecture, current + 1);
+  }
+
+  const allPrefectures = new Set([...prefectureMap.keys(), ...totalCountMap.keys()]);
+
+  return Array.from(allPrefectures).map(prefecture => ({
     prefecture,
-    visitedCount: spotIds.size,
+    visitedCount: prefectureMap.get(prefecture)?.size ?? 0,
+    totalCount: totalCountMap.get(prefecture) ?? 0,
   }));
 }

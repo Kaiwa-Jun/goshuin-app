@@ -138,7 +138,8 @@ describe('RecordCompleteScreen', () => {
     );
     fireEvent.press(getByTestId('button-view-collection'));
     expect(mockNavigation.navigate).toHaveBeenCalledWith('MainTabs', {
-      screen: 'Collection',
+      screen: 'CollectionTab',
+      params: { screen: 'CollectionList' },
     });
   });
 
@@ -261,7 +262,8 @@ describe('RecordCompleteScreen', () => {
       );
       fireEvent.press(getByTestId('button-view-collection'));
       expect(mockNavigation.navigate).toHaveBeenCalledWith('MainTabs', {
-        screen: 'Collection',
+        screen: 'CollectionTab',
+        params: { screen: 'CollectionList' },
       });
     });
 

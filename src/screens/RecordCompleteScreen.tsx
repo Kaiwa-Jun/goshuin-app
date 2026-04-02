@@ -29,7 +29,10 @@ export function RecordCompleteScreen({ navigation, route }: Props) {
   };
 
   const handleViewCollection = () => {
-    navigation.navigate('MainTabs', { screen: 'Collection' });
+    navigation.navigate('MainTabs', {
+      screen: 'CollectionTab',
+      params: { screen: 'CollectionList' },
+    });
   };
 
   return (
