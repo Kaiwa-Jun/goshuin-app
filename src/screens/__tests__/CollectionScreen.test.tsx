@@ -33,10 +33,59 @@ jest.mock('@hooks/useWishlistSpots', () => ({
   }),
 }));
 
+let mockCollectionStats = {
+  spotCount: 10,
+  stampCount: 25,
+  regionStats: [
+    { prefecture: '宮城県', visitedCount: 5 },
+    { prefecture: '東京都', visitedCount: 3 },
+  ],
+  isLoading: false,
+  error: null,
+  refetch: jest.fn(),
+};
+
+jest.mock('@hooks/useCollectionStats', () => ({
+  useCollectionStats: () => mockCollectionStats,
+}));
+
 const mockRemoveFromWishlist = jest.fn().mockResolvedValue(undefined);
 
 jest.mock('@services/wishlist', () => ({
   removeFromWishlist: (...args: unknown[]) => mockRemoveFromWishlist(...args),
+}));
+
+jest.mock('@services/badges', () => ({
+  getAllBadges: () => [
+    {
+      id: 'first-stamp',
+      name: '初めての御朱印',
+      description: '初めての御朱印を記録しました',
+      icon: '🎊',
+      condition: { type: 'visit_count', threshold: 1 },
+    },
+    {
+      id: 'visit-5',
+      name: '5箇所達成',
+      description: '5箇所の神社仏閣を訪れました',
+      icon: '⛩️',
+      condition: { type: 'visit_count', threshold: 5 },
+    },
+    {
+      id: 'visit-10',
+      name: '10箇所達成',
+      description: '10箇所の神社仏閣を訪れました',
+      icon: '🏆',
+      condition: { type: 'visit_count', threshold: 10 },
+    },
+    {
+      id: 'visit-100',
+      name: '全国制覇',
+      description: '100箇所の神社仏閣を訪れました',
+      icon: '👑',
+      condition: { type: 'visit_count', threshold: 100 },
+    },
+  ],
 }));
 
 const mockNavigation = {
@@ -55,6 +104,17 @@ describe('CollectionScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockWishlistSpots = [];
+    mockCollectionStats = {
+      spotCount: 10,
+      stampCount: 25,
+      regionStats: [
+        { prefecture: '宮城県', visitedCount: 5 },
+        { prefecture: '東京都', visitedCount: 3 },
+      ],
+      isLoading: false,
+      error: null,
+      refetch: jest.fn(),
+    };
   });
 
   it('renders the header', () => {
@@ -64,46 +124,53 @@ describe('CollectionScreen', () => {
     expect(getByText('コレクション')).toBeTruthy();
   });
 
-  it('renders achievement summary cards', () => {
+  it('統計サマリーに spotCount/stampCount が表示される', () => {
     const { getByText } = render(
       <CollectionScreen navigation={mockNavigation} route={mockRoute} />
     );
-    expect(getByText('33')).toBeTruthy();
+    expect(getByText('10')).toBeTruthy();
     expect(getByText('箇所')).toBeTruthy();
-    expect(getByText('45')).toBeTruthy();
+    expect(getByText('25')).toBeTruthy();
     expect(getByText('枚')).toBeTruthy();
   });
 
-  it('renders region section', () => {
+  it('地域別データが表示される', () => {
     const { getByText } = render(
       <CollectionScreen navigation={mockNavigation} route={mockRoute} />
     );
     expect(getByText('地域別')).toBeTruthy();
-    expect(getByText('東京都')).toBeTruthy();
-    expect(getByText('京都府')).toBeTruthy();
     expect(getByText('宮城県')).toBeTruthy();
+    expect(getByText('5箇所')).toBeTruthy();
+    expect(getByText('東京都')).toBeTruthy();
+    expect(getByText('3箇所')).toBeTruthy();
   });
 
-  it('renders challenge section', () => {
+  it('地域データが空の場合は空状態を表示する', () => {
+    mockCollectionStats = { ...mockCollectionStats, regionStats: [] };
     const { getByText } = render(
       <CollectionScreen navigation={mockNavigation} route={mockRoute} />
     );
-    expect(getByText('巡礼チャレンジ')).toBeTruthy();
-    expect(getByText('四国八十八ヶ所')).toBeTruthy();
-    expect(getByText('12/88')).toBeTruthy();
-    expect(getByText('西国三十三所')).toBeTruthy();
-    expect(getByText('5/33')).toBeTruthy();
+    expect(getByText('御朱印を記録すると地域別の統計が表示されます')).toBeTruthy();
   });
 
-  it('renders badge section with earned and unearned badges', () => {
+  it('バッジが BADGE_DEFINITIONS に基づいて表示される', () => {
     const { getByText } = render(
       <CollectionScreen navigation={mockNavigation} route={mockRoute} />
     );
     expect(getByText('バッジ')).toBeTruthy();
-    expect(getByText('初参拝')).toBeTruthy();
+    expect(getByText('初めての御朱印')).toBeTruthy();
+    expect(getByText('5箇所達成')).toBeTruthy();
     expect(getByText('10箇所達成')).toBeTruthy();
-    expect(getByText('巡礼者')).toBeTruthy();
     expect(getByText('全国制覇')).toBeTruthy();
+  });
+
+  it('巡礼チャレンジセクションが表示されない', () => {
+    const { queryByText } = render(
+      <CollectionScreen navigation={mockNavigation} route={mockRoute} />
+    );
+    expect(queryByText('巡礼チャレンジ')).toBeNull();
+    expect(queryByText('四国八十八ヶ所')).toBeNull();
+    expect(queryByText('西国三十三所')).toBeNull();
   });
 
   describe('Wishlist section', () => {

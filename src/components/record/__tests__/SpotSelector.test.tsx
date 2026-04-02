@@ -10,6 +10,7 @@ const makeSpot = (overrides: Partial<Spot> = {}): Spot => ({
   lng: 140.8694,
   type: 'shrine',
   address: '仙台市青葉区',
+  prefecture: null,
   status: 'active',
   created_by_user_id: null,
   merged_into_spot_id: null,

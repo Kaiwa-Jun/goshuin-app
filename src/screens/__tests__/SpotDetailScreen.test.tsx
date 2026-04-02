@@ -22,6 +22,7 @@ const defaultSpot: Spot = {
   lng: 140.8577,
   type: 'shrine',
   address: '宮城県仙台市青葉区八幡4-6-1',
+  prefecture: null,
   status: 'active',
   created_by_user_id: null,
   merged_into_spot_id: null,

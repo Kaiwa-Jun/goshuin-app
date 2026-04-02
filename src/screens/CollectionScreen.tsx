@@ -1,49 +1,38 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Badge } from '@components/common/Badge';
 import { Card } from '@components/common/Card';
 import { WishlistButton } from '@components/animated/WishlistButton';
 import { useAuth } from '@hooks/useAuth';
+import { useCollectionStats } from '@hooks/useCollectionStats';
 import { useWishlistSpots } from '@hooks/useWishlistSpots';
+import { getAllBadges } from '@services/badges';
 import { removeFromWishlist } from '@services/wishlist';
 import { colors } from '@theme/colors';
-import { borderRadius, spacing } from '@theme/spacing';
+import { spacing } from '@theme/spacing';
 import { typography } from '@theme/typography';
 import type { MainTabScreenProps } from '@/navigation/types';
 
 type Props = MainTabScreenProps<'Collection'>;
 
-const REGION_DATA = [
-  { name: '東京都', count: 15, total: 50 },
-  { name: '京都府', count: 8, total: 40 },
-  { name: '宮城県', count: 5, total: 30 },
-];
-
-const CHALLENGE_DATA = [
-  { name: '四国八十八ヶ所', progress: 12, total: 88 },
-  { name: '西国三十三所', progress: 5, total: 33 },
-];
-
-const BADGE_DATA = [
-  { name: '初参拝', earned: true },
-  { name: '10箇所達成', earned: true },
-  { name: '御朱印マスター', earned: true },
-  { name: '巡礼者', earned: false },
-  { name: '全国制覇', earned: false },
-  { name: '伝説', earned: false },
-];
-
 export function CollectionScreen(_props: Props) {
   const { user } = useAuth();
   const { spots: wishlistSpots, refetch: refetchWishlist } = useWishlistSpots();
+  const { spotCount, stampCount, regionStats, isLoading } = useCollectionStats();
 
   const handleRemoveFromWishlist = async (spotId: string) => {
     if (!user) return;
     await removeFromWishlist(user.id, spotId);
     refetchWishlist();
   };
+
+  const badges = getAllBadges();
+  const badgesWithStatus = badges.map(badge => ({
+    ...badge,
+    earned: spotCount >= badge.condition.threshold,
+  }));
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -58,36 +47,37 @@ export function CollectionScreen(_props: Props) {
         <View style={styles.summaryRow}>
           <Card style={styles.summaryCard}>
             <MaterialIcons name="place" size={28} color={colors.primary[500]} />
-            <Text style={styles.summaryNumber}>33</Text>
+            <Text style={styles.summaryNumber}>
+              {isLoading ? <ActivityIndicator size="small" /> : spotCount}
+            </Text>
             <Text style={styles.summaryLabel}>箇所</Text>
           </Card>
           <Card style={styles.summaryCard}>
             <MaterialIcons name="collections" size={28} color={colors.primary[500]} />
-            <Text style={styles.summaryNumber}>45</Text>
+            <Text style={styles.summaryNumber}>
+              {isLoading ? <ActivityIndicator size="small" /> : stampCount}
+            </Text>
             <Text style={styles.summaryLabel}>枚</Text>
           </Card>
         </View>
 
         {/* Region Section */}
         <Text style={styles.sectionTitle}>地域別</Text>
-        <Card style={styles.sectionCard}>
-          {REGION_DATA.map(region => (
-            <View key={region.name} style={styles.regionRow}>
-              <Text style={styles.regionName}>{region.name}</Text>
-              <View style={styles.progressBarContainer}>
-                <View style={styles.progressBarBg}>
-                  <View
-                    style={[
-                      styles.progressBarFill,
-                      { width: `${(region.count / region.total) * 100}%` },
-                    ]}
-                  />
-                </View>
+        {regionStats.length === 0 ? (
+          <Card style={styles.regionEmptyCard}>
+            <MaterialIcons name="map" size={40} color={colors.gray[300]} />
+            <Text style={styles.regionEmptyText}>御朱印を記録すると地域別の統計が表示されます</Text>
+          </Card>
+        ) : (
+          <Card style={styles.sectionCard}>
+            {regionStats.map(region => (
+              <View key={region.prefecture} style={styles.regionRow}>
+                <Text style={styles.regionName}>{region.prefecture}</Text>
+                <Text style={styles.regionCount}>{region.visitedCount}箇所</Text>
               </View>
-              <Text style={styles.regionCount}>{region.count}</Text>
-            </View>
-          ))}
-        </Card>
+            ))}
+          </Card>
+        )}
 
         {/* Wishlist Section */}
         <Text style={styles.sectionTitle}>行きたいリスト</Text>
@@ -127,30 +117,11 @@ export function CollectionScreen(_props: Props) {
           ))
         )}
 
-        {/* Challenge Section */}
-        <Text style={styles.sectionTitle}>巡礼チャレンジ</Text>
-        {CHALLENGE_DATA.map(challenge => (
-          <Card key={challenge.name} style={styles.challengeCard}>
-            <Text style={styles.challengeName}>{challenge.name}</Text>
-            <View style={styles.progressBarBg}>
-              <View
-                style={[
-                  styles.progressBarFill,
-                  { width: `${(challenge.progress / challenge.total) * 100}%` },
-                ]}
-              />
-            </View>
-            <Text style={styles.challengeProgress}>
-              {challenge.progress}/{challenge.total}
-            </Text>
-          </Card>
-        ))}
-
         {/* Badge Section */}
         <Text style={styles.sectionTitle}>バッジ</Text>
         <View style={styles.badgeGrid}>
-          {BADGE_DATA.map(badge => (
-            <View key={badge.name} style={styles.badgeItem}>
+          {badgesWithStatus.map(badge => (
+            <View key={badge.id} style={styles.badgeItem}>
               <View
                 style={[
                   styles.badgeCircle,
@@ -220,32 +191,27 @@ const styles = StyleSheet.create({
   regionRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: spacing.md,
   },
   regionName: {
     ...typography.bodySmall,
     color: colors.gray[700],
-    width: 56,
   },
-  progressBarContainer: {
-    flex: 1,
-    marginHorizontal: spacing.sm,
+  regionEmptyCard: {
+    alignItems: 'center',
+    paddingVertical: spacing.xl,
+    marginBottom: spacing.xl,
+    gap: spacing.sm,
   },
-  progressBarBg: {
-    height: 8,
-    backgroundColor: colors.primary[100],
-    borderRadius: borderRadius.full,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: colors.primary[500],
-    borderRadius: borderRadius.full,
+  regionEmptyText: {
+    ...typography.bodySmall,
+    color: colors.gray[400],
+    textAlign: 'center',
   },
   regionCount: {
     ...typography.bodySmall,
     color: colors.gray[700],
-    width: 28,
     textAlign: 'right',
   },
   wishlistEmptyCard: {
@@ -288,20 +254,6 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.gray[500],
     flex: 1,
-  },
-  challengeCard: {
-    marginBottom: spacing.md,
-  },
-  challengeName: {
-    ...typography.body,
-    color: colors.gray[800],
-    marginBottom: spacing.sm,
-  },
-  challengeProgress: {
-    ...typography.bodySmall,
-    color: colors.gray[500],
-    marginTop: spacing.xs,
-    textAlign: 'right',
   },
   badgeGrid: {
     flexDirection: 'row',
