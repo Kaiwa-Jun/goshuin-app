@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>プライバシーポリシー - 御朱印コレクション</title>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'Meiryo', sans-serif;
+      font-size: 16px;
+      line-height: 1.8;
+      color: #333;
+      background-color: #fafafa;
+      margin: 0;
+      padding: 0;
+    }
+
+    header {
+      background-color: #f27f0d;
+      color: #fff;
+      padding: 32px 24px 24px;
+    }
+
+    header h1 {
+      margin: 0 0 8px;
+      font-size: 24px;
+      font-weight: 700;
+    }
+
+    header p {
+      margin: 0;
+      font-size: 14px;
+      opacity: 0.85;
+    }
+
+    main {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 32px 24px 64px;
+    }
+
+    .last-updated {
+      font-size: 14px;
+      color: #888;
+      margin-bottom: 32px;
+    }
+
+    section {
+      background: #fff;
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    }
+
+    section h2 {
+      font-size: 18px;
+      font-weight: 700;
+      color: #f27f0d;
+      margin: 0 0 16px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #fde8c8;
+    }
+
+    section p {
+      margin: 0;
+      white-space: pre-line;
+      color: #444;
+    }
+
+    .highlight {
+      background-color: #fff8f0;
+      border-left: 4px solid #f27f0d;
+      padding: 12px 16px;
+      border-radius: 0 4px 4px 0;
+      margin-top: 16px;
+      font-size: 14px;
+      color: #555;
+    }
+
+    footer {
+      text-align: center;
+      padding: 24px;
+      font-size: 13px;
+      color: #aaa;
+    }
+
+    footer a {
+      color: #f27f0d;
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+
+    @media (max-width: 600px) {
+      header {
+        padding: 24px 16px 20px;
+      }
+
+      header h1 {
+        font-size: 20px;
+      }
+
+      main {
+        padding: 24px 16px 48px;
+      }
+
+      section {
+        padding: 20px 16px;
+      }
+
+      section h2 {
+        font-size: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>プライバシーポリシー</h1>
+    <p>御朱印コレクション</p>
+  </header>
+
+  <main>
+    <p class="last-updated">最終更新日: 2026年4月4日</p>
+
+    <section>
+      <h2>1. はじめに</h2>
+      <p>このプライバシーポリシーは、「御朱印コレクション」（以下「本アプリ」）がユーザーの個人情報をどのように収集・利用・保護するかを説明するものです。
+
+本アプリを利用することにより、ユーザーはこのプライバシーポリシーに同意したものとみなされます。本ポリシーをよくお読みいただき、同意いただける場合のみ本アプリをご利用ください。</p>
+    </section>
+
+    <section>
+      <h2>2. 収集する情報</h2>
+      <p>本アプリは以下の情報を収集します。
+
+【アカウント情報】
+Googleアカウントを通じた認証（Google OAuth）により、メールアドレス、表示名（ニックネーム）、プロフィール画像URLを取得します。これらはアカウント識別およびプロフィール表示に使用します。
+
+【位置情報】
+expo-location（精度: Accuracy.Balanced）を使用して、アプリ使用中のみ現在地情報を取得します。周辺の神社・寺院スポットの表示および地図上の現在地表示に使用します。</p>
+      <div class="highlight">位置情報はサーバーに保存しません。端末上でのみ利用し、通信後は保持しません。</div>
+      <p style="margin-top: 16px;">【カメラ・写真ライブラリ】
+御朱印画像の撮影または写真ライブラリからの選択に使用します。選択された画像はJPEG形式（品質0.8）に変換してサーバーに保存されます。
+
+【ユーザー入力データ】
+訪問日、御朱印に関するメモ、御朱印の公開/非公開設定、御朱印帳情報、ウィッシュリスト（訪問したいスポットのリスト）など、ユーザーが本アプリに入力したデータを収集・保存します。</p>
+    </section>
+
+    <section>
+      <h2>3. 情報の利用目的</h2>
+      <p>収集した情報は以下の目的で利用します。
+
+【御朱印記録の保存・表示】
+ユーザーが記録した御朱印（画像・メモ・訪問日）をサーバーに保存し、アプリ上で閲覧・管理できるようにします。
+
+【周辺スポットの表示】
+端末上の位置情報を使用して、現在地周辺の神社・寺院スポットを地図上に表示します。
+
+【AI情報抽出】
+ユーザーが入力したメモテキストを、サーバー側の処理（Edge Function）を経由してAI（Claude API / Anthropic）に送信し、駐車場の有無・収容台数、受付時間、アクセス方法などの情報を自動抽出します。</p>
+      <div class="highlight">メモテキストのみを送信し、画像やその他の個人情報は送信しません。</div>
+      <p style="margin-top: 16px;">【御朱印の公開表示】
+ユーザーが公開設定にした御朱印は、当該ユーザーの表示名およびプロフィール画像とともに他のユーザーに表示されます。</p>
+    </section>
+
+    <section>
+      <h2>4. 情報の保存場所</h2>
+      <p>収集した情報は、Supabase（Amazon Web Services ap-northeast-1 東京リージョン）のサーバーに保存されます。
+
+御朱印画像はSupabase Storageに保存されます。
+
+すべてのデータはHTTPS通信によって暗号化された状態で送受信されます。
+
+位置情報のみサーバーには保存されず、端末上での処理にのみ使用されます。</p>
+    </section>
+
+    <section>
+      <h2>5. 第三者提供</h2>
+      <p>本アプリは以下の第三者とデータを共有する場合があります。
+
+【Google LLC】
+Googleアカウントによる認証（OAuth）のため、Googleの認証サービスを利用します。Googleのプライバシーポリシーが適用されます。
+
+【Supabase Inc.】
+データベース、ストレージ、認証基盤としてSupabaseのサービスを利用しています。ユーザーデータはSupabaseのサーバーに保存されます。
+
+【Anthropic】
+メモテキストのAI情報抽出を目的として、ユーザーが入力したメモテキストのみをAnthropicのClaude APIに送信します。画像や個人を特定できる情報（氏名・メールアドレス等）は送信しません。AnthropicのプライバシーポリシーはAnthropicの公式サイトをご参照ください。
+
+【他のユーザー】
+御朱印を公開設定にした場合、当該御朱印の画像・メモ・訪問日・スポット情報が、表示名およびプロフィール画像とともに他のユーザーに表示されます。
+
+上記以外の第三者に個人情報を提供することはありません（法令に基づく場合を除く）。</p>
+    </section>
+
+    <section>
+      <h2>6. データセキュリティ</h2>
+      <p>本アプリは以下のセキュリティ対策を講じています。
+
+【Row Level Security（RLS）】
+SupabaseのRLS機能により、ユーザーは自分自身のデータのみにアクセスできるよう制御しています。他のユーザーのプライベートデータへの不正アクセスを防止します。
+
+【HTTPS通信の暗号化】
+すべての通信はHTTPSプロトコルによって暗号化されています。
+
+ただし、インターネット上での完全なセキュリティを保証することはできません。ご了承ください。</p>
+    </section>
+
+    <section>
+      <h2>7. データの保持と削除</h2>
+      <p>アカウントを削除した場合、以下のデータが削除されます。
+
+・御朱印記録（画像・メモ・訪問日・スポット情報）
+・御朱印帳情報
+・ウィッシュリスト
+・プロフィール情報（表示名・プロフィール画像URL）
+
+ただし、複数ユーザーのメモから自動抽出された情報（特定のスポットの駐車場情報・アクセス情報など）は、個人を特定できない形で匿名化・集約されているため、サービス品質向上を目的として保持される場合があります。
+
+アカウント削除後はデータの復元ができません。</p>
+    </section>
+
+    <section>
+      <h2>8. ユーザーの権利</h2>
+      <p>ユーザーは以下の権利を有します。
+
+【データへのアクセス】
+本アプリ内で自身が記録した御朱印データを閲覧・確認することができます。
+
+【公開/非公開の設定変更】
+投稿した御朱印の公開設定はいつでも変更できます。非公開に変更した場合、他のユーザーからの閲覧ができなくなります。
+
+【データの削除】
+アカウントを削除することにより、ご自身のデータを削除することができます。削除はアプリの設定画面から行えます。
+
+ご不明な点やデータに関するお問い合わせは、本ポリシー末尾の連絡先までご連絡ください。</p>
+    </section>
+
+    <section>
+      <h2>9. Cookieおよびトラッキング</h2>
+      <p>本アプリは、Cookieや行動トラッキング技術を使用しません。ユーザーの行動パターンの追跡や、広告目的でのデータ収集は行いません。</p>
+    </section>
+
+    <section>
+      <h2>10. 子どものプライバシー</h2>
+      <p>本アプリは13歳未満の子どもを対象としていません。13歳未満の方の個人情報を意図的に収集することはありません。
+
+保護者の方が、お子様が13歳未満であるにもかかわらず本アプリを使用していることに気づいた場合は、下記の連絡先までお問い合わせください。</p>
+    </section>
+
+    <section>
+      <h2>11. ポリシーの変更</h2>
+      <p>本プライバシーポリシーは、法令の改正やサービスの変更に伴い更新されることがあります。
+
+重要な変更がある場合は、アプリ内での通知またはその他の適切な方法でユーザーにお知らせします。変更後のポリシーに同意できない場合は、本アプリの利用を停止し、アカウントを削除してください。
+
+継続して本アプリを利用することで、更新後のポリシーに同意したものとみなされます。</p>
+    </section>
+
+    <section>
+      <h2>12. お問い合わせ</h2>
+      <p>本プライバシーポリシーに関するご質問・ご意見、または個人情報に関するお問い合わせは、以下の連絡先までご連絡ください。
+
+メール: kj.11235813213455@gmail.com
+X（旧Twitter）: @crew_runteq38</p>
+    </section>
+  </main>
+
+  <footer>
+    <p>
+      <a href="terms.html">利用規約</a>
+    </p>
+    <p>&copy; 2026 御朱印コレクション</p>
+  </footer>
+</body>
+</html>

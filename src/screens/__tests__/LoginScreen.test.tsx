@@ -143,6 +143,22 @@ describe('LoginScreen', () => {
     });
   });
 
+  it('navigates to TermsOfService when terms link is pressed', () => {
+    const { getByText } = render(
+      <LoginScreen navigation={mockNavigation as never} route={mockRoute} />
+    );
+    fireEvent.press(getByText(' 利用規約 '));
+    expect(mockNavigation.navigate).toHaveBeenCalledWith('TermsOfService');
+  });
+
+  it('navigates to PrivacyPolicy when privacy policy link is pressed', () => {
+    const { getByText } = render(
+      <LoginScreen navigation={mockNavigation as never} route={mockRoute} />
+    );
+    fireEvent.press(getByText(' プライバシーポリシー '));
+    expect(mockNavigation.navigate).toHaveBeenCalledWith('PrivacyPolicy');
+  });
+
   it('does not show Alert when user cancels', async () => {
     mockSignInWithGoogle.mockResolvedValue({
       success: false,

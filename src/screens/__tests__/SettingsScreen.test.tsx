@@ -229,4 +229,28 @@ describe('SettingsScreen', () => {
     expect(getByText('利用規約')).toBeTruthy();
     expect(getByText('プライバシーポリシー')).toBeTruthy();
   });
+
+  it('navigates to TermsOfService when 利用規約 is pressed', () => {
+    const parentNavigate = jest.fn();
+    const nav = {
+      ...mockNavigation,
+      getParent: jest.fn(() => ({ navigate: parentNavigate })),
+    } as unknown as MainTabScreenProps<'Settings'>['navigation'];
+
+    const { getByText } = render(<SettingsScreen navigation={nav} route={mockRoute} />);
+    fireEvent.press(getByText('利用規約'));
+    expect(parentNavigate).toHaveBeenCalledWith('TermsOfService');
+  });
+
+  it('navigates to PrivacyPolicy when プライバシーポリシー is pressed', () => {
+    const parentNavigate = jest.fn();
+    const nav = {
+      ...mockNavigation,
+      getParent: jest.fn(() => ({ navigate: parentNavigate })),
+    } as unknown as MainTabScreenProps<'Settings'>['navigation'];
+
+    const { getByText } = render(<SettingsScreen navigation={nav} route={mockRoute} />);
+    fireEvent.press(getByText('プライバシーポリシー'));
+    expect(parentNavigate).toHaveBeenCalledWith('PrivacyPolicy');
+  });
 });

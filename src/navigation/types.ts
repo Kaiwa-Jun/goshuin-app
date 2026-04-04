@@ -17,6 +17,8 @@ export type RootStackParamList = {
       }
     | undefined;
   Login: undefined;
+  TermsOfService: undefined;
+  PrivacyPolicy: undefined;
   Error: { type: 'network' | 'location' | 'upload' };
 };
 
