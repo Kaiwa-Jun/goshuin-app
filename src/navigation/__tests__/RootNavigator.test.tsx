@@ -3,16 +3,22 @@ import { NavigationContainer } from '@react-navigation/native';
 
 import { RootNavigator } from '../RootNavigator';
 
+// Mock supabase client to avoid env var requirement
+jest.mock('@services/supabase', () => ({
+  supabase: {
+    auth: {
+      getSession: jest.fn(),
+      onAuthStateChange: jest.fn(() => ({ data: { subscription: { unsubscribe: jest.fn() } } })),
+    },
+    from: jest.fn(() => ({ select: jest.fn() })),
+  },
+}));
+
 // Mock auth service
 jest.mock('@services/auth', () => ({
   signInWithGoogle: jest.fn(),
   signOut: jest.fn(),
 }));
-
-// Mock environment variables for supabase
-const env = process.env;
-env['EXPO_PUBLIC_SUPABASE_URL'] = 'https://test.supabase.co';
-env['EXPO_PUBLIC_SUPABASE_ANON_KEY'] = 'test-anon-key';
 
 // Mock useOnboarding
 const mockUseOnboarding = jest.fn();
