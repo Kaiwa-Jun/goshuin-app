@@ -1,11 +1,14 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  LayoutAnimation,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
+  UIManager,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -21,7 +24,12 @@ import { removeFromWishlist } from '@services/wishlist';
 import { colors } from '@theme/colors';
 import { borderRadius, spacing } from '@theme/spacing';
 import { typography } from '@theme/typography';
+import { groupByRegionBlock } from '@utils/regionBlocks';
 import type { CollectionStackScreenProps } from '@/navigation/types';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 type Props = CollectionStackScreenProps<'CollectionList'>;
 
@@ -32,6 +40,22 @@ export function CollectionScreen({ navigation }: Props) {
     useCollectionStats();
 
   const [showAllPilgrimages, setShowAllPilgrimages] = useState(false);
+  const [expandedRegions, setExpandedRegions] = useState<Set<string>>(new Set());
+
+  const groupedRegions = useMemo(() => groupByRegionBlock(regionStats), [regionStats]);
+
+  const toggleRegionBlock = (key: string) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpandedRegions(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
 
   const handleRemoveFromWishlist = async (spotId: string) => {
     if (!user) return;
@@ -215,33 +239,57 @@ export function CollectionScreen({ navigation }: Props) {
             <Text style={styles.regionEmptyText}>御朱印を記録すると地域別の統計が表示されます</Text>
           </Card>
         ) : (
-          <Card style={styles.sectionCard}>
-            {regionStats.map(region => {
-              const percent =
-                region.totalCount > 0
-                  ? Math.round((region.visitedCount / region.totalCount) * 100)
-                  : 0;
-              return (
+          groupedRegions.map(block => {
+            const isExpanded = expandedRegions.has(block.key);
+            const blockPercent =
+              block.totalPrefCount > 0
+                ? Math.round((block.visitedPrefCount / block.totalPrefCount) * 100)
+                : 0;
+            return (
+              <Card key={block.key} style={styles.regionBlockCard}>
                 <TouchableOpacity
-                  key={region.prefecture}
-                  style={styles.regionRow}
-                  onPress={() => handleRegionPress(region.prefecture)}
+                  style={styles.regionBlockHeader}
+                  onPress={() => toggleRegionBlock(block.key)}
                   activeOpacity={0.7}
                 >
-                  <MaterialIcons name="location-on" size={20} color={colors.primary[500]} />
-                  <Text style={styles.regionName}>{region.prefecture}</Text>
-                  <View style={styles.regionProgressContainer}>
+                  <MaterialIcons
+                    name={isExpanded ? 'expand-more' : 'chevron-right'}
+                    size={24}
+                    color={colors.gray[700]}
+                  />
+                  <Text style={styles.regionBlockName}>{block.label}</Text>
+                  <View style={styles.regionBlockProgressContainer}>
                     <View style={styles.progressBarBg}>
-                      <View style={[styles.progressBarFill, { width: `${percent}%` }]} />
+                      <View style={[styles.progressBarFill, { width: `${blockPercent}%` }]} />
                     </View>
                   </View>
-                  <Text style={styles.regionCount}>
-                    {region.visitedCount}/{region.totalCount}
+                  <Text style={styles.regionBlockCount}>
+                    {block.visitedPrefCount}/{block.totalPrefCount}
                   </Text>
                 </TouchableOpacity>
-              );
-            })}
-          </Card>
+                {isExpanded &&
+                  block.prefectures.map(pref => {
+                    const prefColor = pref.hasVisited ? colors.primary[500] : colors.gray[400];
+                    return (
+                      <TouchableOpacity
+                        key={pref.prefecture}
+                        style={styles.regionPrefRow}
+                        onPress={() => handleRegionPress(pref.prefecture)}
+                        activeOpacity={0.7}
+                      >
+                        <MaterialIcons name="location-on" size={18} color={prefColor} />
+                        <Text style={[styles.regionPrefName, { color: prefColor }]}>
+                          {pref.prefecture}
+                        </Text>
+                        <Text style={[styles.regionPrefCount, { color: prefColor }]}>
+                          {pref.visitedCount}/{pref.totalCount}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+              </Card>
+            );
+          })
         )}
 
         {/* Wishlist Section */}
@@ -499,22 +547,45 @@ const styles = StyleSheet.create({
     color: colors.gray[400],
     textAlign: 'center',
   },
-  sectionCard: {
-    marginBottom: spacing.xl,
+  regionBlockCard: {
+    marginBottom: spacing.sm,
   },
-  regionRow: {
+  regionBlockHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  regionBlockName: {
+    ...typography.body,
+    color: colors.gray[800],
+    fontWeight: '600',
+    minWidth: 100,
+  },
+  regionBlockProgressContainer: {
+    flex: 1,
+    marginHorizontal: spacing.sm,
+  },
+  regionBlockCount: {
+    ...typography.bodySmall,
+    color: colors.gray[600],
+    minWidth: 32,
+    textAlign: 'right',
+  },
+  regionPrefRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    marginBottom: spacing.md,
+    paddingLeft: spacing.xl + spacing.sm,
+    paddingVertical: spacing.xs,
   },
-  regionName: {
+  regionPrefName: {
     ...typography.bodySmall,
-    color: colors.gray[700],
-    minWidth: 60,
-  },
-  regionProgressContainer: {
     flex: 1,
+  },
+  regionPrefCount: {
+    ...typography.bodySmall,
+    textAlign: 'right',
+    minWidth: 40,
   },
   regionEmptyCard: {
     alignItems: 'center',
@@ -526,12 +597,6 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.gray[400],
     textAlign: 'center',
-  },
-  regionCount: {
-    ...typography.bodySmall,
-    color: colors.gray[700],
-    textAlign: 'right',
-    minWidth: 40,
   },
   wishlistEmptyCard: {
     alignItems: 'center',

@@ -68,7 +68,9 @@ export function MapScreen({ navigation, route }: Props) {
   const [showFilter, setShowFilter] = useState(false);
   const [currentLatitudeDelta, setCurrentLatitudeDelta] = useState(LATITUDE_DELTA);
   const [selectedSpotId, setSelectedSpotId] = useState<string | null>(null);
-  const shouldShowLabels = currentLatitudeDelta <= LABEL_VISIBLE_DELTA;
+  const [forceLabelVisible, setForceLabelVisible] = useState(false);
+  const skipRegionChangeRef = useRef(false);
+  const shouldShowLabels = currentLatitudeDelta <= LABEL_VISIBLE_DELTA || forceLabelVisible;
   const mapRef = useRef<MapView>(null);
   const insets = useSafeAreaInsets();
 
@@ -104,6 +106,7 @@ export function MapScreen({ navigation, route }: Props) {
     const focusPrefecture = route.params?.focusPrefecture;
     if (!focusPrefecture) {
       setPrefectureSpots([]);
+      setForceLabelVisible(false);
       return;
     }
 
@@ -113,6 +116,8 @@ export function MapScreen({ navigation, route }: Props) {
 
       if (data.length > 0 && mapRef.current) {
         const coords = data.map(s => ({ latitude: s.lat, longitude: s.lng }));
+        skipRegionChangeRef.current = true;
+        setForceLabelVisible(true);
         mapRef.current.fitToCoordinates(coords, {
           edgePadding: { top: 100, right: 50, bottom: 50, left: 50 },
           animated: true,
@@ -143,6 +148,11 @@ export function MapScreen({ navigation, route }: Props) {
 
   const handleRegionChangeComplete = useCallback((r: Region) => {
     setCurrentLatitudeDelta(r.latitudeDelta);
+    if (skipRegionChangeRef.current) {
+      skipRegionChangeRef.current = false;
+    } else {
+      setForceLabelVisible(false);
+    }
   }, []);
 
   const handleMarkerPress = useCallback(

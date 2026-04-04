@@ -180,13 +180,22 @@ describe('CollectionScreen', () => {
     expect(getByText('御朱印（枚）')).toBeTruthy();
   });
 
-  it('地域別データが表示される', () => {
-    const { getByText } = render(
+  it('地域別データが地域ブロックのトグルで表示される', () => {
+    const { getByText, queryByText } = render(
       <CollectionScreen navigation={mockNavigation} route={mockRoute} />
     );
     expect(getByText('地域別')).toBeTruthy();
+    // 初期表示では地域ブロックヘッダーのみ
+    expect(getByText('北海道・東北')).toBeTruthy();
+    expect(getByText('関東')).toBeTruthy();
+    // 都道府県は初期表示では非表示
+    expect(queryByText('宮城県')).toBeNull();
+    // 北海道・東北を開く
+    fireEvent.press(getByText('北海道・東北'));
     expect(getByText('宮城県')).toBeTruthy();
     expect(getByText('5/10')).toBeTruthy();
+    // 関東を開く
+    fireEvent.press(getByText('関東'));
     expect(getByText('東京都')).toBeTruthy();
     expect(getByText('3/20')).toBeTruthy();
   });
@@ -251,10 +260,12 @@ describe('CollectionScreen', () => {
   });
 
   describe('地域カードタップでマップへの遷移', () => {
-    it('地域行をタップすると MapTab の focusPrefecture で遷移する', () => {
+    it('地域ブロックを開いて都道府県をタップすると MapTab へ遷移する', () => {
       const { getByText } = render(
         <CollectionScreen navigation={mockNavigation} route={mockRoute} />
       );
+      // 北海道・東北を開いて宮城県をタップ
+      fireEvent.press(getByText('北海道・東北'));
       fireEvent.press(getByText('宮城県'));
       expect(mockParentNavigate).toHaveBeenCalledWith('MapTab', {
         screen: 'Map',
@@ -262,10 +273,12 @@ describe('CollectionScreen', () => {
       });
     });
 
-    it('別の地域行をタップすると対応する prefecture で遷移する', () => {
+    it('別の地域ブロックを開いて都道府県をタップすると対応する prefecture で遷移する', () => {
       const { getByText } = render(
         <CollectionScreen navigation={mockNavigation} route={mockRoute} />
       );
+      // 関東を開いて東京都をタップ
+      fireEvent.press(getByText('関東'));
       fireEvent.press(getByText('東京都'));
       expect(mockParentNavigate).toHaveBeenCalledWith('MapTab', {
         screen: 'Map',
