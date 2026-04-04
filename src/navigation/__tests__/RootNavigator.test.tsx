@@ -16,6 +16,7 @@ jest.mock('@services/supabase', () => ({
 
 // Mock auth service
 jest.mock('@services/auth', () => ({
+  configureGoogleSignIn: jest.fn(),
   signInWithGoogle: jest.fn(),
   signOut: jest.fn(),
 }));

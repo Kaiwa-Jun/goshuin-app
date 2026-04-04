@@ -1,6 +1,6 @@
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-// [REVERT-TO-NATIVE] ネイティブ版に戻す際に configureGoogleSignIn() を復活
+import { configureGoogleSignIn } from '@services/auth';
 import { TabNavigator } from '@/navigation/TabNavigator';
 import { OnboardingScreen } from '@screens/OnboardingScreen';
 import { LoginScreen } from '@screens/LoginScreen';
@@ -12,6 +12,8 @@ import { useOnboarding } from '@hooks/useOnboarding';
 import type { RootStackParamList } from '@/navigation/types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+configureGoogleSignIn();
 
 export function RootNavigator() {
   const { isCompleted, isLoading } = useOnboarding();

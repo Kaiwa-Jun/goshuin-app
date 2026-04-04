@@ -215,10 +215,13 @@ src/
 └── utils/          # ユーティリティ関数
 ```
 
-## Expo Go での動作確認
+## EAS Development Build での動作確認
 
-- Expo Go で確認するため `expo-dev-client` は使用しない（入れると Expo Go でロードできなくなる）
-- 起動コマンド: `npx expo start --tunnel`（LAN モードでは iPhone からバンドルが取得できないため tunnel 必須）
+- ネイティブモジュール（Google Sign-In 等）を使用するため、EAS Development Build を使用
+- Expo Go では動作しない（ネイティブモジュール非対応）
+- ビルドコマンド: `eas build --profile development --platform ios`（クラウドビルド、ローカル Xcode 不要）
+- 起動コマンド: `npx expo start --dev-client --tunnel`
+- 実機への配布: EAS ビルド完了後、QR コードまたは URL でインストール
 
 ## Expo Web での UI チェック環境
 
