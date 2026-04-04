@@ -118,11 +118,25 @@ export function SettingsScreen({ navigation }: Props) {
             <Text style={styles.rowLabel}>バージョン</Text>
             <Text style={styles.rowValue}>1.0.0</Text>
           </View>
-          <TouchableOpacity style={styles.row} accessibilityRole="button">
+          <TouchableOpacity
+            style={styles.row}
+            accessibilityRole="button"
+            onPress={() => {
+              const parent = navigation.getParent();
+              if (parent) parent.navigate('TermsOfService');
+            }}
+          >
             <Text style={styles.rowLabel}>利用規約</Text>
             <MaterialIcons name="chevron-right" size={24} color={colors.gray[400]} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.row} accessibilityRole="button">
+          <TouchableOpacity
+            style={styles.row}
+            accessibilityRole="button"
+            onPress={() => {
+              const parent = navigation.getParent();
+              if (parent) parent.navigate('PrivacyPolicy');
+            }}
+          >
             <Text style={styles.rowLabel}>プライバシーポリシー</Text>
             <MaterialIcons name="chevron-right" size={24} color={colors.gray[400]} />
           </TouchableOpacity>

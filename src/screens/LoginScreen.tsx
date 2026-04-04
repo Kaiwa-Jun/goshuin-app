@@ -69,8 +69,15 @@ export function LoginScreen({ navigation }: Props) {
       <View style={styles.footer}>
         <Text style={styles.termsText}>
           ログインすると
-          <Text style={styles.termsLink}> 利用規約 </Text>と
-          <Text style={styles.termsLink}> プライバシーポリシー </Text>
+          <Text style={styles.termsLink} onPress={() => navigation.navigate('TermsOfService')}>
+            {' '}
+            利用規約{' '}
+          </Text>
+          と
+          <Text style={styles.termsLink} onPress={() => navigation.navigate('PrivacyPolicy')}>
+            {' '}
+            プライバシーポリシー{' '}
+          </Text>
           に同意したことになります
         </Text>
       </View>
