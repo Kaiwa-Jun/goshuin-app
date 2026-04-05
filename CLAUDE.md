@@ -52,9 +52,10 @@ Issue の規模に応じてエージェントチームを構成し、TDD で実�
 
 **利用可能なサブエージェント:**
 
-- `ui-implementer` - 画面UI + テストを TDD で実装（Sonnet）
-- `service-implementer` - サービス層 + テストを TDD で実装（Sonnet）
-- `test-writer` - TDD で単独実装 or 既存コードへのテスト追加（Sonnet）
+- `ui-implementer` - 画面UI + テストを TDD で実装（Sonnet）【Generator】
+- `service-implementer` - サービス層 + テストを TDD で実装（Sonnet）【Generator】
+- `test-writer` - TDD で単独実装 or 既存コードへのテスト追加（Sonnet）【Generator】
+- `qa-evaluator` - Sprint Contract の受入基準に基づく品質検証（Sonnet）【Evaluator】
 - `codebase-explorer` - コードベース探索・調査（Haiku）
 - `security-reviewer` - セキュリティレビュー（Sonnet）
 
@@ -70,36 +71,57 @@ Issue の規模に応じてエージェントチームを構成し、TDD で実�
 2. **Green**: テストが通る最小限の実装
 3. **Refactor**: テストを通したままリファクタ
 
-### Phase 3. 検証
+### Phase 2.5. QA評価（qa-evaluator による品質検証）
 
-実装後は必ず以下を実行して検証:
+Phase 2 の実装完了後、**qa-evaluator エージェント**が Sprint Contract の受入基準に基づいて品質検証を行う。
 
-#### 3-1. 自動検証
+1. リーダーが `qa-evaluator` サブエージェントを起動
+2. qa-evaluator が以下を実行:
+   - `npm test`, `npm run lint`, `npm run typecheck` の自動検証
+   - Playwright MCP で Expo Web (`localhost:8081`) の UI 検証
+   - Sprint Contract の受入基準（AC/UI/Q）を1つずつ判定
+3. 評価結果を構造化レポートで返却
 
-- `npm test` - テスト実行
-- `npm run lint` - lint チェック
-- `npm run typecheck` - 型チェック
+#### Generator-Evaluator ループ
 
-#### 3-2. UI 目視チェック（Chrome DevTools MCP + Expo Web）
+- **PASS**: Phase 3（最終確認）に進む
+- **FAIL**: qa-evaluator のフィードバックを元に Generator（ui-implementer等）が修正
+  - 修正後、再度 qa-evaluator が評価
+  - **最大5回のループ**。5回で収束しない場合はリーダーが介入して判断
 
-画面の実装・変更を含む Issue では、リーダーが Chrome DevTools MCP で UI を目視確認する:
+#### 責任分離ルール
+
+| 役割                                               | 責任範囲                             | やってはいけないこと |
+| -------------------------------------------------- | ------------------------------------ | -------------------- |
+| Generator（ui-implementer, service-implementer等） | TDD実装 + 自己チェック（テスト通過） | 受入基準の合否判定   |
+| Evaluator（qa-evaluator）                          | 受入基準に基づく品質検証             | コードの修正         |
+| リーダー                                           | 全体統括 + ループ管理                | 実装の直接実行       |
+
+※ UI 変更を含まない Issue（サービス層のみ等）では Playwright による UI 検証をスキップ可
+
+### Phase 3. 最終検証（リーダー確認）
+
+qa-evaluator が PASS 判定を出した後、リーダーが最終確認を行う:
+
+#### 3-1. qa-evaluator レポート確認
+
+- 評価レポートの内容を確認
+- 全受入基準が PASS であることを確認
+
+#### 3-2. UI 目視チェック（必要な場合のみ）
+
+qa-evaluator が取得したスクリーンショットで確認が十分な場合はスキップ。
+追加で Chrome DevTools MCP による目視確認が必要な場合のみ実施:
 
 1. Expo Web サーバーを起動: `npx expo start --web --port 8081`
 2. Chrome DevTools MCP で `http://localhost:8081` にナビゲート
-3. 変更した画面のスクリーンショットを取得して以下を確認:
-   - Stitch デザイン（スクリーンショット）との差分がないか
-   - レイアウト崩れがないか
-   - テーマカラー（オレンジ基調）が正しいか
-   - テキスト・アイコンが正しく表示されているか
-4. 基本操作（タブ遷移、ボタンクリック）が動作するか確認
+3. 変更した画面のスクリーンショットを取得して確認
 
-**制約事項:**
+**Expo Web の制約事項:**
 
 - 地図背景は Web 非対応（`react-native-maps` はモック）。マーカー・ラベルは確認可能
 - カメラ機能は Web 非対応
 - スワイプ操作は非対応（ボタン・タブのクリックは OK）
-
-※ UI 変更を含まない Issue（サービス層のみ等）ではスキップ可
 
 ## ユーザーへの次のアクション案内（必須ルール）
 
@@ -137,16 +159,31 @@ Phase 1（計画）が完了しました。
 
 ```
 ---
-Phase 2（実装）が完了しました。
+Phase 2（実装）が完了しました。qa-evaluator による品質検証を開始します。
+（評価結果が出るまでお待ちください）
+---
+```
+
+**Phase 2.5（QA評価）完了時:**
+
+```
+---
+Phase 2.5（QA評価）が完了しました。
 
 変更ファイル: （変更したファイルの一覧）
 
-検証結果:
-- テスト: OK / NG
+評価結果: PASS / FAIL
+- 受入基準: X/Y 合格
+- 自動テスト: OK / NG
 - Lint: OK / NG
 - 型チェック: OK / NG
-- UIチェック: OK / スキップ（UI変更なし）
+- UI検証: OK / NG / スキップ（UI変更なし）
 
+{FAIL の場合}
+不合格項目のフィードバックを元に修正を行います。
+（修正 → 再評価ループに入ります。最大5回）
+
+{PASS の場合}
 次のステップ:
 - 問題なければ「commit して push して」と指示してください
 - 修正が必要な場合はその内容を伝えてください

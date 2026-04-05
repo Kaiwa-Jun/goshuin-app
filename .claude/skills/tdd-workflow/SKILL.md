@@ -35,13 +35,14 @@ Issue の実装に着手する前に、**エージェントチームを構成す
 
 各メンバーが**自分の担当領域でテストも実装も書く**。テスト専任メンバーは作らない。
 
-| ロール           | モデル | サブエージェント      | 説明                               |
-| ---------------- | ------ | --------------------- | ---------------------------------- |
-| リーダー（自分） | Opus   | -                     | タスク分割・割り当て・統合・検証   |
-| UI担当           | Sonnet | `ui-implementer`      | 画面UI + そのテストをTDDで実装     |
-| サービス担当     | Sonnet | `service-implementer` | サービス層 + そのテストをTDDで実装 |
+| ロール           | モデル | サブエージェント      | 説明                                         | 分類      |
+| ---------------- | ------ | --------------------- | -------------------------------------------- | --------- |
+| リーダー（自分） | Opus   | -                     | タスク分割・割り当て・統合・ループ管理       | 統括      |
+| UI担当           | Sonnet | `ui-implementer`      | 画面UI + そのテストをTDDで実装               | Generator |
+| サービス担当     | Sonnet | `service-implementer` | サービス層 + そのテストをTDDで実装           | Generator |
+| QA評価           | Sonnet | `qa-evaluator`        | 受入基準に基づく品質検証（実装完了後に起動） | Evaluator |
 
-`test-writer` はTDD全体を1人で進める場合や、既存コードへのテスト追加に使用する。
+`test-writer` はTDD全体を1人で進める場合や、既存コードへのテスト追加に使用する（Generator）。
 
 #### 基本方針
 
@@ -60,9 +61,10 @@ Issue の実装に着手する前に、**エージェントチームを構成す
 4. メンバーにタスクを割り当て（TaskUpdate で owner 設定）
 5. **各メンバーが自分の担当領域で TDD サイクルを回す**
 6. メンバーは完了後に TaskUpdate で completed に更新
-7. リーダーは結果を統合し、検証コマンドを実行
-8. 全タスク完了後、SendMessage で shutdown_request を送信
-9. TeamDelete でクリーンアップ
+7. リーダーは結果を統合し、qa-evaluator を起動して品質検証
+8. FAIL の場合は該当 Generator に修正を指示し、再度 qa-evaluator で検証（最大5回）
+9. PASS 確認後、SendMessage で shutdown_request を送信
+10. TeamDelete でクリーンアップ
 
 #### チーム構成例（画面実装）
 
@@ -79,6 +81,31 @@ Issue #15 の登録完了画面を実装するため、エージェントチー�
 
 各メンバーは Red→Green→Refactor サイクルを厳密に守ること。
 ```
+
+### Generator-Evaluator 責任分離
+
+ハーネス設計パターン（Anthropic推奨）に基づき、生成と評価を分離する。
+
+**Generator（ui-implementer, service-implementer, test-writer）:**
+
+- 自分の担当領域で TDD サイクルを回す
+- テストが通ることを確認してからタスクを完了とする
+- 受入基準の合否判定は行わない（それは Evaluator の仕事）
+
+**Evaluator（qa-evaluator）:**
+
+- 全 Generator のタスク完了後に起動
+- Sprint Contract の受入基準に基づいて品質検証を行う
+- コードの修正は行わない（フィードバックを返すのみ）
+- 不合格の場合、具体的な修正指示を Generator 向けに出力
+
+**ループフロー:**
+
+1. Generator が実装完了 → リーダーに報告
+2. リーダーが qa-evaluator を起動
+3. qa-evaluator が検証 → レポート返却
+4. FAIL の場合: リーダーが該当 Generator に修正を指示 → 2 に戻る（最大5回）
+5. PASS の場合: リーダーが最終確認 → commit/push
 
 ## 基本サイクル: Red → Green → Refactor
 
