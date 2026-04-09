@@ -25,6 +25,7 @@ import { useNearbySpots } from '@hooks/useNearbySpots';
 import { useAuth } from '@hooks/useAuth';
 import { useLocation } from '@hooks/useLocation';
 import { getStampImageUrl, fetchVisitedSpotIds } from '@services/stamps';
+import { isNetworkError } from '@/utils/errorClassifier';
 import { evaluateNewBadge } from '@services/badges';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
@@ -73,6 +74,9 @@ export function RecordScreen({ navigation, route }: Props) {
         visitCount: currentCount,
         badge,
       });
+    } else if (!result.success) {
+      const errorType = isNetworkError(result.error) ? 'network' : 'upload';
+      navigation.navigate('Error', { type: errorType, origin: 'record' });
     }
   };
 
@@ -195,12 +199,6 @@ export function RecordScreen({ navigation, route }: Props) {
               />
             </View>
           </View>
-
-          {form.submitError && (
-            <Text style={styles.submitError} testID="submit-error">
-              {form.submitError}
-            </Text>
-          )}
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -316,12 +314,6 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.gray[800],
     flex: 1,
-  },
-  submitError: {
-    ...typography.bodySmall,
-    color: colors.error,
-    marginTop: spacing.md,
-    textAlign: 'center',
   },
   dateConfirmButton: {
     alignSelf: 'flex-end',

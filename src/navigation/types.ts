@@ -19,7 +19,7 @@ export type RootStackParamList = {
   Login: undefined;
   TermsOfService: undefined;
   PrivacyPolicy: undefined;
-  Error: { type: 'network' | 'location' | 'upload' };
+  Error: { type: 'network' | 'location' | 'upload'; origin?: 'record' };
 };
 
 export type CollectionStackParamList = {

@@ -86,12 +86,14 @@ jest.mock('@hooks/useAuth', () => ({
 
 const mockLocation = { latitude: 38.2682, longitude: 140.8694 };
 
+let mockPermissionStatus: string = 'granted';
+
 jest.mock('@hooks/useLocation', () => ({
   useLocation: () => ({
     location: mockLocation,
     isLoading: false,
     error: null,
-    permissionStatus: 'granted',
+    permissionStatus: mockPermissionStatus,
     refreshLocation: jest.fn(),
   }),
 }));
@@ -191,6 +193,7 @@ describe('MapScreen', () => {
       signOut: jest.fn(),
     };
     mockFetchSpotsByPrefecture.mockResolvedValue([]);
+    mockPermissionStatus = 'granted';
   });
 
   it('renders without crashing', () => {
@@ -546,6 +549,41 @@ describe('MapScreen', () => {
       // 県内 spots のマーカーも表示される
       expect(getByTestId('spot-marker-pref-spot-1')).toBeTruthy();
       expect(getByTestId('spot-marker-pref-spot-2')).toBeTruthy();
+    });
+
+    describe('位置情報オフバナー', () => {
+      it('permissionStatus が granted のときはバナーを表示しない', () => {
+        mockPermissionStatus = 'granted';
+        const { queryByTestId } = render(
+          <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+        );
+        expect(queryByTestId('location-off-banner')).toBeNull();
+      });
+
+      it('permissionStatus が denied のときはバナーを表示する', () => {
+        mockPermissionStatus = 'denied';
+        const { getByTestId } = render(
+          <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+        );
+        expect(getByTestId('location-off-banner')).toBeTruthy();
+      });
+
+      it('バナーに「位置情報がオフです。タップして設定」テキストが表示される', () => {
+        mockPermissionStatus = 'denied';
+        const { getByText } = render(
+          <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+        );
+        expect(getByText('位置情報がオフです。タップして設定')).toBeTruthy();
+      });
+
+      it('バナーをタップすると Error 画面（type: location）に遷移する', () => {
+        mockPermissionStatus = 'denied';
+        const { getByTestId } = render(
+          <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+        );
+        fireEvent.press(getByTestId('location-off-banner'));
+        expect(mockNavigation.navigate).toHaveBeenCalledWith('Error', { type: 'location' });
+      });
     });
 
     it('focusPrefecture が消えると prefectureSpots がクリアされる', async () => {

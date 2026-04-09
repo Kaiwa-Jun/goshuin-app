@@ -12,7 +12,7 @@ export interface LocationState {
   isLoading: boolean;
   error: string | null;
   permissionStatus: Location.PermissionStatus | null;
-  refreshLocation: () => Promise<void>;
+  refreshLocation: () => Promise<LocationCoords | null>;
 }
 
 export function useLocation(): LocationState {
@@ -21,7 +21,7 @@ export function useLocation(): LocationState {
   const [error, setError] = useState<string | null>(null);
   const [permissionStatus, setPermissionStatus] = useState<Location.PermissionStatus | null>(null);
 
-  const fetchLocation = useCallback(async () => {
+  const fetchLocation = useCallback(async (): Promise<LocationCoords | null> => {
     try {
       const { status } = await Location.getForegroundPermissionsAsync();
       setPermissionStatus(status);
@@ -29,21 +29,24 @@ export function useLocation(): LocationState {
       if (status !== Location.PermissionStatus.GRANTED) {
         setLocation(DEFAULT_LOCATION);
         setIsLoading(false);
-        return;
+        return null;
       }
 
       const position = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
-      setLocation({
+      const coords = {
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
-      });
+      };
+      setLocation(coords);
       setError(null);
+      return coords;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       setError(message);
       setLocation(DEFAULT_LOCATION);
+      return null;
     } finally {
       setIsLoading(false);
     }
@@ -53,10 +56,10 @@ export function useLocation(): LocationState {
     fetchLocation();
   }, [fetchLocation]);
 
-  const refreshLocation = useCallback(async () => {
+  const refreshLocation = useCallback(async (): Promise<LocationCoords | null> => {
     setIsLoading(true);
     setError(null);
-    await fetchLocation();
+    return fetchLocation();
   }, [fetchLocation]);
 
   return {

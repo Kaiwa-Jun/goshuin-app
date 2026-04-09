@@ -1,5 +1,7 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { AppState, Linking, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Location from 'expo-location';
 
 import { Button } from '@components/common/Button';
 import { ErrorIcon } from '@components/animated/ErrorIcon';
@@ -42,14 +44,43 @@ const ERROR_CONFIG: Record<
 
 export function ErrorScreen({ route, navigation }: Props) {
   const errorType = route.params.type;
+  const origin = route.params.origin;
   const config = ERROR_CONFIG[errorType];
+  const appState = useRef(AppState.currentState);
+
+  useEffect(() => {
+    if (errorType !== 'location') return;
+
+    const subscription = AppState.addEventListener('change', async nextAppState => {
+      if (
+        (appState.current === 'background' || appState.current === 'inactive') &&
+        nextAppState === 'active'
+      ) {
+        const { status } = await Location.getForegroundPermissionsAsync();
+        if (status === 'granted') {
+          navigation.goBack();
+        }
+      }
+      appState.current = nextAppState;
+    });
+
+    return () => subscription.remove();
+  }, [errorType, navigation]);
 
   const handlePrimaryPress = () => {
-    navigation.goBack();
+    if (errorType === 'location') {
+      Linking.openSettings();
+    } else {
+      navigation.goBack();
+    }
   };
 
   const handleSecondaryPress = () => {
-    navigation.goBack();
+    if (origin === 'record') {
+      navigation.pop(2);
+    } else {
+      navigation.goBack();
+    }
   };
 
   return (
