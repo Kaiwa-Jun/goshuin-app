@@ -1,4 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 import { Alert, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -15,6 +16,7 @@ type Props = MainTabScreenProps<'Settings'>;
 export function SettingsScreen({ navigation }: Props) {
   const { user, isAuthenticated, signOut } = useAuth();
   const { defaultPublic, updateDefaultPublic } = useDefaultPublicSetting();
+  const appVersion = Constants.expoConfig?.version ?? '不明';
 
   const displayName = isAuthenticated
     ? (user?.user_metadata?.full_name as string) || 'ユーザー'
@@ -116,7 +118,7 @@ export function SettingsScreen({ navigation }: Props) {
         <Card style={styles.sectionCard}>
           <View style={styles.row}>
             <Text style={styles.rowLabel}>バージョン</Text>
-            <Text style={styles.rowValue}>1.0.0</Text>
+            <Text style={styles.rowValue}>{appVersion}</Text>
           </View>
           <TouchableOpacity
             style={styles.row}
