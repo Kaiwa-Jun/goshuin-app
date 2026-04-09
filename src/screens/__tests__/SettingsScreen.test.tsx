@@ -5,6 +5,13 @@ import { Alert } from 'react-native';
 import { SettingsScreen } from '../SettingsScreen';
 import type { MainTabScreenProps } from '@/navigation/types';
 
+jest.mock('expo-constants', () => ({
+  __esModule: true,
+  default: {
+    expoConfig: { version: '0.1.0' },
+  },
+}));
+
 jest.mock('react-native-safe-area-context', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
   const RN = require('react-native');
@@ -225,9 +232,20 @@ describe('SettingsScreen', () => {
     const { getByText } = render(<SettingsScreen navigation={mockNavigation} route={mockRoute} />);
     expect(getByText('アプリ情報')).toBeTruthy();
     expect(getByText('バージョン')).toBeTruthy();
-    expect(getByText('1.0.0')).toBeTruthy();
+    expect(getByText('0.1.0')).toBeTruthy();
     expect(getByText('利用規約')).toBeTruthy();
     expect(getByText('プライバシーポリシー')).toBeTruthy();
+  });
+
+  it('バージョンが不明な場合に "不明" を表示する', () => {
+    const Constants = jest.requireMock('expo-constants').default;
+    const original = Constants.expoConfig;
+    Constants.expoConfig = null;
+
+    const { getByText } = render(<SettingsScreen navigation={mockNavigation} route={mockRoute} />);
+    expect(getByText('不明')).toBeTruthy();
+
+    Constants.expoConfig = original;
   });
 
   it('navigates to TermsOfService when 利用規約 is pressed', () => {
