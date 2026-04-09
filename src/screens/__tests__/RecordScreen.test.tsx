@@ -358,10 +358,63 @@ describe('RecordScreen', () => {
     expect(getByText(/駐車場の有無、受付時間、アクセス情報などを書くと/)).toBeTruthy();
   });
 
-  it('shows submit error when submit fails', async () => {
-    mockFormState.submitError = '保存に失敗しました';
+  it('navigates to Error screen when submit fails', async () => {
+    mockFormState.selectedSpot = fakeSpot;
+    mockFormState.imageUri = 'file:///photo.jpg';
+    mockSubmit.mockResolvedValue({ success: false });
+    mockFetchVisitedSpotIds.mockResolvedValue(new Set());
 
     const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
-    expect(getByText('保存に失敗しました')).toBeTruthy();
+    fireEvent.press(getByText('この内容で記録する'));
+    fireEvent.press(getByText('登録する'));
+
+    await waitFor(() => {
+      expect(mockNavigation.navigate).toHaveBeenCalledWith('Error', {
+        type: 'upload',
+        origin: 'record',
+      });
+    });
+  });
+
+  it('ネットワークエラーの場合は type: "network" でエラー画面に遷移する', async () => {
+    mockFormState.selectedSpot = fakeSpot;
+    mockFormState.imageUri = 'file:///photo.jpg';
+    mockSubmit.mockResolvedValue({
+      success: false,
+      error: new Error('Network request failed'),
+    });
+    mockFetchVisitedSpotIds.mockResolvedValue(new Set());
+
+    const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent.press(getByText('この内容で記録する'));
+    fireEvent.press(getByText('登録する'));
+
+    await waitFor(() => {
+      expect(mockNavigation.navigate).toHaveBeenCalledWith('Error', {
+        type: 'network',
+        origin: 'record',
+      });
+    });
+  });
+
+  it('ネットワーク以外のエラーの場合は type: "upload" でエラー画面に遷移する', async () => {
+    mockFormState.selectedSpot = fakeSpot;
+    mockFormState.imageUri = 'file:///photo.jpg';
+    mockSubmit.mockResolvedValue({
+      success: false,
+      error: new Error('保存に失敗しました'),
+    });
+    mockFetchVisitedSpotIds.mockResolvedValue(new Set());
+
+    const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent.press(getByText('この内容で記録する'));
+    fireEvent.press(getByText('登録する'));
+
+    await waitFor(() => {
+      expect(mockNavigation.navigate).toHaveBeenCalledWith('Error', {
+        type: 'upload',
+        origin: 'record',
+      });
+    });
   });
 });

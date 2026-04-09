@@ -26,7 +26,11 @@ interface UseRecordFormReturn {
   setMemo: (text: string) => void;
   setIsPublic: (value: boolean) => void;
   validate: () => boolean;
-  submit: () => Promise<{ success: boolean; stamp?: Stamp }>;
+  submit: () => Promise<{
+    success: boolean;
+    stamp?: Stamp;
+    error?: unknown;
+  }>;
   reset: () => void;
 }
 
@@ -95,7 +99,11 @@ export function useRecordForm(params?: UseRecordFormParams): UseRecordFormReturn
     return valid;
   }, [selectedSpot, imageUri]);
 
-  const submit = useCallback(async (): Promise<{ success: boolean; stamp?: Stamp }> => {
+  const submit = useCallback(async (): Promise<{
+    success: boolean;
+    stamp?: Stamp;
+    error?: unknown;
+  }> => {
     if (!validate()) {
       return { success: false };
     }
@@ -122,7 +130,7 @@ export function useRecordForm(params?: UseRecordFormParams): UseRecordFormReturn
     } catch (error) {
       const message = error instanceof Error ? error.message : '保存に失敗しました';
       setSubmitError(message);
-      return { success: false };
+      return { success: false, error };
     } finally {
       setIsSubmitting(false);
     }

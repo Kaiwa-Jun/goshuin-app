@@ -1,9 +1,10 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
-import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { AppState, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker, type MapPressEvent, type Region } from 'react-native-maps';
 import { MaterialIcons } from '@expo/vector-icons';
 
+import { PermissionStatus } from 'expo-location';
 import { fetchSpotsByPrefecture } from '@services/spots';
 import { FABButton } from '@components/animated/FABButton';
 import { SearchBar } from '@components/common/SearchBar';
@@ -52,7 +53,7 @@ function getPinColor(
 
 export function MapScreen({ navigation, route }: Props) {
   const { isAuthenticated } = useAuth();
-  const { location } = useLocation();
+  const { location, permissionStatus, refreshLocation } = useLocation();
   const { visitedSpotIds } = useUserStamps();
   const { wishlistSpotIds, toggleWishlist } = useWishlist();
   const [prefectureSpots, setPrefectureSpots] = useState<Spot[]>([]);
@@ -75,6 +76,35 @@ export function MapScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
 
   const searchRowTop = insets.top + spacing.xs;
+
+  // 設定画面から戻った際に位置情報を再取得し、地図を現在地に移動する
+  const appStateRef = useRef(AppState.currentState);
+  useEffect(() => {
+    if (permissionStatus !== PermissionStatus.DENIED) return;
+
+    const subscription = AppState.addEventListener('change', async nextAppState => {
+      if (
+        (appStateRef.current === 'background' || appStateRef.current === 'inactive') &&
+        nextAppState === 'active'
+      ) {
+        const coords = await refreshLocation();
+        if (coords && mapRef.current) {
+          mapRef.current.animateToRegion(
+            {
+              latitude: coords.latitude,
+              longitude: coords.longitude,
+              latitudeDelta: LATITUDE_DELTA,
+              longitudeDelta: LONGITUDE_DELTA,
+            },
+            500
+          );
+        }
+      }
+      appStateRef.current = nextAppState;
+    });
+
+    return () => subscription.remove();
+  }, [permissionStatus, refreshLocation]);
 
   const minRank = getMinRank(currentLatitudeDelta);
   const visibleSpots = useMemo(
@@ -327,6 +357,18 @@ export function MapScreen({ navigation, route }: Props) {
         ))}
       </MapView>
 
+      {permissionStatus === PermissionStatus.DENIED && (
+        <TouchableOpacity
+          style={[styles.locationOffBanner, { top: searchRowTop + 52 }]}
+          onPress={() => navigation.navigate('Error', { type: 'location' })}
+          activeOpacity={0.8}
+          testID="location-off-banner"
+        >
+          <MaterialIcons name="location-off" size={18} color={colors.primary[600]} />
+          <Text style={styles.locationOffBannerText}>位置情報がオフです。タップして設定</Text>
+        </TouchableOpacity>
+      )}
+
       {!selectedSpotId && (
         <View style={styles.fabContainer}>
           <FABButton onPress={handleFABPress} />
@@ -416,6 +458,26 @@ const styles = StyleSheet.create({
   },
   map: {
     flex: 1,
+  },
+  locationOffBanner: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    zIndex: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.primary[50],
+    borderBottomWidth: 1,
+    borderBottomColor: colors.primary[200],
+  },
+  locationOffBannerText: {
+    ...typography.body,
+    color: colors.primary[600],
+    fontSize: 13,
   },
   fabContainer: {
     position: 'absolute',
