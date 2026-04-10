@@ -24,6 +24,7 @@ jest.mock('react-native-safe-area-context', () => {
 
 const mockSignOut = jest.fn();
 const mockSignInWithGoogle = jest.fn();
+const mockSignInWithApple = jest.fn();
 const mockUpdateDefaultPublic = jest.fn();
 
 jest.mock('@hooks/useDefaultPublicSetting', () => ({
@@ -41,6 +42,7 @@ let mockUseAuthReturn: Record<string, unknown> = {
   isAuthenticated: false,
   isSigningIn: false,
   signInWithGoogle: mockSignInWithGoogle,
+  signInWithApple: mockSignInWithApple,
   signOut: mockSignOut,
 };
 
@@ -72,6 +74,7 @@ describe('SettingsScreen', () => {
       isAuthenticated: false,
       isSigningIn: false,
       signInWithGoogle: mockSignInWithGoogle,
+      signInWithApple: mockSignInWithApple,
       signOut: mockSignOut,
     };
   });

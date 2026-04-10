@@ -22,10 +22,12 @@ jest.mock('@services/supabase', () => ({
 }));
 
 const mockSignInWithGoogle = jest.fn();
+const mockSignInWithApple = jest.fn();
 const mockSignOutFn = jest.fn();
 
 jest.mock('@services/auth', () => ({
   signInWithGoogle: (...args: unknown[]) => mockSignInWithGoogle(...args),
+  signInWithApple: (...args: unknown[]) => mockSignInWithApple(...args),
   signOut: (...args: unknown[]) => mockSignOutFn(...args),
 }));
 
@@ -236,6 +238,60 @@ describe('useAuth', () => {
       let signInResult: unknown;
       await act(async () => {
         signInResult = await result.current.signInWithGoogle();
+      });
+
+      expect(signInResult).toEqual(mockResult);
+    });
+  });
+
+  describe('signInWithApple', () => {
+    it('calls auth service signInWithApple and sets isSigningIn during operation', async () => {
+      let resolveSignIn: (value: unknown) => void;
+      mockSignInWithApple.mockReturnValue(
+        new Promise(resolve => {
+          resolveSignIn = resolve;
+        })
+      );
+
+      mockGetSession.mockResolvedValue({ data: { session: null }, error: null });
+
+      const { result } = renderHook(() => useAuth());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(result.current.isSigningIn).toBe(false);
+
+      let signInPromise: Promise<unknown>;
+      act(() => {
+        signInPromise = result.current.signInWithApple();
+      });
+
+      expect(result.current.isSigningIn).toBe(true);
+
+      await act(async () => {
+        resolveSignIn!({ success: true, user: createMockUser(), session: createMockSession() });
+        await signInPromise!;
+      });
+
+      expect(result.current.isSigningIn).toBe(false);
+    });
+
+    it('returns the result from auth service', async () => {
+      const mockResult = { success: true, user: createMockUser(), session: createMockSession() };
+      mockSignInWithApple.mockResolvedValue(mockResult);
+      mockGetSession.mockResolvedValue({ data: { session: null }, error: null });
+
+      const { result } = renderHook(() => useAuth());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      let signInResult: unknown;
+      await act(async () => {
+        signInResult = await result.current.signInWithApple();
       });
 
       expect(signInResult).toEqual(mockResult);
