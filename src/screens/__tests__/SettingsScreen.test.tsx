@@ -220,14 +220,6 @@ describe('SettingsScreen', () => {
     });
   });
 
-  it('renders plan section', () => {
-    const { getByText } = render(<SettingsScreen navigation={mockNavigation} route={mockRoute} />);
-    expect(getByText('プラン')).toBeTruthy();
-    expect(getByText('無料プラン')).toBeTruthy();
-    expect(getByText('プレミアムプランにアップグレード')).toBeTruthy();
-    expect(getByText('詳しく見る')).toBeTruthy();
-  });
-
   it('renders app info section', () => {
     const { getByText } = render(<SettingsScreen navigation={mockNavigation} route={mockRoute} />);
     expect(getByText('アプリ情報')).toBeTruthy();

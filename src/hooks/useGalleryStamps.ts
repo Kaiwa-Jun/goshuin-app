@@ -6,8 +6,6 @@ import type { StampWithSpot } from '@/types/supabase';
 
 export type SortOrder = 'date' | 'spot';
 
-const FREE_LIMIT = 20;
-
 interface UseGalleryStampsReturn {
   stamps: StampWithSpot[];
   totalCount: number;
@@ -71,7 +69,7 @@ export function useGalleryStamps(sortOrder: SortOrder): UseGalleryStampsReturn {
       sorted.sort((a, b) => a.spots.name.localeCompare(b.spots.name, 'ja'));
     }
     // date order is already sorted from API (visited_at DESC)
-    return sorted.slice(0, FREE_LIMIT);
+    return sorted;
   }, [allStamps, sortOrder]);
 
   return {

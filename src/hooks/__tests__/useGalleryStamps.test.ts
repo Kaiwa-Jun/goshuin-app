@@ -110,7 +110,7 @@ describe('useGalleryStamps', () => {
     expect(names).toEqual(['伊勢神宮', '金閣寺', '浅草寺']);
   });
 
-  it('20件超: 20件に制限、totalCount は全件数', async () => {
+  it('20件超: 全件返却、totalCount は全件数', async () => {
     mockUser = { id: 'user-1' };
     const stamps = Array.from({ length: 25 }, (_, i) => makeStampWithSpot({ id: `stamp-${i}` }));
     mockFetchAllStamps.mockResolvedValue(stamps);
@@ -121,7 +121,7 @@ describe('useGalleryStamps', () => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    expect(result.current.stamps).toHaveLength(20);
+    expect(result.current.stamps).toHaveLength(25);
     expect(result.current.totalCount).toBe(25);
   });
 
