@@ -33,7 +33,6 @@ export function GalleryScreen() {
   const [sortOrder, setSortOrder] = useState<SortOrder>('date');
   const {
     stamps,
-    totalCount,
     isLoading,
     removeStamp,
     updateStamp: updateGalleryStamp,
@@ -162,13 +161,6 @@ export function GalleryScreen() {
           />
         )}
 
-        {totalCount > 20 && (
-          <View style={styles.premiumBanner} testID="premium-banner">
-            <MaterialIcons name="lock" size={16} color={colors.primary[600]} />
-            <Text style={styles.premiumBannerText}>直近20件のみ表示中。プレミアムで全件表示</Text>
-          </View>
-        )}
-
         {currentStamp && (
           <>
             <EditStampModal
@@ -272,20 +264,5 @@ const styles = StyleSheet.create({
     color: colors.gray[400],
     marginTop: spacing.sm,
     textAlign: 'center',
-  },
-  premiumBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    backgroundColor: colors.primary[50],
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.primary[200],
-  },
-  premiumBannerText: {
-    ...typography.bodySmall,
-    color: colors.primary[700],
-    flex: 1,
   },
 });

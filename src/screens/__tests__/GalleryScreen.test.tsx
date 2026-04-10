@@ -121,34 +121,6 @@ describe('GalleryScreen', () => {
     expect(getByTestId('empty-state')).toBeTruthy();
   });
 
-  it('totalCount が 20 を超える場合にプレミアムバナーを表示する', () => {
-    mockUseGalleryStamps.mockReturnValue({
-      stamps: [makeStamp()],
-      totalCount: 21,
-      isLoading: false,
-      error: null,
-      removeStamp: jest.fn(),
-      updateStamp: jest.fn(),
-    });
-
-    const { getByTestId } = render(<GalleryScreen />);
-    expect(getByTestId('premium-banner')).toBeTruthy();
-  });
-
-  it('totalCount が 20 以下の場合にプレミアムバナーを表示しない', () => {
-    mockUseGalleryStamps.mockReturnValue({
-      stamps: [makeStamp()],
-      totalCount: 20,
-      isLoading: false,
-      error: null,
-      removeStamp: jest.fn(),
-      updateStamp: jest.fn(),
-    });
-
-    const { queryByTestId } = render(<GalleryScreen />);
-    expect(queryByTestId('premium-banner')).toBeNull();
-  });
-
   it('ソートボタンを押すと sortOrder が切り替わる', () => {
     mockUseGalleryStamps.mockReturnValue({
       stamps: [],

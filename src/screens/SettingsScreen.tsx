@@ -7,7 +7,7 @@ import { Card } from '@components/common/Card';
 import { useAuth } from '@hooks/useAuth';
 import { useDefaultPublicSetting } from '@hooks/useDefaultPublicSetting';
 import { colors } from '@theme/colors';
-import { borderRadius, spacing } from '@theme/spacing';
+import { spacing } from '@theme/spacing';
 import { typography } from '@theme/typography';
 import type { MainTabScreenProps } from '@/navigation/types';
 
@@ -95,23 +95,6 @@ export function SettingsScreen({ navigation }: Props) {
             </Card>
           </>
         )}
-
-        {/* Plan Section */}
-        <Text style={styles.sectionTitle}>プラン</Text>
-        <Card style={styles.sectionCard}>
-          <View style={styles.planRow}>
-            <View style={styles.planBadge}>
-              <Text style={styles.planBadgeText}>無料プラン</Text>
-            </View>
-            <Text style={styles.planDescription}>基本機能をご利用いただけます</Text>
-          </View>
-          <View style={styles.upgradeBanner}>
-            <Text style={styles.upgradeTitle}>プレミアムプランにアップグレード</Text>
-            <TouchableOpacity accessibilityRole="link">
-              <Text style={styles.upgradeLink}>詳しく見る</Text>
-            </TouchableOpacity>
-          </View>
-        </Card>
 
         {/* App Info Section */}
         <Text style={styles.sectionTitle}>アプリ情報</Text>
@@ -215,39 +198,5 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.gray[500],
     marginTop: spacing.xs,
-  },
-  planRow: {
-    paddingVertical: spacing.md,
-  },
-  planBadge: {
-    backgroundColor: colors.primary[100],
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
-    alignSelf: 'flex-start',
-    marginBottom: spacing.sm,
-  },
-  planBadgeText: {
-    ...typography.label,
-    color: colors.primary[600],
-  },
-  planDescription: {
-    ...typography.bodySmall,
-    color: colors.gray[500],
-  },
-  upgradeBanner: {
-    backgroundColor: colors.primary[50],
-    borderRadius: borderRadius.md,
-    padding: spacing.lg,
-    marginTop: spacing.md,
-  },
-  upgradeTitle: {
-    ...typography.body,
-    color: colors.gray[800],
-    marginBottom: spacing.sm,
-  },
-  upgradeLink: {
-    ...typography.bodySmall,
-    color: colors.primary[500],
   },
 });
