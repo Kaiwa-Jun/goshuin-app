@@ -1,7 +1,16 @@
 import React from 'react';
-import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
+import * as AppleAuthentication from 'expo-apple-authentication';
 
 import { useAuth } from '@hooks/useAuth';
 import type { RootStackScreenProps } from '@/navigation/types';
@@ -13,10 +22,23 @@ import { shadows } from '@theme/shadows';
 type Props = RootStackScreenProps<'Login'>;
 
 export function LoginScreen({ navigation }: Props) {
-  const { signInWithGoogle, isSigningIn } = useAuth();
+  const { signInWithGoogle, signInWithApple, isSigningIn } = useAuth();
 
   const handleGoogleLogin = async () => {
     const result = await signInWithGoogle();
+
+    if (result.success) {
+      navigation.goBack();
+      return;
+    }
+
+    if (result.error.code !== 'CANCELLED') {
+      Alert.alert('ログインエラー', result.error.message);
+    }
+  };
+
+  const handleAppleLogin = async () => {
+    const result = await signInWithApple();
 
     if (result.success) {
       navigation.goBack();
@@ -44,6 +66,22 @@ export function LoginScreen({ navigation }: Props) {
 
         <View style={styles.loginSection}>
           <Text style={styles.loginPrompt}>旅の記録を保存しましょう</Text>
+
+          {Platform.OS === 'ios' && (
+            <View
+              style={[{ width: '100%' }, isSigningIn && styles.appleButtonDisabled]}
+              pointerEvents={isSigningIn ? 'none' : 'auto'}
+            >
+              <AppleAuthentication.AppleAuthenticationButton
+                buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                cornerRadius={borderRadius.lg}
+                style={{ width: '100%', height: 48 }}
+                onPress={handleAppleLogin}
+                testID="apple-login-button"
+              />
+            </View>
+          )}
 
           <TouchableOpacity
             style={[styles.googleButton, isSigningIn && styles.googleButtonDisabled]}
@@ -143,6 +181,9 @@ const styles = StyleSheet.create({
     ...shadows.sm,
   },
   googleButtonDisabled: {
+    opacity: 0.6,
+  },
+  appleButtonDisabled: {
     opacity: 0.6,
   },
   googleIcon: {

@@ -42,6 +42,7 @@
       "expo-image-picker",
       "expo-camera",
       "expo-asset",
+      "expo-apple-authentication",
       [
         "@react-native-google-signin/google-signin",
         {

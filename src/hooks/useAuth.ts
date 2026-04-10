@@ -1,7 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@services/supabase';
-import { signInWithGoogle as authSignIn, signOut as authSignOut } from '@services/auth';
+import {
+  signInWithGoogle as authSignIn,
+  signInWithApple as authSignInWithApple,
+  signOut as authSignOut,
+} from '@services/auth';
 import type { AuthResult, SignOutResult } from '@services/auth';
 
 interface AuthState {
@@ -11,6 +15,7 @@ interface AuthState {
   isAuthenticated: boolean;
   isSigningIn: boolean;
   signInWithGoogle: () => Promise<AuthResult>;
+  signInWithApple: () => Promise<AuthResult>;
   signOut: () => Promise<SignOutResult>;
 }
 
@@ -48,6 +53,15 @@ export function useAuth(): AuthState {
     }
   }, []);
 
+  const signInWithApple = useCallback(async (): Promise<AuthResult> => {
+    setIsSigningIn(true);
+    try {
+      return await authSignInWithApple();
+    } finally {
+      setIsSigningIn(false);
+    }
+  }, []);
+
   const signOut = useCallback(async (): Promise<SignOutResult> => {
     return authSignOut();
   }, []);
@@ -59,6 +73,7 @@ export function useAuth(): AuthState {
     isAuthenticated: user !== null,
     isSigningIn,
     signInWithGoogle,
+    signInWithApple,
     signOut,
   };
 }

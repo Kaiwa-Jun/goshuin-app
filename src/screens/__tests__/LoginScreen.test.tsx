@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import { LoginScreen } from '@screens/LoginScreen';
 
 jest.mock('react-native-safe-area-context', () => {
@@ -16,6 +16,7 @@ jest.mock('react-native-safe-area-context', () => {
 });
 
 const mockSignInWithGoogle = jest.fn();
+const mockSignInWithApple = jest.fn();
 
 jest.mock('@hooks/useAuth', () => ({
   useAuth: () => ({
@@ -25,6 +26,7 @@ jest.mock('@hooks/useAuth', () => ({
     isAuthenticated: false,
     isSigningIn: false,
     signInWithGoogle: mockSignInWithGoogle,
+    signInWithApple: mockSignInWithApple,
     signOut: jest.fn(),
   }),
 }));
@@ -176,5 +178,73 @@ describe('LoginScreen', () => {
     });
     expect(Alert.alert).not.toHaveBeenCalled();
     expect(mockNavigation.goBack).not.toHaveBeenCalled();
+  });
+
+  describe('Apple ログインボタン', () => {
+    const originalOS = Platform.OS;
+
+    afterEach(() => {
+      Object.defineProperty(Platform, 'OS', { get: () => originalOS, configurable: true });
+    });
+
+    it('iOS では Apple ログインボタンが表示される', () => {
+      Object.defineProperty(Platform, 'OS', { get: () => 'ios', configurable: true });
+
+      const { getByTestId } = render(
+        <LoginScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      expect(getByTestId('apple-login-button')).toBeTruthy();
+    });
+
+    it('Android では Apple ログインボタンが表示されない', () => {
+      Object.defineProperty(Platform, 'OS', { get: () => 'android', configurable: true });
+
+      const { queryByTestId } = render(
+        <LoginScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      expect(queryByTestId('apple-login-button')).toBeNull();
+    });
+
+    it('Apple ボタンタップで signInWithApple が呼ばれ、成功時に goBack する', async () => {
+      Object.defineProperty(Platform, 'OS', { get: () => 'ios', configurable: true });
+
+      mockSignInWithApple.mockResolvedValue({
+        success: true,
+        user: { id: 'user-1', email: 'test@example.com' },
+        session: {},
+      });
+
+      const { getByTestId } = render(
+        <LoginScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      fireEvent.press(getByTestId('apple-login-button'));
+
+      await waitFor(() => {
+        expect(mockSignInWithApple).toHaveBeenCalled();
+        expect(mockNavigation.goBack).toHaveBeenCalled();
+      });
+    });
+
+    it('Apple ボタンタップでエラー時（CANCELLED 以外）に Alert が表示される', async () => {
+      Object.defineProperty(Platform, 'OS', { get: () => 'ios', configurable: true });
+
+      mockSignInWithApple.mockResolvedValue({
+        success: false,
+        error: { code: 'UNKNOWN_ERROR', message: 'Apple ログインエラー' },
+      });
+
+      const { getByTestId } = render(
+        <LoginScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      fireEvent.press(getByTestId('apple-login-button'));
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith('ログインエラー', 'Apple ログインエラー');
+      });
+    });
   });
 });

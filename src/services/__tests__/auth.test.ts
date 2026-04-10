@@ -1,5 +1,6 @@
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
-import { configureGoogleSignIn, signInWithGoogle, signOut } from '../auth';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import { configureGoogleSignIn, signInWithGoogle, signInWithApple, signOut } from '../auth';
 
 const mockSignInWithIdToken = jest.fn();
 const mockSignOut = jest.fn();
@@ -156,15 +157,139 @@ describe('auth service (native google-signin)', () => {
       });
     });
 
-    it('returns error when GoogleSignin.signOut fails', async () => {
+    it('returns success even when GoogleSignin.signOut fails (silent)', async () => {
       mockSignOut.mockResolvedValue({ error: null });
       (GoogleSignin.signOut as jest.Mock).mockRejectedValue(new Error('Google sign out failed'));
 
       const result = await signOut();
 
+      expect(result).toEqual({ success: true });
+    });
+  });
+
+  describe('signInWithApple', () => {
+    it('returns success with user and session on successful sign-in', async () => {
+      const mockUser = { id: 'user-apple', email: 'apple@example.com' };
+      const mockSession = { access_token: 'apple-token' };
+
+      (AppleAuthentication.isAvailableAsync as jest.Mock).mockResolvedValue(true);
+      (AppleAuthentication.signInAsync as jest.Mock).mockResolvedValue({
+        identityToken: 'mock-apple-identity-token',
+        fullName: { givenName: 'Test', familyName: 'User' },
+        email: 'apple@example.com',
+      });
+      mockSignInWithIdToken.mockResolvedValue({
+        data: { user: mockUser, session: mockSession },
+        error: null,
+      });
+
+      const result = await signInWithApple();
+
+      expect(result).toEqual({ success: true, user: mockUser, session: mockSession });
+      expect(AppleAuthentication.isAvailableAsync).toHaveBeenCalled();
+      expect(AppleAuthentication.signInAsync).toHaveBeenCalledWith({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+      expect(mockSignInWithIdToken).toHaveBeenCalledWith({
+        provider: 'apple',
+        token: 'mock-apple-identity-token',
+      });
+    });
+
+    it('returns APPLE_NOT_AVAILABLE when Apple Sign In is not available', async () => {
+      (AppleAuthentication.isAvailableAsync as jest.Mock).mockResolvedValue(false);
+
+      const result = await signInWithApple();
+
       expect(result).toEqual({
         success: false,
-        error: { code: 'SIGN_OUT_ERROR', message: 'Google sign out failed' },
+        error: { code: 'APPLE_NOT_AVAILABLE', message: 'Apple Sign In は利用できません' },
+      });
+    });
+
+    it('returns CANCELLED when user cancels sign-in (ERR_REQUEST_CANCELED)', async () => {
+      (AppleAuthentication.isAvailableAsync as jest.Mock).mockResolvedValue(true);
+      const cancelError = Object.assign(new Error('Cancelled'), { code: 'ERR_REQUEST_CANCELED' });
+      (AppleAuthentication.signInAsync as jest.Mock).mockRejectedValue(cancelError);
+
+      const result = await signInWithApple();
+
+      expect(result).toEqual({
+        success: false,
+        error: { code: 'CANCELLED', message: 'ログインがキャンセルされました' },
+      });
+    });
+
+    it('returns NO_ID_TOKEN when identityToken is null', async () => {
+      (AppleAuthentication.isAvailableAsync as jest.Mock).mockResolvedValue(true);
+      (AppleAuthentication.signInAsync as jest.Mock).mockResolvedValue({
+        identityToken: null,
+        fullName: null,
+        email: null,
+      });
+
+      const result = await signInWithApple();
+
+      expect(result).toEqual({
+        success: false,
+        error: { code: 'NO_ID_TOKEN', message: 'トークンの取得に失敗しました' },
+      });
+    });
+
+    it('returns SUPABASE_ERROR when signInWithIdToken returns an error', async () => {
+      (AppleAuthentication.isAvailableAsync as jest.Mock).mockResolvedValue(true);
+      (AppleAuthentication.signInAsync as jest.Mock).mockResolvedValue({
+        identityToken: 'mock-apple-identity-token',
+        fullName: null,
+        email: null,
+      });
+      mockSignInWithIdToken.mockResolvedValue({
+        data: { user: null, session: null },
+        error: { message: 'Invalid Apple token' },
+      });
+
+      const result = await signInWithApple();
+
+      expect(result).toEqual({
+        success: false,
+        error: { code: 'SUPABASE_ERROR', message: 'Invalid Apple token' },
+      });
+    });
+
+    it('returns SUPABASE_ERROR when signInWithIdToken returns no user/session', async () => {
+      (AppleAuthentication.isAvailableAsync as jest.Mock).mockResolvedValue(true);
+      (AppleAuthentication.signInAsync as jest.Mock).mockResolvedValue({
+        identityToken: 'mock-apple-identity-token',
+        fullName: null,
+        email: null,
+      });
+      mockSignInWithIdToken.mockResolvedValue({
+        data: { user: null, session: null },
+        error: null,
+      });
+
+      const result = await signInWithApple();
+
+      expect(result).toEqual({
+        success: false,
+        error: { code: 'SUPABASE_ERROR', message: 'セッション設定失敗' },
+      });
+    });
+
+    it('returns UNKNOWN_ERROR on unexpected error', async () => {
+      (AppleAuthentication.isAvailableAsync as jest.Mock).mockResolvedValue(true);
+      (AppleAuthentication.signInAsync as jest.Mock).mockRejectedValue(
+        new Error('Unexpected network error')
+      );
+
+      const result = await signInWithApple();
+
+      expect(result).toEqual({
+        success: false,
+        error: { code: 'UNKNOWN_ERROR', message: 'Unexpected network error' },
       });
     });
   });

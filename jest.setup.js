@@ -124,6 +124,16 @@ jest.mock('expo-linear-gradient', () => {
   };
 });
 
+// expo-apple-authentication mock
+jest.mock('expo-apple-authentication', () => ({
+  isAvailableAsync: jest.fn(() => Promise.resolve(true)),
+  signInAsync: jest.fn(),
+  AppleAuthenticationScope: { FULL_NAME: 0, EMAIL: 1 },
+  AppleAuthenticationButtonType: { SIGN_IN: 0 },
+  AppleAuthenticationButtonStyle: { BLACK: 0, WHITE: 1 },
+  AppleAuthenticationButton: 'AppleAuthenticationButton',
+}));
+
 // expo-location mock
 jest.mock('expo-location', () => ({
   getForegroundPermissionsAsync: jest.fn(() => Promise.resolve({ status: 'granted' })),
