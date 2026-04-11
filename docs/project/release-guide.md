@@ -23,13 +23,14 @@ eas login
 
 ### 必須（リリースブロッカー）
 
-- [ ] **Sign in with Apple の実装** — Apple ガイドライン 4.8 により必須（Google Sign-In がある場合）
-- [ ] **プライバシーポリシーの公開URL** — `docs/legal/privacy.html` を GitHub Pages 等で公開
-- [ ] **利用規約の公開URL** — `docs/legal/terms.html` を GitHub Pages 等で公開
-- [ ] **サポートURL** — お問い合わせ先ページ（GitHub Pages で簡易ページ or メールリンク）
-- [ ] **app.json の version を `1.0.0` に更新** — 現在 `0.1.0`
-- [ ] **App Store 用スクリーンショット作成** — 最低 6.7 インチ (1290x2796px)
-- [ ] **App Store 用説明文・キーワード作成**
+- [x] **Sign in with Apple の実装** — Apple ガイドライン 4.8 により必須（Google Sign-In がある場合）
+- [x] **プライバシーポリシーの公開URL** — https://kaiwa-jun.github.io/goshuin-app/legal/privacy.html（GitHub Pages 有効化が必要、手順は §2.1）
+- [x] **利用規約の公開URL** — https://kaiwa-jun.github.io/goshuin-app/legal/terms.html（同上）
+- [x] **サポートURL** — https://github.com/Kaiwa-Jun/goshuin-app/issues
+- [x] **app.json / package.json の version を `1.0.0` に更新**
+- [x] **App Store / Google Play メタデータドキュメント作成** — `docs/project/store-metadata.md` に確定版を記載
+- [ ] **App Store 用スクリーンショット作成** — 最低 6.7 インチ (1290x2796px)、撮影手順は `store-metadata.md` 参照
+- [ ] **GitHub Pages の有効化** — リポジトリ Settings から手動で有効化（手順は §2.1）
 
 ### 対応済み
 
@@ -39,6 +40,34 @@ eas login
 - [x] 利用規約・プライバシーポリシーの文面（docs/legal/）
 - [x] EAS production ビルドプロファイル（eas.json）
 - [x] バンドルID: `com.goshuin.app`
+
+## 2.1 GitHub Pages の有効化
+
+プライバシーポリシー・利用規約は `docs/legal/*.html` に格納されており、GitHub Pages で公開する。初回のみリポジトリ設定から有効化が必要。
+
+### 設定手順
+
+1. GitHub リポジトリ（https://github.com/Kaiwa-Jun/goshuin-app）を開く
+2. **Settings** タブ → 左サイドバー **Pages**
+3. **Build and deployment** セクションで以下を設定:
+   - **Source**: `Deploy from a branch`
+   - **Branch**: `main` / `/docs`
+4. **Save** をクリック
+5. 1〜2 分待ってから、下記 URL にアクセスして 200 で表示されることを確認:
+   - https://kaiwa-jun.github.io/goshuin-app/
+   - https://kaiwa-jun.github.io/goshuin-app/legal/privacy.html
+   - https://kaiwa-jun.github.io/goshuin-app/legal/terms.html
+
+### 公開対象ファイル
+
+| パス                      | 用途                                                        |
+| ------------------------- | ----------------------------------------------------------- |
+| `docs/index.html`         | トップページ（各ドキュメントへのリンク集）                  |
+| `docs/legal/privacy.html` | プライバシーポリシー                                        |
+| `docs/legal/terms.html`   | 利用規約                                                    |
+| `docs/.nojekyll`          | Jekyll 処理を無効化（`_` で始まるファイルを配信可能にする） |
+
+> **注意**: `docs/` 配下の `.md` ファイル（本ガイド等）も公開される点に留意すること。機密情報は `docs/` に置かない。
 
 ## 3. iOS App Store リリース手順
 
@@ -104,6 +133,8 @@ https://appstoreconnect.apple.com で以下を設定:
 | プライバシーポリシーURL | 公開URL                                                     |
 | サポートURL             | 公開URL                                                     |
 | 価格                    | 無料                                                        |
+
+> **確定版のメタデータ（説明文本体、サブタイトル、キーワード、プロモーションテキスト、Google Play 向け項目、データセーフティ申告等）は [`docs/project/store-metadata.md`](./store-metadata.md) を参照。**
 
 ### 3-5. 審査提出
 

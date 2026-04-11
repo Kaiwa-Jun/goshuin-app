@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>御朱印コレクション</title>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'Meiryo', sans-serif;
+      font-size: 16px;
+      line-height: 1.8;
+      color: #333;
+      background-color: #fafafa;
+      margin: 0;
+      padding: 0;
+    }
+
+    header {
+      background-color: #f27f0d;
+      color: #fff;
+      padding: 48px 24px 40px;
+      text-align: center;
+    }
+
+    header h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      font-weight: 700;
+    }
+
+    header p {
+      margin: 0;
+      font-size: 15px;
+      opacity: 0.9;
+    }
+
+    main {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 40px 24px 64px;
+    }
+
+    .intro {
+      font-size: 15px;
+      color: #555;
+      margin: 0 0 32px;
+      text-align: center;
+    }
+
+    .links {
+      display: grid;
+      gap: 16px;
+    }
+
+    .link-card {
+      display: block;
+      background: #fff;
+      border-radius: 8px;
+      padding: 20px 24px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+      text-decoration: none;
+      color: #333;
+      transition: box-shadow 0.2s ease, transform 0.2s ease;
+      border-left: 4px solid #f27f0d;
+    }
+
+    .link-card:hover {
+      box-shadow: 0 4px 12px rgba(242, 127, 13, 0.15);
+      transform: translateY(-1px);
+    }
+
+    .link-card h2 {
+      font-size: 16px;
+      font-weight: 700;
+      color: #f27f0d;
+      margin: 0 0 4px;
+    }
+
+    .link-card p {
+      margin: 0;
+      font-size: 14px;
+      color: #666;
+    }
+
+    footer {
+      text-align: center;
+      padding: 24px;
+      font-size: 13px;
+      color: #aaa;
+    }
+
+    @media (max-width: 600px) {
+      header {
+        padding: 36px 16px 32px;
+      }
+
+      header h1 {
+        font-size: 22px;
+      }
+
+      main {
+        padding: 32px 16px 48px;
+      }
+
+      .link-card {
+        padding: 16px 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>御朱印コレクション</h1>
+    <p>集めるたび、地図があなたの旅になる。</p>
+  </header>
+
+  <main>
+    <p class="intro">
+      参拝記録と御朱印コレクションを地図上に残せるモバイルアプリ「御朱印コレクション」の公式情報ページです。
+    </p>
+
+    <div class="links">
+      <a class="link-card" href="legal/privacy.html">
+        <h2>プライバシーポリシー</h2>
+        <p>本アプリが取り扱う個人情報の利用目的・保存・第三者提供について</p>
+      </a>
+
+      <a class="link-card" href="legal/terms.html">
+        <h2>利用規約</h2>
+        <p>本アプリの利用条件、ユーザーコンテンツ、禁止事項等について</p>
+      </a>
+
+      <a class="link-card" href="https://github.com/Kaiwa-Jun/goshuin-app/issues" target="_blank" rel="noopener noreferrer">
+        <h2>サポート / お問い合わせ</h2>
+        <p>ご意見・ご要望・不具合のご報告は GitHub Issues までお寄せください</p>
+      </a>
+    </div>
+  </main>
+
+  <footer>
+    <p>&copy; 2026 御朱印コレクション</p>
+  </footer>
+</body>
+</html>
