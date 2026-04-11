@@ -51,3 +51,6 @@ yarn-error.log*
 
 # Testing
 coverage/
+
+# Dev tunnel state (scripts/dev.sh)
+.dev-tunnel/
