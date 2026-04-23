@@ -1,32 +1,23 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import { useState, useCallback } from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { APP_NAME } from '@/constants/app';
+import { RootNavigator } from '@/navigation/RootNavigator';
+import { SplashAnimation } from '@components/animated/SplashAnimation';
 
 export default function App() {
+  const [splashComplete, setSplashComplete] = useState(false);
+
+  const handleSplashComplete = useCallback(() => {
+    setSplashComplete(true);
+  }, []);
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>{APP_NAME}</Text>
-      <Text style={styles.subtitle}>セットアップ完了</Text>
-      <StatusBar style="auto" />
-    </View>
+    <SafeAreaProvider>
+      <NavigationContainer>
+        <RootNavigator />
+      </NavigationContainer>
+      {!splashComplete && <SplashAnimation onAnimationComplete={handleSplashComplete} />}
+    </SafeAreaProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-  },
-});

@@ -12,11 +12,9 @@
       "@stores/*": ["src/stores/*"],
       "@types/*": ["src/types/*"],
       "@utils/*": ["src/utils/*"],
-      "@navigation/*": ["src/navigation/*"],
-      "@constants/*": ["src/constants/*"],
-      "@styles/*": ["src/styles/*"]
+      "@theme/*": ["src/theme/*"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx"],
-  "exclude": ["node_modules", "dist", "build", "coverage"]
+  "exclude": ["node_modules", "dist", "build", "coverage", "supabase/functions"]
 }

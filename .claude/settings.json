@@ -1,4 +1,7 @@
 {
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  },
   "hooks": {
     "PostToolUse": [
       {
@@ -27,7 +30,13 @@
       "Bash(git add *)",
       "Bash(git commit *)",
       "Bash(gh issue *)",
-      "Bash(gh pr *)"
+      "Bash(gh pr *)",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_screenshot",
+      "mcp__playwright__browser_click",
+      "mcp__playwright__browser_type",
+      "mcp__playwright__browser_wait_for_selector",
+      "mcp__playwright__browser_evaluate"
     ]
   }
 }
