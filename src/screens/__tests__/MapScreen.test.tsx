@@ -380,7 +380,7 @@ describe('MapScreen', () => {
       const { getAllByTestId } = render(
         <MapScreen navigation={mockNavigation as never} route={mockRoute} />
       );
-      // Initial LATITUDE_DELTA is 0.02, which is <= 0.08, so labels should show
+      // Initial LATITUDE_DELTA is 0.015, which is <= LABEL_VISIBLE_DELTA (0.2), so labels should show
       expect(getAllByTestId('spot-marker-label')).toHaveLength(2);
     });
 
@@ -668,6 +668,59 @@ describe('MapScreen', () => {
       fireEvent(getByTestId('map-view'), 'onRegionChangeComplete', zoomedOutRegion);
 
       expect(queryByTestId('spot-marker-spot-2')).toBeNull();
+    });
+  });
+
+  describe('Default zoom level (#93)', () => {
+    const rank2Spot = {
+      id: 'spot-3',
+      name: 'Test Rank2 Shrine',
+      lat: 38.29,
+      lng: 140.89,
+      type: 'shrine',
+      status: 'active',
+      rank: 2,
+      address: null,
+      created_by_user_id: null,
+      merged_into_spot_id: null,
+      created_at: '2024-01-01',
+      updated_at: '2024-01-01',
+    };
+
+    const regionWithDelta = (latitudeDelta: number) => ({
+      latitude: 38.2682,
+      longitude: 140.8694,
+      latitudeDelta,
+      longitudeDelta: latitudeDelta,
+    });
+
+    it('initialRegion のデフォルト delta は 0.015 である(getMinRank の閾値 0.02 と一致しない)', () => {
+      const { getByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      expect(getByTestId('map-view').props.initialRegion).toEqual(
+        expect.objectContaining({ latitudeDelta: 0.015, longitudeDelta: 0.015 })
+      );
+    });
+
+    it('rank 2 スポットは初期表示とデフォルト近傍(0.019)で表示され、閾値帯外(0.021)で非表示になる', () => {
+      mockSpotsOverride = [...mockSpots, rank2Spot];
+
+      const { getByTestId, queryByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      // 初期表示(delta 0.015 → minRank 2)で表示される
+      expect(getByTestId('spot-marker-spot-3')).toBeTruthy();
+
+      // デフォルト近傍のジッタ(0.019)では閾値帯(0.005, 0.02]内なので表示が維持される
+      fireEvent(getByTestId('map-view'), 'onRegionChangeComplete', regionWithDelta(0.019));
+      expect(getByTestId('spot-marker-spot-3')).toBeTruthy();
+
+      // 閾値帯外(0.021 → minRank 3)では非表示になる
+      fireEvent(getByTestId('map-view'), 'onRegionChangeComplete', regionWithDelta(0.021));
+      expect(queryByTestId('spot-marker-spot-3')).toBeNull();
     });
   });
 });

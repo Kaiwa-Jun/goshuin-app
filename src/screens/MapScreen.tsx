@@ -27,8 +27,9 @@ import { shadows } from '@theme/shadows';
 type Props = MapStackScreenProps<'Map'>;
 type FilterMode = 'all' | 'visited';
 
-const LATITUDE_DELTA = 0.02;
-const LONGITUDE_DELTA = 0.02;
+// getMinRank の閾値(0.02)と一致させない。境界と重なるとわずかなズーム操作で表示 rank 帯が切り替わりチラつく
+const LATITUDE_DELTA = 0.015;
+const LONGITUDE_DELTA = 0.015;
 const LABEL_VISIBLE_DELTA = 0.2;
 
 function getMinRank(latitudeDelta: number): number {
