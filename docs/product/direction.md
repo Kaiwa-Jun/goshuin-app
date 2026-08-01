@@ -28,10 +28,11 @@
 
 - [x] GitHub Pages 有効化 — **確認済み（2026-08-02）**。privacy.html / terms.html とも HTTP 200 で配信中
 - [ ] 開発者アカウントの確認・登録（手順: `docs/project/store-account-setup.md`）。**Google Play は個人新規アカウントだと12人×14日のクローズドテスト要件があるため、iOS 先行リリースを基本線とする**
-- [ ] **マスタデータのリリース前整備**（2026-08-02 調査で判明した必須作業）:
-  - [ ] 宮城県 35 件への rank 付与（現状全件 rank 1 のため、ズームアウト時に宮城のピンが 0 になる。Issue #21 の未消化タスク）
-  - [ ] 東京都の増強: rank 4 の寺院補充 約10件 + rank 3 約70〜100件（市街地ズームの体感を決める層。手順は `docs/technical/spot-ranking.md` の既存方法論に従う）
-  - [ ] リポジトリ seeds と Supabase DB 実態の突合（PR #69 記載の 1,010 件 vs repo 955 件の乖離解消）
+- [x] **マスタデータのリリース前整備**（2026-08-02 完了）:
+  - [x] 宮城県の rank — DB 側では付与済みと判明（rank5×9〜rank1×38 の90件）。repo seeds を DB からエクスポートして同期
+  - [x] 東京都の増強 — rank4×13 + rank3×86 の計99件を作成（`supabase/seeds/seed_tokyo_rank3_4_spots.sql`）。**DB への適用は未実施**
+  - [x] リポジトリ seeds と DB の突合 — 乖離55件は全て宮城分。同期済み（pilgrimage_spots 75件のエクスポートのみ別タスク）
+- [ ] **地図表示の即修正**（マスタデータ増強の前提。2026-08-02 レビューで発見）: 全件フェッチの1,000行上限バグ（現時点で10件欠落）/ 訪問済み・行きたいピンが rank フィルタで消える問題 / デフォルトズームが閾値境界と一致してチラつく問題
 - [ ] App Store 用スクリーンショット作成（6.7インチ 1290x2796px）
 - [ ] `eas build --profile production` 初回実行、EAS Submit のクレデンシャル投入
 - [ ] ストア申請（メタデータは `docs/project/store-metadata.md` に確定済み）

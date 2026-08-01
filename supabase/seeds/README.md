@@ -2,16 +2,19 @@
 
 ## ファイル一覧
 
-| ファイル                 | 対象地域                 | 都道府県数 |
-| ------------------------ | ------------------------ | ---------- |
-| `01_hokkaido_tohoku.sql` | 北海道・東北（宮城除く） | 6          |
-| `02_kanto.sql`           | 関東                     | 7          |
-| `03_chubu.sql`           | 中部                     | 9          |
-| `04_kinki.sql`           | 近畿                     | 7          |
-| `05_chugoku_shikoku.sql` | 中国・四国               | 9          |
-| `06_kyushu_okinawa.sql`  | 九州・沖縄               | 8          |
+| ファイル                       | 対象地域                  | 内容                     |
+| ------------------------------ | ------------------------- | ------------------------ |
+| `01_hokkaido_tohoku.sql`       | 北海道・東北（宮城除く）  | 各県 rank5×10 + rank4×10 |
+| `02_kanto.sql`                 | 関東（東京除く）          | 同上                     |
+| `03_chubu.sql`                 | 中部                      | 同上                     |
+| `04_kinki.sql`                 | 近畿（京都除く）          | 同上                     |
+| `05_chugoku_shikoku.sql`       | 中国・四国                | 同上                     |
+| `06_kyushu_okinawa.sql`        | 九州・沖縄                | 同上                     |
+| `seed_tokyo_spots.sql`         | 東京都                    | rank5×10 + rank4×10      |
+| `seed_tokyo_rank3_4_spots.sql` | 東京都（増強分・2026-08） | rank4×13 + rank3×86      |
+| `seed_kyoto_rank_spots.sql`    | 京都府                    | rank5×10 + rank4×10      |
 
-※ 宮城県は `seed_miyagi_spots_and_pilgrimages.sql`（親ディレクトリ）で投入済み
+※ 宮城県は `seed_miyagi_spots_and_pilgrimages.sql`（親ディレクトリ）で投入済み（2026-08 に本番 DB からエクスポートした rank 付き90件）
 
 ## 投入手順
 
