@@ -1,4 +1,5 @@
 import {
+  fetchAllActiveSpots,
   fetchSpotsByBounds,
   fetchSpotById,
   searchSpotsByName,
@@ -8,6 +9,8 @@ import type { BoundingBox } from '@utils/geo';
 
 const mockSelect = jest.fn();
 const mockEq = jest.fn();
+const mockOrder = jest.fn();
+const mockRange = jest.fn();
 const mockGte = jest.fn();
 const mockLte = jest.fn();
 const mockIlike = jest.fn();
@@ -177,6 +180,92 @@ describe('spots service', () => {
 
       const result = await fetchSpotsByPrefecture('宮城県');
       expect(result).toEqual([]);
+    });
+  });
+
+  describe('fetchAllActiveSpots', () => {
+    const makeSpots = (count: number, offset = 0) =>
+      Array.from({ length: count }, (_, i) => ({
+        id: `spot-${offset + i}`,
+        name: `Spot ${offset + i}`,
+        lat: 38.27,
+        lng: 140.87,
+        type: 'shrine',
+        status: 'active',
+        rank: 3,
+      }));
+
+    beforeEach(() => {
+      // Chain: from().select().eq().order().range()
+      mockFrom.mockReturnValue({ select: mockSelect });
+      mockSelect.mockReturnValue({ eq: mockEq });
+      mockEq.mockReturnValue({ order: mockOrder });
+      mockOrder.mockReturnValue({ range: mockRange });
+    });
+
+    it('1ページ目が満杯(1,000行)のとき、2ページ目を range(1000, 1999) で要求し全件を結合して返す', async () => {
+      mockRange
+        .mockReturnValueOnce({ data: makeSpots(1000), error: null })
+        .mockReturnValueOnce({ data: makeSpots(10, 1000), error: null });
+
+      const result = await fetchAllActiveSpots();
+
+      expect(mockRange).toHaveBeenNthCalledWith(1, 0, 999);
+      expect(mockRange).toHaveBeenNthCalledWith(2, 1000, 1999);
+      expect(result).toHaveLength(1010);
+      expect(result[1009].id).toBe('spot-1009');
+    });
+
+    it('1ページ目が1,000行未満のとき、追加リクエストせずその件数を返す', async () => {
+      mockRange.mockReturnValueOnce({ data: makeSpots(500), error: null });
+
+      const result = await fetchAllActiveSpots();
+
+      expect(mockRange).toHaveBeenCalledTimes(1);
+      expect(result).toHaveLength(500);
+    });
+
+    it('全件がちょうど1,000の倍数のとき、空の追加ページで終了する', async () => {
+      mockRange
+        .mockReturnValueOnce({ data: makeSpots(1000), error: null })
+        .mockReturnValueOnce({ data: [], error: null });
+
+      const result = await fetchAllActiveSpots();
+
+      expect(mockRange).toHaveBeenCalledTimes(2);
+      expect(result).toHaveLength(1000);
+    });
+
+    it('ページ間の順序保証のため order(id, ascending) を指定する', async () => {
+      mockRange.mockReturnValueOnce({ data: makeSpots(1), error: null });
+
+      await fetchAllActiveSpots();
+
+      expect(mockOrder).toHaveBeenCalledWith('id', { ascending: true });
+    });
+
+    it('1ページ目でエラーが返った場合、console.warn を呼び空配列を返す', async () => {
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      mockRange.mockReturnValueOnce({ data: null, error: { message: 'DB error' } });
+
+      const result = await fetchAllActiveSpots();
+
+      expect(warnSpy).toHaveBeenCalled();
+      expect(result).toEqual([]);
+      warnSpy.mockRestore();
+    });
+
+    it('2ページ目でエラーが返った場合も、部分結果を返さず空配列を返す', async () => {
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      mockRange
+        .mockReturnValueOnce({ data: makeSpots(1000), error: null })
+        .mockReturnValueOnce({ data: null, error: { message: 'DB error' } });
+
+      const result = await fetchAllActiveSpots();
+
+      expect(warnSpy).toHaveBeenCalled();
+      expect(result).toEqual([]);
+      warnSpy.mockRestore();
     });
   });
 });
