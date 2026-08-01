@@ -27,8 +27,9 @@ import { shadows } from '@theme/shadows';
 type Props = MapStackScreenProps<'Map'>;
 type FilterMode = 'all' | 'visited';
 
-const LATITUDE_DELTA = 0.02;
-const LONGITUDE_DELTA = 0.02;
+// getMinRank の閾値(0.02)と一致させない。境界と重なるとわずかなズーム操作で表示 rank 帯が切り替わりチラつく
+const LATITUDE_DELTA = 0.015;
+const LONGITUDE_DELTA = 0.015;
 const LABEL_VISIBLE_DELTA = 0.2;
 
 function getMinRank(latitudeDelta: number): number {
@@ -107,9 +108,13 @@ export function MapScreen({ navigation, route }: Props) {
   }, [permissionStatus, refreshLocation]);
 
   const minRank = getMinRank(currentLatitudeDelta);
+  // 訪問済み・行きたいリストのスポットは「自分の旅の記録」なので rank に関わらず常に表示する
   const visibleSpots = useMemo(
-    () => displaySpots.filter(s => s.rank >= minRank),
-    [displaySpots, minRank]
+    () =>
+      displaySpots.filter(
+        s => s.rank >= minRank || visitedSpotIds.has(s.id) || wishlistSpotIds.has(s.id)
+      ),
+    [displaySpots, minRank, visitedSpotIds, wishlistSpotIds]
   );
 
   useEffect(() => {

@@ -129,10 +129,13 @@ const mockSpots = [
   },
 ];
 
+// テストごとに差し替え可能なオーバーライド(null なら mockSpots を使用)
+let mockSpotsOverride: typeof mockSpots | null = null;
+
 jest.mock('@hooks/useSpots', () => ({
   useSpots: () => ({
-    spots: mockSpots,
-    allSpots: mockSpots,
+    spots: mockSpotsOverride ?? mockSpots,
+    allSpots: mockSpotsOverride ?? mockSpots,
     isLoading: false,
     error: null,
   }),
@@ -147,14 +150,21 @@ jest.mock('@hooks/useUserStamps', () => ({
   }),
 }));
 
+let mockWishlistSpotIds = new Set<string>();
+
 jest.mock('@hooks/useWishlist', () => ({
   useWishlist: () => ({
-    wishlistSpotIds: new Set(),
+    wishlistSpotIds: mockWishlistSpotIds,
     toggleWishlist: jest.fn(),
     isLoading: false,
     isToggling: false,
   }),
 }));
+
+afterEach(() => {
+  mockSpotsOverride = null;
+  mockWishlistSpotIds = new Set<string>();
+});
 
 const mockParentNavigate = jest.fn();
 const mockNavigation = {
@@ -370,7 +380,7 @@ describe('MapScreen', () => {
       const { getAllByTestId } = render(
         <MapScreen navigation={mockNavigation as never} route={mockRoute} />
       );
-      // Initial LATITUDE_DELTA is 0.02, which is <= 0.08, so labels should show
+      // Initial LATITUDE_DELTA is 0.015, which is <= LABEL_VISIBLE_DELTA (0.2), so labels should show
       expect(getAllByTestId('spot-marker-label')).toHaveLength(2);
     });
 
@@ -617,6 +627,100 @@ describe('MapScreen', () => {
         expect(queryByTestId('spot-marker-pref-spot-1')).toBeNull();
         expect(queryByTestId('spot-marker-pref-spot-2')).toBeNull();
       });
+    });
+  });
+
+  describe('Rank filter exemption for visited/wishlist spots (#93)', () => {
+    const zoomedOutRegion = {
+      latitude: 38.2682,
+      longitude: 140.8694,
+      latitudeDelta: 0.6, // minRank 5 相当
+      longitudeDelta: 0.6,
+    };
+
+    it('ズームアウト(minRank 5 相当)でも訪問済みスポットのマーカーは表示され続ける', () => {
+      const { getByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      fireEvent(getByTestId('map-view'), 'onRegionChangeComplete', zoomedOutRegion);
+
+      expect(getByTestId('spot-marker-spot-1')).toBeTruthy();
+    });
+
+    it('ズームアウトでも行きたいリストのスポットのマーカーは表示され続ける', () => {
+      mockWishlistSpotIds = new Set(['spot-2']);
+
+      const { getByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      fireEvent(getByTestId('map-view'), 'onRegionChangeComplete', zoomedOutRegion);
+
+      expect(getByTestId('spot-marker-spot-2')).toBeTruthy();
+    });
+
+    it('visited/wishlist のいずれでもないスポットはズームアウトで非表示になる(rank フィルタ維持)', () => {
+      const { getByTestId, queryByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      fireEvent(getByTestId('map-view'), 'onRegionChangeComplete', zoomedOutRegion);
+
+      expect(queryByTestId('spot-marker-spot-2')).toBeNull();
+    });
+  });
+
+  describe('Default zoom level (#93)', () => {
+    const rank2Spot = {
+      id: 'spot-3',
+      name: 'Test Rank2 Shrine',
+      lat: 38.29,
+      lng: 140.89,
+      type: 'shrine',
+      status: 'active',
+      rank: 2,
+      address: null,
+      created_by_user_id: null,
+      merged_into_spot_id: null,
+      created_at: '2024-01-01',
+      updated_at: '2024-01-01',
+    };
+
+    const regionWithDelta = (latitudeDelta: number) => ({
+      latitude: 38.2682,
+      longitude: 140.8694,
+      latitudeDelta,
+      longitudeDelta: latitudeDelta,
+    });
+
+    it('initialRegion のデフォルト delta は 0.015 である(getMinRank の閾値 0.02 と一致しない)', () => {
+      const { getByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      expect(getByTestId('map-view').props.initialRegion).toEqual(
+        expect.objectContaining({ latitudeDelta: 0.015, longitudeDelta: 0.015 })
+      );
+    });
+
+    it('rank 2 スポットは初期表示とデフォルト近傍(0.019)で表示され、閾値帯外(0.021)で非表示になる', () => {
+      mockSpotsOverride = [...mockSpots, rank2Spot];
+
+      const { getByTestId, queryByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      // 初期表示(delta 0.015 → minRank 2)で表示される
+      expect(getByTestId('spot-marker-spot-3')).toBeTruthy();
+
+      // デフォルト近傍のジッタ(0.019)では閾値帯(0.005, 0.02]内なので表示が維持される
+      fireEvent(getByTestId('map-view'), 'onRegionChangeComplete', regionWithDelta(0.019));
+      expect(getByTestId('spot-marker-spot-3')).toBeTruthy();
+
+      // 閾値帯外(0.021 → minRank 3)では非表示になる
+      fireEvent(getByTestId('map-view'), 'onRegionChangeComplete', regionWithDelta(0.021));
+      expect(queryByTestId('spot-marker-spot-3')).toBeNull();
     });
   });
 });
