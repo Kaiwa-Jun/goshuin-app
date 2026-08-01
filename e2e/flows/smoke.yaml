@@ -1,0 +1,19 @@
+# スモークテスト: 起動 → オンボーディング通過 → 4タブが表示される
+# NOTE: ドラフト（P1-01 で実機検証するまでセレクタは未確定）
+appId: com.goshuin.app
+---
+- launchApp
+# 初回起動時のみオンボーディングをスキップ
+- runFlow:
+    when:
+      visible: "スキップ"
+    commands:
+      - tapOn: "スキップ"
+# メインタブの表示確認
+- assertVisible: "地図"
+- assertVisible: "ギャラリー"
+- assertVisible: "コレクション"
+- assertVisible: "設定"
+# タブ遷移の確認（未ログイン時はギャラリーがログインモーダルに遷移するため地図系のみ）
+- tapOn: "コレクション"
+- tapOn: "地図"
