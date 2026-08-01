@@ -1,7 +1,4 @@
 {
-  "env": {
-    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
-  },
   "hooks": {
     "PostToolUse": [
       {
@@ -21,8 +18,10 @@
       "Bash(npm run lint *)",
       "Bash(npm run typecheck *)",
       "Bash(npm run format *)",
+      "Bash(npm run e2e *)",
       "Bash(npx eslint *)",
       "Bash(npx prettier *)",
+      "Bash(maestro test *)",
       "Bash(git status *)",
       "Bash(git diff *)",
       "Bash(git log *)",
