@@ -1,0 +1,34 @@
+{
+  "$comment": "自律開発ループの機能リスト。passes を true にできるのは goshuin-evaluator PASS + 全テスト通過の場合のみ。エントリの追加・分割は自由だが、実装前に必ず契約書(docs/issues/)を作ること。",
+  "phase": "Phase 1: 記録体験の磨き込み（docs/product/direction.md 参照）",
+  "features": [
+    {
+      "id": "P1-01",
+      "title": "Maestro E2E の実戦検証（スモークフローを実機/シミュレータで通す）",
+      "note": "e2e/flows/smoke.yaml はドラフト。development-simulator ビルドで動作確認し、タブ遷移まで検証できたら passes",
+      "issue": null,
+      "passes": false
+    },
+    {
+      "id": "P1-02",
+      "title": "記録フローの最短化（起動→記録完了のタップ数削減）",
+      "note": "現状の動線を計測してから契約書を作る。目標「10秒以内に登録完了」の再検証を含む",
+      "issue": null,
+      "passes": false
+    },
+    {
+      "id": "P1-03",
+      "title": "御朱印帳らしい質感の閲覧UI（見開き・めくり体験）",
+      "note": "ギャラリーの別ビューとして。requirements.md の将来拡張「御朱印帳ページUI再現」に対応",
+      "issue": null,
+      "passes": false
+    },
+    {
+      "id": "P1-04",
+      "title": "パーソナル年報（あなたの参拝の一年振り返り）",
+      "note": "統計の拡張。将来の買い切りプレミアム候補のため、無料/有料の線引きは契約書で決める",
+      "issue": null,
+      "passes": false
+    }
+  ]
+}

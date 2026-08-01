@@ -1,128 +1,30 @@
 ---
 name: tdd-workflow
-description: t-wada流TDD（テスト駆動開発）のワークフローとガイドライン
+description: t-wada流TDD（テスト駆動開発）のワークフローとこのリポジトリでのテスト規約
 ---
 
 # TDDワークフロー（t-wada流）
 
-## 核心: テストと実装は分離しない
+## 核心原則
 
-t-wada 流 TDD の最重要原則: **テストを書く人と実装を書く人を分けない。**
-各メンバーが自分の担当領域で Red→Green→Refactor サイクルを自律的に回す。
+- **テストを書く人と実装を書く人を分けない**。同じ作業者が Red → Green → Refactor を回す
+- サイクルは小さく。大きくなってきたらスライスを分割する（1スライス = 1コミット）
+- 受入基準の合否判定は自分でやらない（それは goshuin-evaluator の仕事）。自分の責任は「テストが通ること」まで
 
-## 実装開始前: チーム構成の判断
-
-Issue の実装に着手する前に、**エージェントチームを構成すべきかどうかを判断する**。
-
-### チームを構成すべき条件（いずれかに該当する場合）
-
-1. **3つ以上の独立したファイル群を並行で作成・変更する**
-   - 例: 画面UI + サービス層 を同時に作る
-2. **複数の専門領域にまたがる調査・レビューが必要**
-   - 例: セキュリティ + パフォーマンス + テストカバレッジの並行レビュー
-3. **複数の仮説を並行で検証するデバッグ**
-   - 例: 原因不明のバグで複数の可能性を同時に調査
-
-### チームを構成すべきでない条件
-
-- 1〜2ファイルの単純な変更
-- 順序依存のタスク（前の結果が次に必要）
-- 同じファイルを複数人で編集する必要がある場合
-
-### チーム構成ルール
-
-#### メンバー構成（TDDベース）
-
-各メンバーが**自分の担当領域でテストも実装も書く**。テスト専任メンバーは作らない。
-
-| ロール           | モデル | サブエージェント      | 説明                                         | 分類      |
-| ---------------- | ------ | --------------------- | -------------------------------------------- | --------- |
-| リーダー（自分） | Opus   | -                     | タスク分割・割り当て・統合・ループ管理       | 統括      |
-| UI担当           | Sonnet | `ui-implementer`      | 画面UI + そのテストをTDDで実装               | Generator |
-| サービス担当     | Sonnet | `service-implementer` | サービス層 + そのテストをTDDで実装           | Generator |
-| QA評価           | Sonnet | `qa-evaluator`        | 受入基準に基づく品質検証（実装完了後に起動） | Evaluator |
-
-`test-writer` はTDD全体を1人で進める場合や、既存コードへのテスト追加に使用する（Generator）。
-
-#### 基本方針
-
-- **各メンバーが自分の領域でTDDサイクルを回す**（テストと実装を分離しない）
-- **メンバーは全員 Sonnet を使用する**（リーダーのみ Opus）
-- **1メンバーにつき1つの明確な担当領域**を割り当てる
-- **ファイルの衝突を避ける**: 各メンバーが編集するファイルが重複しないよう分割
-- **メンバー数は 2〜4人**: 多すぎると調整コストが利益を上回る
-- **タスクは 5〜6個/メンバー**: 効率的に作業を進められるサイズ
-
-#### チーム運用の流れ
-
-1. リーダーが TeamCreate でチームを作成
-2. TaskCreate でタスクリストを作成し、依存関係を設定
-3. Task ツールでメンバーを spawn し、team_name を指定
-4. メンバーにタスクを割り当て（TaskUpdate で owner 設定）
-5. **各メンバーが自分の担当領域で TDD サイクルを回す**
-6. メンバーは完了後に TaskUpdate で completed に更新
-7. リーダーは結果を統合し、qa-evaluator を起動して品質検証
-8. FAIL の場合は該当 Generator に修正を指示し、再度 qa-evaluator で検証（最大5回）
-9. PASS 確認後、SendMessage で shutdown_request を送信
-10. TeamDelete でクリーンアップ
-
-#### チーム構成例（画面実装）
-
-```
-Issue #15 の登録完了画面を実装するため、エージェントチームを構成します。
-
-チーム構成:
-- ui-worker（ui-implementer）: 画面UI + UIテストをTDDで実装
-- service-worker（service-implementer）: バッジ判定ロジック + サービステストをTDDで実装
-
-ファイル分担:
-- ui-worker: src/screens/RecordCompleteScreen.tsx, src/components/animated/, + 各__tests__/
-- service-worker: src/services/, src/hooks/, + 各__tests__/
-
-各メンバーは Red→Green→Refactor サイクルを厳密に守ること。
-```
-
-### Generator-Evaluator 責任分離
-
-ハーネス設計パターン（Anthropic推奨）に基づき、生成と評価を分離する。
-
-**Generator（ui-implementer, service-implementer, test-writer）:**
-
-- 自分の担当領域で TDD サイクルを回す
-- テストが通ることを確認してからタスクを完了とする
-- 受入基準の合否判定は行わない（それは Evaluator の仕事）
-
-**Evaluator（qa-evaluator）:**
-
-- 全 Generator のタスク完了後に起動
-- Sprint Contract の受入基準に基づいて品質検証を行う
-- コードの修正は行わない（フィードバックを返すのみ）
-- 不合格の場合、具体的な修正指示を Generator 向けに出力
-
-**ループフロー:**
-
-1. Generator が実装完了 → リーダーに報告
-2. リーダーが qa-evaluator を起動
-3. qa-evaluator が検証 → レポート返却
-4. FAIL の場合: リーダーが該当 Generator に修正を指示 → 2 に戻る（最大5回）
-5. PASS の場合: リーダーが最終確認 → commit/push
-
-## 基本サイクル: Red → Green → Refactor
+## 基本サイクル
 
 ### 0. TODOリストを作る
 
-実装対象の仕様から、テストケースの TODO リストを作成。
-**簡単なケースから始めて、徐々に複雑なケースへ進む。**
+実装対象の契約書から、テストケースの TODO リストを作成。**簡単なケースから始めて、徐々に複雑なケースへ。**
 
 ```
 TODO:
 - [ ] 訪問数が0の場合は「1箇所目！」と表示する
 - [ ] 訪問数が10の場合は「11箇所目！」と表示する
 - [ ] バッジ獲得条件を満たす場合はバッジを表示する
-- [ ] バッジ獲得条件を満たさない場合はバッジを非表示にする
 ```
 
-### 1. Red（失敗するテストを1つだけ書く）
+### 1. Red — 失敗するテストを1つだけ書く
 
 ```typescript
 describe('getVisitCountText', () => {
@@ -132,13 +34,9 @@ describe('getVisitCountText', () => {
 });
 ```
 
-テストを実行して**失敗することを確認**:
+`npm test -- --testPathPattern="getVisitCountText"` で**失敗を確認**する。
 
-```bash
-npm test -- --testPathPattern="getVisitCountText"
-```
-
-### 2. Green（テストを通す最小限の実装）
+### 2. Green — テストを通す最小限の実装
 
 ```typescript
 export function getVisitCountText(visitCount: number): string {
@@ -146,17 +44,9 @@ export function getVisitCountText(visitCount: number): string {
 }
 ```
 
-テストが**通ることを確認**:
+### 3. Refactor — テストを通したまま整理
 
-```bash
-npm test -- --testPathPattern="getVisitCountText"
-```
-
-### 3. Refactor
-
-テストが通ったままコードを改善。この段階ではまだ改善不要かもしれない。
-
-### 4. 次のテストで三角測量
+### 4. 三角測量 — 次のテストで一般化に追い込む
 
 ```typescript
 it('訪問数10の場合、「11箇所目！」を返す', () => {
@@ -164,57 +54,18 @@ it('訪問数10の場合、「11箇所目！」を返す', () => {
 });
 ```
 
-このテストが失敗するので、仮実装を一般化に追い込む:
-
-```typescript
-export function getVisitCountText(visitCount: number): string {
-  return `${visitCount + 1}箇所目！`;
-}
-```
-
-**このサイクルを小さく繰り返す。**
-
-## テスト実行コマンド
-
-```bash
-# 特定のファイルのみ（TDD中はこちらを使う）
-npm test -- --testPathPattern="filename"
-
-# 全テスト実行（最終確認時）
-npm test
-```
-
-## テストファイル配置
-
-```
-src/
-├── utils/
-│   ├── validation.ts
-│   └── __tests__/
-│       └── validation.test.ts
-├── hooks/
-│   ├── useAuth.ts
-│   └── __tests__/
-│       └── useAuth.test.ts
-```
-
 ## t-wada流の重要テクニック
 
-### 仮実装（Fake It）
+- **仮実装（Fake It）**: まずハードコードで Green にし、次のテストで一般化に追い込む
+- **三角測量（Triangulation）**: 2つ以上のテストで実装を正しい方向に導く
+- **明白な実装（Obvious Implementation）**: 実装が明白なら直接書いてよいが、テストが失敗したら仮実装に戻る
 
-まずハードコードで Green にし、次のテストで一般化に追い込む。
+## このリポジトリのテスト規約
 
-### 三角測量（Triangulation）
-
-2つ以上のテストで実装を正しい方向に導く。
-
-### 明白な実装（Obvious Implementation）
-
-実装が明白なら直接書いてよいが、テストが失敗したら仮実装に戻る。
-
-### テスト作成のポイント
-
-1. **1テスト1アサーション** を心がける
-2. **エッジケース**を必ずテスト
-3. **Arrange-Act-Assert** パターンで構造化
-4. **モックは最小限**に（実装の詳細に依存しない）
+- テストは対象と同階層の `__tests__/` に置く: `src/screens/__tests__/MapScreen.test.tsx`
+- Jest + `jest-expo` preset + `@testing-library/react-native`
+- expo モジュール（camera / location / image-picker 等）と Supabase のモックは `jest.setup.js` に集約済み。**個別テストで場当たり的に再モックしない**。不足があれば jest.setup.js に追加する
+- 新しい画面・hook・サービスには必ず対応するテストを作る（既存はテスト:実装 ≈ 1.1:1）
+- TDD 中は `npm test -- --testPathPattern="..."` で対象のみ、最終確認で `npm test` 全件
+- **1テスト1アサーション**を心がけ、**Arrange-Act-Assert** で構造化。エッジケース（ネットワークエラー / 位置情報拒否 / 未ログイン）を必ず含める。モックは最小限に
+- ネイティブ動線（カメラ・地図操作・サインイン）は Jest では検証しきれない。契約書で native-only と明示し、Maestro フロー（`e2e/flows/`）か実機確認に割り当てる
