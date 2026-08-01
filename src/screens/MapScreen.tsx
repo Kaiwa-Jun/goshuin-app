@@ -107,9 +107,13 @@ export function MapScreen({ navigation, route }: Props) {
   }, [permissionStatus, refreshLocation]);
 
   const minRank = getMinRank(currentLatitudeDelta);
+  // 訪問済み・行きたいリストのスポットは「自分の旅の記録」なので rank に関わらず常に表示する
   const visibleSpots = useMemo(
-    () => displaySpots.filter(s => s.rank >= minRank),
-    [displaySpots, minRank]
+    () =>
+      displaySpots.filter(
+        s => s.rank >= minRank || visitedSpotIds.has(s.id) || wishlistSpotIds.has(s.id)
+      ),
+    [displaySpots, minRank, visitedSpotIds, wishlistSpotIds]
   );
 
   useEffect(() => {

@@ -129,10 +129,13 @@ const mockSpots = [
   },
 ];
 
+// テストごとに差し替え可能なオーバーライド(null なら mockSpots を使用)
+let mockSpotsOverride: typeof mockSpots | null = null;
+
 jest.mock('@hooks/useSpots', () => ({
   useSpots: () => ({
-    spots: mockSpots,
-    allSpots: mockSpots,
+    spots: mockSpotsOverride ?? mockSpots,
+    allSpots: mockSpotsOverride ?? mockSpots,
     isLoading: false,
     error: null,
   }),
@@ -147,14 +150,21 @@ jest.mock('@hooks/useUserStamps', () => ({
   }),
 }));
 
+let mockWishlistSpotIds = new Set<string>();
+
 jest.mock('@hooks/useWishlist', () => ({
   useWishlist: () => ({
-    wishlistSpotIds: new Set(),
+    wishlistSpotIds: mockWishlistSpotIds,
     toggleWishlist: jest.fn(),
     isLoading: false,
     isToggling: false,
   }),
 }));
+
+afterEach(() => {
+  mockSpotsOverride = null;
+  mockWishlistSpotIds = new Set<string>();
+});
 
 const mockParentNavigate = jest.fn();
 const mockNavigation = {
@@ -617,6 +627,47 @@ describe('MapScreen', () => {
         expect(queryByTestId('spot-marker-pref-spot-1')).toBeNull();
         expect(queryByTestId('spot-marker-pref-spot-2')).toBeNull();
       });
+    });
+  });
+
+  describe('Rank filter exemption for visited/wishlist spots (#93)', () => {
+    const zoomedOutRegion = {
+      latitude: 38.2682,
+      longitude: 140.8694,
+      latitudeDelta: 0.6, // minRank 5 相当
+      longitudeDelta: 0.6,
+    };
+
+    it('ズームアウト(minRank 5 相当)でも訪問済みスポットのマーカーは表示され続ける', () => {
+      const { getByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      fireEvent(getByTestId('map-view'), 'onRegionChangeComplete', zoomedOutRegion);
+
+      expect(getByTestId('spot-marker-spot-1')).toBeTruthy();
+    });
+
+    it('ズームアウトでも行きたいリストのスポットのマーカーは表示され続ける', () => {
+      mockWishlistSpotIds = new Set(['spot-2']);
+
+      const { getByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      fireEvent(getByTestId('map-view'), 'onRegionChangeComplete', zoomedOutRegion);
+
+      expect(getByTestId('spot-marker-spot-2')).toBeTruthy();
+    });
+
+    it('visited/wishlist のいずれでもないスポットはズームアウトで非表示になる(rank フィルタ維持)', () => {
+      const { getByTestId, queryByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      fireEvent(getByTestId('map-view'), 'onRegionChangeComplete', zoomedOutRegion);
+
+      expect(queryByTestId('spot-marker-spot-2')).toBeNull();
     });
   });
 });
