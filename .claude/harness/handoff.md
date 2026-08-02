@@ -28,7 +28,7 @@
 8. **PR #100**（Issue #99 / P1-06）: クラスタリング導入。実機クラッシュを4イテレーションで追い込み、最終的に `minZoomLevel=8` で封じ込め（全経緯は契約書 `docs/issues/issue-099-map-clustering.md` 追補1〜4）
 9. **PR #101**: develop → main のリリースマージ。v1.0.0 を App Store Connect へ提出
 10. **PR #103**（Issue #102 / P1-08）: 初回体験の改善。タブ遷移ブロック撤廃 + 御朱印/コレクションのゲスト空状態 + 検索の未入力時提案（近隣/人気）。Evaluator PASS 47/47・実機確認済み
-11. **PR #105**（Issue #104 / P2-01）: 限定御朱印ウォッチャー MVP のコード実装。spot_info_sources + crawl-spot-sources Edge Function（hash 差分検知 → Haiku 4.5 構造化）+ LimitedGoshuinSection。Evaluator PASS 93/93。**seed・DB 適用・デプロイ・cron 登録・実機確認が未了**（契約書 I/N 群と feature-list note 参照）
+11. **PR #105〜#110**（Issue #104 / P2-01）: 限定御朱印ウォッチャー MVP を**運用投入まで完了**（passes: true・実機確認済み）。spot_info_sources + crawl-spot-sources Edge Function（hash 差分検知 → Haiku 4.5 構造化）+ LimitedGoshuinSection。seed 29スポット79ソース（#106）、授与品混入→isLikelyGoshuin ガード（#108）、過去告知混入→日付注入プロンプト（#109）+ 頒布中(開始のみ記載)の誤除外対策（#110）。cron 週2回（火金02:00 JST）稼働中
 
 ## このセッションでの重要な発見
 
@@ -39,7 +39,7 @@
 ## 次のアクション（優先順・2026-08-02 にユーザーと合意）
 
 1. ~~P1-08 初回体験の改善~~ — **完了**（Issue #102 / PR #103、2026-08-02）
-2. **P2-01 限定御朱印ウォッチャー MVP の残タスク** — コード実装は PR #105 で完了。残り: ①第1弾 seed SQL（東京+宮城+京都の rank5 29件。公式サイト調査は Claude が実施、結果は scratchpad の spot_sources_phase1.json → `supabase/seeds/seed_spot_info_sources_phase1.sql` に落とす）②ユーザー作業: migration 適用 → `npx supabase functions deploy crawl-spot-sources` → Vault+cron 登録 → seed 投入（手順は契約書 I 群）③実機で N-1〜N-6 確認 → feature-list を passes: true に。運用決定事項: ソース登録は運営（ユーザー+Claude 調査）、SNS はリンク表示のみ、rank5 は全国469件あるため残りは運用で拡充
+2. **P2-02 限定御朱印ウォッチャー v2** — 次の最優先。**Instagram Business Discovery API 対応から着手する**（2026-08-02 ユーザー合意、詳細は feature-list P2-02 の note）。狙い: アイテム単位の出典 URL（投稿 permalink）+ timestamp による機械的な鮮度判定。着手手順: (1) ユーザー側の Meta セットアップをガイド（IG ビジネスアカウント作成→プロアカウント切替→FB ページ連携→Meta developer アプリ→トークン。全部無料、30分〜1時間）(2) 契約書作成（トークンは Supabase secrets に保管、username は既存 sns_link の URL から導出、Business/Creator でないアカウントは取得不可→リンク表示のまま等を仕様化）(3) 実装は crawl-spot-sources への source 種別追加として既存パイプラインに乗せる。第2柱の記事単位クロール（公式サイト）は Instagram の後
 3. **P1-03 御朱印帳らしい閲覧UI** — 情緒的な差別化。ただし記録が溜まってから価値が出るため 2 の後で良い
 4. 審査結果が出たら対応（通過 → 手動リリース / リジェクト → 修正・再提出）
 5. Google Play（本人確認の承認後）
@@ -59,6 +59,16 @@
 - **dev サーバー**: tmux セッション `goshuin-dev`（`/dev` で再起動）
 - **Supabase**: 読み取りは `.env` の anon キーで REST 直叩き（1リクエスト最大1,000行）。**書き込みはユーザーがプライベート Chrome の SQL Editor で実行する運用**
 - **EAS**: ログイン済み。`--non-interactive --no-wait` で投げて `build:list --json` で状態確認（`build:view` は JSON が壊れることがある）
+
+## 限定御朱印ウォッチャーの運用メモ（P2-01 で確立、2026-08-02）
+
+- **Supabase CLI は必ず `npx supabase@latest`**（素の `npx supabase` は古い v2.20 を解決して config.toml の `[project]` を読めない）。デプロイは Docker レート制限を避けて `--use-api` を付ける: `npx supabase@latest functions deploy crawl-spot-sources --project-ref tvnozkpxncmnehyomoff --use-api --no-verify-jwt`
+- **verify_jwt は必ず false**（config.toml に明記済み）。このプロジェクトは新 API キー体系で、関数環境の `SUPABASE_SERVICE_ROLE_KEY` は `sb_secret_...`。JWT 検証が有効だと sb_secret はゲートウェイで弾かれ、legacy JWT は関数内ガードで弾かれる詰みになる
+- **関数の認可**: `Authorization: Bearer <sb_secret キー>`。キーは `npx supabase@latest projects api-keys --project-ref tvnozkpxncmnehyomoff --reveal` で取得（**--reveal 必須**。無いと伏せ字が返り Invalid API key になる）。Vault には `service_role_key` の名前で sb_secret を保存済み（cron が参照）
+- **強制再抽出**: `spot_info_sources.content_hash` を null に PATCH → 関数を `{"spot_id": "..."}` 付きで叩く（hash 一致だと Claude を呼ばずスキップされるため）
+- **既知の問題**: 平安神宮は先方の SSL 中間証明書チェーン不備で fetch が常に失敗（毎回 failed 1 は正常）。榴岡天満宮は公式サイトの御朱印告知が2022年で停止しており Instagram のみ（P2-02 の動機）
+- **抽出品質の防衛線**: ①isLikelyGoshuin ガード（name+description に朱印/集印必須、朱印帳/挟み紙除外）②プロンプトに今日の日付を注入して過去告知を除外、頒布中(開始のみ記載・通年)は含める。プロンプト変更時は必ず「八坂神社(授与品一覧)」「榴岡(古い告知)」「護國神社(通年切り絵)」で回帰確認する
+- **cron 実行履歴**: `select * from cron.job_run_details order by start_time desc limit 5;`（SQL Editor）
 
 ## 参照ファイル
 
