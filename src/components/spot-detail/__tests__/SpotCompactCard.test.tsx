@@ -90,4 +90,43 @@ describe('SpotCompactCard', () => {
     fireEvent.press(getByTestId('wishlist-button'));
     expect(onWishlistPress).toHaveBeenCalledTimes(1);
   });
+
+  describe('限定御朱印チップ', () => {
+    const limitedGoshuin = {
+      items: [
+        {
+          name: '夏詣限定御朱印',
+          period: null,
+          period_start: null,
+          period_end: null,
+          description: null,
+          source_url: 'https://example.jp/goshuin',
+          fetched_at: '2026-08-01T00:00:00Z',
+        },
+        {
+          name: '月替わり御朱印',
+          period: null,
+          period_start: null,
+          period_end: null,
+          description: null,
+          source_url: 'https://example.jp/goshuin',
+          fetched_at: '2026-08-01T00:00:00Z',
+        },
+      ],
+      fetched_at: '2026-08-01T00:00:00Z',
+    };
+
+    it('limitedGoshuin 2件で件数チップが表示される', () => {
+      const { getByTestId, getByText } = render(
+        <SpotCompactCard {...defaultProps} spotInfo={{ limitedGoshuin }} />
+      );
+      expect(getByTestId('limited-goshuin-compact')).toBeTruthy();
+      expect(getByText('限定御朱印 2件')).toBeTruthy();
+    });
+
+    it('spotInfo が無いときチップを表示しない', () => {
+      const { queryByTestId } = render(<SpotCompactCard {...defaultProps} />);
+      expect(queryByTestId('limited-goshuin-compact')).toBeNull();
+    });
+  });
 });

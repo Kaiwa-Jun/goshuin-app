@@ -7,6 +7,7 @@ import { Badge } from '@components/common/Badge';
 import { ImageGalleryModal, GalleryImage } from '@components/common/ImageGalleryModal';
 import { WishlistButton } from '@components/animated/WishlistButton';
 import { SpotInfoSection } from '@components/spot-detail/SpotInfoSection';
+import { LimitedGoshuinSection } from '@components/spot-detail/LimitedGoshuinSection';
 import { getStampImageUrl } from '@services/stamps';
 import type { Spot, Stamp, PublicStampWithUser } from '@/types/supabase';
 import type { ParsedSpotInfo } from '@hooks/useSpotInfo';
@@ -102,6 +103,9 @@ export function SpotDetailContent({
       )}
 
       {spotInfo && <SpotInfoSection spotInfo={spotInfo} />}
+      {spotInfo && (
+        <LimitedGoshuinSection info={spotInfo.limitedGoshuin} snsLinks={spotInfo.snsLinks} />
+      )}
 
       <TouchableOpacity style={styles.recordLink} onPress={onRecord} testID="record-link">
         <MaterialIcons name="photo-camera" size={18} color={colors.primary[500]} />

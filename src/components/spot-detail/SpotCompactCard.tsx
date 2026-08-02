@@ -5,6 +5,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { Badge } from '@components/common/Badge';
 import { WishlistButton } from '@components/animated/WishlistButton';
 import { SpotInfoSection } from '@components/spot-detail/SpotInfoSection';
+import { LimitedGoshuinSection } from '@components/spot-detail/LimitedGoshuinSection';
 import type { Spot } from '@/types/supabase';
 import type { ParsedSpotInfo } from '@hooks/useSpotInfo';
 import { colors } from '@theme/colors';
@@ -53,6 +54,7 @@ export function SpotCompactCard({
         )}
       </View>
       {spotInfo && <SpotInfoSection spotInfo={spotInfo} />}
+      {spotInfo && <LimitedGoshuinSection info={spotInfo.limitedGoshuin} variant="compact" />}
     </View>
   );
 }
