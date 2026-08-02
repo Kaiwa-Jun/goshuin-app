@@ -1,0 +1,46 @@
+# App Store 用スクリーンショット撮影（docs/project/store-metadata.md の5枚構成）
+# 実行: maestro test e2e/flows/store-screenshots.yaml
+# 前提: preview-simulator ビルドをインストール済みの 6.7インチ シミュレータが起動中
+appId: com.goshuin.app
+---
+- launchApp:
+    clearState: false
+- runFlow:
+    when:
+      visible: 'スキップ'
+    commands:
+      - tapOn: 'スキップ'
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# 1. 地図画面 —「集めるたび、地図があなたの旅になる。」
+- takeScreenshot: screenshots/01-map
+
+# 2. スポット詳細（地図のピンをタップしてボトムシートを出す）
+- tapOn:
+    point: '50%,45%'
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: screenshots/02-spot-detail
+
+# 3. 御朱印記録画面（中央の FAB から）
+- tapOn:
+    point: '50%,92%'
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: screenshots/03-record
+
+# 4. コレクション画面
+- back
+- waitForAnimationToEnd:
+    timeout: 2000
+- tapOn: 'コレクション'
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: screenshots/04-collection
+
+# 5. ギャラリー画面
+- tapOn: 'ギャラリー'
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: screenshots/05-gallery
