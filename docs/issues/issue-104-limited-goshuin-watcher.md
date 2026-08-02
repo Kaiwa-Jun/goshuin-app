@@ -344,6 +344,7 @@ Deno テスト可能な純粋関数を `supabase/functions/_shared/crawl.ts` に
 `normalizeItems` の正規化:
 
 - `name` が文字列でない / trim 後に空 → その要素を破棄
+- **御朱印らしさガード（追補 2026-08-02）**: `isLikelyGoshuin(name, description)` が false の要素を破棄する。判定は「`name` + `description` に `朱印` または `集印` を含み、かつ `name` に `朱印帳`・`挟み紙` を含まない」。プロンプトの授与品除外指示だけでは Haiku が期間限定の授与品（破魔矢・土鈴等）・御朱印帳・挟み紙を返すことが初回実クロールで確認されたため、コード側で二重に守る（実データ32件で検証: 汚染12件を全滅・正当19件を全保持・イベント告知1件を正しく除外）
 - `name` は trim 後に 100 文字で切り詰め
 - `period` は文字列なら trim して 100 文字で切り詰め、それ以外は `null`
 - `period_start` / `period_end` は `/^\d{4}-\d{2}-\d{2}$/` に一致する文字列のときのみ設定、それ以外は `null`

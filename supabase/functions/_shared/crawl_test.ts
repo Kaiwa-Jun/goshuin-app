@@ -160,17 +160,17 @@ const FETCHED_AT = '2026-08-03T17:00:00.000Z';
 const SOURCE_URL = 'https://example.jp/goshuin';
 
 Deno.test('normalizeItems: name 欠落・空の要素を破棄する', () => {
-  const raw = [{ name: '' }, { period: '7月' }, { name: '  夏詣  ' }];
+  const raw = [{ name: '' }, { period: '7月' }, { name: '  夏詣御朱印  ' }];
   const items = normalizeItems(raw, SOURCE_URL, FETCHED_AT, 10);
   assertEquals(items.length, 1);
-  assertEquals(items[0].name, '夏詣');
+  assertEquals(items[0].name, '夏詣御朱印');
 });
 
 Deno.test(
   'normalizeItems: source_url と fetched_at を引数値で上書きする（Claude の値を採用しない）',
   () => {
     const raw = [
-      { name: '夏詣', source_url: 'https://evil.example/fake', fetched_at: '1999-01-01' },
+      { name: '夏詣御朱印', source_url: 'https://evil.example/fake', fetched_at: '1999-01-01' },
     ];
     const items = normalizeItems(raw, SOURCE_URL, FETCHED_AT, 10);
     assertEquals(items[0].source_url, SOURCE_URL);
@@ -179,26 +179,52 @@ Deno.test(
 );
 
 Deno.test('normalizeItems: 不正形式の period_end は null', () => {
-  const raw = [{ name: '夏詣', period_end: '2026/08/31' }];
+  const raw = [{ name: '夏詣御朱印', period_end: '2026/08/31' }];
   assertEquals(normalizeItems(raw, SOURCE_URL, FETCHED_AT, 10)[0].period_end, null);
 });
 
 Deno.test('normalizeItems: 正しい形式の period_start/period_end は保持', () => {
-  const raw = [{ name: '夏詣', period_start: '2026-07-01', period_end: '2026-08-31' }];
+  const raw = [{ name: '夏詣御朱印', period_start: '2026-07-01', period_end: '2026-08-31' }];
   const item = normalizeItems(raw, SOURCE_URL, FETCHED_AT, 10)[0];
   assertEquals(item.period_start, '2026-07-01');
   assertEquals(item.period_end, '2026-08-31');
 });
 
 Deno.test('normalizeItems: maxItems で件数を切る', () => {
-  const raw = [{ name: 'a' }, { name: 'b' }, { name: 'c' }];
+  const raw = [{ name: '朱印a' }, { name: '朱印b' }, { name: '朱印c' }];
   assertEquals(normalizeItems(raw, SOURCE_URL, FETCHED_AT, 2).length, 2);
+});
+
+Deno.test('normalizeItems: 授与品（朱印/集印の言及なし）を破棄する', () => {
+  const raw = [
+    { name: '御神矢（小）', description: '初穂料：1500円' },
+    { name: '干支土鈴', description: '初穂料：1500円' },
+    { name: '夏詣限定御朱印', description: '書き置きのみ' },
+  ];
+  const items = normalizeItems(raw, SOURCE_URL, FETCHED_AT, 10);
+  assertEquals(
+    items.map(i => i.name),
+    ['夏詣限定御朱印']
+  );
+});
+
+Deno.test('normalizeItems: 御朱印帳・挟み紙は name に朱印を含んでも破棄する', () => {
+  const raw = [
+    { name: '春限定御朱印帳', description: '初穂料：3500円' },
+    { name: '4月限定挟み紙', description: null },
+  ];
+  assertEquals(normalizeItems(raw, SOURCE_URL, FETCHED_AT, 10), []);
+});
+
+Deno.test('normalizeItems: name に朱印が無くても description の言及で残す', () => {
+  const raw = [{ name: '夏詣二〇二六', description: '期間中、限定御朱印を頒布します' }];
+  assertEquals(normalizeItems(raw, SOURCE_URL, FETCHED_AT, 10).length, 1);
 });
 
 Deno.test('normalizeItems: period が非文字列なら null、文字列なら trim', () => {
   const raw = [
-    { name: 'a', period: 123 },
-    { name: 'b', period: ' 7月中 ' },
+    { name: '朱印a', period: 123 },
+    { name: '朱印b', period: ' 7月中 ' },
   ];
   const items = normalizeItems(raw, SOURCE_URL, FETCHED_AT, 10);
   assertEquals(items[0].period, null);
