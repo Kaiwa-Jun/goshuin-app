@@ -533,12 +533,14 @@ const MAX_INSTAGRAM_PROMPT_CHARS = 30_000; // 投稿一覧全体の上限
       ```
       成功したら `instagram.extracted++`。Claude が非 2xx なら throw → `instagram.failed++`、**`content_hash` は更新しない**（次回再抽出）
    10. `spot_aggregated_info` の既存行を読み、マージする:
+
        ```ts
        const merged = mergeItemsBySourceKey(existingItems, `instagram:${username}`, newItems);
        ```
 
        - `merged.length === 0` → 該当行を `delete`
        - それ以外 → 既存 web パスと同一の `upsert`（`onConflict: 'spot_id,info_type'`）
+
    11. `spot_info_sources` を `{ content_hash: hash, last_crawled_at: fetchedAt, last_changed_at: fetchedAt, updated_at: fetchedAt }` で更新
 
 ### Claude 抽出（Instagram パス）
@@ -684,7 +686,7 @@ goshuin-evaluator がこの基準に基づいて合否判定を行う。各基�
 - [ ] AC-A4: `supabase/functions/_shared/crawl.ts` の `LimitedGoshuinItem` に `source_key?: string | null` がある
 - [ ] AC-A5: `supabase/functions/crawl-spot-sources/index.ts` に `META_GRAPH_VERSION`（値 `'v26.0'`）・`MAX_INSTAGRAM_SOURCES_PER_RUN`・`INSTAGRAM_MEDIA_LIMIT`・`INSTAGRAM_LOOKBACK_DAYS`・`MAX_CAPTION_CHARS`・`MAX_INSTAGRAM_PROMPT_CHARS` の 6 定数が定義されている
 - [ ] AC-A6: `index.ts` が `Deno.env.get('META_ACCESS_TOKEN')` と `Deno.env.get('META_IG_USER_ID')` を参照している
-- [ ] AC-A7: `index.ts` の `console.log` / `console.warn` / `console.error` の引数に `accessToken` / `access_token` / `META_ACCESS_TOKEN` のいずれの識別子も現れない（`grep -n "console\.\(log\|warn\|error\)" supabase/functions/crawl-spot-sources/index.ts | grep -c "accessToken\|access_token\|META_ACCESS_TOKEN"` が 0）
+- [ ] AC-A7: `index.ts` の `console.log` / `console.warn` / `console.error` の引数に `accessToken` / `access_token` の識別子が現れない（`grep -n "console\.\(log\|warn\|error\)" supabase/functions/crawl-spot-sources/index.ts | grep -c "accessToken\|access_token"` が 0）。判断 6 が固定メッセージとして要求する `META_ACCESS_TOKEN invalid or expired` は静的リテラルでトークン値を含まないため許容する（I-18 がこのログ行の存在を要求しており、当初の grep パターンとは両立しないことが実装時に判明。2026-08-03 修正）
 - [ ] AC-A8: `index.ts` が Instagram 巡回対象を `.eq('source_type', 'sns_link')` と `.ilike('url', '%instagram.com%')` の組み合わせで取得している
 - [ ] AC-A9: `index.ts` に既存 web パスの `.neq('source_type', 'sns_link')` が**残っている**
 - [ ] AC-A10: `index.ts` が `mode` を読み取り、`'web'` / `'instagram'` / `'all'` の 3 文字列リテラルをすべて含む
