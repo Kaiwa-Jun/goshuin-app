@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Badge } from '@components/common/Badge';
+import { Button } from '@components/common/Button';
 import { Card } from '@components/common/Card';
 import { WishlistButton } from '@components/animated/WishlistButton';
 import { useAuth } from '@hooks/useAuth';
@@ -34,7 +35,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 type Props = CollectionStackScreenProps<'CollectionList'>;
 
 export function CollectionScreen({ navigation }: Props) {
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const { spots: wishlistSpots, refetch: refetchWishlist } = useWishlistSpots();
   const { spotCount, stampCount, regionStats, pilgrimageProgress, isLoading } =
     useCollectionStats();
@@ -101,6 +102,26 @@ export function CollectionScreen({ navigation }: Props) {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
+        {/* Guest Card（未ログイン時のみ） */}
+        {!isAuthenticated && (
+          <View testID="collection-guest-empty-state">
+            <Card style={styles.guestCard}>
+              <MaterialIcons name="emoji-events" size={40} color={colors.primary[500]} />
+              <Text style={styles.guestCardTitle}>記録するとここに集計されます</Text>
+              <Text style={styles.guestCardDescription}>
+                訪れた寺社の数・都道府県の埋まり方・巡礼の進捗・獲得バッジが自動でたまります
+              </Text>
+              <Button
+                title="ログインして始める"
+                variant="primary"
+                testID="collection-login-cta"
+                onPress={() => navigation.navigate('Login')}
+                style={styles.guestCardCta}
+              />
+            </Card>
+          </View>
+        )}
+
         {/* Achievement Summary Card */}
         <View style={styles.summaryCardOuter}>
           {/* 右上の装飾アイコン */}
@@ -354,6 +375,26 @@ const styles = StyleSheet.create({
   content: {
     padding: spacing.lg,
     paddingBottom: spacing['4xl'],
+  },
+  guestCard: {
+    alignItems: 'center',
+    marginBottom: spacing.xl,
+  },
+  guestCardTitle: {
+    ...typography.h3,
+    color: colors.gray[800],
+    marginTop: spacing.md,
+    textAlign: 'center',
+  },
+  guestCardDescription: {
+    ...typography.bodySmall,
+    color: colors.gray[500],
+    marginTop: spacing.sm,
+    textAlign: 'center',
+  },
+  guestCardCta: {
+    marginTop: spacing.lg,
+    alignSelf: 'stretch',
   },
   summaryCardOuter: {
     backgroundColor: colors.primary[500],
