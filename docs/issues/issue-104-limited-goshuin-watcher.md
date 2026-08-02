@@ -384,7 +384,7 @@ const USER_AGENT = 'GoshuinSampoBot/1.0 (+https://kaiwa-jun.github.io/goshuin-ap
 5. **1件ずつ逐次処理**する。各ソースは `try/catch` で囲み、1件の失敗が実行全体を止めないようにする。ループ先頭で `isPastDeadline(startedAt, Date.now(), RUN_BUDGET_MS)` を判定し、超えていたら残りを未処理のまま打ち切って `deadline_reached: true` を返す
 6. 各ソースの処理:
    1. `isAllowedSourceUrl(url)` が false → `skipped_blocked` に計上して次へ（`last_crawled_at` は更新しない）
-   2. `AbortController` + `setTimeout(FETCH_TIMEOUT_MS)` で `fetch(url, { headers: { 'User-Agent': USER_AGENT, 'Accept': 'text/html,application/xhtml+xml,application/xml' }, redirect: 'follow', signal })`
+   2. `AbortController` + `setTimeout(FETCH_TIMEOUT_MS)` で fetch する。**`redirect: 'manual'` とし、3xx は Location を解決して最大 `MAX_REDIRECTS`（5）ホップまで手動追跡。各ホップの URL を `isAllowedSourceUrl` で再検証する**（`redirect: 'follow'` だと初回 URL しか SSRF ガードを通らないため。セキュリティレビュー指摘 2026-08-02）。ヘッダは `{ 'User-Agent': USER_AGENT, 'Accept': 'text/html,application/xhtml+xml,application/xml' }`
    3. `res.ok` が false → `failed` に計上。`last_crawled_at` のみ更新して次へ
    4. `isCrawlableContentType(res.headers.get('content-type'))` が false → `skipped_content_type` に計上。`last_crawled_at` のみ更新して次へ
    5. 本文は `res.body` を **ReadableStream で読みながら累積バイト数を数え、`MAX_CONTENT_BYTES` を超えた時点で `reader.cancel()` して打ち切る**（`res.text()` で丸ごと読まない）

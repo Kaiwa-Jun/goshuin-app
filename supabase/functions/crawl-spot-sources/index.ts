@@ -20,6 +20,7 @@ const corsHeaders = {
 const MAX_SOURCES_PER_RUN = 20; // 1回の実行で処理する source の上限
 const MAX_ITEMS_PER_SOURCE = 10; // 1ソースから採用する限定御朱印の上限
 const FETCH_TIMEOUT_MS = 10_000; // 外部 fetch のタイムアウト
+const MAX_REDIRECTS = 5; // リダイレクトの最大追跡数（各ホップを SSRF ガードで検証する）
 const MAX_CONTENT_BYTES = 2_000_000; // レスポンス本文の上限（2MB）
 const MAX_TEXT_CHARS = 20_000; // Claude に渡すテキストの上限
 const RUN_BUDGET_MS = 100_000; // 実行全体のソフト締切（Edge Function のウォールクロック対策）
@@ -252,18 +253,40 @@ async function processSource(
   });
 }
 
+/**
+ * リダイレクトを自動追跡せず1ホップずつ検証しながら fetch する。
+ * redirect: 'follow' だと初回 URL しか SSRF ガードを通らず、
+ * リダイレクト先にプライベート IP を指されると迂回できてしまう。
+ */
 async function fetchWithTimeout(url: string): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    return await fetch(url, {
-      headers: {
-        'User-Agent': USER_AGENT,
-        Accept: 'text/html,application/xhtml+xml,application/xml',
-      },
-      redirect: 'follow',
-      signal: controller.signal,
-    });
+    let currentUrl = url;
+    for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+      if (!isAllowedSourceUrl(currentUrl)) {
+        throw new Error(`Blocked redirect target: ${currentUrl}`);
+      }
+      const res = await fetch(currentUrl, {
+        headers: {
+          'User-Agent': USER_AGENT,
+          Accept: 'text/html,application/xhtml+xml,application/xml',
+        },
+        redirect: 'manual',
+        signal: controller.signal,
+      });
+      if (res.status >= 300 && res.status < 400) {
+        const location = res.headers.get('location');
+        res.body?.cancel();
+        if (!location) {
+          return res;
+        }
+        currentUrl = new URL(location, currentUrl).toString();
+        continue;
+      }
+      return res;
+    }
+    throw new Error(`Too many redirects: ${url}`);
   } finally {
     clearTimeout(timer);
   }
