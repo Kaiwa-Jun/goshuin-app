@@ -719,7 +719,8 @@ describe('MapScreen', () => {
       ...overrides,
     });
 
-    it('初期ビューポート内の rank 2 スポットは delta 0.019 / 0.021 / 0.1 のいずれでも表示され続ける(ポッピング解消)', () => {
+    it('初期ビューポート内の rank 2 スポットは delta 0.019 / 0.021 / 0.025 のいずれでも表示され続ける(ポッピング解消)', () => {
+      // delta 0.1 はクラスタ化帯(zoom 12)に入るため非クラスタ帯(zoom 14)の値に変更(#99)
       mockSpotsOverride = [
         ...mockSpots,
         genSpot(0, { id: 'spot-rank2', lat: 38.269, lng: 140.87, rank: 2 }),
@@ -731,7 +732,7 @@ describe('MapScreen', () => {
 
       expect(getByTestId('spot-marker-spot-rank2')).toBeTruthy();
 
-      for (const delta of [0.019, 0.021, 0.1]) {
+      for (const delta of [0.019, 0.021, 0.025]) {
         fireEvent(getByTestId('map-view'), 'onRegionChangeComplete', regionAt(delta));
         expect(getByTestId('spot-marker-spot-rank2')).toBeTruthy();
       }
@@ -750,17 +751,18 @@ describe('MapScreen', () => {
       expect(queryByTestId('spot-marker-spot-tokyo')).toBeNull();
     });
 
-    it('同 rank 81 件では中心から最遠の 1 件のみレンダリングされない(top-N 選外)', () => {
+    it('同 rank 81 件では個別描画上限 60 件(MAX_INDIVIDUAL_SPOTS)を超える中心から遠い分がレンダリングされない', () => {
       mockSpotsOverride = Array.from({ length: 81 }, (_, i) =>
         genSpot(i, { lat: CENTER_LAT + i * 0.00005, lng: CENTER_LNG, rank: 3 })
       ) as typeof mockSpots;
 
-      const { queryAllByTestId, queryByTestId } = render(
+      const { queryAllByTestId, getByTestId, queryByTestId } = render(
         <MapScreen navigation={mockNavigation as never} route={mockRoute} />
       );
 
-      expect(queryAllByTestId(/^spot-marker-gen-/)).toHaveLength(80);
-      expect(queryByTestId('spot-marker-gen-0080')).toBeNull();
+      expect(queryAllByTestId(/^spot-marker-gen-/)).toHaveLength(60);
+      expect(getByTestId('spot-marker-gen-0059')).toBeTruthy();
+      expect(queryByTestId('spot-marker-gen-0060')).toBeNull();
     });
 
     it('rank 1 のスポットしかないエリアでも delta 0.6 にズームアウトして地図が空にならない', () => {
@@ -774,30 +776,31 @@ describe('MapScreen', () => {
       expect(getByTestId('spot-marker-spot-low')).toBeTruthy();
     });
 
-    it('初期ビューポート内 1,109 件でもレンダリングされるスポットマーカーは 80 件(P-2)', () => {
+    it('初期ビューポート内 1,109 件でもレンダリングされる個別マーカーは 60 件・クラスタ 0 件(#99 P-3)', () => {
       mockSpotsOverride = Array.from({ length: 1109 }, (_, i) => genSpot(i)) as typeof mockSpots;
 
       const { queryAllByTestId } = render(
         <MapScreen navigation={mockNavigation as never} route={mockRoute} />
       );
 
-      expect(queryAllByTestId(/^spot-marker-gen-/)).toHaveLength(80);
+      expect(queryAllByTestId(/^spot-marker-gen-/)).toHaveLength(60);
+      expect(queryAllByTestId(/^cluster-marker-/)).toHaveLength(0);
     });
 
-    it('top-80 選外の wishlist スポットは枠を置き換えて表示され、総数は 80 件のまま(P-3)', () => {
+    it('個別 60 件選外の wishlist スポットは pinned 枠で表示され、総数は 61 件(#99)', () => {
       mockSpotsOverride = Array.from({ length: 1109 }, (_, i) => genSpot(i)) as typeof mockSpots;
-      // rank 1 のスポット(top-80 は rank 5 で埋まるため確実に選外)を wishlist に入れる
+      // rank 1 のスポット(個別 60 件は rank 5 で埋まるため確実に選外)を wishlist に入れる
       mockWishlistSpotIds = new Set(['gen-0000']);
 
       const { queryAllByTestId, getByTestId } = render(
         <MapScreen navigation={mockNavigation as never} route={mockRoute} />
       );
 
-      expect(queryAllByTestId(/^spot-marker-gen-/)).toHaveLength(80);
+      expect(queryAllByTestId(/^spot-marker-gen-/)).toHaveLength(61);
       expect(getByTestId('spot-marker-gen-0000')).toBeTruthy();
     });
 
-    it('focusPrefecture で県 spots が 100 件でも県域 region 発火後のマーカーは 80 件', async () => {
+    it('focusPrefecture で県 spots が 100 件でも県域 region 発火後はクラスタ化されマーカー総数 130 以下(#99 AC-36)', async () => {
       mockSpotsOverride = [] as unknown as typeof mockSpots;
       const prefGen = Array.from({ length: 100 }, (_, i) =>
         genSpot(i, {
@@ -829,7 +832,196 @@ describe('MapScreen', () => {
         longitudeDelta: 0.2,
       });
 
-      expect(queryAllByTestId(/^spot-marker-pref-gen-/)).toHaveLength(80);
+      const clusterMarkers = queryAllByTestId(/^cluster-marker-/);
+      const spotMarkers = queryAllByTestId(/^spot-marker-/);
+      expect(clusterMarkers.length).toBeGreaterThanOrEqual(1);
+      expect(clusterMarkers.length + spotMarkers.length).toBeLessThanOrEqual(130);
+    });
+  });
+
+  describe('Clustering (#99)', () => {
+    const CENTER_LAT = 38.2682;
+    const CENTER_LNG = 140.8694;
+
+    const regionAt = (latitudeDelta: number, latitude = CENTER_LAT) => ({
+      latitude,
+      longitude: CENTER_LNG,
+      latitudeDelta,
+      longitudeDelta: latitudeDelta,
+    });
+
+    // 中心付近の 0.0005° グリッドに count 件を決定的に配置する
+    const gridSpots = (count: number) =>
+      Array.from({ length: count }, (_, i) => ({
+        id: `gen-${String(i).padStart(4, '0')}`,
+        name: `Gen Spot ${i}`,
+        lat: CENTER_LAT + (Math.floor(i / 20) - 4.5) * 0.0005,
+        lng: CENTER_LNG + ((i % 20) - 9.5) * 0.0005,
+        type: 'shrine',
+        status: 'active',
+        rank: (i % 5) + 1,
+        address: null,
+        created_by_user_id: null,
+        merged_into_spot_id: null,
+        created_at: '2024-01-01',
+        updated_at: '2024-01-01',
+      })) as typeof mockSpots;
+
+    it('AC-29: 初期表示(delta 0.015)ではクラスタバブルが 0 件で個別ピンのみ', () => {
+      const { queryAllByTestId, getByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      expect(queryAllByTestId(/^cluster-marker-/)).toHaveLength(0);
+      expect(getByTestId('spot-marker-spot-1')).toBeTruthy();
+      expect(getByTestId('spot-marker-spot-2')).toBeTruthy();
+    });
+
+    it('AC-30: 近接 200 件が delta 0.6 で 1 個のバブル(count 200)に畳まれる', () => {
+      mockSpotsOverride = gridSpots(200);
+
+      const { getByTestId, queryAllByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      fireEvent(getByTestId('map-view'), 'onRegionChangeComplete', regionAt(0.6));
+
+      expect(queryAllByTestId(/^cluster-marker-/)).toHaveLength(1);
+      expect(getByTestId('cluster-bubble-count').props.children).toBe('200');
+    });
+
+    it('AC-31: 0.11° 間隔 7×7 グリッド×2 件は delta 0.6 でバブル 40 件・個別 0 件', () => {
+      const spots: typeof mockSpots = [] as unknown as typeof mockSpots;
+      for (let row = 0; row < 7; row++) {
+        for (let col = 0; col < 7; col++) {
+          const lat = CENTER_LAT + (row - 3) * 0.11;
+          const lng = CENTER_LNG + (col - 3) * 0.11;
+          const base = (row * 7 + col) * 2;
+          for (const [j, latOffset] of [0, 0.0001].entries()) {
+            spots.push({
+              id: `gen-${String(base + j).padStart(4, '0')}`,
+              name: `Gen Spot ${base + j}`,
+              lat: lat + latOffset,
+              lng,
+              type: 'shrine',
+              status: 'active',
+              rank: 3,
+              address: null,
+              created_by_user_id: null,
+              merged_into_spot_id: null,
+              created_at: '2024-01-01',
+              updated_at: '2024-01-01',
+            } as (typeof mockSpots)[number]);
+          }
+        }
+      }
+      mockSpotsOverride = spots;
+
+      const { getByTestId, queryAllByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      fireEvent(getByTestId('map-view'), 'onRegionChangeComplete', regionAt(0.6));
+
+      expect(queryAllByTestId(/^cluster-marker-/)).toHaveLength(40);
+      expect(queryAllByTestId(/^spot-marker-/)).toHaveLength(0);
+    });
+
+    it('AC-33: 中心移動が delta の 9% ではクラスタ region が再計算されない(ヒステリシス)', () => {
+      mockSpotsOverride = [
+        ...mockSpots,
+        {
+          ...mockSpots[0],
+          id: 'spot-hyst',
+          name: 'Hysteresis Spot',
+          lat: 38.335,
+          lng: 140.8694,
+          rank: 5,
+        },
+      ] as typeof mockSpots;
+
+      const { getByTestId, queryByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      const mapView = getByTestId('map-view');
+      fireEvent(mapView, 'onRegionChangeComplete', regionAt(0.1));
+      expect(queryByTestId('spot-marker-spot-hyst')).toBeNull();
+
+      // 中心移動 0.009 = delta の 9% < 10% → 採用されず旧ビューポートのまま
+      fireEvent(mapView, 'onRegionChangeComplete', regionAt(0.1, 38.2772));
+      expect(queryByTestId('spot-marker-spot-hyst')).toBeNull();
+    });
+
+    it('AC-34: 中心移動が delta の 11% ならクラスタ region が再計算される', () => {
+      mockSpotsOverride = [
+        ...mockSpots,
+        {
+          ...mockSpots[0],
+          id: 'spot-hyst',
+          name: 'Hysteresis Spot',
+          lat: 38.335,
+          lng: 140.8694,
+          rank: 5,
+        },
+      ] as typeof mockSpots;
+
+      const { getByTestId, queryByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      const mapView = getByTestId('map-view');
+      fireEvent(mapView, 'onRegionChangeComplete', regionAt(0.1));
+      expect(queryByTestId('spot-marker-spot-hyst')).toBeNull();
+
+      // 中心移動 0.011 = delta の 11% >= 10% → 採用され新ビューポートに入る
+      fireEvent(mapView, 'onRegionChangeComplete', regionAt(0.1, 38.2792));
+      expect(getByTestId('spot-marker-spot-hyst')).toBeTruthy();
+    });
+
+    it('AC-35: クラスタバブルのタップで animateToRegion がズームイン region で呼ばれる', () => {
+      mockSpotsOverride = gridSpots(200);
+
+      const { getByTestId, queryAllByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      fireEvent(getByTestId('map-view'), 'onRegionChangeComplete', regionAt(0.6));
+
+      const clusterMarker = queryAllByTestId(/^cluster-marker-/)[0];
+      fireEvent.press(clusterMarker);
+
+      const { __mapViewMocks } = jest.requireMock('react-native-maps');
+      expect(__mapViewMocks.animateToRegion).toHaveBeenCalled();
+      const [firstArg] = __mapViewMocks.animateToRegion.mock.calls[0];
+      expect(firstArg.latitudeDelta).toBeLessThan(0.6);
+    });
+
+    it('P-4: 1,109 件が delta 0.6 で 1 個のバブル(count 1109)に畳まれ個別 0 件', () => {
+      mockSpotsOverride = Array.from({ length: 1109 }, (_, i) => ({
+        id: `gen-${String(i).padStart(4, '0')}`,
+        name: `Gen Spot ${i}`,
+        lat: CENTER_LAT + (i % 34) * 0.0002,
+        lng: CENTER_LNG + Math.floor(i / 34) * 0.0002,
+        type: 'shrine',
+        status: 'active',
+        rank: (i % 5) + 1,
+        address: null,
+        created_by_user_id: null,
+        merged_into_spot_id: null,
+        created_at: '2024-01-01',
+        updated_at: '2024-01-01',
+      })) as typeof mockSpots;
+
+      const { getByTestId, queryAllByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      fireEvent(getByTestId('map-view'), 'onRegionChangeComplete', regionAt(0.6));
+
+      expect(queryAllByTestId(/^cluster-marker-/)).toHaveLength(1);
+      expect(queryAllByTestId(/^spot-marker-/)).toHaveLength(0);
+      expect(getByTestId('cluster-bubble-count').props.children).toBe('1109');
     });
   });
 });

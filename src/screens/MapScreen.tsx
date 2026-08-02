@@ -11,15 +11,18 @@ import { SearchBar } from '@components/common/SearchBar';
 import { LoginPromptModal } from '@components/common/LoginPromptModal';
 import { MapPin } from '@components/common/MapPin';
 import { SpotMarker } from '@components/common/SpotMarker';
+import { ClusterBubble } from '@components/common/ClusterBubble';
 import { SpotBottomSheet } from '@components/spot-detail/SpotBottomSheet';
 import { useAuth } from '@hooks/useAuth';
 import { useLocation } from '@hooks/useLocation';
+import { useSpotClusters } from '@hooks/useSpotClusters';
 import { useSpots } from '@hooks/useSpots';
 import { useUserStamps } from '@hooks/useUserStamps';
 import { useWishlist } from '@hooks/useWishlist';
 import type { MapStackScreenProps } from '@/navigation/types';
 import type { Spot } from '@/types/supabase';
-import { selectVisibleSpots } from '@utils/spotSelection';
+import type { SpotCluster } from '@utils/spotClustering';
+import { shouldRecomputeRegion } from '@utils/regionHysteresis';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { spacing, borderRadius } from '@theme/spacing';
@@ -61,6 +64,8 @@ export function MapScreen({ navigation, route }: Props) {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showFilter, setShowFilter] = useState(false);
   const [currentRegion, setCurrentRegion] = useState<Region | null>(null);
+  // クラスタ再計算に使う region。ヒステリシス(shouldRecomputeRegion)で更新頻度を落とす
+  const [clusterRegion, setClusterRegion] = useState<Region | null>(null);
   const [selectedSpotId, setSelectedSpotId] = useState<string | null>(null);
   const [forceLabelVisible, setForceLabelVisible] = useState(false);
   const skipRegionChangeRef = useRef(false);
@@ -114,17 +119,28 @@ export function MapScreen({ navigation, route }: Props) {
     return () => subscription.remove();
   }, [permissionStatus, refreshLocation]);
 
-  // ビューポート内 × rank 優先 top-N。訪問済み・行きたいはビューポート内なら常に表示する
-  const visibleSpots = useMemo(
+  // ユーザー操作前は location ベースの初期 region をクラスタ算出の実効 region とする
+  const effectiveClusterRegion = useMemo<Region | null>(
     () =>
-      selectVisibleSpots({
-        spots: displaySpots,
-        region: effectiveRegion,
-        visitedSpotIds,
-        wishlistSpotIds,
-      }),
-    [displaySpots, effectiveRegion, visitedSpotIds, wishlistSpotIds]
+      clusterRegion ??
+      (location
+        ? {
+            latitude: location.latitude,
+            longitude: location.longitude,
+            latitudeDelta: LATITUDE_DELTA,
+            longitudeDelta: LONGITUDE_DELTA,
+          }
+        : null),
+    [clusterRegion, location]
   );
+
+  // 広域はクラスタバブル、近接は個別ピン。訪問済み・行きたいはクラスタに吸収されない
+  const { clusters, individualSpots, getClusterExpansionRegion } = useSpotClusters({
+    spots: displaySpots,
+    region: effectiveClusterRegion,
+    visitedSpotIds,
+    wishlistSpotIds,
+  });
 
   useEffect(() => {
     const focusSpotId = route.params?.focusSpotId;
@@ -192,6 +208,8 @@ export function MapScreen({ navigation, route }: Props) {
 
   const handleRegionChangeComplete = useCallback((r: Region) => {
     setCurrentRegion(r);
+    // 比較相手は「直近に採用した region」。関数形式更新でそれを保証する
+    setClusterRegion(prev => (shouldRecomputeRegion(prev, r) ? r : prev));
     if (skipRegionChangeRef.current) {
       skipRegionChangeRef.current = false;
     } else {
@@ -217,6 +235,13 @@ export function MapScreen({ navigation, route }: Props) {
       }
     },
     [displaySpots]
+  );
+
+  const handleClusterPress = useCallback(
+    (cluster: SpotCluster) => {
+      mapRef.current?.animateToRegion(getClusterExpansionRegion(cluster), 300);
+    },
+    [getClusterExpansionRegion]
   );
 
   const handleMapPress = useCallback((event?: MapPressEvent) => {
@@ -353,7 +378,21 @@ export function MapScreen({ navigation, route }: Props) {
             <MapPin type="current-location" />
           </Marker>
         )}
-        {visibleSpots.map(spot => (
+        {clusters.map(cluster => (
+          <Marker
+            // key に count を含める。同一 key のまま count だけ変わると
+            // tracksViewChanges={false} で iOS のバブル数字が更新されない
+            key={`${cluster.id}-${cluster.count}`}
+            coordinate={{ latitude: cluster.latitude, longitude: cluster.longitude }}
+            testID={`cluster-marker-${cluster.id}`}
+            onPress={() => handleClusterPress(cluster)}
+            anchor={{ x: 0.5, y: 0.5 }}
+            tracksViewChanges={false}
+          >
+            <ClusterBubble count={cluster.count} />
+          </Marker>
+        ))}
+        {individualSpots.map(spot => (
           <Marker
             key={spot.id}
             coordinate={{ latitude: spot.lat, longitude: spot.lng }}
