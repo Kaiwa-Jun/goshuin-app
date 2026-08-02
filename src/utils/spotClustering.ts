@@ -52,6 +52,29 @@ export interface ClusterView {
   individualSpots: Spot[];
 }
 
+export interface ClusterBucket {
+  /** アセットのキー（`bubble_<key>.png`） */
+  key: string;
+  /** バブルに表示されるラベル */
+  label: string;
+  /** バブルの論理サイズ(px) */
+  size: 36 | 44 | 52;
+}
+
+/**
+ * 件数をバブルの表示バケットに変換する。バブルは事前レンダリング画像
+ * （UIView スナップショットを避けるため）なので、表示は有限のバケットに落とす。
+ * バケット内の count 変化ではネイティブ更新が発生しない
+ */
+export function getClusterBucket(count: number): ClusterBucket {
+  if (count < 10) return { key: String(count), label: String(count), size: 36 };
+  if (count < 50) return { key: '10p', label: '10+', size: 44 };
+  if (count < 100) return { key: '50p', label: '50+', size: 44 };
+  if (count < 500) return { key: '100p', label: '100+', size: 52 };
+  if (count < 1000) return { key: '500p', label: '500+', size: 52 };
+  return { key: '1000p', label: '1000+', size: 52 };
+}
+
 export type SpotClusterIndex = Supercluster<ClusterPointProps>;
 
 const EMPTY_IDS = new Set<string>();

@@ -10,6 +10,7 @@ import {
   MAX_TOTAL_MARKERS,
   buildClusterView,
   createClusterIndex,
+  getClusterBucket,
   getDeltaFromZoom,
   getZoomFromRegion,
   regionToBBox,
@@ -283,6 +284,30 @@ describe('buildClusterView', () => {
     expect(second.clusters.map(c => c.id)).toEqual(first.clusters.map(c => c.id));
     expect(second.individualSpots.map(s => s.id)).toEqual(first.individualSpots.map(s => s.id));
     expect(spots).toEqual(inputSnapshot);
+  });
+});
+
+describe('getClusterBucket', () => {
+  it('AC-43: count をバケット(label / size)に変換する', () => {
+    const cases: [number, string, number][] = [
+      [2, '2', 36],
+      [9, '9', 36],
+      [10, '10+', 44],
+      [49, '10+', 44],
+      [50, '50+', 44],
+      [99, '50+', 44],
+      [100, '100+', 52],
+      [499, '100+', 52],
+      [500, '500+', 52],
+      [999, '500+', 52],
+      [1000, '1000+', 52],
+      [5000, '1000+', 52],
+    ];
+    for (const [count, label, size] of cases) {
+      const bucket = getClusterBucket(count);
+      expect(bucket.label).toBe(label);
+      expect(bucket.size).toBe(size);
+    }
   });
 });
 

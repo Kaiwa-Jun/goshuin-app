@@ -1,6 +1,7 @@
 import React from 'react';
 import { act, render, fireEvent, waitFor } from '@testing-library/react-native';
 import { MapScreen } from '@screens/MapScreen';
+import { CLUSTER_BUBBLE_IMAGES } from '@components/common/ClusterMarker';
 import { CLUSTER_REGION_DEBOUNCE_MS } from '@utils/regionHysteresis';
 
 const mockFetchSpotsByPrefecture = jest.fn();
@@ -893,7 +894,7 @@ describe('MapScreen', () => {
       expect(getByTestId('spot-marker-spot-2')).toBeTruthy();
     });
 
-    it('AC-30: 近接 200 件が delta 0.6 で 1 個のバブル(count 200)に畳まれる', () => {
+    it('AC-30: 近接 200 件が delta 0.6 で 1 個のバブル(バケット 100+)に畳まれる', () => {
       mockSpotsOverride = gridSpots(200);
 
       const { getByTestId, queryAllByTestId } = render(
@@ -902,8 +903,9 @@ describe('MapScreen', () => {
 
       fireRegionAndSettle(getByTestId('map-view'), regionAt(0.6));
 
-      expect(queryAllByTestId(/^cluster-marker-/)).toHaveLength(1);
-      expect(getByTestId('cluster-bubble-count').props.children).toBe('200');
+      const clusterMarkers = queryAllByTestId(/^cluster-marker-/);
+      expect(clusterMarkers).toHaveLength(1);
+      expect(clusterMarkers[0].props.image).toBe(CLUSTER_BUBBLE_IMAGES['100p']);
     });
 
     it('AC-31: 0.11° 間隔 7×7 グリッド×2 件は delta 0.6 でバブル 40 件・個別 0 件', () => {
@@ -1033,7 +1035,7 @@ describe('MapScreen', () => {
       jest.useRealTimers();
     });
 
-    it('P-4: 1,109 件が delta 0.6 で 1 個のバブル(count 1109)に畳まれ個別 0 件', () => {
+    it('P-4: 1,109 件が delta 0.6 で 1 個のバブル(バケット 1000+)に畳まれ個別 0 件', () => {
       mockSpotsOverride = Array.from({ length: 1109 }, (_, i) => ({
         id: `gen-${String(i).padStart(4, '0')}`,
         name: `Gen Spot ${i}`,
@@ -1055,9 +1057,10 @@ describe('MapScreen', () => {
 
       fireRegionAndSettle(getByTestId('map-view'), regionAt(0.6));
 
-      expect(queryAllByTestId(/^cluster-marker-/)).toHaveLength(1);
+      const clusterMarkers = queryAllByTestId(/^cluster-marker-/);
+      expect(clusterMarkers).toHaveLength(1);
       expect(queryAllByTestId(/^spot-marker-/)).toHaveLength(0);
-      expect(getByTestId('cluster-bubble-count').props.children).toBe('1109');
+      expect(clusterMarkers[0].props.image).toBe(CLUSTER_BUBBLE_IMAGES['1000p']);
     });
   });
 });
