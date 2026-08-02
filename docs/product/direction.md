@@ -27,14 +27,16 @@
 コードは完成済み。残作業:
 
 - [x] GitHub Pages 有効化 — **確認済み（2026-08-02）**。privacy.html / terms.html とも HTTP 200 で配信中
-- [ ] 開発者アカウントの確認・登録（手順: `docs/project/store-account-setup.md`）。**Google Play は個人新規アカウントだと12人×14日のクローズドテスト要件があるため、iOS 先行リリースを基本線とする**
+- [x] 開発者アカウントの確認・登録（手順: `docs/project/store-account-setup.md`）— Apple は登録済みを確認、Google は 2026-08-02 に登録完了。**Google Play は個人新規アカウントのため12人×14日のクローズドテスト要件が適用され、iOS 先行リリースを基本線とする**
+- [ ] **Google Play アカウント確認**（ユーザー作業・審査数日）: ①本人確認（身分証アップロード）②Android 実機で Play Console アプリにログイン ③電話番号確認。完了まで「アプリを作成」がロックされる。Android .aab（v1.0.0 / versionCode 2）はビルド済みで待機中
 - [x] **マスタデータのリリース前整備**（2026-08-02 完了）:
   - [x] 宮城県の rank — DB 側では付与済みと判明（rank5×9〜rank1×38 の90件）。repo seeds を DB からエクスポートして同期
-  - [x] 東京都の増強 — rank4×13 + rank3×86 の計99件を作成（`supabase/seeds/seed_tokyo_rank3_4_spots.sql`）。**DB への適用は未実施**
-  - [x] リポジトリ seeds と DB の突合 — 乖離55件は全て宮城分。同期済み（pilgrimage_spots 75件のエクスポートのみ別タスク）
+  - [x] 東京都の増強 — rank4×13 + rank3×86 の計99件を作成（`supabase/seeds/seed_tokyo_rank3_4_spots.sql`）。**DB 適用済み（2026-08-02、全1,109件・東京119件・重複なしを検証）**
+  - [x] リポジトリ seeds と DB の突合 — 乖離55件は全て宮城分。同期済み。巡礼コース6件 + pilgrimage_spots 75件も `supabase/seed_pilgrimages_and_spots.sql` にエクスポート済み
 - [x] **地図表示の即修正**（2026-08-02 完了・Issue #93）: 全件フェッチの1,000行上限バグ / 訪問済み・行きたいピンが rank フィルタで消える問題 / デフォルトズームが閾値境界と一致してチラつく問題 — 実機確認済み。本格再設計は P1-05
 - [ ] App Store 用スクリーンショット作成（6.7インチ 1290x2796px）
-- [ ] `eas build --profile production` 初回実行、EAS Submit のクレデンシャル投入
+- [x] Android production ビルド（v1.0.0 / versionCode 2 の .aab、2026-08-02）。iOS ビルドを塞いでいた AppCheckCore 問題も PR #95 で解消済み
+- [ ] iOS production ビルド + EAS Submit のクレデンシャル投入（App Store Connect API Key。手順: store-account-setup.md Step 2）
 - [ ] ストア申請（メタデータは `docs/project/store-metadata.md` に確定済み）
 
 ### Phase 1: 記録体験の磨き込み（新ハーネスの実戦投入を兼ねる）
