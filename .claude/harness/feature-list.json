@@ -61,8 +61,8 @@
     {
       "id": "P2-01",
       "title": "限定御朱印ウォッチャー MVP（情報ソース登録 + 巡回 + 表示）",
-      "note": "direction.md の Phase 2 だが差別化の本丸のため繰り上げ検討(2026-08-02 議論)。土台は既存: extract-spot-info Edge Function(Claude Haiku 4.5 で構造化) + spot_aggregated_info テーブル。入力を『ユーザーのメモ』から『公式サイト/SNS』に差し替える形。MVP は rank5 の数十件に情報ソース URL を人手登録 → 巡回 → アプリ内表示まで。通知(expo-notifications)とサブスク(IAP)は次段階。SNS スクレイピングは規約に注意し公式サイト/RSS 中心で",
-      "issue": null,
+      "note": "コード実装完了(Issue #104 / PR #105 マージ済み・Evaluator PASS 93/93・Jest852+Deno39)。spot_info_sources + crawl-spot-sources(差分検知で Haiku 4.5 呼び出し最小化) + LimitedGoshuinSection。残: ①第1弾 seed(東京+宮城+京都 rank5 29件、調査済みデータから SQL 作成) ②ユーザー作業(migration/デプロイ/Vault+cron/seed 投入 = 契約書 I 群) ③実機確認(N 群)。全部済んだら passes: true。注: rank5 は全国469件(各県上位10件)で当初想定の数十件ではない。通知・課金・新着フィードは次段階",
+      "issue": 104,
       "passes": false
     }
   ]

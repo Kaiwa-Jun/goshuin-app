@@ -28,6 +28,7 @@
 8. **PR #100**（Issue #99 / P1-06）: クラスタリング導入。実機クラッシュを4イテレーションで追い込み、最終的に `minZoomLevel=8` で封じ込め（全経緯は契約書 `docs/issues/issue-099-map-clustering.md` 追補1〜4）
 9. **PR #101**: develop → main のリリースマージ。v1.0.0 を App Store Connect へ提出
 10. **PR #103**（Issue #102 / P1-08）: 初回体験の改善。タブ遷移ブロック撤廃 + 御朱印/コレクションのゲスト空状態 + 検索の未入力時提案（近隣/人気）。Evaluator PASS 47/47・実機確認済み
+11. **PR #105**（Issue #104 / P2-01）: 限定御朱印ウォッチャー MVP のコード実装。spot_info_sources + crawl-spot-sources Edge Function（hash 差分検知 → Haiku 4.5 構造化）+ LimitedGoshuinSection。Evaluator PASS 93/93。**seed・DB 適用・デプロイ・cron 登録・実機確認が未了**（契約書 I/N 群と feature-list note 参照）
 
 ## このセッションでの重要な発見
 
@@ -38,7 +39,7 @@
 ## 次のアクション（優先順・2026-08-02 にユーザーと合意）
 
 1. ~~P1-08 初回体験の改善~~ — **完了**（Issue #102 / PR #103、2026-08-02）
-2. **P2-01 限定御朱印ウォッチャー MVP** — direction.md では Phase 2 だが**差別化の本丸のため繰り上げ**。App Store の「御朱印」45アプリは全て記録アプリで、限定御朱印情報を自動収集するものは存在しない。土台は既存（`extract-spot-info` Edge Function が Claude Haiku 4.5 で構造化 + `spot_aggregated_info` テーブル）。MVP は rank5 の数十件に情報ソース URL を人手登録 → 巡回 → アプリ内表示まで。通知・課金は次段階。SNS スクレイピングは規約に注意し公式サイト/RSS 中心で。**契約書の段階でデータ整備の運用（誰がどう URL を登録するか）も決める**
+2. **P2-01 限定御朱印ウォッチャー MVP の残タスク** — コード実装は PR #105 で完了。残り: ①第1弾 seed SQL（東京+宮城+京都の rank5 29件。公式サイト調査は Claude が実施、結果は scratchpad の spot_sources_phase1.json → `supabase/seeds/seed_spot_info_sources_phase1.sql` に落とす）②ユーザー作業: migration 適用 → `npx supabase functions deploy crawl-spot-sources` → Vault+cron 登録 → seed 投入（手順は契約書 I 群）③実機で N-1〜N-6 確認 → feature-list を passes: true に。運用決定事項: ソース登録は運営（ユーザー+Claude 調査）、SNS はリンク表示のみ、rank5 は全国469件あるため残りは運用で拡充
 3. **P1-03 御朱印帳らしい閲覧UI** — 情緒的な差別化。ただし記録が溜まってから価値が出るため 2 の後で良い
 4. 審査結果が出たら対応（通過 → 手動リリース / リジェクト → 修正・再提出）
 5. Google Play（本人確認の承認後）
