@@ -5,7 +5,7 @@
     {
       "id": "P1-01",
       "title": "Maestro E2E の実戦検証（スモークフローを実機/シミュレータで通す）",
-      "note": "e2e/flows/smoke.yaml はドラフト。development-simulator ビルドで動作確認し、タブ遷移まで検証できたら passes",
+      "note": "Maestro 2.8.0 を導入し、ストアスクショ撮影フロー(e2e/flows/store-screenshots.yaml)をシミュレータで実走させた(2026-08-02)。残りは smoke.yaml のセレクタ確定と CI 組み込み",
       "issue": null,
       "passes": false
     },
@@ -48,6 +48,20 @@
       "id": "P1-07",
       "title": "地図の全国スケール表示の恒久解禁（ネイティブメモリ調査）",
       "note": "P1-06 で封じ込めた minZoomLevel=8 の制限解除。実機クラッシュログ(.ips)の取得(USB + libimobiledevice) → メモリ死の確定 → Xcode 導入後に Instruments でネイティブ計測 → タイルメモリ対策 or Google Maps provider 検証。着手前に契約書を作ること",
+      "issue": null,
+      "passes": false
+    },
+    {
+      "id": "P1-08",
+      "title": "初回体験の改善（未ログイン時の空状態とログイン導線）",
+      "note": "未ログインでコレクション/御朱印タブを押すと全画面ログイン要求が出て、何が得られるか分からないまま登録を迫る形になっている(2026-08-02 のスクショ撮影で確認)。空状態で価値を見せてから促す。検索画面も履歴ゼロだと完全に空なので近隣スポット等を出す。リリース直後の離脱率に直結",
+      "issue": null,
+      "passes": false
+    },
+    {
+      "id": "P2-01",
+      "title": "限定御朱印ウォッチャー MVP（情報ソース登録 + 巡回 + 表示）",
+      "note": "direction.md の Phase 2 だが差別化の本丸のため繰り上げ検討(2026-08-02 議論)。土台は既存: extract-spot-info Edge Function(Claude Haiku 4.5 で構造化) + spot_aggregated_info テーブル。入力を『ユーザーのメモ』から『公式サイト/SNS』に差し替える形。MVP は rank5 の数十件に情報ソース URL を人手登録 → 巡回 → アプリ内表示まで。通知(expo-notifications)とサブスク(IAP)は次段階。SNS スクレイピングは規約に注意し公式サイト/RSS 中心で",
       "issue": null,
       "passes": false
     }
