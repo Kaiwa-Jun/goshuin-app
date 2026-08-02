@@ -419,7 +419,7 @@ const USER_AGENT = 'GoshuinSampoBot/1.0 (+https://kaiwa-jun.github.io/goshuin-ap
 `extract-spot-info/index.ts:107-161` の `callClaudeApi` と同じ形（`fetch('https://api.anthropic.com/v1/messages')` / `x-api-key` / `anthropic-version: '2023-06-01'` / コードフェンス剥がし）を踏襲する。差分は model 以外の以下:
 
 - `max_tokens: 2048`
-- `messages[0].content` はページ本文テキスト（`htmlToText` の結果）。URL は system 側には入れず、ユーザーメッセージ先頭に `【ページURL】{url}\n\n【本文】\n{text}` の形で添える
+- `messages[0].content` はページ本文テキスト（`htmlToText` の結果）。URL は system 側には入れず、ユーザーメッセージ先頭に `【今日の日付】{JST の YYYY-MM-DD}\n【ページURL】{url}\n\n【本文】\n{text}` の形で添える（**追補 2026-08-02**: 一覧ページに残り続ける過去の告知〔8月の「新年限定」等〕を除外するため、今日の日付を判定基準として渡し、system プロンプトに過去分除外の指示を追加。実機確認後のユーザーフィードバック対応）
 - system プロンプト（**推測・創作の禁止は `extract-spot-info` を踏襲**）:
 
 ```
