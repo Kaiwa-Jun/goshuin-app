@@ -10,4 +10,5 @@
 - 2026-08-02(夜間自律): Issue #96 P1-05 ビューポート×rank優先 top-N を /build-feature で実装。契約書 docs/issues/issue-096-map-viewport-topn.md、Evaluator PASS 27/27。実機確認(UI-1〜5)とマージは朝のゲート待ち。
 - 2026-08-02: PR #97(P1-05)・#98 マージ。実機確認でズームアウト時クラッシュ発覚 → Issue #99(P1-06 クラスタリング)起票。セッション引き継ぎは .claude/harness/handoff.md 参照。
 - 2026-08-02: Issue #99 P1-06 クラスタリング導入を /build-feature で実装。契約書 docs/issues/issue-099-map-clustering.md（追補1〜4）、Evaluator PASS 53/53。実機の全国スケールクラッシュは4イテレーション（churn削減→バブル画像化→現在地ピン無限アニメ廃止→minZoomLevel=8 封じ込め）で対処し、封じ込めをユーザー承認・実機確認済み。全国表示の恒久解禁は P1-07 に分離。
-- 2026-08-02: Phase 0 前進。Xcode/シミュレータ/Maestro 導入、ストアスクショ2枚を自動撮影。**本番ビルドが起動時クラッシュする重大バグを発見・修正**（EXPO_PUBLIC_* をブラケット記法で読んでおり babel のインライン化が効いていなかった。再発防止テスト付き）。アプリ名を「御朱印さんぽ」に確定し、v1.0.0/buildNumber 11 を App Store Connect へ提出完了（ascAppId 6797201465）。
+- 2026-08-02: Phase 0 前進。Xcode/シミュレータ/Maestro 導入、ストアスクショ2枚を自動撮影。**本番ビルドが起動時クラッシュする重大バグを発見・修正**（EXPO*PUBLIC*\* をブラケット記法で読んでおり babel のインライン化が効いていなかった。再発防止テスト付き）。アプリ名を「御朱印さんぽ」に確定し、v1.0.0/buildNumber 11 を App Store Connect へ提出完了（ascAppId 6797201465）。
+- 2026-08-02: Issue #102 P1-08 初回体験の改善を /build-feature で実装（PR #103 マージ済み）。契約書 docs/issues/issue-102-first-run-experience.md、Evaluator PASS 47/47、実機確認済み。タブ遷移ブロック撤廃 + ゲスト空状態 + 検索の未入力時提案。証跡 .claude/harness/evidence/issue-102/。
