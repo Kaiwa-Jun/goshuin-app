@@ -1,4 +1,4 @@
-# セッション引き継ぎ（最終更新: 2026-08-02）
+# セッション引き継ぎ（最終更新: 2026-08-02 夜）
 
 /clear 後の文脈復元用。読み終えたら「次のアクション」から再開する。方針の唯一のソースは `docs/product/direction.md`。
 
@@ -18,15 +18,17 @@
 8. 実機確認で「概ね良好だが**ズームアウト連続操作でクラッシュ**」が発覚 → **Issue #99（P1-06 クラスタリング恒久対応）起票済み**。原因の見立て・設計方針・ライブラリ選定メモは Issue 本文に記載
 9. **Issue #99（P1-06）完了**: クラスタリング（supercluster 直接・バケット画像バブル・ヒステリシス/デバウンス・現在地ピン静的化）。実機クラッシュは4イテレーションで追い込み、最終的に**全国スケール（delta≥2）のみ Apple Maps タイルメモリ起因とみられる残存**があったため、ユーザー判断で **minZoomLevel=8 の封じ込め**を採用（契約書 `docs/issues/issue-099-map-clustering.md` 追補1〜4 に全経緯）。実機確認済み・Evaluator PASS 53/53。**全国表示の恒久解禁は P1-07**（実クラッシュログ取得 → Instruments。Xcode 待ち）
 
+10. **Phase 0 大幅前進（2026-08-02 夜）**: Xcode 26.6 / iOS 26.5 シミュレータ / Maestro 2.8.0 を導入。**本番ビルドが起動時クラッシュする重大バグを発見・修正**（`EXPO_PUBLIC_*` をブラケット記法・変数経由で読んでおり babel-preset-expo のインライン化が効かず undefined になっていた。`envAccess.test.ts` で再発防止）。EAS に環境変数8件を登録。アプリ名を **「御朱印さんぽ」** に確定（「御朱印マップ」は App Store で登録済み）。**v1.0.0 / buildNumber 11 を App Store Connect へアップロード完了**
+
 ## 次のアクション（優先順）
 
-1. Phase 0 残り: App Store スクリーンショット（Xcode 待ち → シミュレータ + Maestro で自動撮影。素材とキャプションは `docs/project/store-metadata.md` の5枚構成）/ iOS production ビルド + EAS Submit クレデンシャル / ストア申請
+1. **App Store の掲載情報入力 → 審査提出**（`docs/project/store-metadata.md` の確定値を流し込む）。スクショは地図・スポット詳細の2枚が `goshuin-app-artifacts/screenshots-ios-6.7/` にある。コレクション/ギャラリー/記録画面はログイン+実データが要るため**実機撮影待ち**
 2. Google Play（本人確認の審査承認メール後）: 電話番号確認 → Playwright ブラウザでアプリ作成 → 掲載情報（store-metadata.md を流し込み）→ 内部テストへ .aab アップロード → クローズドテスト（12人×14日）開始
 3. P1-07（全国スケール解禁）は Xcode 導入後に着手可能。P1-02〜04 は未着手
 
 ## ユーザー待ちの項目
 
-- **Xcode インストール**（Mac App Store）→ 完了したらスクショ自動撮影 + P1-01（Maestro 実戦検証）へ
+- **実機でのスクショ3枚**（コレクション / 御朱印ギャラリー / 記録画面）— ログイン済み実データが必要なためユーザー撮影 → AirDrop
 - **Google Play**: 本人確認は審査中（数日・メール通知）。**Android 実機での Play Console アプリログインが未完了**（端末の有無も未確認）
 - **App Store Connect API Key** の発行（`docs/project/store-account-setup.md` Step 2）
 - iOS 実機クラッシュログの確認（設定 > プライバシーとセキュリティ > 解析と改善 > 解析データ の goshuin 項目）は #99 の裏取りに有用
