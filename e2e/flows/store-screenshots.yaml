@@ -16,31 +16,38 @@ appId: com.goshuin.app
 # 1. 地図画面 —「集めるたび、地図があなたの旅になる。」
 - takeScreenshot: screenshots/01-map
 
-# 2. スポット詳細（地図のピンをタップしてボトムシートを出す）
+# 2. スポット詳細（浅草寺のピンをタップしてボトムシートを出す）
+# NOTE: タブバーとピンは Maestro のテキスト検索で拾えないため座標指定にする
 - tapOn:
-    point: '50%,45%'
+    point: '50%,54%'
 - waitForAnimationToEnd:
     timeout: 3000
 - takeScreenshot: screenshots/02-spot-detail
 
-# 3. 御朱印記録画面（中央の FAB から）
+# 3. 検索画面（検索バーから。ボトムシートは先に閉じる）
 - tapOn:
-    point: '50%,92%'
+    point: '50%,25%'
+- waitForAnimationToEnd:
+    timeout: 2000
+- tapOn:
+    point: '50%,10%'
 - waitForAnimationToEnd:
     timeout: 3000
-- takeScreenshot: screenshots/03-record
+- takeScreenshot: screenshots/03-search
 
-# 4. コレクション画面
+# 4. 設定画面（ログイン不要で開ける）
 - back
 - waitForAnimationToEnd:
     timeout: 2000
-- tapOn: 'コレクション'
+- tapOn:
+    point: '87%,94%'
 - waitForAnimationToEnd:
     timeout: 3000
-- takeScreenshot: screenshots/04-collection
+- takeScreenshot: screenshots/04-settings
 
-# 5. ギャラリー画面
-- tapOn: 'ギャラリー'
+# 5. コレクション（未ログイン時はログイン導線が出る）
+- tapOn:
+    point: '62%,94%'
 - waitForAnimationToEnd:
     timeout: 3000
-- takeScreenshot: screenshots/05-gallery
+- takeScreenshot: screenshots/05-collection-login
