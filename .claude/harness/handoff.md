@@ -15,7 +15,10 @@
 - ⚠️ `me/accounts` は空を返す（原因不明だが **business_discovery は IG User ID 直指定で動くため実害なし**。Edge Function は IG User ID を secrets から直接使う設計にする）
 - ✅ 長期トークン発行済み（**期限: 2026-10-02**）。手順は全 GUI で確立: Graph API Explorer でトークン生成 → [アクセストークンデバッガー](https://developers.facebook.com/tools/debug/accesstoken/)に貼って「デバッグ」→「アクセストークンを延長」（FB パスワード再入力あり）→ 延長トークン表示。**更新もこの GUI 手順で可**（トークンの貼り付け/コピーはユーザー、ボタン操作は Claude の分担）
 - ✅ **Meta セットアップ完了（2026-08-03 深夜）**: Supabase secrets に `META_ACCESS_TOKEN`（長期・期限 2026-10-02）と `META_IG_USER_ID`（17841439672371375）登録済み（`secrets list` で確認済み）。**10月初旬にトークン更新が必要 → アクセストークンデバッガーの GUI 手順で延長 → secrets 更新**
-- 🔜 契約書（goshuin-planner で issue-XXX-instagram-business-discovery.md）→ 実装（crawl-spot-sources に source 種別追加）→ ゲート（ユーザー就寝中に進行、push/PR 直前で停止予定）
+- ✅ **Issue #111 実装完了・Evaluator PASS 75/75（2026-08-03 深夜、ユーザー就寝中に自律進行）**。ブランチ `feature/issue-111-instagram-business-discovery` に 6 コミット（契約書 / crawl.ts リファクタ / instagram.ts 9関数 / index.ts Instagram パス / cron 2 job 化 / UI 文言切替）。**push/PR 未実施・人間ゲートで停止中**
+- 🔜 朝のゲートで承認後: ① push + PR 作成 ② デプロイ（`npx supabase@latest functions deploy crawl-spot-sources --project-ref tvnozkpxncmnehyomoff --use-api --no-verify-jwt`）③ I 群検証 24 件（大半は Claude が curl で代行可。**I-2/I-3 は生トークンが必要でユーザー実行、I-18 はトークン復元が必要なため要ユーザー**）④ cron 再登録 SQL（ユーザーが SQL Editor で実行。unschedule → 2 job 登録）⑤ N 群実機確認 6 件
+- ⚠️ 注意: 現在デプロイ済みの本番関数は旧版。**火曜 02:00 JST の cron は旧版で走る**（無害）。新版デプロイ + cron 再登録が済むと金曜から 2 job 体制（web 02:00 / instagram 02:30）
+- メモ: deno を `~/.deno/bin/deno` にインストール済み（H 群 92 テストの自動検証用）。Evaluator/Planner の goshuin-_ エージェント型はセッションに未登録のことがある → general-purpose に .claude/agents/_.md を読ませて代行させる
 - メモ: Claude in Chrome は facebook.com / instagram.com / accountscenter.instagram.com / developers.facebook.com を許可済み。クロスドメインに遷移するポップアップは拡張の追跡が切れるので、ポップアップ内は素早く1操作ずつ・親タブは触らず待つ
 
 `/clear` 後の文脈復元用。読み終えたら「次のアクション」から再開する。方針の唯一のソースは `docs/product/direction.md`。
