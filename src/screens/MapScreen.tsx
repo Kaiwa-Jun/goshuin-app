@@ -11,7 +11,7 @@ import { SearchBar } from '@components/common/SearchBar';
 import { LoginPromptModal } from '@components/common/LoginPromptModal';
 import { MapPin } from '@components/common/MapPin';
 import { SpotMarker } from '@components/common/SpotMarker';
-import { ClusterBubble } from '@components/common/ClusterBubble';
+import { ClusterMarker } from '@components/common/ClusterMarker';
 import { SpotBottomSheet } from '@components/spot-detail/SpotBottomSheet';
 import { useAuth } from '@hooks/useAuth';
 import { useLocation } from '@hooks/useLocation';
@@ -22,7 +22,7 @@ import { useWishlist } from '@hooks/useWishlist';
 import type { MapStackScreenProps } from '@/navigation/types';
 import type { Spot } from '@/types/supabase';
 import type { SpotCluster } from '@utils/spotClustering';
-import { shouldRecomputeRegion } from '@utils/regionHysteresis';
+import { CLUSTER_REGION_DEBOUNCE_MS, shouldRecomputeRegion } from '@utils/regionHysteresis';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { spacing, borderRadius } from '@theme/spacing';
@@ -69,6 +69,13 @@ export function MapScreen({ navigation, route }: Props) {
   const [selectedSpotId, setSelectedSpotId] = useState<string | null>(null);
   const [forceLabelVisible, setForceLabelVisible] = useState(false);
   const skipRegionChangeRef = useRef(false);
+  const clusterRegionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (clusterRegionTimerRef.current) clearTimeout(clusterRegionTimerRef.current);
+    },
+    []
+  );
   // ユーザー操作前は location ベースの初期 region(initialRegion と同一値)を実効 region とする
   const effectiveRegion = useMemo<Region | null>(
     () =>
@@ -208,8 +215,14 @@ export function MapScreen({ navigation, route }: Props) {
 
   const handleRegionChangeComplete = useCallback((r: Region) => {
     setCurrentRegion(r);
+    // クラスタ region は trailing debounce で採用する。連続ピンチ操作の
+    // 中間ズーム段階で再計算（= マーカー churn の波）を起こさないため。
     // 比較相手は「直近に採用した region」。関数形式更新でそれを保証する
-    setClusterRegion(prev => (shouldRecomputeRegion(prev, r) ? r : prev));
+    if (clusterRegionTimerRef.current) clearTimeout(clusterRegionTimerRef.current);
+    clusterRegionTimerRef.current = setTimeout(() => {
+      clusterRegionTimerRef.current = null;
+      setClusterRegion(prev => (shouldRecomputeRegion(prev, r) ? r : prev));
+    }, CLUSTER_REGION_DEBOUNCE_MS);
     if (skipRegionChangeRef.current) {
       skipRegionChangeRef.current = false;
     } else {
@@ -379,18 +392,9 @@ export function MapScreen({ navigation, route }: Props) {
           </Marker>
         )}
         {clusters.map(cluster => (
-          <Marker
-            // key に count を含める。同一 key のまま count だけ変わると
-            // tracksViewChanges={false} で iOS のバブル数字が更新されない
-            key={`${cluster.id}-${cluster.count}`}
-            coordinate={{ latitude: cluster.latitude, longitude: cluster.longitude }}
-            testID={`cluster-marker-${cluster.id}`}
-            onPress={() => handleClusterPress(cluster)}
-            anchor={{ x: 0.5, y: 0.5 }}
-            tracksViewChanges={false}
-          >
-            <ClusterBubble count={cluster.count} />
-          </Marker>
+          // key は leaf 由来の cluster.id のみ。count 変化は ClusterMarker 内の
+          // redraw 制御で反映するため、remount を発生させない
+          <ClusterMarker key={cluster.id} cluster={cluster} onPress={handleClusterPress} />
         ))}
         {individualSpots.map(spot => (
           <Marker

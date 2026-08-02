@@ -33,7 +33,11 @@ export interface ClusterPointProps {
 }
 
 export interface SpotCluster {
-  /** Marker の testID / key に使う識別子（`cluster-<clusterId>`） */
+  /**
+   * Marker の testID / key に使う識別子（`cluster-<先頭 leaf の spotId>`）。
+   * cluster_id はマージのたびに変わるが、先頭 leaf はマージ後も引き継がれる
+   * ため、ズームをまたいでも生き残る系譜のバブルは remount されない
+   */
   id: string;
   /** supercluster の cluster_id。展開ズームの取得に使う */
   clusterId: number;
@@ -178,12 +182,11 @@ export function buildClusterView({
   const bbox = regionToBBox(region);
   const features = index.getClusters(bbox, zoom);
 
-  const clusters: SpotCluster[] = [];
+  const rawClusters: Omit<SpotCluster, 'id'>[] = [];
   const singles: Spot[] = [];
   for (const feature of features) {
     if (isClusterFeature(feature)) {
-      clusters.push({
-        id: `cluster-${feature.properties.cluster_id}`,
+      rawClusters.push({
         clusterId: feature.properties.cluster_id as number,
         longitude: feature.geometry.coordinates[0],
         latitude: feature.geometry.coordinates[1],
@@ -195,9 +198,16 @@ export function buildClusterView({
     }
   }
 
-  clusters.sort((a, b) => {
+  rawClusters.sort((a, b) => {
     if (a.count !== b.count) return b.count - a.count;
     return a.clusterId - b.clusterId;
+  });
+
+  // 先頭 leaf 由来の安定 id は top-N 確定後の最大 MAX_CLUSTER_BUBBLES 件にだけ付ける
+  const clusters: SpotCluster[] = rawClusters.slice(0, MAX_CLUSTER_BUBBLES).map(raw => {
+    const leaf = index.getLeaves(raw.clusterId, 1)[0];
+    const leafId = leaf ? (leaf.properties as ClusterPointProps).spotId : String(raw.clusterId);
+    return { ...raw, id: `cluster-${leafId}` };
   });
 
   const individualSingles = selectVisibleSpots({
@@ -209,7 +219,7 @@ export function buildClusterView({
   });
 
   return {
-    clusters: clusters.slice(0, MAX_CLUSTER_BUBBLES),
+    clusters,
     individualSpots: [...pinnedSpots, ...individualSingles],
   };
 }

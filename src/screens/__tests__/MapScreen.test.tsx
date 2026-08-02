@@ -1,6 +1,7 @@
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { act, render, fireEvent, waitFor } from '@testing-library/react-native';
 import { MapScreen } from '@screens/MapScreen';
+import { CLUSTER_REGION_DEBOUNCE_MS } from '@utils/regionHysteresis';
 
 const mockFetchSpotsByPrefecture = jest.fn();
 
@@ -190,6 +191,21 @@ const mockNavigation = {
 };
 
 const mockRoute = { key: 'test', name: 'Map' as const, params: undefined };
+
+/**
+ * onRegionChangeComplete を発火し、クラスタ region 採用のデバウンス
+ * (CLUSTER_REGION_DEBOUNCE_MS) を経過させる。クラスタ・ピンの選択結果を
+ * 検証するテストはこのヘルパーを使う(ラベル表示は currentRegion ベースで
+ * デバウンス対象外のため、従来どおり fireEvent 直呼びでよい)
+ */
+function fireRegionAndSettle(mapView: unknown, region: Record<string, number>) {
+  jest.useFakeTimers();
+  fireEvent(mapView as never, 'onRegionChangeComplete', region);
+  act(() => {
+    jest.advanceTimersByTime(CLUSTER_REGION_DEBOUNCE_MS + 50);
+  });
+  jest.useRealTimers();
+}
 
 describe('MapScreen', () => {
   beforeEach(() => {
@@ -555,7 +571,7 @@ describe('MapScreen', () => {
       });
 
       // fitToCoordinates のアニメーション完了を模して県域を覆う region を発火する(#96)
-      fireEvent(getByTestId('map-view'), 'onRegionChangeComplete', {
+      fireRegionAndSettle(getByTestId('map-view'), {
         latitude: 38.31,
         longitude: 140.91,
         latitudeDelta: 0.2,
@@ -623,7 +639,7 @@ describe('MapScreen', () => {
       });
 
       // fitToCoordinates 完了を模した県域 region で県内 spots の表示をまず確認する(#96)
-      fireEvent(getByTestId('map-view'), 'onRegionChangeComplete', {
+      fireRegionAndSettle(getByTestId('map-view'), {
         latitude: 38.31,
         longitude: 140.91,
         latitudeDelta: 0.2,
@@ -662,7 +678,7 @@ describe('MapScreen', () => {
         <MapScreen navigation={mockNavigation as never} route={mockRoute} />
       );
 
-      fireEvent(getByTestId('map-view'), 'onRegionChangeComplete', zoomedOutRegion);
+      fireRegionAndSettle(getByTestId('map-view'), zoomedOutRegion);
 
       expect(getByTestId('spot-marker-spot-1')).toBeTruthy();
     });
@@ -674,7 +690,7 @@ describe('MapScreen', () => {
         <MapScreen navigation={mockNavigation as never} route={mockRoute} />
       );
 
-      fireEvent(getByTestId('map-view'), 'onRegionChangeComplete', zoomedOutRegion);
+      fireRegionAndSettle(getByTestId('map-view'), zoomedOutRegion);
 
       expect(getByTestId('spot-marker-spot-2')).toBeTruthy();
     });
@@ -733,7 +749,7 @@ describe('MapScreen', () => {
       expect(getByTestId('spot-marker-spot-rank2')).toBeTruthy();
 
       for (const delta of [0.019, 0.021, 0.025]) {
-        fireEvent(getByTestId('map-view'), 'onRegionChangeComplete', regionAt(delta));
+        fireRegionAndSettle(getByTestId('map-view'), regionAt(delta));
         expect(getByTestId('spot-marker-spot-rank2')).toBeTruthy();
       }
     });
@@ -772,7 +788,7 @@ describe('MapScreen', () => {
         <MapScreen navigation={mockNavigation as never} route={mockRoute} />
       );
 
-      fireEvent(getByTestId('map-view'), 'onRegionChangeComplete', regionAt(0.6));
+      fireRegionAndSettle(getByTestId('map-view'), regionAt(0.6));
       expect(getByTestId('spot-marker-spot-low')).toBeTruthy();
     });
 
@@ -825,7 +841,7 @@ describe('MapScreen', () => {
         expect(mockFetchSpotsByPrefecture).toHaveBeenCalled();
       });
 
-      fireEvent(getByTestId('map-view'), 'onRegionChangeComplete', {
+      fireRegionAndSettle(getByTestId('map-view'), {
         latitude: 38.315,
         longitude: 140.915,
         latitudeDelta: 0.2,
@@ -884,7 +900,7 @@ describe('MapScreen', () => {
         <MapScreen navigation={mockNavigation as never} route={mockRoute} />
       );
 
-      fireEvent(getByTestId('map-view'), 'onRegionChangeComplete', regionAt(0.6));
+      fireRegionAndSettle(getByTestId('map-view'), regionAt(0.6));
 
       expect(queryAllByTestId(/^cluster-marker-/)).toHaveLength(1);
       expect(getByTestId('cluster-bubble-count').props.children).toBe('200');
@@ -921,7 +937,7 @@ describe('MapScreen', () => {
         <MapScreen navigation={mockNavigation as never} route={mockRoute} />
       );
 
-      fireEvent(getByTestId('map-view'), 'onRegionChangeComplete', regionAt(0.6));
+      fireRegionAndSettle(getByTestId('map-view'), regionAt(0.6));
 
       expect(queryAllByTestId(/^cluster-marker-/)).toHaveLength(40);
       expect(queryAllByTestId(/^spot-marker-/)).toHaveLength(0);
@@ -945,11 +961,11 @@ describe('MapScreen', () => {
       );
 
       const mapView = getByTestId('map-view');
-      fireEvent(mapView, 'onRegionChangeComplete', regionAt(0.1));
+      fireRegionAndSettle(mapView, regionAt(0.1));
       expect(queryByTestId('spot-marker-spot-hyst')).toBeNull();
 
       // 中心移動 0.009 = delta の 9% < 10% → 採用されず旧ビューポートのまま
-      fireEvent(mapView, 'onRegionChangeComplete', regionAt(0.1, 38.2772));
+      fireRegionAndSettle(mapView, regionAt(0.1, 38.2772));
       expect(queryByTestId('spot-marker-spot-hyst')).toBeNull();
     });
 
@@ -971,11 +987,11 @@ describe('MapScreen', () => {
       );
 
       const mapView = getByTestId('map-view');
-      fireEvent(mapView, 'onRegionChangeComplete', regionAt(0.1));
+      fireRegionAndSettle(mapView, regionAt(0.1));
       expect(queryByTestId('spot-marker-spot-hyst')).toBeNull();
 
       // 中心移動 0.011 = delta の 11% >= 10% → 採用され新ビューポートに入る
-      fireEvent(mapView, 'onRegionChangeComplete', regionAt(0.1, 38.2792));
+      fireRegionAndSettle(mapView, regionAt(0.1, 38.2792));
       expect(getByTestId('spot-marker-spot-hyst')).toBeTruthy();
     });
 
@@ -986,7 +1002,7 @@ describe('MapScreen', () => {
         <MapScreen navigation={mockNavigation as never} route={mockRoute} />
       );
 
-      fireEvent(getByTestId('map-view'), 'onRegionChangeComplete', regionAt(0.6));
+      fireRegionAndSettle(getByTestId('map-view'), regionAt(0.6));
 
       const clusterMarker = queryAllByTestId(/^cluster-marker-/)[0];
       fireEvent.press(clusterMarker);
@@ -995,6 +1011,26 @@ describe('MapScreen', () => {
       expect(__mapViewMocks.animateToRegion).toHaveBeenCalled();
       const [firstArg] = __mapViewMocks.animateToRegion.mock.calls[0];
       expect(firstArg.latitudeDelta).toBeLessThan(0.6);
+    });
+
+    it('AC-42: デバウンス経過前はクラスタ region が採用されず、経過後に採用される', () => {
+      mockSpotsOverride = gridSpots(200);
+
+      const { getByTestId, queryAllByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      jest.useFakeTimers();
+      fireEvent(getByTestId('map-view'), 'onRegionChangeComplete', regionAt(0.6));
+
+      // デバウンス経過前: クラスタ region は未採用でバブルはまだ出ない
+      expect(queryAllByTestId(/^cluster-marker-/)).toHaveLength(0);
+
+      act(() => {
+        jest.advanceTimersByTime(CLUSTER_REGION_DEBOUNCE_MS + 50);
+      });
+      expect(queryAllByTestId(/^cluster-marker-/)).toHaveLength(1);
+      jest.useRealTimers();
     });
 
     it('P-4: 1,109 件が delta 0.6 で 1 個のバブル(count 1109)に畳まれ個別 0 件', () => {
@@ -1017,7 +1053,7 @@ describe('MapScreen', () => {
         <MapScreen navigation={mockNavigation as never} route={mockRoute} />
       );
 
-      fireEvent(getByTestId('map-view'), 'onRegionChangeComplete', regionAt(0.6));
+      fireRegionAndSettle(getByTestId('map-view'), regionAt(0.6));
 
       expect(queryAllByTestId(/^cluster-marker-/)).toHaveLength(1);
       expect(queryAllByTestId(/^spot-marker-/)).toHaveLength(0);

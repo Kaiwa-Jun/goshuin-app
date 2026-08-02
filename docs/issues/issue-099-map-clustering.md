@@ -558,3 +558,35 @@ qa-evaluator エージェントがこの基準に基づいて合否判定を行�
   3. `feat: add ClusterBubble component`（コンポーネント + テスト）
   4. `feat: cluster map markers to prevent zoom-out crash`（`useSpotClusters` / MapScreen / jest.setup.js / 既存テストの変更）
 - 実装が契約と食い違う事実（supercluster の実挙動がクラスタ半径の目安表と乖離する等）を発見した場合は、契約書を黙って逸脱せず**本ファイルを更新してから**実装する
+
+## 追補1: ズームアウト churn 対策（2026-08-02 UI-1 イテレーション1 FAIL 対応）
+
+### 経緯
+
+初回実装の実機確認（人間ゲート）で「クラスタ表示は機能するが、関東レベルまでズームアウトするとクラッシュする」ことが判明（UI-1 FAIL）。Metro ログに JS エラーなし = ネイティブ側のメモリキル。シードデータ 880 件での churn シミュレーションにより、**ズームアウト1回（東京中心 delta 0.015→8）で約166個の Marker が新規 mount** されることを確認した。原因は2つ:
+
+1. supercluster の cluster_id は**クラスタ構成が変わる（マージが起きる）と変わる**。ズーム段階が下がるたびにマージ波が起き、大半のバブルの key が変わって unmount→mount される
+2. `key` に count を含めているため、構成変化 = count 変化でも remount される
+
+### 対策（本追補が正。矛盾する本文の記述を上書きする）
+
+1. **クラスタ識別子の安定化**: `SpotCluster.id` を `cluster-<clusterId>` から **`cluster-<先頭 leaf の spotId>`**（`index.getLeaves(clusterId, 1)[0].properties.spotId`）に変更する。マージで生き残る系譜のバブルは key が変わらず、座標・件数のプロパティ更新だけで済む。`clusterId` フィールドは展開ズーム取得用に残す。leaf の取得は top-N 確定後の最大 `MAX_CLUSTER_BUBBLES` 件のみに行う
+2. **クラスタ Marker の専用コンポーネント化（redraw 制御)**: `src/components/common/ClusterMarker.tsx` を新設。key が安定すると `tracksViewChanges={false}` のままでは count の数字が iOS で更新されないため、**count が変化したときだけ `tracksViewChanges` を true にし、`CLUSTER_REDRAW_MS`(350ms) 後に false へ戻す**。本文「注意事項」の「key に count を含める」は本追補で**廃止**（key は `cluster.id` のみ）
+3. **クラスタ region 採用のデバウンス**: `CLUSTER_REGION_DEBOUNCE_MS`(300ms) を `regionHysteresis.ts` に追加。`handleRegionChangeComplete` は setClusterRegion を直接呼ばず、**trailing debounce** で最後のイベントから 300ms 後に採用判定する。連続ピンチ操作の中間ズーム段階の再計算がスキップされ、churn の波が「指を止めた回数」だけになる。`currentRegion`（ラベル用）には引き続きデバウンスをかけない
+
+### 追加・変更する受入基準
+
+- [ ] AC-39: 2つの近接グループ（各10件・十分離れた2地点）に対し、分離ズーム（delta 0.157 = zoom 11）で得た2クラスタの id と、合流ズーム（delta 5 = zoom 6）で得た1クラスタの id を比較すると、**合流クラスタの id は分離時のどちらかの id と一致する**（leaf 由来の継続性）
+- [ ] AC-40: `ClusterMarker` は初期レンダーで `tracksViewChanges` が `false`、`count` が変化すると `true` になり、`CLUSTER_REDRAW_MS` 経過後に `false` へ戻る（`count` 不変の再レンダーでは `false` のまま）
+- [ ] AC-41: `CLUSTER_REGION_DEBOUNCE_MS === 300` / `CLUSTER_REDRAW_MS === 350`
+- [ ] AC-42: MapScreen で `onRegionChangeComplete` を発火してもデバウンス経過前はクラスタ region が採用されず、`CLUSTER_REGION_DEBOUNCE_MS` 経過後に採用される（発火直後はマーカー不変、タイマー経過後に変化）
+- AC-33/34（ヒステリシス）はデバウンス経過後の採用判定として維持（テストはタイマー advance を挟む形に変更）
+
+### 既存テストの変更（追補分の明示的宣言）
+
+`MapScreen.test.tsx` に fake timers でデバウンスを advance する `fireRegion` ヘルパーを導入し、`onRegionChangeComplete` を発火して選択結果を検証する以下のテストをヘルパー経由に変更する（アサーション内容は不変）: #93 exemption 2件 / #96 ポッピング・rank1 空マップ・AC-36 / #99 AC-30・31・33・34・35・P-4 / focusPrefecture の県域 region 発火 2件。`Zoom-based label visibility` 3件は `currentRegion` ベース（デバウンス対象外）のため無変更で通ることを維持する
+
+### 本追補で変更しないこと
+
+- 各上限定数（`MAX_CLUSTER_BUBBLES` 等）とヒステリシス定数・クラスタリングパラメータは不変
+- フォールバック案（本追補で不採用、イテレーション2でも FAIL の場合に検討）: 広域ズームでの上限の段階引き下げ / クラスタバブルの事前レンダリング画像化（`Marker` の `image` prop）

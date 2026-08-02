@@ -1,4 +1,5 @@
 import {
+  CLUSTER_REGION_DEBOUNCE_MS,
   HYSTERESIS_CENTER_RATIO,
   HYSTERESIS_DELTA_RATIO,
   shouldRecomputeRegion,
@@ -35,6 +36,10 @@ describe('shouldRecomputeRegion', () => {
   it('AC-20: delta が +19% なら false（再計算しない）', () => {
     const next = { ...baseRegion, latitudeDelta: 0.119, longitudeDelta: 0.119 };
     expect(shouldRecomputeRegion(baseRegion, next)).toBe(false);
+  });
+
+  it('AC-41: クラスタ region 採用のデバウンスが 300ms である', () => {
+    expect(CLUSTER_REGION_DEBOUNCE_MS).toBe(300);
   });
 
   it('AC-21: ヒステリシス定数が VIEWPORT_MARGIN から導出した不変条件を満たす', () => {

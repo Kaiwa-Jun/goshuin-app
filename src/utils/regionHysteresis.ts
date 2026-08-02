@@ -13,6 +13,13 @@ export const HYSTERESIS_CENTER_RATIO = 0.1;
 export const HYSTERESIS_DELTA_RATIO = 0.2;
 
 /**
+ * クラスタ region 採用の trailing debounce(ms)。連続ピンチ操作の
+ * 中間ズーム段階で再計算（= マーカー churn の波）が起きないよう、
+ * 最後の region イベントからこの時間だけ待って採用判定する
+ */
+export const CLUSTER_REGION_DEBOUNCE_MS = 300;
+
+/**
  * クラスタ再計算用の region を更新すべきか判定する。
  * prev は「直近に採用した region」であること（直前に通知された region と
  * 比較すると微小移動の積み重ねで永久に再計算されなくなる）

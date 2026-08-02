@@ -234,6 +234,44 @@ describe('buildClusterView', () => {
     expect(MAX_CLUSTER_BUBBLES + MAX_INDIVIDUAL_SPOTS + MAX_PINNED_SPOTS).toBe(MAX_TOTAL_MARKERS);
   });
 
+  it('AC-39: クラスタが合流しても id が leaf 由来で継続する', () => {
+    const groupA = Array.from({ length: 10 }, (_, i) =>
+      makeSpot({ id: `a-${i}`, lat: 38.27, lng: 140.87 + i * 0.001 })
+    );
+    const groupB = Array.from({ length: 10 }, (_, i) =>
+      makeSpot({ id: `b-${i}`, lat: 38.9, lng: 141.3 + i * 0.001 })
+    );
+    const spots = [...groupA, ...groupB];
+    const index = createClusterIndex(spots);
+    const spotById = new Map(spots.map(s => [s.id, s]));
+    const centerRegion = (delta: number) => ({
+      latitude: 38.6,
+      longitude: 141.08,
+      latitudeDelta: delta,
+      longitudeDelta: delta,
+    });
+
+    // 分離ズーム(zoom 9): 2グループがそれぞれ1クラスタ
+    const separated = buildClusterView({
+      index,
+      spotById,
+      region: centerRegion(0.9),
+      pinnedSpots: [],
+    });
+    expect(separated.clusters).toHaveLength(2);
+
+    // 合流ズーム(zoom 5): 1クラスタに合流し、id は分離時のどちらかを引き継ぐ
+    const merged = buildClusterView({
+      index,
+      spotById,
+      region: centerRegion(11.25),
+      pinnedSpots: [],
+    });
+    expect(merged.clusters).toHaveLength(1);
+    expect(merged.clusters[0].count).toBe(20);
+    expect(separated.clusters.map(c => c.id)).toContain(merged.clusters[0].id);
+  });
+
   it('AC-15: 同一入力で結果が決定的であり、入力配列を破壊しない', () => {
     const spots = [...makeGridSpots(100, 0.0005), ...makeGridSpots(50, 0.11, {}, 'far')];
     const inputSnapshot = [...spots];
