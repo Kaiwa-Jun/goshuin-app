@@ -33,8 +33,8 @@
     {
       "id": "P1-05",
       "title": "地図表示方式の本格再設計（ビューポート内 × rank 優先 top-N 表示）",
-      "note": "Issue #93 の即修正の後続。rank を「消す基準」から「見せる優先度」に変え、視界内の上位N件を表示。getMinRank 閾値の再設計・fetchSpotsByBounds の活用を含む。Issue #67(rank3 全国展開)の前提",
-      "issue": null,
+      "note": "実装済み(Issue #96・Evaluator PASS 27/27)。PR レビュー + native-only の実機確認(UI-1〜5)とマージを待って passes を立てる",
+      "issue": 96,
       "passes": false
     }
   ]
