@@ -12,7 +12,7 @@ interface SearchHistoryListProps {
   onClear: () => void;
 }
 
-// 親の FlatList（SearchScreen）の header に置くため、仮想化リストを使わない
+// 親リスト（SearchScreen）のヘッダー内に置くため、仮想化リストを使わない
 // （履歴は最大 10 件固定なので仮想化は不要）
 export function SearchHistoryList({ history, onSelect, onClear }: SearchHistoryListProps) {
   if (history.length === 0) {
