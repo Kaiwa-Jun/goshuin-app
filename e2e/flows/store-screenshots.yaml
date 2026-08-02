@@ -1,53 +1,52 @@
-# App Store 用スクリーンショット撮影（docs/project/store-metadata.md の5枚構成）
+# App Store 用スクリーンショット撮影
+# 実行前に位置を設定すること:
+#   xcrun simctl location <udid> set 35.7148,139.7967   # 浅草寺周辺
+#   xcrun simctl privacy <udid> grant location com.goshuin.app
 # 実行: maestro test e2e/flows/store-screenshots.yaml
-# 前提: preview-simulator ビルドをインストール済みの 6.7インチ シミュレータが起動中
+# 前提: preview-simulator ビルドをインストール済みの 6.7インチ シミュレータ
 appId: com.goshuin.app
 ---
+# オンボーディング（初回起動の4画面。機能説明が入るのでストア映えする）
 - launchApp:
-    clearState: false
+    clearState: true
+- waitForAnimationToEnd:
+    timeout: 6000
+- takeScreenshot: screenshots/onboarding-1
+- tapOn:
+    point: '50%,91%'
+- waitForAnimationToEnd:
+    timeout: 2000
+- takeScreenshot: screenshots/onboarding-2
+- tapOn:
+    point: '50%,91%'
+- waitForAnimationToEnd:
+    timeout: 2000
+- takeScreenshot: screenshots/onboarding-3
+- tapOn:
+    point: '50%,91%'
+- waitForAnimationToEnd:
+    timeout: 2000
+- takeScreenshot: screenshots/onboarding-4
+
+# オンボーディングを抜けて地図へ
+- tapOn:
+    point: '50%,91%'
+- waitForAnimationToEnd:
+    timeout: 4000
 - runFlow:
     when:
-      visible: 'スキップ'
+      visible: 'あとにする'
     commands:
-      - tapOn: 'スキップ'
+      - tapOn: 'あとにする'
 - waitForAnimationToEnd:
-    timeout: 5000
+    timeout: 8000
 
-# 1. 地図画面 —「集めるたび、地図があなたの旅になる。」
-- takeScreenshot: screenshots/01-map
+# 地図画面（浅草。神社・寺院のピンとラベル）
+- takeScreenshot: screenshots/map
 
-# 2. スポット詳細（浅草寺のピンをタップしてボトムシートを出す）
-# NOTE: タブバーとピンは Maestro のテキスト検索で拾えないため座標指定にする
+# スポット詳細（浅草寺のピンをタップしてボトムシート）
 - tapOn:
     point: '50%,54%'
 - waitForAnimationToEnd:
     timeout: 3000
-- takeScreenshot: screenshots/02-spot-detail
-
-# 3. 検索画面（検索バーから。ボトムシートは先に閉じる）
-- tapOn:
-    point: '50%,25%'
-- waitForAnimationToEnd:
-    timeout: 2000
-- tapOn:
-    point: '50%,10%'
-- waitForAnimationToEnd:
-    timeout: 3000
-- takeScreenshot: screenshots/03-search
-
-# 4. 設定画面（ログイン不要で開ける）
-- back
-- waitForAnimationToEnd:
-    timeout: 2000
-- tapOn:
-    point: '87%,94%'
-- waitForAnimationToEnd:
-    timeout: 3000
-- takeScreenshot: screenshots/04-settings
-
-# 5. コレクション（未ログイン時はログイン導線が出る）
-- tapOn:
-    point: '62%,94%'
-- waitForAnimationToEnd:
-    timeout: 3000
-- takeScreenshot: screenshots/05-collection-login
+- takeScreenshot: screenshots/spot-detail
