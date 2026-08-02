@@ -16,12 +16,13 @@
 6. **PR #97**（Issue #96 / P1-05）: 地図をビューポート×rank優先 top-N 方式に再設計（Evaluator 27/27 PASS）→ マージ済み
 7. **PR #98**: 巡礼データ（6コース+札所75件）の DB エクスポート + direction.md 追従
 8. 実機確認で「概ね良好だが**ズームアウト連続操作でクラッシュ**」が発覚 → **Issue #99（P1-06 クラスタリング恒久対応）起票済み**。原因の見立て・設計方針・ライブラリ選定メモは Issue 本文に記載
+9. **Issue #99（P1-06）完了**: クラスタリング（supercluster 直接・バケット画像バブル・ヒステリシス/デバウンス・現在地ピン静的化）。実機クラッシュは4イテレーションで追い込み、最終的に**全国スケール（delta≥2）のみ Apple Maps タイルメモリ起因とみられる残存**があったため、ユーザー判断で **minZoomLevel=8 の封じ込め**を採用（契約書 `docs/issues/issue-099-map-clustering.md` 追補1〜4 に全経緯）。実機確認済み・Evaluator PASS 53/53。**全国表示の恒久解禁は P1-07**（実クラッシュログ取得 → Instruments。Xcode 待ち）
 
 ## 次のアクション（優先順）
 
-1. **Issue #99（P1-06）を /build-feature で実行** — クラスタリング導入（supercluster 系）+ visited/wishlist のクラスタ除外 + 再選択ヒステリシス。native-only の最重要基準は「実機のズームアウト連続操作でクラッシュしない」
-2. Phase 0 残り: App Store スクリーンショット（Xcode 待ち → シミュレータ + Maestro で自動撮影。素材とキャプションは `docs/project/store-metadata.md` の5枚構成）/ iOS production ビルド + EAS Submit クレデンシャル / ストア申請
-3. Google Play（本人確認の審査承認メール後）: 電話番号確認 → Playwright ブラウザでアプリ作成 → 掲載情報（store-metadata.md を流し込み）→ 内部テストへ .aab アップロード → クローズドテスト（12人×14日）開始
+1. Phase 0 残り: App Store スクリーンショット（Xcode 待ち → シミュレータ + Maestro で自動撮影。素材とキャプションは `docs/project/store-metadata.md` の5枚構成）/ iOS production ビルド + EAS Submit クレデンシャル / ストア申請
+2. Google Play（本人確認の審査承認メール後）: 電話番号確認 → Playwright ブラウザでアプリ作成 → 掲載情報（store-metadata.md を流し込み）→ 内部テストへ .aab アップロード → クローズドテスト（12人×14日）開始
+3. P1-07（全国スケール解禁）は Xcode 導入後に着手可能。P1-02〜04 は未着手
 
 ## ユーザー待ちの項目
 

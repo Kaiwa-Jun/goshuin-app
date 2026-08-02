@@ -90,12 +90,15 @@ jest.mock('react-native-safe-area-context', () => {
 jest.mock('react-native-maps', () => {
   const React = require('react');
   const { View } = require('react-native');
+  // imperative handle はモックファクトリスコープの安定オブジェクトにする。
+  // 毎レンダー新しい jest.fn() を作るとテストから呼び出しを検証できない
+  const mapViewMocks = {
+    animateToRegion: jest.fn(),
+    animateCamera: jest.fn(),
+    fitToCoordinates: jest.fn(),
+  };
   const MockMapView = React.forwardRef((props, ref) => {
-    React.useImperativeHandle(ref, () => ({
-      animateToRegion: jest.fn(),
-      animateCamera: jest.fn(),
-      fitToCoordinates: jest.fn(),
-    }));
+    React.useImperativeHandle(ref, () => mapViewMocks);
     return React.createElement(
       View,
       { ...props, testID: props.testID || 'map-view' },
@@ -106,7 +109,13 @@ jest.mock('react-native-maps', () => {
   const MockMarker = props =>
     React.createElement(View, { ...props, testID: props.testID || 'marker' }, props.children);
   MockMarker.displayName = 'Marker';
-  return { __esModule: true, default: MockMapView, Marker: MockMarker, PROVIDER_GOOGLE: 'google' };
+  return {
+    __esModule: true,
+    default: MockMapView,
+    Marker: MockMarker,
+    PROVIDER_GOOGLE: 'google',
+    __mapViewMocks: mapViewMocks,
+  };
 });
 
 // expo-linear-gradient mock

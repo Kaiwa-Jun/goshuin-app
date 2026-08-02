@@ -274,10 +274,11 @@ describe('Common Components', () => {
   });
 
   describe('MapPin', () => {
-    it('renders current-location pin with pulse', () => {
-      const { getByTestId } = render(<MapPin type="current-location" />);
+    it('AC-46: 静的なハロー + ドットで描画され、パルスを持たない', () => {
+      const { getByTestId, queryByTestId } = render(<MapPin type="current-location" />);
       expect(getByTestId('map-pin-current-location')).toBeTruthy();
-      expect(getByTestId('map-pin-pulse')).toBeTruthy();
+      expect(getByTestId('map-pin-halo')).toBeTruthy();
+      expect(queryByTestId('map-pin-pulse')).toBeNull();
     });
   });
 
