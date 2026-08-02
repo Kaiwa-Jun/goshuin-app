@@ -15,6 +15,7 @@
 | `seed_kyoto_rank_spots.sql`    | 京都府                    | rank5×10 + rank4×10      |
 
 ※ 宮城県は `seed_miyagi_spots_and_pilgrimages.sql`（親ディレクトリ）で投入済み（2026-08 に本番 DB からエクスポートした rank 付き90件）
+※ 巡礼コース6件と札所の紐付け75件は `seed_pilgrimages_and_spots.sql`（親ディレクトリ、名前ベースの INSERT ... SELECT）。スポット投入後に実行する
 
 ## 投入手順
 
