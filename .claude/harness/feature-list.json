@@ -33,8 +33,15 @@
     {
       "id": "P1-05",
       "title": "地図表示方式の本格再設計（ビューポート内 × rank 優先 top-N 表示）",
-      "note": "実装済み(Issue #96・Evaluator PASS 27/27)。PR レビュー + native-only の実機確認(UI-1〜5)とマージを待って passes を立てる",
+      "note": "完了(Issue #96 / PR #97 マージ済み・Evaluator PASS 27/27・実機確認済み)。実機で発覚したズームアウト時クラッシュは P1-06 で恒久対応",
       "issue": 96,
+      "passes": true
+    },
+    {
+      "id": "P1-06",
+      "title": "クラスタリング導入でズームアウト時のクラッシュを恒久解消",
+      "note": "Issue #99 に分析・設計方針・ライブラリ選定メモを記載済み。supercluster 系 + visited/wishlist のクラスタ除外 + 再選択ヒステリシス。native-only 最重要基準 = 実機ズームアウト連続でクラッシュしない",
+      "issue": 99,
       "passes": false
     }
   ]
