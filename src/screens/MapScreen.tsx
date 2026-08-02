@@ -19,6 +19,7 @@ import { useUserStamps } from '@hooks/useUserStamps';
 import { useWishlist } from '@hooks/useWishlist';
 import type { MapStackScreenProps } from '@/navigation/types';
 import type { Spot } from '@/types/supabase';
+import { selectVisibleSpots } from '@utils/spotSelection';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { spacing, borderRadius } from '@theme/spacing';
@@ -27,18 +28,9 @@ import { shadows } from '@theme/shadows';
 type Props = MapStackScreenProps<'Map'>;
 type FilterMode = 'all' | 'visited';
 
-// getMinRank の閾値(0.02)と一致させない。境界と重なるとわずかなズーム操作で表示 rank 帯が切り替わりチラつく
 const LATITUDE_DELTA = 0.015;
 const LONGITUDE_DELTA = 0.015;
 const LABEL_VISIBLE_DELTA = 0.2;
-
-function getMinRank(latitudeDelta: number): number {
-  if (latitudeDelta > 0.5) return 5;
-  if (latitudeDelta > 0.1) return 4;
-  if (latitudeDelta > 0.02) return 3;
-  if (latitudeDelta > 0.005) return 2;
-  return 1;
-}
 
 function getPinColor(
   spot: Spot,
@@ -68,11 +60,26 @@ export function MapScreen({ navigation, route }: Props) {
   }, [spots, prefectureSpots]);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showFilter, setShowFilter] = useState(false);
-  const [currentLatitudeDelta, setCurrentLatitudeDelta] = useState(LATITUDE_DELTA);
+  const [currentRegion, setCurrentRegion] = useState<Region | null>(null);
   const [selectedSpotId, setSelectedSpotId] = useState<string | null>(null);
   const [forceLabelVisible, setForceLabelVisible] = useState(false);
   const skipRegionChangeRef = useRef(false);
-  const shouldShowLabels = currentLatitudeDelta <= LABEL_VISIBLE_DELTA || forceLabelVisible;
+  // ユーザー操作前は location ベースの初期 region(initialRegion と同一値)を実効 region とする
+  const effectiveRegion = useMemo<Region | null>(
+    () =>
+      currentRegion ??
+      (location
+        ? {
+            latitude: location.latitude,
+            longitude: location.longitude,
+            latitudeDelta: LATITUDE_DELTA,
+            longitudeDelta: LONGITUDE_DELTA,
+          }
+        : null),
+    [currentRegion, location]
+  );
+  const shouldShowLabels =
+    (effectiveRegion?.latitudeDelta ?? LATITUDE_DELTA) <= LABEL_VISIBLE_DELTA || forceLabelVisible;
   const mapRef = useRef<MapView>(null);
   const insets = useSafeAreaInsets();
 
@@ -107,14 +114,16 @@ export function MapScreen({ navigation, route }: Props) {
     return () => subscription.remove();
   }, [permissionStatus, refreshLocation]);
 
-  const minRank = getMinRank(currentLatitudeDelta);
-  // 訪問済み・行きたいリストのスポットは「自分の旅の記録」なので rank に関わらず常に表示する
+  // ビューポート内 × rank 優先 top-N。訪問済み・行きたいはビューポート内なら常に表示する
   const visibleSpots = useMemo(
     () =>
-      displaySpots.filter(
-        s => s.rank >= minRank || visitedSpotIds.has(s.id) || wishlistSpotIds.has(s.id)
-      ),
-    [displaySpots, minRank, visitedSpotIds, wishlistSpotIds]
+      selectVisibleSpots({
+        spots: displaySpots,
+        region: effectiveRegion,
+        visitedSpotIds,
+        wishlistSpotIds,
+      }),
+    [displaySpots, effectiveRegion, visitedSpotIds, wishlistSpotIds]
   );
 
   useEffect(() => {
@@ -182,7 +191,7 @@ export function MapScreen({ navigation, route }: Props) {
   };
 
   const handleRegionChangeComplete = useCallback((r: Region) => {
-    setCurrentLatitudeDelta(r.latitudeDelta);
+    setCurrentRegion(r);
     if (skipRegionChangeRef.current) {
       skipRegionChangeRef.current = false;
     } else {
