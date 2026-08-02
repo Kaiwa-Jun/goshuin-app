@@ -9,3 +9,4 @@
 - 2026-08-02: Issue #93 地図即修正を /build-feature フローで実装(フェッチのページネーション/visited・wishlist の rank フィルタ免除/デフォルトズーム0.015)。契約書 docs/issues/issue-093-map-spot-display-fixes.md、Evaluator PASS 12/12、実機確認済み。後続の本格再設計は P1-05。
 - 2026-08-02(夜間自律): Issue #96 P1-05 ビューポート×rank優先 top-N を /build-feature で実装。契約書 docs/issues/issue-096-map-viewport-topn.md、Evaluator PASS 27/27。実機確認(UI-1〜5)とマージは朝のゲート待ち。
 - 2026-08-02: PR #97(P1-05)・#98 マージ。実機確認でズームアウト時クラッシュ発覚 → Issue #99(P1-06 クラスタリング)起票。セッション引き継ぎは .claude/harness/handoff.md 参照。
+- 2026-08-02: Issue #99 P1-06 クラスタリング導入を /build-feature で実装。契約書 docs/issues/issue-099-map-clustering.md（追補1〜4）、Evaluator PASS 53/53。実機の全国スケールクラッシュは4イテレーション（churn削減→バブル画像化→現在地ピン無限アニメ廃止→minZoomLevel=8 封じ込め）で対処し、封じ込めをユーザー承認・実機確認済み。全国表示の恒久解禁は P1-07 に分離。
