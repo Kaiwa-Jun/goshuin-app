@@ -149,6 +149,33 @@ export function MapScreen({ navigation, route }: Props) {
     wishlistSpotIds,
   });
 
+  // #99 診断用の一時ログ(実機クラッシュ調査。恒久対応確定後に削除する)。
+  // クラスタ採用のたびに描画規模と Hermes ヒープを Metro に残し、
+  // クラッシュ直前の最終状態を tmux 側から読めるようにする
+  useEffect(() => {
+    if (!__DEV__) return;
+    let heap = 'heap=n/a';
+    try {
+      const hermes = (
+        global as unknown as {
+          HermesInternal?: { getInstrumentedStats?: () => Record<string, unknown> };
+        }
+      ).HermesInternal;
+      const stats = hermes?.getInstrumentedStats?.();
+      if (stats) {
+        heap = Object.entries(stats)
+          .filter(([k]) => /heap|alloc/i.test(k))
+          .map(([k, v]) => `${k}=${String(v)}`)
+          .join(' ');
+      }
+    } catch {
+      // 診断ログのために本体を落とさない
+    }
+    console.log(
+      `[#99diag] adopted delta=${effectiveClusterRegion?.longitudeDelta.toFixed(4) ?? 'null'} bubbles=${clusters.length} singles=${individualSpots.length} ${heap}`
+    );
+  }, [clusters, individualSpots, effectiveClusterRegion]);
+
   useEffect(() => {
     const focusSpotId = route.params?.focusSpotId;
     if (!focusSpotId || !mapRef.current) return;
@@ -214,6 +241,10 @@ export function MapScreen({ navigation, route }: Props) {
   };
 
   const handleRegionChangeComplete = useCallback((r: Region) => {
+    // #99 診断用の一時ログ: 実機でのイベント発火頻度を計測する
+    if (__DEV__) {
+      console.log(`[#99diag] regionEvent delta=${r.longitudeDelta.toFixed(4)}`);
+    }
     setCurrentRegion(r);
     // クラスタ region は trailing debounce で採用する。連続ピンチ操作の
     // 中間ズーム段階で再計算（= マーカー churn の波）を起こさないため。
