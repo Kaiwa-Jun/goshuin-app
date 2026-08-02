@@ -221,7 +221,7 @@ describe('TabNavigator', () => {
     });
   });
 
-  it('navigates to Login when unauthenticated user taps Gallery tab', async () => {
+  it('shows gallery guest empty state when unauthenticated user taps Gallery tab', async () => {
     mockUseAuth.mockReturnValue({
       user: null,
       session: null,
@@ -229,7 +229,7 @@ describe('TabNavigator', () => {
       isAuthenticated: false,
     });
 
-    const { getByText } = renderTabNavigator();
+    const { getByText, getByTestId, queryByText } = renderTabNavigator();
 
     await waitFor(() => {
       expect(getByText('御朱印')).toBeTruthy();
@@ -238,11 +238,13 @@ describe('TabNavigator', () => {
     fireEvent.press(getByText('御朱印'));
 
     await waitFor(() => {
-      expect(getByText('Login Screen')).toBeTruthy();
+      expect(getByTestId('gallery-guest-empty-state')).toBeTruthy();
     });
+
+    expect(queryByText('Login Screen')).toBeNull();
   });
 
-  it('navigates to Login when unauthenticated user taps Collection tab', async () => {
+  it('shows collection guest empty state when unauthenticated user taps Collection tab', async () => {
     mockUseAuth.mockReturnValue({
       user: null,
       session: null,
@@ -250,7 +252,7 @@ describe('TabNavigator', () => {
       isAuthenticated: false,
     });
 
-    const { getByText } = renderTabNavigator();
+    const { getByText, getByTestId, queryByText } = renderTabNavigator();
 
     await waitFor(() => {
       expect(getByText('コレクション')).toBeTruthy();
@@ -259,8 +261,10 @@ describe('TabNavigator', () => {
     fireEvent.press(getByText('コレクション'));
 
     await waitFor(() => {
-      expect(getByText('Login Screen')).toBeTruthy();
+      expect(getByTestId('collection-guest-empty-state')).toBeTruthy();
     });
+
+    expect(queryByText('Login Screen')).toBeNull();
   });
 
   it('allows authenticated user to access Gallery tab normally', async () => {
