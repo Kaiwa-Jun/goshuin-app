@@ -14,22 +14,33 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { spacing, borderRadius } from '@theme/spacing';
+import { useAuth } from '@hooks/useAuth';
 import { useGalleryStamps } from '@hooks/useGalleryStamps';
 import { useStampDetail } from '@hooks/useStampDetail';
 import { getStampImageUrl } from '@services/stamps';
+import { Button } from '@components/common/Button';
 import { ImageGalleryModal, GalleryImage } from '@components/common/ImageGalleryModal';
 import { EditStampModal } from '@components/stamp-detail/EditStampModal';
 import { DeleteConfirmModal } from '@components/stamp-detail/DeleteConfirmModal';
 import type { StampWithSpot } from '@/types/supabase';
+import type { GalleryStackScreenProps } from '@/navigation/types';
 
 type SortOrder = 'date' | 'spot';
+type Props = GalleryStackScreenProps<'Gallery'>;
 
 const NUM_COLUMNS = 3;
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const ITEM_MARGIN = spacing.xs;
 const ITEM_SIZE = (SCREEN_WIDTH - spacing.lg * 2 - ITEM_MARGIN * (NUM_COLUMNS - 1)) / NUM_COLUMNS;
 
-export function GalleryScreen() {
+const GUEST_PREVIEW_ITEMS = [
+  { icon: 'photo-camera', label: '写真で御朱印を残す' },
+  { icon: 'sort', label: '日付順・スポット順で並べ替え' },
+  { icon: 'fullscreen', label: 'タップで大きく表示' },
+] as const;
+
+export function GalleryScreen({ navigation }: Props) {
+  const { isAuthenticated } = useAuth();
   const [sortOrder, setSortOrder] = useState<SortOrder>('date');
   const {
     stamps,
@@ -129,13 +140,36 @@ export function GalleryScreen() {
           <Text style={styles.headerTitle}>御朱印</Text>
         </View>
 
-        <View style={styles.sortRow}>
-          <TouchableOpacity onPress={handleToggleSort} testID="sort-button">
-            <Text style={styles.sortText}>{sortLabel} ▼</Text>
-          </TouchableOpacity>
-        </View>
+        {isAuthenticated && (
+          <View style={styles.sortRow}>
+            <TouchableOpacity onPress={handleToggleSort} testID="sort-button">
+              <Text style={styles.sortText}>{sortLabel} ▼</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
-        {isLoading ? (
+        {!isAuthenticated ? (
+          <View style={styles.centerContainer} testID="gallery-guest-empty-state">
+            <MaterialIcons name="photo-library" size={48} color={colors.gray[400]} />
+            <Text style={styles.emptyText}>あなたの御朱印帳</Text>
+            <Text style={styles.emptySubText}>記録した御朱印がここに一覧で並びます</Text>
+            <View style={styles.guestPreviewList}>
+              {GUEST_PREVIEW_ITEMS.map(item => (
+                <View key={item.icon} style={styles.guestPreviewRow}>
+                  <MaterialIcons name={item.icon} size={20} color={colors.gray[400]} />
+                  <Text style={styles.guestPreviewText}>{item.label}</Text>
+                </View>
+              ))}
+            </View>
+            <Button
+              title="ログインして始める"
+              variant="primary"
+              testID="gallery-login-cta"
+              onPress={() => navigation.navigate('Login')}
+              style={styles.guestCta}
+            />
+          </View>
+        ) : isLoading ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator
               size="large"
@@ -264,5 +298,23 @@ const styles = StyleSheet.create({
     color: colors.gray[400],
     marginTop: spacing.sm,
     textAlign: 'center',
+  },
+  guestPreviewList: {
+    marginTop: spacing.xl,
+    alignSelf: 'center',
+  },
+  guestPreviewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: spacing.sm,
+  },
+  guestPreviewText: {
+    ...typography.bodySmall,
+    color: colors.gray[500],
+    marginLeft: spacing.sm,
+  },
+  guestCta: {
+    marginTop: spacing.xl,
+    alignSelf: 'stretch',
   },
 });

@@ -15,6 +15,15 @@ jest.mock('react-native-safe-area-context', () => {
   };
 });
 
+let mockAuth: { user: { id: string } | null; isAuthenticated: boolean } = {
+  user: { id: 'user-1' },
+  isAuthenticated: true,
+};
+
+jest.mock('@hooks/useAuth', () => ({
+  useAuth: () => mockAuth,
+}));
+
 jest.mock('@hooks/useGalleryStamps', () => ({
   useGalleryStamps: jest.fn(),
 }));
@@ -44,6 +53,28 @@ jest
 
 const mockUseGalleryStamps = useGalleryStamps as jest.MockedFunction<typeof useGalleryStamps>;
 
+const mockNavigation = {
+  navigate: jest.fn(),
+  goBack: jest.fn(),
+  dispatch: jest.fn(),
+  reset: jest.fn(),
+  isFocused: jest.fn(),
+  canGoBack: jest.fn(),
+  getId: jest.fn(),
+  getParent: jest.fn(),
+  getState: jest.fn(),
+  setParams: jest.fn(),
+  setOptions: jest.fn(),
+  addListener: jest.fn(),
+  removeListener: jest.fn(),
+};
+
+const mockRoute = { key: 'test', name: 'Gallery' as const, params: undefined };
+
+function renderGalleryScreen() {
+  return render(<GalleryScreen navigation={mockNavigation as never} route={mockRoute} />);
+}
+
 const makeStamp = (overrides: Partial<StampWithSpot> = {}): StampWithSpot => ({
   id: '1',
   user_id: 'user-1',
@@ -63,6 +94,7 @@ const makeStamp = (overrides: Partial<StampWithSpot> = {}): StampWithSpot => ({
 describe('GalleryScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockAuth = { user: { id: 'user-1' }, isAuthenticated: true };
   });
 
   it('ローディング中に ActivityIndicator を表示する', () => {
@@ -75,7 +107,7 @@ describe('GalleryScreen', () => {
       updateStamp: jest.fn(),
     });
 
-    const { getByTestId } = render(<GalleryScreen />);
+    const { getByTestId } = renderGalleryScreen();
     expect(getByTestId('loading-indicator')).toBeTruthy();
   });
 
@@ -89,7 +121,7 @@ describe('GalleryScreen', () => {
       updateStamp: jest.fn(),
     });
 
-    const { getByText } = render(<GalleryScreen />);
+    const { getByText } = renderGalleryScreen();
     expect(getByText('明治神宮')).toBeTruthy();
   });
 
@@ -103,7 +135,7 @@ describe('GalleryScreen', () => {
       updateStamp: jest.fn(),
     });
 
-    const { getByTestId } = render(<GalleryScreen />);
+    const { getByTestId } = renderGalleryScreen();
     expect(getByTestId('stamp-image-1')).toBeTruthy();
   });
 
@@ -117,7 +149,7 @@ describe('GalleryScreen', () => {
       updateStamp: jest.fn(),
     });
 
-    const { getByTestId } = render(<GalleryScreen />);
+    const { getByTestId } = renderGalleryScreen();
     expect(getByTestId('empty-state')).toBeTruthy();
   });
 
@@ -131,7 +163,7 @@ describe('GalleryScreen', () => {
       updateStamp: jest.fn(),
     });
 
-    const { getByTestId, getByText } = render(<GalleryScreen />);
+    const { getByTestId, getByText } = renderGalleryScreen();
     expect(getByText('日付順 ▼')).toBeTruthy();
     fireEvent.press(getByTestId('sort-button'));
     expect(getByText('スポット順 ▼')).toBeTruthy();
@@ -147,7 +179,7 @@ describe('GalleryScreen', () => {
       updateStamp: jest.fn(),
     });
 
-    const { getByText } = render(<GalleryScreen />);
+    const { getByText } = renderGalleryScreen();
     expect(getByText('2024/01/15')).toBeTruthy();
   });
 
@@ -161,7 +193,7 @@ describe('GalleryScreen', () => {
       updateStamp: jest.fn(),
     });
 
-    const { getByTestId, queryByText } = render(<GalleryScreen />);
+    const { getByTestId, queryByText } = renderGalleryScreen();
     fireEvent.press(getByTestId('sort-button'));
     expect(queryByText('2024/01/15')).toBeNull();
   });
@@ -176,8 +208,95 @@ describe('GalleryScreen', () => {
       updateStamp: jest.fn(),
     });
 
-    const { getByTestId } = render(<GalleryScreen />);
+    const { getByTestId } = renderGalleryScreen();
     fireEvent.press(getByTestId('gallery-item-stamp-abc'));
     expect(getByTestId('gallery-image')).toBeTruthy();
+  });
+
+  describe('未ログイン時のゲスト空状態', () => {
+    beforeEach(() => {
+      mockAuth = { user: null, isAuthenticated: false };
+      mockUseGalleryStamps.mockReturnValue({
+        stamps: [],
+        totalCount: 0,
+        isLoading: false,
+        error: null,
+        removeStamp: jest.fn(),
+        updateStamp: jest.fn(),
+      });
+    });
+
+    it('ゲスト空状態を表示し、一覧と通常空状態は表示しない', () => {
+      const { getByTestId, queryByTestId } = renderGalleryScreen();
+      expect(getByTestId('gallery-guest-empty-state')).toBeTruthy();
+      expect(queryByTestId('gallery-list')).toBeNull();
+      expect(queryByTestId('empty-state')).toBeNull();
+    });
+
+    it('スタンプが返っていても一覧を表示しない（認証で分岐する）', () => {
+      mockUseGalleryStamps.mockReturnValue({
+        stamps: [makeStamp({ id: '1' })],
+        totalCount: 1,
+        isLoading: false,
+        error: null,
+        removeStamp: jest.fn(),
+        updateStamp: jest.fn(),
+      });
+
+      const { queryByTestId } = renderGalleryScreen();
+      expect(queryByTestId('gallery-list')).toBeNull();
+    });
+
+    it('ソートボタンを表示しない', () => {
+      const { queryByTestId } = renderGalleryScreen();
+      expect(queryByTestId('sort-button')).toBeNull();
+    });
+
+    it('CTA を押すと Login へ navigate する', () => {
+      const { getByTestId } = renderGalleryScreen();
+      fireEvent.press(getByTestId('gallery-login-cta'));
+      expect(mockNavigation.navigate).toHaveBeenCalledTimes(1);
+      expect(mockNavigation.navigate).toHaveBeenCalledWith('Login');
+    });
+
+    it('タイトル・説明・プレビュー3行を表示する', () => {
+      const { getByText } = renderGalleryScreen();
+      expect(getByText('あなたの御朱印帳')).toBeTruthy();
+      expect(getByText('記録した御朱印がここに一覧で並びます')).toBeTruthy();
+      expect(getByText('写真で御朱印を残す')).toBeTruthy();
+      expect(getByText('日付順・スポット順で並べ替え')).toBeTruthy();
+      expect(getByText('タップで大きく表示')).toBeTruthy();
+    });
+  });
+
+  it('ログイン済みでスタンプ0件のとき通常空状態を表示しゲスト空状態は表示しない', () => {
+    mockUseGalleryStamps.mockReturnValue({
+      stamps: [],
+      totalCount: 0,
+      isLoading: false,
+      error: null,
+      removeStamp: jest.fn(),
+      updateStamp: jest.fn(),
+    });
+
+    const { getByTestId, getByText, queryByTestId } = renderGalleryScreen();
+    expect(getByTestId('empty-state')).toBeTruthy();
+    expect(getByText('御朱印がまだありません')).toBeTruthy();
+    expect(queryByTestId('gallery-guest-empty-state')).toBeNull();
+  });
+
+  it('ログイン済みでスタンプありのとき一覧を表示しゲスト空状態は表示しない', () => {
+    mockUseGalleryStamps.mockReturnValue({
+      stamps: [makeStamp({ id: '1' })],
+      totalCount: 1,
+      isLoading: false,
+      error: null,
+      removeStamp: jest.fn(),
+      updateStamp: jest.fn(),
+    });
+
+    const { getByTestId, queryByTestId } = renderGalleryScreen();
+    expect(getByTestId('gallery-list')).toBeTruthy();
+    expect(queryByTestId('gallery-guest-empty-state')).toBeNull();
   });
 });
