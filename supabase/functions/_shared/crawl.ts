@@ -108,6 +108,18 @@ function normalizeDate(value: unknown): string | null {
   return typeof value === 'string' && DATE_PATTERN.test(value) ? value : null;
 }
 
+/**
+ * 御朱印らしさの決定的ガード。プロンプトの除外指示だけでは Haiku が
+ * 期間限定の授与品（破魔矢・土鈴等）や御朱印帳・挟み紙を返すことが
+ * 実クロールで確認されたため（2026-08-02 八坂神社ほか）、コード側で二重に守る。
+ * name + description に「朱印」または「集印」を含み、かつ name が
+ * 御朱印帳・挟み紙でないものだけを御朱印とみなす。
+ */
+export function isLikelyGoshuin(name: string, description: string | null): boolean {
+  if (/朱印帳|挟み紙/.test(name)) return false;
+  return /朱印|集印/.test(`${name} ${description ?? ''}`);
+}
+
 function normalizeText(value: unknown, maxChars: number): string | null {
   if (typeof value !== 'string') return null;
   const trimmed = value.trim();
@@ -131,12 +143,14 @@ export function normalizeItems(
     const record = entry as Record<string, unknown>;
     const name = normalizeText(record.name, 100);
     if (!name) continue;
+    const description = normalizeText(record.description, 300);
+    if (!isLikelyGoshuin(name, description)) continue;
     items.push({
       name,
       period: normalizeText(record.period, 100),
       period_start: normalizeDate(record.period_start),
       period_end: normalizeDate(record.period_end),
-      description: normalizeText(record.description, 300),
+      description,
       source_url: sourceUrl,
       fetched_at: fetchedAt,
     });
