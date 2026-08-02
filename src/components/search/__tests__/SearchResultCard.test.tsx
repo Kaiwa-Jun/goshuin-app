@@ -84,4 +84,24 @@ describe('SearchResultCard', () => {
     );
     expect(getByTestId('spot-icon-temple')).toBeTruthy();
   });
+
+  it('showDistance={false} のとき距離が表示されない', () => {
+    const { queryByText } = render(
+      <SearchResultCard
+        spot={shrineSpot}
+        distance={0.5}
+        query=""
+        onPress={jest.fn()}
+        showDistance={false}
+      />
+    );
+    expect(queryByText('500m')).toBeNull();
+  });
+
+  it('showDistance 省略時は距離が表示される', () => {
+    const { getByText } = render(
+      <SearchResultCard spot={shrineSpot} distance={0.5} query="" onPress={jest.fn()} />
+    );
+    expect(getByText('500m')).toBeTruthy();
+  });
 });

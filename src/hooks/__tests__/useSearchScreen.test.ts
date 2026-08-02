@@ -1,5 +1,6 @@
 import { renderHook, act } from '@testing-library/react-native';
-import { useSearchScreen } from '@hooks/useSearchScreen';
+import { PermissionStatus } from 'expo-location';
+import { useSearchScreen, MAX_SUGGESTED_SPOTS } from '@hooks/useSearchScreen';
 import type { Spot } from '@/types/supabase';
 
 import { useSpots } from '@hooks/useSpots';
@@ -45,7 +46,7 @@ beforeEach(() => {
     location: userLocation,
     isLoading: false,
     error: null,
-    permissionStatus: null,
+    permissionStatus: PermissionStatus.GRANTED,
     refreshLocation: jest.fn(),
   });
   mockUseSpots.mockReturnValue({
@@ -55,6 +56,25 @@ beforeEach(() => {
     error: null,
   });
 });
+
+function mockLocationDenied() {
+  mockUseLocation.mockReturnValue({
+    location: userLocation,
+    isLoading: false,
+    error: null,
+    permissionStatus: PermissionStatus.DENIED,
+    refreshLocation: jest.fn(),
+  });
+}
+
+function mockSpots(spots: Spot[]) {
+  mockUseSpots.mockReturnValue({
+    spots,
+    allSpots: spots,
+    isLoading: false,
+    error: null,
+  });
+}
 
 describe('useSearchScreen', () => {
   it('初期状態で query が空、results が空', () => {
@@ -158,5 +178,110 @@ describe('useSearchScreen', () => {
     // query が空なので results は空
     expect(result.current.results).toEqual([]);
     jest.useRealTimers();
+  });
+
+  describe('未入力時の提案スポット', () => {
+    it('位置情報許可済みのとき nearby モードで距離昇順に並ぶ', () => {
+      const { result } = renderHook(() => useSearchScreen());
+
+      expect(result.current.suggestionMode).toBe('nearby');
+      const distances = result.current.suggestedSpots.map(s => s.distance);
+      expect(distances).toEqual([...distances].sort((a, b) => a - b));
+    });
+
+    it('位置情報拒否のとき popular モードで rank 降順に並ぶ', () => {
+      mockLocationDenied();
+      mockSpots([
+        makeFakeSpot({ id: '1', rank: 1 }),
+        makeFakeSpot({ id: '2', rank: 5 }),
+        makeFakeSpot({ id: '3', rank: 3 }),
+      ]);
+
+      const { result } = renderHook(() => useSearchScreen());
+
+      expect(result.current.suggestionMode).toBe('popular');
+      expect(result.current.suggestedSpots.map(s => s.spot.rank)).toEqual([5, 3, 1]);
+    });
+
+    it('popular モードで同 rank は id 昇順のタイブレーク', () => {
+      mockLocationDenied();
+      mockSpots([makeFakeSpot({ id: 'b', rank: 3 }), makeFakeSpot({ id: 'a', rank: 3 })]);
+
+      const { result } = renderHook(() => useSearchScreen());
+
+      expect(result.current.suggestedSpots.map(s => s.spot.id)).toEqual(['a', 'b']);
+    });
+
+    it('MAX_SUGGESTED_SPOTS は 10 で、11件与えると nearby は 10 件に切り詰める', () => {
+      const spots = Array.from({ length: 11 }, (_, i) =>
+        makeFakeSpot({ id: `spot-${i}`, lat: 38.27 + i * 0.01 })
+      );
+      mockSpots(spots);
+
+      const { result } = renderHook(() => useSearchScreen());
+
+      expect(MAX_SUGGESTED_SPOTS).toBe(10);
+      expect(result.current.suggestedSpots.length).toBe(10);
+    });
+
+    it('11件与えると popular も 10 件に切り詰める', () => {
+      mockLocationDenied();
+      const spots = Array.from({ length: 11 }, (_, i) =>
+        makeFakeSpot({ id: `spot-${i}`, rank: (i % 5) + 1 })
+      );
+      mockSpots(spots);
+
+      const { result } = renderHook(() => useSearchScreen());
+
+      expect(result.current.suggestedSpots.length).toBe(10);
+    });
+
+    it('スポット0件のとき suggestedSpots は空配列', () => {
+      mockSpots([]);
+
+      const { result } = renderHook(() => useSearchScreen());
+
+      expect(result.current.suggestedSpots).toEqual([]);
+    });
+
+    it('popular モードの distance はすべて 0（見せかけの距離を返さない）', () => {
+      mockLocationDenied();
+
+      const { result } = renderHook(() => useSearchScreen());
+
+      expect(result.current.suggestedSpots.every(s => s.distance === 0)).toBe(true);
+    });
+
+    it('query を入力しても suggestedSpots は変わらない', () => {
+      jest.useFakeTimers();
+      const { result } = renderHook(() => useSearchScreen());
+
+      const before = result.current.suggestedSpots.map(s => s.spot.id);
+
+      act(() => {
+        result.current.setQuery('Temple');
+      });
+      act(() => {
+        jest.advanceTimersByTime(350);
+      });
+
+      expect(result.current.suggestedSpots.map(s => s.spot.id)).toEqual(before);
+      jest.useRealTimers();
+    });
+
+    it('allSpots の元配列を破壊しない', () => {
+      mockLocationDenied();
+      const spots = [
+        makeFakeSpot({ id: '1', rank: 1 }),
+        makeFakeSpot({ id: '2', rank: 5 }),
+        makeFakeSpot({ id: '3', rank: 3 }),
+      ];
+      const originalOrder = spots.map(s => s.id);
+      mockSpots(spots);
+
+      renderHook(() => useSearchScreen());
+
+      expect(spots.map(s => s.id)).toEqual(originalOrder);
+    });
   });
 });
