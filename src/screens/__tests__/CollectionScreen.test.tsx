@@ -14,11 +14,13 @@ jest.mock('react-native-safe-area-context', () => {
   };
 });
 
+let mockAuth: { user: { id: string } | null; isAuthenticated: boolean } = {
+  user: { id: 'user-1' },
+  isAuthenticated: true,
+};
+
 jest.mock('@hooks/useAuth', () => ({
-  useAuth: () => ({
-    user: { id: 'user-1' },
-    isAuthenticated: true,
-  }),
+  useAuth: () => mockAuth,
 }));
 
 const mockRefetch = jest.fn();
@@ -127,6 +129,7 @@ const mockRoute = {
 describe('CollectionScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockAuth = { user: { id: 'user-1' }, isAuthenticated: true };
     mockWishlistSpots = [];
     mockCollectionStats = {
       spotCount: 10,
@@ -342,5 +345,60 @@ describe('CollectionScreen', () => {
       expect(mockRemoveFromWishlist).toHaveBeenCalledWith('user-1', 'spot-1');
       expect(mockRefetch).toHaveBeenCalled();
     });
+  });
+
+  describe('未ログイン時のゲストカード', () => {
+    beforeEach(() => {
+      mockAuth = { user: null, isAuthenticated: false };
+    });
+
+    it('ゲストカードとタイトル・説明を表示する', () => {
+      const { getByTestId, getByText } = render(
+        <CollectionScreen navigation={mockNavigation} route={mockRoute} />
+      );
+      expect(getByTestId('collection-guest-empty-state')).toBeTruthy();
+      expect(getByText('記録するとここに集計されます')).toBeTruthy();
+      expect(
+        getByText('訪れた寺社の数・都道府県の埋まり方・巡礼の進捗・獲得バッジが自動でたまります')
+      ).toBeTruthy();
+    });
+
+    it('CTA を押すと Login へ navigate する', () => {
+      const { getByTestId } = render(
+        <CollectionScreen navigation={mockNavigation} route={mockRoute} />
+      );
+      fireEvent.press(getByTestId('collection-login-cta'));
+      expect(mockNavigate).toHaveBeenCalledTimes(1);
+      expect(mockNavigate).toHaveBeenCalledWith('Login');
+    });
+
+    it('データ0件でも既存セクションがプレビューとして残る', () => {
+      mockCollectionStats = {
+        spotCount: 0,
+        stampCount: 0,
+        regionStats: [],
+        pilgrimageProgress: [],
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+      };
+      mockWishlistSpots = [];
+
+      const { getByText } = render(
+        <CollectionScreen navigation={mockNavigation} route={mockRoute} />
+      );
+      expect(getByText('これまでの達成')).toBeTruthy();
+      expect(getByText('獲得バッジ')).toBeTruthy();
+      expect(getByText('巡礼チャレンジに挑戦してみましょう')).toBeTruthy();
+      expect(getByText('御朱印を記録すると地域別の統計が表示されます')).toBeTruthy();
+      expect(getByText('行きたいスポットをマップで保存しましょう')).toBeTruthy();
+    });
+  });
+
+  it('ログイン済みのときゲストカードを表示しない', () => {
+    const { queryByTestId } = render(
+      <CollectionScreen navigation={mockNavigation} route={mockRoute} />
+    );
+    expect(queryByTestId('collection-guest-empty-state')).toBeNull();
   });
 });

@@ -12,6 +12,7 @@ interface SearchResultCardProps {
   distance: number;
   query: string;
   onPress: () => void;
+  showDistance?: boolean;
 }
 
 function HighlightedText({ text, query }: { text: string; query: string }) {
@@ -45,6 +46,7 @@ export const SearchResultCard: React.FC<SearchResultCardProps> = ({
   distance,
   query,
   onPress,
+  showDistance = true,
 }) => {
   const isShrine = spot.type === 'shrine';
 
@@ -66,7 +68,7 @@ export const SearchResultCard: React.FC<SearchResultCardProps> = ({
         <Text style={styles.address} numberOfLines={1}>
           {spot.address || ''}
         </Text>
-        <Text style={styles.distance}>{formatDistance(distance)}</Text>
+        {showDistance && <Text style={styles.distance}>{formatDistance(distance)}</Text>}
       </View>
 
       <MaterialIcons name="chevron-right" size={24} color={colors.gray[400]} />

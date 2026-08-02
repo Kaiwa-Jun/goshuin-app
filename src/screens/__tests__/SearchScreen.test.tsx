@@ -56,6 +56,8 @@ let mockUseSearchScreenReturn = {
   filterType: 'all' as 'all' | 'shrine' | 'temple',
   setFilterType: mockSetFilterType,
   clearSearch: mockClearSearch,
+  suggestedSpots: [] as { spot: (typeof mockSpots)[0]; distance: number }[],
+  suggestionMode: 'nearby' as 'nearby' | 'popular',
 };
 
 jest.mock('@hooks/useSearchScreen', () => ({
@@ -112,6 +114,8 @@ describe('SearchScreen', () => {
       filterType: 'all',
       setFilterType: mockSetFilterType,
       clearSearch: mockClearSearch,
+      suggestedSpots: [],
+      suggestionMode: 'nearby',
     };
     mockUseSearchHistoryReturn = {
       history: [
@@ -189,6 +193,106 @@ describe('SearchScreen', () => {
       );
       fireEvent.press(getByTestId('clear-history-button'));
       expect(mockClearHistory).toHaveBeenCalled();
+    });
+  });
+
+  describe('Suggested spots (query empty)', () => {
+    const thirdSpot = { ...mockSpots[0], id: 'spot-3', name: '大崎八幡宮' };
+
+    it('displays suggested spots with nearby title', () => {
+      mockUseSearchScreenReturn = {
+        ...mockUseSearchScreenReturn,
+        suggestedSpots: [
+          { spot: mockSpots[0], distance: 0.5 },
+          { spot: mockSpots[1], distance: 1.2 },
+          { spot: thirdSpot, distance: 2.0 },
+        ],
+        suggestionMode: 'nearby',
+      };
+
+      const { getAllByTestId, getByText } = render(
+        <SearchScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+      expect(getAllByTestId('search-result-card').length).toBe(3);
+      expect(getByText('近くのスポット')).toBeTruthy();
+    });
+
+    it('displays popular title in popular mode', () => {
+      mockUseSearchScreenReturn = {
+        ...mockUseSearchScreenReturn,
+        suggestedSpots: [
+          { spot: mockSpots[0], distance: 0 },
+          { spot: mockSpots[1], distance: 0 },
+          { spot: thirdSpot, distance: 0 },
+        ],
+        suggestionMode: 'popular',
+      };
+
+      const { getByText, queryByText } = render(
+        <SearchScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+      expect(getByText('人気のスポット')).toBeTruthy();
+      expect(queryByText('近くのスポット')).toBeNull();
+    });
+
+    it('hides section title when no suggested spots', () => {
+      const { queryByText } = render(
+        <SearchScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+      expect(queryByText('近くのスポット')).toBeNull();
+      expect(queryByText('人気のスポット')).toBeNull();
+    });
+
+    it('navigates without adding history when suggested spot is pressed', () => {
+      mockUseSearchScreenReturn = {
+        ...mockUseSearchScreenReturn,
+        suggestedSpots: [{ spot: mockSpots[0], distance: 0.5 }],
+        suggestionMode: 'nearby',
+      };
+
+      const { getAllByTestId } = render(
+        <SearchScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+      fireEvent.press(getAllByTestId('search-result-card')[0]);
+      expect(mockNavigation.navigate).toHaveBeenCalledWith('Map', { focusSpotId: 'spot-1' });
+      expect(mockAddHistory).not.toHaveBeenCalled();
+    });
+
+    it('shows distance in nearby mode and hides it in popular mode', () => {
+      mockUseSearchScreenReturn = {
+        ...mockUseSearchScreenReturn,
+        suggestedSpots: [{ spot: mockSpots[0], distance: 0.5 }],
+        suggestionMode: 'nearby',
+      };
+
+      const { getByText, rerender, queryByText } = render(
+        <SearchScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+      expect(getByText('500m')).toBeTruthy();
+
+      mockUseSearchScreenReturn = {
+        ...mockUseSearchScreenReturn,
+        suggestedSpots: [{ spot: mockSpots[0], distance: 0 }],
+        suggestionMode: 'popular',
+      };
+      rerender(<SearchScreen navigation={mockNavigation as never} route={mockRoute} />);
+      expect(queryByText('0m')).toBeNull();
+    });
+
+    it('hides suggestion titles when query is present', () => {
+      mockUseSearchScreenReturn = {
+        ...mockUseSearchScreenReturn,
+        query: '仙台',
+        results: [{ spot: mockSpots[0], distance: 1.2 }],
+        suggestedSpots: [{ spot: mockSpots[1], distance: 0.5 }],
+        suggestionMode: 'nearby',
+      };
+
+      const { queryByText } = render(
+        <SearchScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+      expect(queryByText('近くのスポット')).toBeNull();
+      expect(queryByText('人気のスポット')).toBeNull();
     });
   });
 

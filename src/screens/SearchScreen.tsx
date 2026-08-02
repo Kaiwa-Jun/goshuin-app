@@ -24,13 +24,23 @@ const FILTER_OPTIONS = [
 ];
 
 export function SearchScreen({ navigation }: Props) {
-  const { query, setQuery, results, filterType, setFilterType, clearSearch } = useSearchScreen();
+  const {
+    query,
+    setQuery,
+    results,
+    filterType,
+    setFilterType,
+    clearSearch,
+    suggestedSpots,
+    suggestionMode,
+  } = useSearchScreen();
   const { history, addHistory, clearHistory } = useSearchHistory();
   const insets = useSafeAreaInsets();
 
   const searchRowTop = insets.top + spacing.xs;
   const hasQuery = query.length > 0;
   const showEmpty = hasQuery && results.length === 0;
+  const suggestionTitle = suggestionMode === 'nearby' ? '近くのスポット' : '人気のスポット';
 
   const handleResultPress = (spotId: string, spotName: string) => {
     addHistory({ spotId, spotName });
@@ -106,10 +116,32 @@ export function SearchScreen({ navigation }: Props) {
             />
           )
         ) : (
-          <SearchHistoryList
-            history={history}
-            onSelect={handleHistorySelect}
-            onClear={clearHistory}
+          <FlatList
+            data={suggestedSpots}
+            keyExtractor={item => item.spot.id}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            ListHeaderComponent={
+              <>
+                <SearchHistoryList
+                  history={history}
+                  onSelect={handleHistorySelect}
+                  onClear={clearHistory}
+                />
+                {suggestedSpots.length > 0 && (
+                  <Text style={styles.sectionTitle}>{suggestionTitle}</Text>
+                )}
+              </>
+            }
+            renderItem={({ item }) => (
+              <SearchResultCard
+                spot={item.spot}
+                distance={item.distance}
+                query=""
+                showDistance={suggestionMode === 'nearby'}
+                onPress={() => navigation.navigate('Map', { focusSpotId: item.spot.id })}
+              />
+            )}
           />
         )}
       </View>
