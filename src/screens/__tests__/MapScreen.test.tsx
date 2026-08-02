@@ -268,6 +268,13 @@ describe('MapScreen', () => {
     expect(getByTestId('current-location-marker').props.tracksViewChanges).toBe(false);
   });
 
+  it('AC-48: ズームアウト下限 minZoomLevel が 8 である(#99 追補4)', () => {
+    const { getByTestId } = render(
+      <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+    );
+    expect(getByTestId('map-view').props.minZoomLevel).toBe(8);
+  });
+
   it('displays FAB button when no spot is selected', () => {
     const { getByTestId } = render(
       <MapScreen navigation={mockNavigation as never} route={mockRoute} />

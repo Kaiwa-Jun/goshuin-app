@@ -40,8 +40,15 @@
     {
       "id": "P1-06",
       "title": "クラスタリング導入でズームアウト時のクラッシュを恒久解消",
-      "note": "Issue #99 に分析・設計方針・ライブラリ選定メモを記載済み。supercluster 系 + visited/wishlist のクラスタ除外 + 再選択ヒステリシス。native-only 最重要基準 = 実機ズームアウト連続でクラッシュしない",
+      "note": "Issue #99。クラスタリング + バケット画像バブル + ヒステリシス/デバウンス + 現在地ピン静的化を実装。全国スケール(delta>=2)の連続操作でのみ Apple Maps タイルメモリ起因とみられるクラッシュが残存したため、ユーザー判断(2026-08-02)で minZoomLevel=8 の封じ込めを採用(契約書 追補1〜4)。全国表示の解禁は P1-07",
       "issue": 99,
+      "passes": false
+    },
+    {
+      "id": "P1-07",
+      "title": "地図の全国スケール表示の恒久解禁（ネイティブメモリ調査）",
+      "note": "P1-06 で封じ込めた minZoomLevel=8 の制限解除。実機クラッシュログ(.ips)の取得(USB + libimobiledevice) → メモリ死の確定 → Xcode 導入後に Instruments でネイティブ計測 → タイルメモリ対策 or Google Maps provider 検証。着手前に契約書を作ること",
+      "issue": null,
       "passes": false
     }
   ]
