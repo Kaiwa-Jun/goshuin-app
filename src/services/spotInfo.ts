@@ -1,5 +1,5 @@
 import { supabase } from '@services/supabase';
-import type { SpotAggregatedInfo } from '@/types/supabase';
+import type { SpotAggregatedInfo, SpotSnsLink } from '@/types/supabase';
 
 export async function fetchSpotAggregatedInfo(spotId: string): Promise<SpotAggregatedInfo[]> {
   const { data, error } = await supabase
@@ -9,6 +9,21 @@ export async function fetchSpotAggregatedInfo(spotId: string): Promise<SpotAggre
 
   if (error) {
     console.warn('Failed to fetch spot aggregated info:', error.message);
+    return [];
+  }
+
+  return data ?? [];
+}
+
+export async function fetchSpotSnsLinks(spotId: string): Promise<SpotSnsLink[]> {
+  const { data, error } = await supabase
+    .from('spot_info_sources')
+    .select('id, url')
+    .match({ spot_id: spotId, source_type: 'sns_link', enabled: true })
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    console.warn('Failed to fetch spot sns links:', error.message);
     return [];
   }
 
