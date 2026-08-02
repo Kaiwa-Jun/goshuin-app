@@ -9,7 +9,13 @@ create extension if not exists pg_net;
 
 -- サービスロールキーを Vault に保存する（<SERVICE_ROLE_KEY> を実際の値に置き換えて SQL Editor で実行。
 -- 実行後はエディタの履歴からクエリを削除しておく）
+-- ⚠️ 使うキーは Dashboard → Project Settings → API Keys の「secret」キー（sb_secret_... で始まる41文字）。
+--    legacy の service_role JWT（eyJ...）では関数内の認可ガードに一致しない（関数環境の
+--    SUPABASE_SERVICE_ROLE_KEY には sb_secret が入っているため。2026-08-02 確認）
 -- select vault.create_secret('<SERVICE_ROLE_KEY>', 'service_role_key');
+--
+-- 既に legacy JWT を保存してしまった場合の差し替え:
+-- select vault.update_secret((select id from vault.secrets where name = 'service_role_key'), '<sb_secret_のキー>');
 
 -- 週2回（火・金 02:00 JST = 月・木 17:00 UTC。cron 式は UTC で解釈される）
 select cron.schedule(

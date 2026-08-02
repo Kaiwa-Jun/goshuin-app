@@ -54,3 +54,6 @@ coverage/
 
 # Dev tunnel state (scripts/dev.sh)
 .dev-tunnel/
+
+# Supabase CLI の一時ファイル
+supabase/.temp/
