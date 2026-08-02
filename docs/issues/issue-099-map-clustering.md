@@ -576,7 +576,7 @@ qa-evaluator エージェントがこの基準に基づいて合否判定を行�
 
 ### 追加・変更する受入基準
 
-- [ ] AC-39: 2つの近接グループ（各10件・十分離れた2地点）に対し、分離ズーム（delta 0.157 = zoom 11）で得た2クラスタの id と、合流ズーム（delta 5 = zoom 6）で得た1クラスタの id を比較すると、**合流クラスタの id は分離時のどちらかの id と一致する**（leaf 由来の継続性）
+- [ ] AC-39: 2つの近接グループ（各10件、中心 38.27/140.87 と 38.9/141.3）に対し、分離ズーム（両グループを覆う delta 0.9 = zoom 9）で得た2クラスタの id と、合流ズーム（delta 11.25 = zoom 5）で得た1クラスタの id を比較すると、**合流クラスタの id は分離時のどちらかの id と一致する**（leaf 由来の継続性。delta は両グループが1つの bbox に入るよう選ぶ）
 - [ ] AC-40: `ClusterMarker` は初期レンダーで `tracksViewChanges` が `false`、`count` が変化すると `true` になり、`CLUSTER_REDRAW_MS` 経過後に `false` へ戻る（`count` 不変の再レンダーでは `false` のまま）
 - [ ] AC-41: `CLUSTER_REGION_DEBOUNCE_MS === 300` / `CLUSTER_REDRAW_MS === 350`
 - [ ] AC-42: MapScreen で `onRegionChangeComplete` を発火してもデバウンス経過前はクラスタ region が採用されず、`CLUSTER_REGION_DEBOUNCE_MS` 経過後に採用される（発火直後はマーカー不変、タイマー経過後に変化）
