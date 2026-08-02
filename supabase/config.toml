@@ -1,2 +1,12 @@
 [project]
 id = "tvnozkpxncmnehyomoff"
+
+# verify_jwt = false: ゲートウェイの JWT 検証を切り、認可は各関数内のガードで行う。
+# このプロジェクトは新 API キー体系（sb_secret_...）に移行済みで、関数内の
+# SUPABASE_SERVICE_ROLE_KEY には sb_secret が入る。sb_secret は JWT ではないため
+# verify_jwt が有効だとゲートウェイで弾かれ、正当な呼び出しが成立しない（2026-08-02 確認）。
+[functions.crawl-spot-sources]
+verify_jwt = false
+
+[functions.extract-spot-info]
+verify_jwt = false
