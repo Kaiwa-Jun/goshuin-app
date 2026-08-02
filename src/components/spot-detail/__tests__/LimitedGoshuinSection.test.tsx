@@ -9,6 +9,8 @@ import {
   toJstDateString,
   formatFetchedAt,
 } from '@components/spot-detail/LimitedGoshuinSection';
+// Issue #111 で追加した export（既存 import 行を変更しないため別 import にしている）
+import { sourceLinkLabel } from '@components/spot-detail/LimitedGoshuinSection';
 import { colors } from '@theme/colors';
 import type { LimitedGoshuinInfo, LimitedGoshuinItem } from '@/types/supabase';
 
@@ -298,5 +300,84 @@ describe('LimitedGoshuinSection', () => {
       );
       expect(getByText('限定御朱印 2件')).toBeTruthy();
     });
+  });
+});
+
+// --- Issue #111: Instagram permalink の出典リンク文言 ---
+
+describe('sourceLinkLabel', () => {
+  it('www.instagram.com の投稿 URL は「Instagramの投稿を見る」(AC-D1)', () => {
+    expect(sourceLinkLabel('https://www.instagram.com/p/DL1234abcd/')).toBe(
+      'Instagramの投稿を見る'
+    );
+  });
+
+  it('www なしの instagram.com も「Instagramの投稿を見る」(AC-D2)', () => {
+    expect(sourceLinkLabel('https://instagram.com/p/DL1234abcd/')).toBe('Instagramの投稿を見る');
+  });
+
+  it('instagram 以外のホストは「公式サイトで確認」(AC-D3)', () => {
+    expect(sourceLinkLabel('https://example.jp/goshuin')).toBe('公式サイトで確認');
+  });
+
+  it('パース不能な文字列でも例外を投げず「公式サイトで確認」(AC-D4)', () => {
+    expect(sourceLinkLabel('not-a-url')).toBe('公式サイトで確認');
+  });
+
+  it('instagram.com.evil.jp のような部分一致ホストで誤判定しない (AC-D5)', () => {
+    expect(sourceLinkLabel('https://instagram.com.evil.jp/p/x/')).toBe('公式サイトで確認');
+  });
+});
+
+describe('Instagram 由来アイテムの表示 (Issue #111)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.useFakeTimers().setSystemTime(new Date('2026-08-02T12:00:00Z'));
+    jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+    jest.restoreAllMocks();
+  });
+
+  const instagramItem = makeItem({
+    source_url: 'https://www.instagram.com/p/DL1234abcd/',
+    source_key: 'instagram:kandamyoujin',
+  });
+
+  it('出典リンクのテキストが「Instagramの投稿を見る」になる (AC-D6)', () => {
+    const { getByTestId } = render(<LimitedGoshuinSection info={makeInfo([instagramItem])} />);
+    expect(getByTestId('limited-goshuin-source-0')).toHaveTextContent(/Instagramの投稿を見る/);
+  });
+
+  it('出典リンク押下で permalink が開く (AC-D7)', () => {
+    const { getByTestId } = render(<LimitedGoshuinSection info={makeInfo([instagramItem])} />);
+    fireEvent.press(getByTestId('limited-goshuin-source-0'));
+    expect(Linking.openURL).toHaveBeenCalledTimes(1);
+    expect(Linking.openURL).toHaveBeenCalledWith('https://www.instagram.com/p/DL1234abcd/');
+  });
+
+  it('リンク文言のスタイルは typography.caption + colors.primary[500] (AC-D8)', () => {
+    const { getByText } = render(<LimitedGoshuinSection info={makeInfo([instagramItem])} />);
+    expect(getByText('Instagramの投稿を見る')).toHaveStyle({
+      fontSize: 12,
+      color: colors.primary[500],
+    });
+  });
+
+  it('Instagram 由来と web 由来が並ぶとき文言が個別に切り替わる (AC-D9)', () => {
+    const { getByTestId } = render(
+      <LimitedGoshuinSection
+        info={makeInfo([instagramItem, makeItem({ source_url: 'https://example.jp/goshuin' })])}
+      />
+    );
+    expect(getByTestId('limited-goshuin-source-0')).toHaveTextContent(/Instagramの投稿を見る/);
+    expect(getByTestId('limited-goshuin-source-1')).toHaveTextContent(/公式サイトで確認/);
+  });
+
+  it('source_key の内部キーを画面に露出しない (AC-D10)', () => {
+    const { queryByText } = render(<LimitedGoshuinSection info={makeInfo([instagramItem])} />);
+    expect(queryByText('instagram:kandamyoujin', { exact: false })).toBeNull();
   });
 });

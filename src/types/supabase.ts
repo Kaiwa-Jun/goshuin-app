@@ -81,8 +81,9 @@ export interface LimitedGoshuinItem {
   period_start?: string | null;
   period_end?: string | null;
   description?: string | null;
-  source_url: string;
+  source_url: string; // web: ページ URL / Instagram: 投稿 permalink
   fetched_at: string;
+  source_key?: string | null; // Instagram のみ `instagram:${username}`。web 由来は未設定
 }
 
 export interface LimitedGoshuinInfo {
