@@ -38,6 +38,12 @@ const SYSTEM_PROMPT = `あなたは寺社の公式サイトから「限定御朱
 お守り・お札・破魔矢・御神矢・土鈴・熊手・縁起物などの授与品は、
 期間限定であっても御朱印ではないため絶対に含めないでください。
 
+ユーザーメッセージには【今日の日付】が含まれます。次のものは items に含めないでください:
+- 頒布期間の終了日が明記されていて、それが今日より前のもの
+- 名称・期間・本文の表記から頒布時期が今日から見て明らかに過ぎているもの
+  （例: 8月時点での「新年限定」「正月限定」、昨年以前の年号が明記された告知）
+現在頒布中のもの、頒布開始が今後のもの、期間の記載が無く現在の頒布と読めるものは含めてください。
+
 以下の JSON のみを返してください。説明文・前置き・コードブロック外の文字は不要です。
 {
   "items": [
@@ -334,6 +340,8 @@ async function touchSource(
 }
 
 async function callClaudeApi(apiKey: string, url: string, text: string): Promise<string> {
+  // JST（UTC+9 固定）の今日の日付。過去の告知を除外する判定基準としてプロンプトに渡す
+  const todayJst = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -348,7 +356,7 @@ async function callClaudeApi(apiKey: string, url: string, text: string): Promise
       messages: [
         {
           role: 'user',
-          content: `【ページURL】${url}\n\n【本文】\n${text}`,
+          content: `【今日の日付】${todayJst}\n【ページURL】${url}\n\n【本文】\n${text}`,
         },
       ],
     }),
