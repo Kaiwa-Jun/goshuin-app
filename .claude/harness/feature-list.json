@@ -61,7 +61,7 @@
     {
       "id": "P2-01",
       "title": "限定御朱印ウォッチャー MVP（情報ソース登録 + 巡回 + 表示）",
-      "note": "コード実装完了(Issue #104 / PR #105)+ 第1弾 seed 完了(PR #106、東京+宮城+京都 rank5 29スポット79ソース、全URL検証済み)。Evaluator PASS 93/93。残: ①ユーザー作業(migration適用→Function デプロイ→Vault+cron 登録→seed 投入 = 契約書 I 群) ②実機確認(N 群)。全部済んだら passes: true。注: rank5 は全国469件(各県上位10件)、残り440件は運用で拡充。通知・課金・新着フィードは次段階",
+      "note": "コード実装+seed+運用投入まで完了(Issue #104 / PR #105-108)。Evaluator PASS 93/93。実クロール検証済み: 39/40ソース成功・差分検知動作・限定御朱印26件/6スポット抽出(靖國の刺繍入り朱印等)。授与品混入は isLikelyGoshuin ガードで恒久対策(PR #108)。既知の課題: ①平安神宮はSSL証明書チェーン不備でfetch失敗(先方都合) ②cron の Vault キーは sb_secret_... 必須(legacy JWT不可、cron SQL に注記) ③残: 実機確認(N群)→ passes: true。rank5 残り440件(3府県以外)の seed は運用で拡充",
       "issue": 104,
       "passes": false
     }
