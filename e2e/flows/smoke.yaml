@@ -1,5 +1,4 @@
 # スモークテスト: 起動 → オンボーディング通過 → 4タブが表示される
-# NOTE: ドラフト（P1-01 で実機検証するまでセレクタは未確定）
 appId: com.goshuin.app
 ---
 - launchApp
@@ -11,9 +10,12 @@ appId: com.goshuin.app
       - tapOn: "スキップ"
 # メインタブの表示確認
 - assertVisible: "地図"
-- assertVisible: "ギャラリー"
+- assertVisible: "御朱印"
 - assertVisible: "コレクション"
 - assertVisible: "設定"
-# タブ遷移の確認（未ログイン時はギャラリーがログインモーダルに遷移するため地図系のみ）
+# 未ログインでも御朱印/コレクションタブに入れる（Issue #102）
+- tapOn: "御朱印"
+- assertVisible: "あなたの御朱印帳"
 - tapOn: "コレクション"
+- assertVisible: "記録するとここに集計されます"
 - tapOn: "地図"
