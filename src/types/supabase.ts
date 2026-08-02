@@ -40,13 +40,54 @@ export interface ExtractedInfo {
 export interface SpotAggregatedInfo {
   id: string;
   spot_id: string;
-  info_type: 'parking' | 'affiliated_shrines' | 'reception_hours' | 'access_notes';
+  info_type:
+    | 'parking'
+    | 'affiliated_shrines'
+    | 'reception_hours'
+    | 'access_notes'
+    | 'limited_goshuin';
   info_data: Record<string, unknown>;
   source_stamp_ids: string[];
   confidence_score: number;
   last_reported_at: string;
   created_at: string;
   updated_at: string;
+}
+
+export type SpotInfoSourceType = 'official' | 'rss' | 'sns_link';
+
+export interface SpotInfoSource {
+  id: string;
+  spot_id: string;
+  url: string;
+  source_type: SpotInfoSourceType;
+  enabled: boolean;
+  content_hash: string | null;
+  last_crawled_at: string | null;
+  last_changed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** 表示に必要な最小フィールドだけを取る SNS リンク */
+export interface SpotSnsLink {
+  id: string;
+  url: string;
+}
+
+export interface LimitedGoshuinItem {
+  name: string;
+  period: string | null;
+  period_start?: string | null;
+  period_end?: string | null;
+  description?: string | null;
+  source_url: string;
+  fetched_at: string;
+}
+
+export interface LimitedGoshuinInfo {
+  items: LimitedGoshuinItem[];
+  fetched_at: string;
 }
 
 export interface Stamp {

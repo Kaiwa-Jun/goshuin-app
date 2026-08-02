@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
-import { fetchSpotAggregatedInfo } from '@services/spotInfo';
-import type { SpotAggregatedInfo } from '@/types/supabase';
+import { fetchSpotAggregatedInfo, fetchSpotSnsLinks } from '@services/spotInfo';
+import type { LimitedGoshuinInfo, SpotAggregatedInfo, SpotSnsLink } from '@/types/supabase';
 
 export interface ParsedSpotInfo {
   parking?: { available: boolean; capacity?: number; location?: string };
   affiliatedShrines?: { name: string; details?: string }[];
   receptionHours?: { open?: string; close?: string; notes?: string };
   accessNotes?: { type: string; text: string }[];
+  limitedGoshuin?: LimitedGoshuinInfo;
+  snsLinks?: SpotSnsLink[];
 }
 
 export function parseAggregatedInfo(items: SpotAggregatedInfo[]): ParsedSpotInfo | null {
@@ -35,6 +37,18 @@ export function parseAggregatedInfo(items: SpotAggregatedInfo[]): ParsedSpotInfo
         }
         break;
       }
+      case 'limited_goshuin': {
+        const data = item.info_data;
+        if (typeof data === 'object' && data !== null && Array.isArray(data.items)) {
+          const items = data.items as LimitedGoshuinInfo['items'];
+          if (items.length > 0) {
+            const fetchedAt =
+              typeof data.fetched_at === 'string' ? data.fetched_at : item.last_reported_at;
+            result.limitedGoshuin = { items, fetched_at: fetchedAt };
+          }
+        }
+        break;
+      }
     }
   }
 
@@ -55,9 +69,11 @@ export function useSpotInfo(spotId: string): {
     }
 
     setIsLoading(true);
-    fetchSpotAggregatedInfo(spotId)
-      .then(items => {
-        setSpotInfo(parseAggregatedInfo(items));
+    Promise.all([fetchSpotAggregatedInfo(spotId), fetchSpotSnsLinks(spotId)])
+      .then(([items, snsLinks]) => {
+        const parsed = parseAggregatedInfo(items) ?? {};
+        const merged: ParsedSpotInfo = snsLinks.length > 0 ? { ...parsed, snsLinks } : parsed;
+        setSpotInfo(Object.keys(merged).length > 0 ? merged : null);
       })
       .catch(() => {
         setSpotInfo(null);
