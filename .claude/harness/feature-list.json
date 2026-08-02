@@ -61,7 +61,7 @@
     {
       "id": "P2-01",
       "title": "限定御朱印ウォッチャー MVP（情報ソース登録 + 巡回 + 表示）",
-      "note": "コード実装完了(Issue #104 / PR #105 マージ済み・Evaluator PASS 93/93・Jest852+Deno39)。spot_info_sources + crawl-spot-sources(差分検知で Haiku 4.5 呼び出し最小化) + LimitedGoshuinSection。残: ①第1弾 seed(東京+宮城+京都 rank5 29件、調査済みデータから SQL 作成) ②ユーザー作業(migration/デプロイ/Vault+cron/seed 投入 = 契約書 I 群) ③実機確認(N 群)。全部済んだら passes: true。注: rank5 は全国469件(各県上位10件)で当初想定の数十件ではない。通知・課金・新着フィードは次段階",
+      "note": "コード実装完了(Issue #104 / PR #105)+ 第1弾 seed 完了(PR #106、東京+宮城+京都 rank5 29スポット79ソース、全URL検証済み)。Evaluator PASS 93/93。残: ①ユーザー作業(migration適用→Function デプロイ→Vault+cron 登録→seed 投入 = 契約書 I 群) ②実機確認(N 群)。全部済んだら passes: true。注: rank5 は全国469件(各県上位10件)、残り440件は運用で拡充。通知・課金・新着フィードは次段階",
       "issue": 104,
       "passes": false
     }
