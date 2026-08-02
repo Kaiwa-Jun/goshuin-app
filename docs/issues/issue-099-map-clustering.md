@@ -631,3 +631,31 @@ qa-evaluator エージェントがこの基準に基づいて合否判定を行�
 
 - 個別ピン（SpotMarker）の画像化。バブル画像化後も実機クラッシュが残存する場合の次の一手として温存
 - クラスタタップ動作・leaf 安定 key・デバウンス・各上限定数の変更
+
+## 追補3: 現在地マーカーの無限アニメーション廃止（2026-08-02 UI-1 イテレーション3 FAIL 対応・根本原因）
+
+### 経緯と診断
+
+追補2（バブル画像化）適用後も、全国規模のズームアウトや地方をまたぐスワイプなど**操作量が多いセッション**でクラッシュが残存（イテレーション3 FAIL。バブルのバケット表示・タップ展開は実機で正常動作を確認済み）。
+
+コード精査により根本原因を特定した: **現在地 Marker が `tracksViewChanges` 未指定（react-native-maps のデフォルトは true）のまま、`MapPin` が `Animated.loop` による1.5秒周期の無限パルス（scale 1→2 + フェード）を再生し続けている**。「変化を追跡し続けるマーカー × 永久に変化し続ける中身」の組み合わせは、毎フレームのマーカー再スナップショットとしてネイティブメモリを継続的に消費する react-native-maps(iOS) の既知のリークパターンであり、以下の全観測事実と整合する:
+
+- JS ヒープ健全・描画数上限内でも落ちる（消費は全てネイティブ側。アニメも useNativeDriver）
+- 連続ジェスチャー中に落ちやすい（メインスレッドの autorelease drain が滞る間にスナップショットのゴミが積み上がる）
+- churn 削減（追補1・2）のたびに落ちるまでの時間が延びた（副犯は潰せていたが主犯が別にいた）
+- スポットピンは #96 で tracksViewChanges=false 済み・バブルは追補2で画像化済みで、デフォルト true のまま残っていたマーカーは現在地ピンのみ
+
+### 対策（ユーザー承認済み: 静的カスタムドット案）
+
+1. **`MapPin` から `Animated` を全廃**し、静的表示にする: ブランド色（`colors.pin.currentLocation`）のドット 20px + 白枠 3px + 静的な半透明ハロー（40px、同色 opacity 0.2）。`map-pin-pulse` testID は廃止し、ハローは `map-pin-halo` とする
+2. **現在地 Marker に `tracksViewChanges={false}` を明示**する
+
+### 追加する受入基準
+
+- [ ] AC-46: `MapPin.tsx` に `Animated` への参照が存在せず（`grep -c "Animated" src/components/common/MapPin.tsx` = 0）、`map-pin-current-location` と `map-pin-halo` が描画され、`map-pin-pulse` が存在しない
+- [ ] AC-47: MapScreen の `current-location-marker` の `tracksViewChanges` prop が `false` である（テストで props を直接検証）
+- UI 基準の読み替え: 現在地ピンは「パルスする青ドット」→「静的なドット + ハロー」
+
+### 既存テストの変更（追補分の明示的宣言）
+
+- `src/components/__tests__/common.test.tsx` の `renders current-location pin with pulse` → ハロー版に変更（`map-pin-pulse` 廃止に追従）

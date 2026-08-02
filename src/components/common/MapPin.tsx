@@ -1,6 +1,7 @@
-import React, { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, View } from 'react-native';
+import React from 'react';
+import { StyleSheet, View } from 'react-native';
 import { colors } from '@theme/colors';
+import { shadows } from '@theme/shadows';
 
 interface MapPinProps {
   type: 'current-location';
@@ -8,58 +9,26 @@ interface MapPinProps {
 
 const PIN_CONFIG = { color: colors.pin.currentLocation, size: 20 };
 
+/**
+ * 現在地ピン。地図マーカー内での無限アニメーションは、tracksViewChanges と
+ * 組み合わさると毎フレームの再スナップショットでネイティブメモリを消費し
+ * 続け、実機クラッシュ(Jetsam)の原因になるため置かない(#99 追補3)。
+ * 静的なハロー + ドットで表現する
+ */
 export function MapPin({ type }: MapPinProps) {
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  const opacityAnim = useRef(new Animated.Value(0.6)).current;
   const config = PIN_CONFIG;
-
-  useEffect(() => {
-    const animation = Animated.loop(
-      Animated.parallel([
-        Animated.sequence([
-          Animated.timing(pulseAnim, {
-            toValue: 2,
-            duration: 1500,
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulseAnim, {
-            toValue: 1,
-            duration: 0,
-            useNativeDriver: true,
-          }),
-        ]),
-        Animated.sequence([
-          Animated.timing(opacityAnim, {
-            toValue: 0,
-            duration: 1500,
-            useNativeDriver: true,
-          }),
-          Animated.timing(opacityAnim, {
-            toValue: 0.6,
-            duration: 0,
-            useNativeDriver: true,
-          }),
-        ]),
-      ])
-    );
-    animation.start();
-
-    return () => animation.stop();
-  }, [type, pulseAnim, opacityAnim]);
 
   return (
     <View style={styles.wrapper} testID={`map-pin-${type}`}>
-      <Animated.View
-        testID="map-pin-pulse"
+      <View
+        testID="map-pin-halo"
         style={[
-          styles.pulse,
+          styles.halo,
           {
             width: config.size * 2,
             height: config.size * 2,
             borderRadius: config.size,
             backgroundColor: config.color,
-            transform: [{ scale: pulseAnim }],
-            opacity: opacityAnim,
           },
         ]}
       />
@@ -83,8 +52,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pulse: {
+  halo: {
     position: 'absolute',
+    opacity: 0.2,
   },
-  pin: {},
+  pin: {
+    borderWidth: 3,
+    borderColor: colors.white,
+    ...shadows.sm,
+  },
 });

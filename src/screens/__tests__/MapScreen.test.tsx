@@ -261,6 +261,13 @@ describe('MapScreen', () => {
     expect(getByTestId('map-pin-current-location')).toBeTruthy();
   });
 
+  it('AC-47: 現在地マーカーは tracksViewChanges=false を明示する(#99 追補3)', () => {
+    const { getByTestId } = render(
+      <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+    );
+    expect(getByTestId('current-location-marker').props.tracksViewChanges).toBe(false);
+  });
+
   it('displays FAB button when no spot is selected', () => {
     const { getByTestId } = render(
       <MapScreen navigation={mockNavigation as never} route={mockRoute} />

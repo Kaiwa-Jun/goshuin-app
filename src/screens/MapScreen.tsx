@@ -418,6 +418,7 @@ export function MapScreen({ navigation, route }: Props) {
             }}
             testID="current-location-marker"
             anchor={{ x: 0.5, y: 0.5 }}
+            tracksViewChanges={false}
           >
             <MapPin type="current-location" />
           </Marker>
