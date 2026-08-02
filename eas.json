@@ -18,11 +18,22 @@
     "preview": {
       "distribution": "internal"
     },
+    "preview-simulator": {
+      "distribution": "internal",
+      "ios": {
+        "simulator": true
+      }
+    },
     "production": {
       "autoIncrement": true
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "ascAppId": "6797201465",
+        "appleTeamId": "292ZWTG3UD"
+      }
+    }
   }
 }

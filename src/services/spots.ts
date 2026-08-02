@@ -2,15 +2,33 @@ import { supabase } from '@services/supabase';
 import type { Spot } from '@/types/supabase';
 import type { BoundingBox } from '@utils/geo';
 
-export async function fetchAllActiveSpots(): Promise<Spot[]> {
-  const { data, error } = await supabase.from('spots').select('*').eq('status', 'active');
+// PostgREST の既定 max-rows(1,000)と一致させる。1リクエストで返る最大行数
+const SPOTS_PAGE_SIZE = 1000;
 
-  if (error) {
-    console.warn('fetchAllActiveSpots error:', error.message);
-    return [];
+export async function fetchAllActiveSpots(): Promise<Spot[]> {
+  const allSpots: Spot[] = [];
+
+  for (let page = 0; ; page++) {
+    const from = page * SPOTS_PAGE_SIZE;
+    const { data, error } = await supabase
+      .from('spots')
+      .select('*')
+      .eq('status', 'active')
+      .order('id', { ascending: true })
+      .range(from, from + SPOTS_PAGE_SIZE - 1);
+
+    if (error) {
+      console.warn('fetchAllActiveSpots error:', error.message);
+      return [];
+    }
+
+    const batch = (data ?? []) as Spot[];
+    allSpots.push(...batch);
+
+    if (batch.length < SPOTS_PAGE_SIZE) break;
   }
 
-  return data as Spot[];
+  return allSpots;
 }
 
 export async function fetchSpotsByBounds(bounds: BoundingBox): Promise<Spot[]> {

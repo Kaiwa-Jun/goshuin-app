@@ -30,9 +30,11 @@ export type SignOutResult =
   | { success: false; error: { code: 'SIGN_OUT_ERROR'; message: string } };
 
 export function configureGoogleSignIn(): void {
+  // ドット記法必須。ブラケット記法では babel-preset-expo のインライン化が
+  // 効かず、本番ビルドで clientId が undefined になる
   GoogleSignin.configure({
-    webClientId: process.env['EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID'],
-    iosClientId: process.env['EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID'],
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
   });
 }
 

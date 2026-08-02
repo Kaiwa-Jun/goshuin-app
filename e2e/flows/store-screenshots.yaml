@@ -1,0 +1,52 @@
+# App Store 用スクリーンショット撮影
+# 実行前に位置を設定すること:
+#   xcrun simctl location <udid> set 35.7148,139.7967   # 浅草寺周辺
+#   xcrun simctl privacy <udid> grant location com.goshuin.app
+# 実行: maestro test e2e/flows/store-screenshots.yaml
+# 前提: preview-simulator ビルドをインストール済みの 6.7インチ シミュレータ
+appId: com.goshuin.app
+---
+# オンボーディング（初回起動の4画面。機能説明が入るのでストア映えする）
+- launchApp:
+    clearState: true
+- waitForAnimationToEnd:
+    timeout: 6000
+- takeScreenshot: screenshots/onboarding-1
+- tapOn:
+    point: '50%,91%'
+- waitForAnimationToEnd:
+    timeout: 2000
+- takeScreenshot: screenshots/onboarding-2
+- tapOn:
+    point: '50%,91%'
+- waitForAnimationToEnd:
+    timeout: 2000
+- takeScreenshot: screenshots/onboarding-3
+- tapOn:
+    point: '50%,91%'
+- waitForAnimationToEnd:
+    timeout: 2000
+- takeScreenshot: screenshots/onboarding-4
+
+# オンボーディングを抜けて地図へ
+- tapOn:
+    point: '50%,91%'
+- waitForAnimationToEnd:
+    timeout: 4000
+- runFlow:
+    when:
+      visible: 'あとにする'
+    commands:
+      - tapOn: 'あとにする'
+- waitForAnimationToEnd:
+    timeout: 8000
+
+# 地図画面（浅草。神社・寺院のピンとラベル）
+- takeScreenshot: screenshots/map
+
+# スポット詳細（浅草寺のピンをタップしてボトムシート）
+- tapOn:
+    point: '50%,54%'
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: screenshots/spot-detail

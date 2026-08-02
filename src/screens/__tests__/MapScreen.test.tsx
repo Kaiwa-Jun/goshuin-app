@@ -1,6 +1,8 @@
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { act, render, fireEvent, waitFor } from '@testing-library/react-native';
 import { MapScreen } from '@screens/MapScreen';
+import { CLUSTER_BUBBLE_IMAGES } from '@components/common/ClusterMarker';
+import { CLUSTER_REGION_DEBOUNCE_MS } from '@utils/regionHysteresis';
 
 const mockFetchSpotsByPrefecture = jest.fn();
 
@@ -42,8 +44,8 @@ jest.mock('@hooks/useSpotDetail', () => ({
         spot: {
           id: 'spot-2',
           name: 'Test Temple',
-          lat: 38.28,
-          lng: 140.88,
+          lat: 38.272,
+          lng: 140.872,
           type: 'temple',
           status: 'active',
           rank: 3,
@@ -115,9 +117,10 @@ const mockSpots = [
   },
   {
     id: 'spot-2',
+    // 初期ビューポート(中心 38.2682/140.8694、マージン込み half 0.009)内に収まる座標にする(#96)
     name: 'Test Temple',
-    lat: 38.28,
-    lng: 140.88,
+    lat: 38.272,
+    lng: 140.872,
     type: 'temple',
     status: 'active',
     rank: 3,
@@ -129,10 +132,13 @@ const mockSpots = [
   },
 ];
 
+// テストごとに差し替え可能なオーバーライド(null なら mockSpots を使用)
+let mockSpotsOverride: typeof mockSpots | null = null;
+
 jest.mock('@hooks/useSpots', () => ({
   useSpots: () => ({
-    spots: mockSpots,
-    allSpots: mockSpots,
+    spots: mockSpotsOverride ?? mockSpots,
+    allSpots: mockSpotsOverride ?? mockSpots,
     isLoading: false,
     error: null,
   }),
@@ -147,14 +153,21 @@ jest.mock('@hooks/useUserStamps', () => ({
   }),
 }));
 
+let mockWishlistSpotIds = new Set<string>();
+
 jest.mock('@hooks/useWishlist', () => ({
   useWishlist: () => ({
-    wishlistSpotIds: new Set(),
+    wishlistSpotIds: mockWishlistSpotIds,
     toggleWishlist: jest.fn(),
     isLoading: false,
     isToggling: false,
   }),
 }));
+
+afterEach(() => {
+  mockSpotsOverride = null;
+  mockWishlistSpotIds = new Set<string>();
+});
 
 const mockParentNavigate = jest.fn();
 const mockNavigation = {
@@ -179,6 +192,21 @@ const mockNavigation = {
 };
 
 const mockRoute = { key: 'test', name: 'Map' as const, params: undefined };
+
+/**
+ * onRegionChangeComplete を発火し、クラスタ region 採用のデバウンス
+ * (CLUSTER_REGION_DEBOUNCE_MS) を経過させる。クラスタ・ピンの選択結果を
+ * 検証するテストはこのヘルパーを使う(ラベル表示は currentRegion ベースで
+ * デバウンス対象外のため、従来どおり fireEvent 直呼びでよい)
+ */
+function fireRegionAndSettle(mapView: unknown, region: Record<string, number>) {
+  jest.useFakeTimers();
+  fireEvent(mapView as never, 'onRegionChangeComplete', region);
+  act(() => {
+    jest.advanceTimersByTime(CLUSTER_REGION_DEBOUNCE_MS + 50);
+  });
+  jest.useRealTimers();
+}
 
 describe('MapScreen', () => {
   beforeEach(() => {
@@ -231,6 +259,20 @@ describe('MapScreen', () => {
     );
     expect(getByTestId('current-location-marker')).toBeTruthy();
     expect(getByTestId('map-pin-current-location')).toBeTruthy();
+  });
+
+  it('AC-47: 現在地マーカーは tracksViewChanges=false を明示する(#99 追補3)', () => {
+    const { getByTestId } = render(
+      <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+    );
+    expect(getByTestId('current-location-marker').props.tracksViewChanges).toBe(false);
+  });
+
+  it('AC-48: ズームアウト下限 minZoomLevel が 8 である(#99 追補4)', () => {
+    const { getByTestId } = render(
+      <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+    );
+    expect(getByTestId('map-view').props.minZoomLevel).toBe(8);
   });
 
   it('displays FAB button when no spot is selected', () => {
@@ -370,7 +412,7 @@ describe('MapScreen', () => {
       const { getAllByTestId } = render(
         <MapScreen navigation={mockNavigation as never} route={mockRoute} />
       );
-      // Initial LATITUDE_DELTA is 0.02, which is <= 0.08, so labels should show
+      // Initial LATITUDE_DELTA is 0.015, which is <= LABEL_VISIBLE_DELTA (0.2), so labels should show
       expect(getAllByTestId('spot-marker-label')).toHaveLength(2);
     });
 
@@ -543,6 +585,14 @@ describe('MapScreen', () => {
         expect(mockFetchSpotsByPrefecture).toHaveBeenCalled();
       });
 
+      // fitToCoordinates のアニメーション完了を模して県域を覆う region を発火する(#96)
+      fireRegionAndSettle(getByTestId('map-view'), {
+        latitude: 38.31,
+        longitude: 140.91,
+        latitudeDelta: 0.2,
+        longitudeDelta: 0.2,
+      });
+
       // 既存の spots のマーカーも表示される
       expect(getByTestId('spot-marker-spot-1')).toBeTruthy();
       expect(getByTestId('spot-marker-spot-2')).toBeTruthy();
@@ -595,13 +645,23 @@ describe('MapScreen', () => {
         params: { focusPrefecture: '宮城県' },
       };
 
-      const { rerender, queryByTestId } = render(
+      const { rerender, queryByTestId, getByTestId } = render(
         <MapScreen navigation={mockNavigation as never} route={routeWithPrefecture} />
       );
 
       await waitFor(() => {
         expect(mockFetchSpotsByPrefecture).toHaveBeenCalled();
       });
+
+      // fitToCoordinates 完了を模した県域 region で県内 spots の表示をまず確認する(#96)
+      fireRegionAndSettle(getByTestId('map-view'), {
+        latitude: 38.31,
+        longitude: 140.91,
+        latitudeDelta: 0.2,
+        longitudeDelta: 0.2,
+      });
+      expect(getByTestId('spot-marker-pref-spot-1')).toBeTruthy();
+      expect(getByTestId('spot-marker-pref-spot-2')).toBeTruthy();
 
       // focusPrefecture なしに変更
       const routeWithoutPrefecture = {
@@ -617,6 +677,404 @@ describe('MapScreen', () => {
         expect(queryByTestId('spot-marker-pref-spot-1')).toBeNull();
         expect(queryByTestId('spot-marker-pref-spot-2')).toBeNull();
       });
+    });
+  });
+
+  describe('Rank filter exemption for visited/wishlist spots (#93)', () => {
+    const zoomedOutRegion = {
+      latitude: 38.2682,
+      longitude: 140.8694,
+      latitudeDelta: 0.6, // minRank 5 相当
+      longitudeDelta: 0.6,
+    };
+
+    it('ズームアウト(minRank 5 相当)でも訪問済みスポットのマーカーは表示され続ける', () => {
+      const { getByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      fireRegionAndSettle(getByTestId('map-view'), zoomedOutRegion);
+
+      expect(getByTestId('spot-marker-spot-1')).toBeTruthy();
+    });
+
+    it('ズームアウトでも行きたいリストのスポットのマーカーは表示され続ける', () => {
+      mockWishlistSpotIds = new Set(['spot-2']);
+
+      const { getByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      fireRegionAndSettle(getByTestId('map-view'), zoomedOutRegion);
+
+      expect(getByTestId('spot-marker-spot-2')).toBeTruthy();
+    });
+  });
+
+  describe('Default zoom level (#93)', () => {
+    it('initialRegion のデフォルト delta は 0.015 である', () => {
+      const { getByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      expect(getByTestId('map-view').props.initialRegion).toEqual(
+        expect.objectContaining({ latitudeDelta: 0.015, longitudeDelta: 0.015 })
+      );
+    });
+  });
+
+  describe('Viewport top-N selection (#96)', () => {
+    const CENTER_LAT = 38.2682;
+    const CENTER_LNG = 140.8694;
+
+    const regionAt = (latitudeDelta: number) => ({
+      latitude: CENTER_LAT,
+      longitude: CENTER_LNG,
+      latitudeDelta,
+      longitudeDelta: latitudeDelta,
+    });
+
+    const genSpot = (i: number, overrides: Record<string, unknown> = {}) => ({
+      id: `gen-${String(i).padStart(4, '0')}`,
+      name: `Gen Spot ${i}`,
+      lat: CENTER_LAT + (i % 34) * 0.0002,
+      lng: CENTER_LNG + Math.floor(i / 34) * 0.0002,
+      type: 'shrine',
+      status: 'active',
+      rank: (i % 5) + 1,
+      address: null,
+      created_by_user_id: null,
+      merged_into_spot_id: null,
+      created_at: '2024-01-01',
+      updated_at: '2024-01-01',
+      ...overrides,
+    });
+
+    it('初期ビューポート内の rank 2 スポットは delta 0.019 / 0.021 / 0.025 のいずれでも表示され続ける(ポッピング解消)', () => {
+      // delta 0.1 はクラスタ化帯(zoom 12)に入るため非クラスタ帯(zoom 14)の値に変更(#99)
+      mockSpotsOverride = [
+        ...mockSpots,
+        genSpot(0, { id: 'spot-rank2', lat: 38.269, lng: 140.87, rank: 2 }),
+      ] as typeof mockSpots;
+
+      const { getByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      expect(getByTestId('spot-marker-spot-rank2')).toBeTruthy();
+
+      for (const delta of [0.019, 0.021, 0.025]) {
+        fireRegionAndSettle(getByTestId('map-view'), regionAt(delta));
+        expect(getByTestId('spot-marker-spot-rank2')).toBeTruthy();
+      }
+    });
+
+    it('ビューポート外(東京座標)のスポットは rank 5 でも初期表示でレンダリングされない', () => {
+      mockSpotsOverride = [
+        ...mockSpots,
+        genSpot(0, { id: 'spot-tokyo', lat: 35.6812, lng: 139.7671, rank: 5 }),
+      ] as typeof mockSpots;
+
+      const { queryByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      expect(queryByTestId('spot-marker-spot-tokyo')).toBeNull();
+    });
+
+    it('同 rank 81 件では個別描画上限 60 件(MAX_INDIVIDUAL_SPOTS)を超える中心から遠い分がレンダリングされない', () => {
+      mockSpotsOverride = Array.from({ length: 81 }, (_, i) =>
+        genSpot(i, { lat: CENTER_LAT + i * 0.00005, lng: CENTER_LNG, rank: 3 })
+      ) as typeof mockSpots;
+
+      const { queryAllByTestId, getByTestId, queryByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      expect(queryAllByTestId(/^spot-marker-gen-/)).toHaveLength(60);
+      expect(getByTestId('spot-marker-gen-0059')).toBeTruthy();
+      expect(queryByTestId('spot-marker-gen-0060')).toBeNull();
+    });
+
+    it('rank 1 のスポットしかないエリアでも delta 0.6 にズームアウトして地図が空にならない', () => {
+      mockSpotsOverride = [genSpot(0, { id: 'spot-low', rank: 1 })] as typeof mockSpots;
+
+      const { getByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      fireRegionAndSettle(getByTestId('map-view'), regionAt(0.6));
+      expect(getByTestId('spot-marker-spot-low')).toBeTruthy();
+    });
+
+    it('初期ビューポート内 1,109 件でもレンダリングされる個別マーカーは 60 件・クラスタ 0 件(#99 P-3)', () => {
+      mockSpotsOverride = Array.from({ length: 1109 }, (_, i) => genSpot(i)) as typeof mockSpots;
+
+      const { queryAllByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      expect(queryAllByTestId(/^spot-marker-gen-/)).toHaveLength(60);
+      expect(queryAllByTestId(/^cluster-marker-/)).toHaveLength(0);
+    });
+
+    it('個別 60 件選外の wishlist スポットは pinned 枠で表示され、総数は 61 件(#99)', () => {
+      mockSpotsOverride = Array.from({ length: 1109 }, (_, i) => genSpot(i)) as typeof mockSpots;
+      // rank 1 のスポット(個別 60 件は rank 5 で埋まるため確実に選外)を wishlist に入れる
+      mockWishlistSpotIds = new Set(['gen-0000']);
+
+      const { queryAllByTestId, getByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      expect(queryAllByTestId(/^spot-marker-gen-/)).toHaveLength(61);
+      expect(getByTestId('spot-marker-gen-0000')).toBeTruthy();
+    });
+
+    it('focusPrefecture で県 spots が 100 件でも県域 region 発火後はクラスタ化されマーカー総数 130 以下(#99 AC-36)', async () => {
+      mockSpotsOverride = [] as unknown as typeof mockSpots;
+      const prefGen = Array.from({ length: 100 }, (_, i) =>
+        genSpot(i, {
+          id: `pref-gen-${String(i).padStart(4, '0')}`,
+          lat: 38.31 + (i % 10) * 0.001,
+          lng: 140.91 + Math.floor(i / 10) * 0.001,
+        })
+      );
+      mockFetchSpotsByPrefecture.mockResolvedValue(prefGen);
+
+      const routeWithPrefecture = {
+        key: 'test',
+        name: 'Map' as const,
+        params: { focusPrefecture: '宮城県' },
+      };
+
+      const { getByTestId, queryAllByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={routeWithPrefecture} />
+      );
+
+      await waitFor(() => {
+        expect(mockFetchSpotsByPrefecture).toHaveBeenCalled();
+      });
+
+      fireRegionAndSettle(getByTestId('map-view'), {
+        latitude: 38.315,
+        longitude: 140.915,
+        latitudeDelta: 0.2,
+        longitudeDelta: 0.2,
+      });
+
+      const clusterMarkers = queryAllByTestId(/^cluster-marker-/);
+      const spotMarkers = queryAllByTestId(/^spot-marker-/);
+      expect(clusterMarkers.length).toBeGreaterThanOrEqual(1);
+      expect(clusterMarkers.length + spotMarkers.length).toBeLessThanOrEqual(130);
+    });
+  });
+
+  describe('Clustering (#99)', () => {
+    const CENTER_LAT = 38.2682;
+    const CENTER_LNG = 140.8694;
+
+    const regionAt = (latitudeDelta: number, latitude = CENTER_LAT) => ({
+      latitude,
+      longitude: CENTER_LNG,
+      latitudeDelta,
+      longitudeDelta: latitudeDelta,
+    });
+
+    // 中心付近の 0.0005° グリッドに count 件を決定的に配置する
+    const gridSpots = (count: number) =>
+      Array.from({ length: count }, (_, i) => ({
+        id: `gen-${String(i).padStart(4, '0')}`,
+        name: `Gen Spot ${i}`,
+        lat: CENTER_LAT + (Math.floor(i / 20) - 4.5) * 0.0005,
+        lng: CENTER_LNG + ((i % 20) - 9.5) * 0.0005,
+        type: 'shrine',
+        status: 'active',
+        rank: (i % 5) + 1,
+        address: null,
+        created_by_user_id: null,
+        merged_into_spot_id: null,
+        created_at: '2024-01-01',
+        updated_at: '2024-01-01',
+      })) as typeof mockSpots;
+
+    it('AC-29: 初期表示(delta 0.015)ではクラスタバブルが 0 件で個別ピンのみ', () => {
+      const { queryAllByTestId, getByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      expect(queryAllByTestId(/^cluster-marker-/)).toHaveLength(0);
+      expect(getByTestId('spot-marker-spot-1')).toBeTruthy();
+      expect(getByTestId('spot-marker-spot-2')).toBeTruthy();
+    });
+
+    it('AC-30: 近接 200 件が delta 0.6 で 1 個のバブル(バケット 100+)に畳まれる', () => {
+      mockSpotsOverride = gridSpots(200);
+
+      const { getByTestId, queryAllByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      fireRegionAndSettle(getByTestId('map-view'), regionAt(0.6));
+
+      const clusterMarkers = queryAllByTestId(/^cluster-marker-/);
+      expect(clusterMarkers).toHaveLength(1);
+      expect(clusterMarkers[0].props.image).toBe(CLUSTER_BUBBLE_IMAGES['100p']);
+    });
+
+    it('AC-31: 0.11° 間隔 7×7 グリッド×2 件は delta 0.6 でバブル 40 件・個別 0 件', () => {
+      const spots: typeof mockSpots = [] as unknown as typeof mockSpots;
+      for (let row = 0; row < 7; row++) {
+        for (let col = 0; col < 7; col++) {
+          const lat = CENTER_LAT + (row - 3) * 0.11;
+          const lng = CENTER_LNG + (col - 3) * 0.11;
+          const base = (row * 7 + col) * 2;
+          for (const [j, latOffset] of [0, 0.0001].entries()) {
+            spots.push({
+              id: `gen-${String(base + j).padStart(4, '0')}`,
+              name: `Gen Spot ${base + j}`,
+              lat: lat + latOffset,
+              lng,
+              type: 'shrine',
+              status: 'active',
+              rank: 3,
+              address: null,
+              created_by_user_id: null,
+              merged_into_spot_id: null,
+              created_at: '2024-01-01',
+              updated_at: '2024-01-01',
+            } as (typeof mockSpots)[number]);
+          }
+        }
+      }
+      mockSpotsOverride = spots;
+
+      const { getByTestId, queryAllByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      fireRegionAndSettle(getByTestId('map-view'), regionAt(0.6));
+
+      expect(queryAllByTestId(/^cluster-marker-/)).toHaveLength(40);
+      expect(queryAllByTestId(/^spot-marker-/)).toHaveLength(0);
+    });
+
+    it('AC-33: 中心移動が delta の 9% ではクラスタ region が再計算されない(ヒステリシス)', () => {
+      mockSpotsOverride = [
+        ...mockSpots,
+        {
+          ...mockSpots[0],
+          id: 'spot-hyst',
+          name: 'Hysteresis Spot',
+          lat: 38.335,
+          lng: 140.8694,
+          rank: 5,
+        },
+      ] as typeof mockSpots;
+
+      const { getByTestId, queryByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      const mapView = getByTestId('map-view');
+      fireRegionAndSettle(mapView, regionAt(0.1));
+      expect(queryByTestId('spot-marker-spot-hyst')).toBeNull();
+
+      // 中心移動 0.009 = delta の 9% < 10% → 採用されず旧ビューポートのまま
+      fireRegionAndSettle(mapView, regionAt(0.1, 38.2772));
+      expect(queryByTestId('spot-marker-spot-hyst')).toBeNull();
+    });
+
+    it('AC-34: 中心移動が delta の 11% ならクラスタ region が再計算される', () => {
+      mockSpotsOverride = [
+        ...mockSpots,
+        {
+          ...mockSpots[0],
+          id: 'spot-hyst',
+          name: 'Hysteresis Spot',
+          lat: 38.335,
+          lng: 140.8694,
+          rank: 5,
+        },
+      ] as typeof mockSpots;
+
+      const { getByTestId, queryByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      const mapView = getByTestId('map-view');
+      fireRegionAndSettle(mapView, regionAt(0.1));
+      expect(queryByTestId('spot-marker-spot-hyst')).toBeNull();
+
+      // 中心移動 0.011 = delta の 11% >= 10% → 採用され新ビューポートに入る
+      fireRegionAndSettle(mapView, regionAt(0.1, 38.2792));
+      expect(getByTestId('spot-marker-spot-hyst')).toBeTruthy();
+    });
+
+    it('AC-35: クラスタバブルのタップで animateToRegion がズームイン region で呼ばれる', () => {
+      mockSpotsOverride = gridSpots(200);
+
+      const { getByTestId, queryAllByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      fireRegionAndSettle(getByTestId('map-view'), regionAt(0.6));
+
+      const clusterMarker = queryAllByTestId(/^cluster-marker-/)[0];
+      fireEvent.press(clusterMarker);
+
+      const { __mapViewMocks } = jest.requireMock('react-native-maps');
+      expect(__mapViewMocks.animateToRegion).toHaveBeenCalled();
+      const [firstArg] = __mapViewMocks.animateToRegion.mock.calls[0];
+      expect(firstArg.latitudeDelta).toBeLessThan(0.6);
+    });
+
+    it('AC-42: デバウンス経過前はクラスタ region が採用されず、経過後に採用される', () => {
+      mockSpotsOverride = gridSpots(200);
+
+      const { getByTestId, queryAllByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      jest.useFakeTimers();
+      fireEvent(getByTestId('map-view'), 'onRegionChangeComplete', regionAt(0.6));
+
+      // デバウンス経過前: クラスタ region は未採用でバブルはまだ出ない
+      expect(queryAllByTestId(/^cluster-marker-/)).toHaveLength(0);
+
+      act(() => {
+        jest.advanceTimersByTime(CLUSTER_REGION_DEBOUNCE_MS + 50);
+      });
+      expect(queryAllByTestId(/^cluster-marker-/)).toHaveLength(1);
+      jest.useRealTimers();
+    });
+
+    it('P-4: 1,109 件が delta 0.6 で 1 個のバブル(バケット 1000+)に畳まれ個別 0 件', () => {
+      mockSpotsOverride = Array.from({ length: 1109 }, (_, i) => ({
+        id: `gen-${String(i).padStart(4, '0')}`,
+        name: `Gen Spot ${i}`,
+        lat: CENTER_LAT + (i % 34) * 0.0002,
+        lng: CENTER_LNG + Math.floor(i / 34) * 0.0002,
+        type: 'shrine',
+        status: 'active',
+        rank: (i % 5) + 1,
+        address: null,
+        created_by_user_id: null,
+        merged_into_spot_id: null,
+        created_at: '2024-01-01',
+        updated_at: '2024-01-01',
+      })) as typeof mockSpots;
+
+      const { getByTestId, queryAllByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      fireRegionAndSettle(getByTestId('map-view'), regionAt(0.6));
+
+      const clusterMarkers = queryAllByTestId(/^cluster-marker-/);
+      expect(clusterMarkers).toHaveLength(1);
+      expect(queryAllByTestId(/^spot-marker-/)).toHaveLength(0);
+      expect(clusterMarkers[0].props.image).toBe(CLUSTER_BUBBLE_IMAGES['1000p']);
     });
   });
 });

@@ -8,10 +8,11 @@
 docs/
 ├── README.md                  # このファイル
 ├── product/                   # プロダクト企画関連
+│   ├── direction.md           # ★ プロダクト方針 v2（2026-08 決定、現行の唯一のソース）
 │   ├── product-overview.md    # プロダクト概要
 │   ├── requirements.md        # 要件定義
 │   ├── market-analysis.md     # 競合・市場分析
-│   ├── monetization.md        # 収益化
+│   ├── monetization.md        # 収益化（⚠ 旧方針。direction.md で置き換え済み）
 │   └── user-research.md       # ユーザーリサーチ
 ├── technical/                 # 技術設計関連
 │   └── tech-design.md         # 技術スタック・DB設計
@@ -19,7 +20,10 @@ docs/
 │   ├── ui-design.md           # UI設計 v6（画面仕様・遷移フロー）
 │   └── stitch.md              # Stitchデザインデータの取り込みガイド
 ├── project/                   # プロジェクト管理
-│   ├── roadmap.md             # TODO・ロードマップ
+│   ├── release-guide.md       # App Store / Google Play リリース手順
+│   ├── store-account-setup.md # 開発者アカウントの確認・登録・EAS 連携手順
+│   ├── store-metadata.md      # ストア掲載メタデータ（確定版）
+│   ├── roadmap.md             # ⚠ 旧ロードマップ（direction.md で置き換え済み）
 │   └── development-workflow.md # 開発ワークフロー
 └── issues/                    # Issue別詳細設計
     └── README.md              # Issue設計ドキュメントの運用ガイド

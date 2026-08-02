@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "御朱印コレクション",
+    "name": "御朱印さんぽ",
     "slug": "goshuin-app",
     "version": "1.0.0",
     "scheme": "com.goshuin.app",
@@ -47,6 +47,14 @@
         "@react-native-google-signin/google-signin",
         {
           "iosUrlScheme": "com.googleusercontent.apps.79343828645-g3bbhvp7rk8akjps7ft2vi1h9li2j0nl"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
         }
       ]
     ],

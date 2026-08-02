@@ -61,7 +61,7 @@ export function LoginScreen({ navigation }: Props) {
           <MaterialIcons name="menu-book" size={64} color={colors.primary[500]} />
         </View>
 
-        <Text style={styles.appName}>御朱印コレクション</Text>
+        <Text style={styles.appName}>御朱印さんぽ</Text>
         <Text style={styles.tagline}>集めるたび、地図があなたの旅になる。</Text>
 
         <View style={styles.loginSection}>

@@ -72,7 +72,7 @@ describe('LoginScreen', () => {
     const { getByText } = render(
       <LoginScreen navigation={mockNavigation as never} route={mockRoute} />
     );
-    expect(getByText('御朱印コレクション')).toBeTruthy();
+    expect(getByText('御朱印さんぽ')).toBeTruthy();
   });
 
   it('displays tagline', () => {

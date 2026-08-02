@@ -1,0 +1,55 @@
+{
+  "$comment": "自律開発ループの機能リスト。passes を true にできるのは goshuin-evaluator PASS + 全テスト通過の場合のみ。エントリの追加・分割は自由だが、実装前に必ず契約書(docs/issues/)を作ること。",
+  "phase": "Phase 1: 記録体験の磨き込み（docs/product/direction.md 参照）",
+  "features": [
+    {
+      "id": "P1-01",
+      "title": "Maestro E2E の実戦検証（スモークフローを実機/シミュレータで通す）",
+      "note": "e2e/flows/smoke.yaml はドラフト。development-simulator ビルドで動作確認し、タブ遷移まで検証できたら passes",
+      "issue": null,
+      "passes": false
+    },
+    {
+      "id": "P1-02",
+      "title": "記録フローの最短化（起動→記録完了のタップ数削減）",
+      "note": "現状の動線を計測してから契約書を作る。目標「10秒以内に登録完了」の再検証を含む",
+      "issue": null,
+      "passes": false
+    },
+    {
+      "id": "P1-03",
+      "title": "御朱印帳らしい質感の閲覧UI（見開き・めくり体験）",
+      "note": "ギャラリーの別ビューとして。requirements.md の将来拡張「御朱印帳ページUI再現」に対応",
+      "issue": null,
+      "passes": false
+    },
+    {
+      "id": "P1-04",
+      "title": "パーソナル年報（あなたの参拝の一年振り返り）",
+      "note": "統計の拡張。将来の買い切りプレミアム候補のため、無料/有料の線引きは契約書で決める",
+      "issue": null,
+      "passes": false
+    },
+    {
+      "id": "P1-05",
+      "title": "地図表示方式の本格再設計（ビューポート内 × rank 優先 top-N 表示）",
+      "note": "完了(Issue #96 / PR #97 マージ済み・Evaluator PASS 27/27・実機確認済み)。実機で発覚したズームアウト時クラッシュは P1-06 で恒久対応",
+      "issue": 96,
+      "passes": true
+    },
+    {
+      "id": "P1-06",
+      "title": "クラスタリング導入でズームアウト時のクラッシュを恒久解消",
+      "note": "完了(Issue #99・Evaluator PASS 53/53・実機確認済み 2026-08-02)。クラスタリング + バケット画像バブル + ヒステリシス/デバウンス + 現在地ピン静的化。全国スケール(delta>=2)のみ Apple Maps タイルメモリ起因とみられるクラッシュが残存したため、ユーザー判断で minZoomLevel=8 の封じ込めを採用(契約書 追補1〜4)。全国表示の解禁は P1-07",
+      "issue": 99,
+      "passes": true
+    },
+    {
+      "id": "P1-07",
+      "title": "地図の全国スケール表示の恒久解禁（ネイティブメモリ調査）",
+      "note": "P1-06 で封じ込めた minZoomLevel=8 の制限解除。実機クラッシュログ(.ips)の取得(USB + libimobiledevice) → メモリ死の確定 → Xcode 導入後に Instruments でネイティブ計測 → タイルメモリ対策 or Google Maps provider 検証。着手前に契約書を作ること",
+      "issue": null,
+      "passes": false
+    }
+  ]
+}
