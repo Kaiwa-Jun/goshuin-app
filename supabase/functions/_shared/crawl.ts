@@ -7,8 +7,9 @@ export interface LimitedGoshuinItem {
   period_start?: string | null;
   period_end?: string | null;
   description?: string | null;
-  source_url: string;
+  source_url: string; // web: ページ URL / Instagram: 投稿 permalink
   fetched_at: string;
+  source_key?: string | null; // Instagram のみ `instagram:${username}`。web 由来は未設定
 }
 
 /** Authorization ヘッダが service_role キーの Bearer であるときだけ true */
@@ -127,6 +128,33 @@ function normalizeText(value: unknown, maxChars: number): string | null {
 }
 
 /**
+ * Claude 出力の 1 要素を LimitedGoshuinItem に正規化する。破棄すべき要素は null。
+ * source_url / fetched_at は Claude の出力を無視して必ず引数値で上書きする（出典の捏造防止）。
+ * 戻り値は source_key を含まない（Instagram パスが呼び出し側で付与する）。
+ */
+export function normalizeGoshuinItem(
+  entry: unknown,
+  sourceUrl: string,
+  fetchedAt: string
+): LimitedGoshuinItem | null {
+  if (typeof entry !== 'object' || entry === null) return null;
+  const record = entry as Record<string, unknown>;
+  const name = normalizeText(record.name, 100);
+  if (!name) return null;
+  const description = normalizeText(record.description, 300);
+  if (!isLikelyGoshuin(name, description)) return null;
+  return {
+    name,
+    period: normalizeText(record.period, 100),
+    period_start: normalizeDate(record.period_start),
+    period_end: normalizeDate(record.period_end),
+    description,
+    source_url: sourceUrl,
+    fetched_at: fetchedAt,
+  };
+}
+
+/**
  * Claude の出力を LimitedGoshuinItem に正規化する。
  * source_url / fetched_at は Claude の出力を無視して必ず引数値で上書きする（出典の捏造防止）。
  */
@@ -139,21 +167,9 @@ export function normalizeItems(
   const items: LimitedGoshuinItem[] = [];
   for (const entry of raw) {
     if (items.length >= maxItems) break;
-    if (typeof entry !== 'object' || entry === null) continue;
-    const record = entry as Record<string, unknown>;
-    const name = normalizeText(record.name, 100);
-    if (!name) continue;
-    const description = normalizeText(record.description, 300);
-    if (!isLikelyGoshuin(name, description)) continue;
-    items.push({
-      name,
-      period: normalizeText(record.period, 100),
-      period_start: normalizeDate(record.period_start),
-      period_end: normalizeDate(record.period_end),
-      description,
-      source_url: sourceUrl,
-      fetched_at: fetchedAt,
-    });
+    const item = normalizeGoshuinItem(entry, sourceUrl, fetchedAt);
+    if (!item) continue;
+    items.push(item);
   }
   return items;
 }
@@ -168,6 +184,19 @@ export function mergeLimitedGoshuinItems(
   incoming: LimitedGoshuinItem[]
 ): LimitedGoshuinItem[] {
   return [...existing.filter(entry => entry.source_url !== sourceUrl), ...incoming];
+}
+
+/**
+ * source_key 単位のマージ。Instagram はアイテムの source_url が投稿 permalink になり
+ * ソース行の URL と一致しないため、source_url キーの mergeLimitedGoshuinItems は使えない。
+ * source_key を持たない要素（web 由来）と別 source_key の要素は常に保持する。入力は破壊しない。
+ */
+export function mergeItemsBySourceKey(
+  existing: LimitedGoshuinItem[],
+  sourceKey: string,
+  incoming: LimitedGoshuinItem[]
+): LimitedGoshuinItem[] {
+  return [...existing.filter(entry => entry.source_key !== sourceKey), ...incoming];
 }
 
 /** 実行全体のソフト締切判定 */
