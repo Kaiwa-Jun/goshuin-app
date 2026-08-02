@@ -1,4 +1,22 @@
-# セッション引き継ぎ（最終更新: 2026-08-02 夜）
+# セッション引き継ぎ（最終更新: 2026-08-03 夜）
+
+## P2-02 Meta セットアップ進捗（2026-08-03、Claude in Chrome で代行。次セッションはここから再開）
+
+- ✅ FB 個人アカウント（ユーザーが電話番号で作成。メール kj.11235813213455@gmail.com は Meta 全体でブロック状態 → FB登録・IG登録・developer 連絡先すべてで使用不可だった）
+- ✅ FB ページ「御朱印さんぽ」: **Page ID `1301682473018397`**（プロフィール URL は profile.php?id=61592782890283）。website に GitHub Pages 設定済み
+- ✅ Instagram **`goshuinsampo`**（表示名: 御朱印さんぽ）作成 → ビジネスアカウント化済み（goshuin.sampo / goshuin_sampo は取得不可だった）
+- ✅ アカウントセンター統合（FB 鹿岩潤 + IG goshuinsampo）
+- ✅ FB ページ ⇔ IG 連携完了。**ハマりポイント: OIDC ポップアップ承認後、親タブに「ビジネスポートフォリオに追加」の最終確認が出る。これを押すまで連携されない**（親タブをリロードするとやり直し）。ビジネスポートフォリオ「御朱印さんぽ」が自動作成された
+- ✅ Meta developer 登録（連絡先: jun.kaiwa@taian-inc.com）
+- ✅ アプリ作成: **goshuin-sampo-watcher / App ID `1559445438958824`** / タイプ: ビジネス / 開発モード
+- ✅ Graph API Explorer（現行 **v26.0**）で権限4つ（instagram_basic / instagram_manage_insights / pages_read_engagement / pages_show_list）のユーザートークン生成済み。アセットは最小スコープ（ページ「御朱印さんぽ」1件 + IG goshuinsampo 1件のみオプトイン）
+- ✅ **IG User ID = `17841439672371375`**（goshuinsampo。OAuth のアセット選択画面と business_discovery 成功で二重確認済み）
+- ✅ **business_discovery 動作確認成功（2026-08-03）**: `17841439672371375?fields=business_discovery.username(kandamyoujin){username,media_count,media.limit(3){caption,permalink,timestamp}}` で神田明神の実投稿3件（caption/permalink/timestamp）取得。7/7 投稿に「七夕守は8月7日まで授与」という期限付き授与品告知あり → 鮮度判定・isLikelyGoshuin ガードの回帰テストケースに使える
+- ⚠️ `me/accounts` は空を返す（原因不明だが **business_discovery は IG User ID 直指定で動くため実害なし**。Edge Function は IG User ID を secrets から直接使う設計にする）
+- ✅ 長期トークン発行済み（**期限: 2026-10-02**）。手順は全 GUI で確立: Graph API Explorer でトークン生成 → [アクセストークンデバッガー](https://developers.facebook.com/tools/debug/accesstoken/)に貼って「デバッグ」→「アクセストークンを延長」（FB パスワード再入力あり）→ 延長トークン表示。**更新もこの GUI 手順で可**（トークンの貼り付け/コピーはユーザー、ボタン操作は Claude の分担）
+- ✅ **Meta セットアップ完了（2026-08-03 深夜）**: Supabase secrets に `META_ACCESS_TOKEN`（長期・期限 2026-10-02）と `META_IG_USER_ID`（17841439672371375）登録済み（`secrets list` で確認済み）。**10月初旬にトークン更新が必要 → アクセストークンデバッガーの GUI 手順で延長 → secrets 更新**
+- 🔜 契約書（goshuin-planner で issue-XXX-instagram-business-discovery.md）→ 実装（crawl-spot-sources に source 種別追加）→ ゲート（ユーザー就寝中に進行、push/PR 直前で停止予定）
+- メモ: Claude in Chrome は facebook.com / instagram.com / accountscenter.instagram.com / developers.facebook.com を許可済み。クロスドメインに遷移するポップアップは拡張の追跡が切れるので、ポップアップ内は素早く1操作ずつ・親タブは触らず待つ
 
 `/clear` 後の文脈復元用。読み終えたら「次のアクション」から再開する。方針の唯一のソースは `docs/product/direction.md`。
 
