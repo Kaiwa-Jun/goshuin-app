@@ -4,8 +4,16 @@
 import React from 'react';
 import { View } from 'react-native';
 
+// 命令的 API は web では何もしない。呼び出し側（MapScreen）が
+// mapRef.current.animateToRegion(...) を呼ぶため、生やしておかないと
+// TypeError でスポット選択の処理が途中で止まる。
 const MapView = React.forwardRef((props: any, ref: any) => {
-  return React.createElement(View, { ...props, ref });
+  React.useImperativeHandle(ref, () => ({
+    animateToRegion: () => {},
+    animateCamera: () => {},
+    fitToCoordinates: () => {},
+  }));
+  return React.createElement(View, props);
 });
 MapView.displayName = 'MapView';
 
