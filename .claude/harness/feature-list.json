@@ -19,7 +19,7 @@
     {
       "id": "P1-03",
       "title": "御朱印帳らしい質感の閲覧UI（見開き・めくり体験）",
-      "note": "契約書まで完了(Issue #116・2026-08-09)。docs/issues/issue-116-goshuincho-flip-ui.md（受入基準79項目）。スコープはユーザー承認済みで「めくり + 白紙が記録入口 + グリッド切替(AsyncStorage 永続化)」の3つのみ。帳面(goshuincho)一覧はスコープ外: createStamp が goshuincho_id を設定しておらず既存 stamps は全件 null のため、記録フロー改修 + backfill migration が別途要る。実装は横 FlatList + snapToInterval(新規ライブラリなし)、和暦は Intl を使わず純関数。完成をもってタブ入れ替え(案3)へ",
+      "note": "実装完了・develop マージ済み(Issue #116 / PR #117・2026-08-09)。契約書 docs/issues/issue-116-goshuincho-flip-ui.md(受入基準95項目)。御朱印タブに右綴じ+蛇腹の折りのめくり表示、白紙ページ=記録入口、グリッド切替(AsyncStorage 永続化)、めくりページの和暦表示を追加。帳面(goshuincho)一覧はスコープ外(既存 stamps が全件 goshuincho_id=null で記録フロー改修+backfill migration が別途要る)。実装は横 FlatList + snapToInterval + RN 標準 Animated のみ(新規ライブラリなし)。**passes は false のまま**: ①実機未確認(既存のアップロードエラー=監査A-4 で実機から記録できず N群8項目が未検証。スワイプの手触り・スナップ・小型端末での収まり) ②Evaluator は右綴じ・蛇腹を入れる前の版に対して 80PASS/1FAIL/8SKIP で、この2つは未検証 ③W-17 の残件は ImageGalleryModal のレンダー中 setValue(既存実装・変更しないファイル・別issue)。次: タブ入れ替え(案3)",
       "issue": 116,
       "passes": false
     },

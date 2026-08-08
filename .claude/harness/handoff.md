@@ -2,19 +2,44 @@
 
 ## ▶ 再開したらここから（2026-08-09 時点）
 
-**Issue #114 は完了（PR #115 マージ済み）。P1-03 は Issue #116 を起票し契約書まで完成。次は実装（TDD）から。**
+**次にやること: 記録の「アップロードエラー」を直す（監査 A-4）。これが直るまで実機で御朱印を1件も記録できず、実機検証が全面的に止まる。**
 
-- develop は最新・作業ツリーはクリーン。**ブランチはまだ作っていない**
-- 契約書: **`docs/issues/issue-116-goshuincho-flip-ui.md`**（受入基準 79 項目。develop にコミット済み）
-- **次にやること**: `feature/issue-116-goshuincho-flip-ui` を切って `/build-feature` の Step 2 から（TDD → 機械検証 → goshuin-evaluator → 人間ゲート → PR）
+### 症状（ユーザー報告・2026-08-09）
 
-**P1-03 のスコープ（ユーザー承認済み・2026-08-09）**: モック画面②めくり・③白紙が記録入口・④グリッド切り替えの3つだけ。**①帳面一覧は入れない**。
+実機で記録フローを進め、**写真の選択・表示まではできる**。そこから「記録する」で保存しようとすると **ErrorScreen の「アップロードエラー」に飛ぶ**。この状態なので、Issue #116（めくり UI）の実機確認 N 群8項目も未実施のまま。
 
-- 理由: `createStamp` が `goshuincho_id` を設定しておらず**既存の御朱印は全件 `goshuincho_id = null`**。帳面ごとの表示には記録フロー改修 + backfill migration がセットで要る。本 issue は**全 stamps を1冊とみなす**
-- 実装方針: 横 `FlatList` + `snapToInterval`（reanimated / gesture-handler / pager-view はいずれも未導入。新規ライブラリは入れない）
-- 和暦は `Intl` を使わず `src/utils/japaneseEra.ts` の純関数で（Hermes の和暦サポートが環境依存のため）
-- **既定の表示モードをめくりにする**ため、既存 `GalleryScreen.test.tsx` のグリッド系ケースは「グリッドへ切り替える1行」を前置きする必要がある（アサーション本体は無変更）
-- ゲートで出すべき項目は契約書末尾の「人間ゲート前に確認すること」に Tier A 5点として整理済み
+### 分かっていること（コードを読んだ範囲。原因は未特定）
+
+- **エラー原文が画面に出ていないのが最大の障害**。`src/screens/RecordScreen.tsx:77-79` が `isNetworkError(result.error)` の真偽だけ見て `navigation.navigate('Error', { type: 'upload' })` し、`error.message` を捨てている
+- **ただしメッセージ自体は生きている**。`src/hooks/useRecordForm.ts` の `submit()` は catch で `setSubmitError(message)` しており、`form.submitError` に文字列が残る。**まずこれを画面か console に出すだけで切り分けが進む**（監査 A-4 の「対応順序①」）
+- **`'upload'` という表示は当てにならない**。ネットワークエラー以外は全部 `'upload'` に倒れる分岐なので、**Storage のアップロードではなく `createStamp`（stamps テーブルへの insert）の失敗でも同じ画面になる**。切り分けでは `uploadStampImage` と `createStamp` のどちらで落ちたかを最初に確定させること
+- `uploadStampImage`（`src/services/stamps.ts:30-51`）は `formData.append('', {...})` という**空フィールド名の FormData** で `goshuin-images` バケットへ上げている。Expo SDK 54 / 現行 supabase-js でこの書き方が通らなくなった可能性は監査時から候補に挙がっている
+- **`goshuin-images` バケットとその RLS ポリシーが `supabase/migrations/` に一切存在しない**（ダッシュボードで手作業作成とみられる）。環境再現性の穴でもあるので、原因がここなら migration に落とすところまでやる価値がある
+- 候補は他に認証セッションの状態（期限切れトークンで Storage / RLS が弾かれる）
+
+### 進め方（監査 A-4 の対応順序）
+
+1. **エラー原文を出す** — `submitError` を ErrorScreen かログに出す。実機は Expo Dev Client のログ、または `/dev`（tmux `goshuin-dev`）経由で拾う
+2. **再現して切り分け** — `uploadStampImage` / `createStamp` のどちらで落ちたか、Supabase 側のレスポンス（403 / 400 / RLS 違反のメッセージ）を見る
+3. **修正** — 原因次第。バケット・ポリシーが原因なら migration 化まで
+
+診断は小さいが、修正規模は原因次第。**契約書を作るのは原因が割れてから**でよい（`/build-feature` の Step 1 は原因特定の後）。
+
+### 直近で終わったこと
+
+- **Issue #114（P1-09 ボトムシート）完了** — PR #115 マージ済み・`passes: true`・実機確認済み
+- **Issue #116（P1-03 めくり UI）を develop にマージ** — PR #117。契約書 `docs/issues/issue-116-goshuincho-flip-ui.md`（95項目）。右綴じ（`FlatList inverted`）+ 蛇腹の折り（RN 標準 `Animated` でスクロール連動）+ 白紙ページ = 記録入口 + グリッド切替の永続化 + 和暦。テスト1002件
+  - ⚠️ **`passes` は false のまま**。理由3つ: ①**実機未確認**（上記 A-4 のため。N 群8項目 = スワイプの手触り・スナップ・小型端末での収まり・アプリ再起動をまたぐ永続化）②Evaluator の結果（80 PASS / 1 FAIL / 8 SKIP）は**右綴じと蛇腹を入れる前の版**に対するもの ③W-17 の残件（下記）
+  - **Expo Web での検証手段を作った**: 認証が Google/Apple のネイティブサインインのみで Web からログインできないため、`?preview=goshuincho` で fixture を差し込む web 専用プレビュー経路を足した（契約書 S-7・ユーザー承認済み）。`http://localhost:8081/?preview=goshuincho` → 御朱印タブ。native では `.web.ts` が解決されないので常に無効
+  - 📌 **別 issue 化すべき既知の問題**: `ImageGalleryModal` がレンダー中に `Animated.Value.setValue()` を呼んでおり React が `Cannot update a component while rendering...` を出す（`src/components/common/ImageGalleryModal.tsx:79-88`。「ちらつき回避のため意図的」というコメント付きの既存実装）。#116 が原因ではなく、S-7 で Web から到達できるようになって表面化しただけ
+- **P1-03 完成後の予定だったタブ入れ替え（案3: 地図 / 御朱印帳 / あつめる / 自分）は未着手**。めくり UI は入ったので着手可能
+
+### Playwright で Expo Web を触るときのメモ（#116 で消耗した分）
+
+- Expo Web は tmux `goshuin-dev` が 8081 で配信中。**再起動しない**
+- 御朱印タブは `[role="tab"] >> nth=1`。タブ名は先頭に空白が入るため name 指定が効きにくい
+- **`browser_evaluate` 内の生 DOM `.click()` では RN Web のボタンを正しく押せない**（押せなかったり別要素が誤爆したりする）。必ず Playwright の実クリックを `[data-testid=...]` に対して行う
+- コンソールの 400 2件（`spots?...id=eq.` / `stamps?...id=eq.` の空文字 ID）は**既存**（P1-08 の Evaluator 所見）。新規判定の対象外
 
 （参考）Expo Web は tmux セッション `goshuin-dev` が 8081 で配信中。**二重起動は失敗する**
 
@@ -46,6 +71,20 @@ Issue #111 / PR #112 マージ済み・本番投入完了（passes: true）。Me
 - 📌 恒久的な論点（未着手・要プロダクト判断）: 巡回対象を rank4 以下や他都道府県に拡大するかどうかは今回のスコープ外
 - メモ: deno を `~/.deno/bin/deno` にインストール済み（H 群テストの自動検証用）。Evaluator/Planner の goshuin-\_ エージェント型はセッションに未登録のことがある → general-purpose に `.claude/agents/*.md` を読ませて代行させる
 - メモ: Claude in Chrome は facebook.com / instagram.com / accountscenter.instagram.com / developers.facebook.com / appstoreconnect.apple.com を許可済み。クロスドメインに遷移するポップアップは拡張の追跡が切れるので、ポップアップ内は素早く1操作ずつ・親タブは触らず待つ。Apple/Meta のログインセッションは時々切れるので、切れたらユーザーに再ログインを頼む
+
+## Issue #116 めくり UI — develop マージ済み・実機未確認（2026-08-09）
+
+契約書 `docs/issues/issue-116-goshuincho-flip-ui.md`（受入基準95項目）。PR #117。12コミット。
+
+- 御朱印タブに「めくり / グリッド」の切り替えを追加。既定はめくり。選択は `AsyncStorage`（`gallery_view_mode`）に永続化
+- **右綴じ**: 1ページ目（最も古い御朱印）が右端、新しいページほど左。`FlatList` の `inverted` で表現した。配列を逆順にする実装だと、ページ番号の算出とデータが後から増えたときの起点が両方ずれる
+- **蛇腹の折り**: ページ間の余白を 0 にして折り目で接するようにし、スクロール量に連動して折り角（`rotateY`）と影を連続的に動かす。折れて縮む分（`(w/2)(1-cosθ)`）を平行移動で詰めないと隙間が空いて地続きに見えない（`computeFoldShift`）。中央が手前に来るよう距離で `zIndex` を決めないと隣が中央に被る。**RN 標準の `Animated` のみ**（reanimated 等は未導入のまま）
+- 調整用の定数: `FOLD_ANGLE_DEG=48` / `FOLD_SHADE_OPACITY=0.16` / `PERSPECTIVE=900` / `PAGE_WIDTH_RATIO=0.68`
+- 白紙ページ（末尾＝一番左）をタップすると記録画面へ。0件でも白紙だけは出る
+- 帳面（`goshuincho`）一覧はスコープ外。**既存 stamps が全件 `goshuincho_id = null`** で、記録フロー改修 + backfill migration が別途要るため
+- ⚠️ **`fireEvent.scroll` は `onScroll` にしか届かない**。`onMomentumScrollEnd` は `fireEvent(list, 'momentumScrollEnd', {...})` で発火し、`layoutMeasurement` / `contentSize` も渡さないと `VirtualizedList` が TypeError で落ちる
+- ⚠️ **RN Web は data URI の読み込みに失敗しても無言**（背景を当てないだけ）。`data:image/svg+xml;utf8,` はメディアタイプのパラメータが不正で読めない。`data:image/svg+xml,${encodeURIComponent(svg)}` が正
+- ⚠️ **`inverted` と組み合わせると平行移動も回転も向きが反転する**。符号は実際にブラウザで見て決めた
 
 ## Issue #114 ボトムシート改善 — 完了（PR #115 マージ済み・2026-08-09）
 
