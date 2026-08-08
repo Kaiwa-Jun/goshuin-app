@@ -177,6 +177,10 @@ Hermes の `Intl` は和暦カレンダー（`ja-JP-u-ca-japanese`）のサポ�
 - 反転は `GoshuinchoFlipView` 内の `useMemo` で行う。`useGalleryStamps` と `fetchAllStamps` は変更しない
 - グリッド表示の並びは**現状のまま**（`sortOrder` に従う）
 
+**綴じの向きは右綴じ**（ユーザー指定・2026-08-09）。**1ページ目が右端**にあり、新しいページほど左に足されていく。白紙ページが一番左になる。
+
+`FlatList` に `inverted` を付けて実現する。`data` の並び（昇順 + 末尾に白紙）も現在ページの算出（`Math.round(contentOffset.x / snapInterval)`）もページ番号の計算も**そのまま使える**ため、配列を組み替えたり `initialScrollIndex` を持たせたりする必要が無い（データが後から増えても右端が起点のまま保たれる）。
+
 進捗表示（`flip-page-counter`）:
 
 | ページ                           | 表示                                                          |
@@ -307,7 +311,6 @@ export const DEFAULT_GALLERY_VIEW_MODE: GalleryViewMode = 'flip';
 
 export function useGalleryViewMode(): {
   viewMode: GalleryViewMode;
-  isHydrated: boolean;
   setViewMode: (mode: GalleryViewMode) => void;
 };
 ```
@@ -315,7 +318,7 @@ export function useGalleryViewMode(): {
 - 初期値は同期的に `DEFAULT_GALLERY_VIEW_MODE`（`'flip'`）。マウント後に `AsyncStorage.getItem` で上書きする
 - 保存値が `'flip'` / `'grid'` のいずれでもない場合は既定値のままにする（不正値を握り潰す）
 - `setViewMode` は state を即時更新し、`AsyncStorage.setItem` は待たない（`useSearchHistory.addHistory` と同じ作法）
-- `isHydrated` は「AsyncStorage の読み出しが完了したか」。**画面の描画をブロックする用途では使わない**（既存テストが同期描画を前提にしているため）。将来の判断材料として返すだけ
+- **読み出し結果が既定値と同じ / 不正 / 未設定のときは `setState` しない**。マウントのたびに state 更新が走ると、この hook を使う画面テスト全体に `act()` 警告が出るため（当初は `isHydrated` を返す設計だったが、誰も使わないうえにこの問題を生むので落とした。Tier B に記録）
 
 ---
 
@@ -389,14 +392,16 @@ export function getWebPreviewStamps(): StampWithSpot[] | null {
   return PREVIEW_STAMPS; // 固定 fixture（3件・visited_at は元号境界を含む）
 }
 export function previewImageUrl(stamp: StampWithSpot): string {
-  return `data:image/svg+xml;utf8,...`; // ネットワークに出ない inline SVG
+  // メディアタイプにパラメータを付けない。`;utf8,` は不正で RN Web が読めず、
+  // しかも読み込み失敗時は背景を当てないだけで無言なので気づきにくい（実装中に判明）
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
 }
 ```
 
 - **到達 URL**: `http://localhost:8081/?preview=goshuincho`
 - native では `webPreview.ts` が解決され `getWebPreviewStamps()` は常に `null`。**fixture データも SVG もネイティブのバンドルに入らない**
 - fixture は3件。`visited_at` に `2026-05-03` / `2019-05-01` / `1989-01-08` を含め、和暦の元号境界を目視で確認できるようにする
-- 画像は inline SVG の data URI。Supabase にも外部ネットワークにも出ない（オフラインでも検証が成立する）
+- 画像は inline SVG の data URI。Supabase にも外部ネットワークにも出ない（オフラインでも検証が成立する）。**SVG に日本語を入れない**（墨線 + 朱印の図形のみ。スポット名はフッターに出る）
 - `GoshuinchoFlipView` は `resolveImageUrl?: (stamp: StampWithSpot) => string` を任意で受け取り、未指定なら `getStampImageUrl` を使う。プレビューのためだけの分岐を本体に持たせない
 
 **この経路が本番に与える影響**:
@@ -485,6 +490,7 @@ export function formatJapaneseEraDate(dateStr: string): string;
 **A-40**: 新規3コンポーネント・2 hooks/utils すべてに対応するテストファイルが存在する
 **A-41**: 既定の `webPreview.ts`（native / Jest で解決される側）の `getWebPreviewStamps()` が常に `null` を返す
 **A-42**: `GoshuinchoFlipView` は `resolveImageUrl` が渡されたときそれを使い、渡されないときは `getStampImageUrl` を使う
+**A-43**: `flip-list` の `inverted` が `true` である（右綴じ。1ページ目が右端）
 
 ### UI. 視覚仕様（`StyleSheet.flatten` で検証）
 
@@ -514,12 +520,12 @@ Expo Web はログイン済み状態に到達できないため、**S-7 の web 
 **W-1**: クエリなしでアクセスすると、御朱印タブに `gallery-guest-empty-state` が表示される
 **W-2**: クエリなしでは表示切り替えトグル（`view-mode-toggle`）が**出ていない**
 **W-3**: クエリなしでは `flip-list` も `gallery-list` も描画されていない
-**W-4**: `?preview=goshuincho` 付きでアクセスすると、御朱印タブがめくり表示になり、中央に1枚・左右に隣のページが覗いている
-**W-5**: 覗いている**右**のページをクリックすると、そのページが中央に来る
-**W-6**: 覗いている**左**のページをクリックすると、そのページが中央に来る
+**W-4**: `?preview=goshuincho` 付きでアクセスすると、御朱印タブがめくり表示になり、中央に1枚・隣のページが覗いている。**初期表示は1ページ目（最も古い御朱印）で、隣は左にだけ覗く**（右綴じ）
+**W-5**: 覗いている**左**のページ（次のページ）をクリックすると、そのページが中央に来る
+**W-6**: そこから覗いている**右**のページ（前のページ）をクリックすると、元のページに戻る
 **W-7**: ページを送るとフッターのスポット名・和暦日付・ページ番号がそのページのものに入れ替わる
 **W-8**: fixture の `2026-05-03` のページに `令和8年5月3日`、`2019-05-01` のページに `令和元年5月1日`、`1989-01-08` のページに `平成元年1月8日` と表示される（元号境界の目視確認）
-**W-9**: 最後まで送ると白紙ページが現れ、カメラアイコンと「ここに御朱印を追加する」が中央に出る
+**W-9**: 左へ送り切ると**一番左**に白紙ページが現れ、カメラアイコンと「ここに御朱印を追加する」が中央に出る
 **W-10**: 白紙ページのページ番号が `4枚目`（fixture 3件 + 白紙）と表示される
 **W-11**: 中央の白紙ページをクリックすると記録画面に遷移する
 **W-12**: 中央の御朱印ページをクリックすると御朱印が全画面で開く
@@ -533,9 +539,9 @@ Expo Web はログイン済み状態に到達できないため、**S-7 の web 
 ### N. native-only（実機 / Maestro）
 
 **N-1**: **native-only（実機）** ログイン済みで御朱印タブを開くとめくり表示になっており、実データの御朱印が中央に1枚・左右に隣が覗いている
-**N-2**: **native-only（実機）** 横スワイプでページが1枚ずつ送られ、途中で止めても中央にスナップする
+**N-2**: **native-only（実機）** 横スワイプでページが1枚ずつ送られ、途中で止めても中央にスナップする。**左へスワイプすると次（新しい）ページ、右へスワイプすると前（古い）ページ**
 **N-3**: **native-only（実機）** 勢いよくスワイプしても2枚以上飛ばない（`snapToInterval` + `decelerationRate="fast"` が効いている）
-**N-4**: **native-only（実機）** 白紙ページから記録画面に入り、保存後に御朱印タブへ戻ると、その御朱印が末尾（白紙の1つ手前）に増えている
+**N-4**: **native-only（実機）** 白紙ページから記録画面に入り、保存後に御朱印タブへ戻ると、その御朱印が白紙の1つ右隣に増えている
 **N-5**: **native-only（実機）** グリッドに切り替えてアプリを完全終了 → 再起動しても、御朱印タブがグリッドで開く
 **N-6**: **native-only（実機・iPhone SE 相当の小型端末）** ページ全体が縦に収まり、フッターとページ番号がタブバーに隠れない（**Issue #114 の W-3 と同じ罠。シートではないが下端に要素がある**）
 **N-7**: **native-only（実機）** 御朱印が30枚以上あるアカウントでめくり表示をスクロールしても、体感の引っかかりが無い
@@ -550,7 +556,7 @@ Expo Web はログイン済み状態に到達できないため、**S-7 の web 
 **Q-5**: `git diff --stat` に「変更しないファイル」節に挙げたファイルの変更が含まれない（新規ファイルの追加は逸脱ではない）
 **Q-6**: `package.json` / `package-lock.json` に差分が無い（新規ライブラリを入れていない）
 
-**受入基準の合計: 88 項目**
+**受入基準の合計: 89 項目**
 
 | 群                         | 件数 | 検証手段                                          |
 | -------------------------- | ---- | ------------------------------------------------- |
@@ -576,6 +582,7 @@ Expo Web はログイン済み状態に到達できないため、**S-7 の web 
 8. **`onViewableItemsChanged` を使わない**: Jest から発火できない。`onMomentumScrollEnd` を使う（A-14 の検証手段）。テストからは `fireEvent.scroll` ではなく `fireEvent(list, 'momentumScrollEnd', …)` で発火する
 9. **`stamps.ts` / `useGalleryStamps.ts` を触らない**: 並び順の反転は表示側の責務。サービス層に昇順オプションを足したくなっても我慢する
 10. **白紙ページは常に1枚**: 「白紙が2枚以上」「白紙が先頭にもある」は仕様ではない（A-11）
+11. **綴じの向きを `data` の並び替えで実現しない**: 右綴じは `FlatList` の `inverted` で表現する。配列を逆順にすると、ページ番号の算出とデータが後から増えたときの起点がずれる
 
 ### 監査項目との対応
 

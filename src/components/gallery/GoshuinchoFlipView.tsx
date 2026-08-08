@@ -151,6 +151,10 @@ export function GoshuinchoFlipView({
         ref={listRef}
         testID="flip-list"
         horizontal
+        // 御朱印帳は右綴じ。1ページ目（最も古い御朱印）が右端に来て、
+        // 新しいページほど左に足されていく。inverted なら data の並び
+        // （昇順 + 末尾に白紙）とページ番号の計算をそのまま使える
+        inverted
         data={pages}
         keyExtractor={page => page.key}
         renderItem={renderItem}

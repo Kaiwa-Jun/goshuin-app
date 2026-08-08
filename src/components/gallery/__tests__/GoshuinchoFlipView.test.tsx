@@ -121,6 +121,11 @@ describe('GoshuinchoFlipView', () => {
       expect(getByTestId('flip-list').props.data).toHaveLength(1);
       expect(getAllByTestId('flip-blank-page')).toHaveLength(1);
     });
+
+    it('右綴じで描画する（1ページ目が右端、新しいページが左に足される）', () => {
+      const { getByTestId } = renderFlipView();
+      expect(getByTestId('flip-list').props.inverted).toBe(true);
+    });
   });
 
   describe('ページ番号', () => {
