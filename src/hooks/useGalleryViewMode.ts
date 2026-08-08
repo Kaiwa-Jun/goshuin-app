@@ -8,8 +8,6 @@ export const DEFAULT_GALLERY_VIEW_MODE: GalleryViewMode = 'flip';
 
 interface UseGalleryViewModeReturn {
   viewMode: GalleryViewMode;
-  /** AsyncStorage の読み出しが完了したか。描画のブロックには使わない */
-  isHydrated: boolean;
   setViewMode: (mode: GalleryViewMode) => void;
 }
 
@@ -19,16 +17,17 @@ function isGalleryViewMode(value: unknown): value is GalleryViewMode {
 
 export function useGalleryViewMode(): UseGalleryViewModeReturn {
   const [viewMode, setViewModeState] = useState<GalleryViewMode>(DEFAULT_GALLERY_VIEW_MODE);
-  const [isHydrated, setIsHydrated] = useState(false);
   // 読み出しが返る前にユーザーが切り替えていたら、保存値で巻き戻さない
   const hasUserChosen = useRef(false);
 
   useEffect(() => {
+    // 保存値が既定と同じ / 不正 / 未設定のときは setState しない。
+    // 読み出しの完了そのものを state に持つと、この hook を使う画面のテストが
+    // 一律で act() 警告を出すことになるため（誰も使わない情報でもある）。
     AsyncStorage.getItem(GALLERY_VIEW_MODE_KEY).then(value => {
-      if (!hasUserChosen.current && isGalleryViewMode(value)) {
-        setViewModeState(value);
-      }
-      setIsHydrated(true);
+      if (hasUserChosen.current) return;
+      if (!isGalleryViewMode(value)) return;
+      setViewModeState(prev => (prev === value ? prev : value));
     });
   }, []);
 
@@ -39,5 +38,5 @@ export function useGalleryViewMode(): UseGalleryViewModeReturn {
     AsyncStorage.setItem(GALLERY_VIEW_MODE_KEY, mode);
   }, []);
 
-  return { viewMode, isHydrated, setViewMode };
+  return { viewMode, setViewMode };
 }

@@ -9,6 +9,9 @@ import {
 const mockGetItem = AsyncStorage.getItem as jest.MockedFunction<typeof AsyncStorage.getItem>;
 const mockSetItem = AsyncStorage.setItem as jest.MockedFunction<typeof AsyncStorage.setItem>;
 
+/** AsyncStorage の読み出し（マウント時の副作用）を解決させる */
+const flushRead = () => act(async () => {});
+
 describe('useGalleryViewMode', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -22,7 +25,7 @@ describe('useGalleryViewMode', () => {
   it('初期値を同期的に flip で返す（描画をブロックしない）', async () => {
     const { result } = renderHook(() => useGalleryViewMode());
     expect(result.current.viewMode).toBe('flip');
-    await waitFor(() => expect(result.current.isHydrated).toBe(true));
+    await flushRead();
   });
 
   it('保存値が grid のとき grid に復元する', async () => {
@@ -34,21 +37,21 @@ describe('useGalleryViewMode', () => {
   it('保存値が flip のとき flip のままである', async () => {
     mockGetItem.mockResolvedValueOnce('flip');
     const { result } = renderHook(() => useGalleryViewMode());
-    await waitFor(() => expect(result.current.isHydrated).toBe(true));
+    await flushRead();
     expect(result.current.viewMode).toBe('flip');
   });
 
   it('保存値が不正なとき既定値のままである', async () => {
     mockGetItem.mockResolvedValueOnce('banana');
     const { result } = renderHook(() => useGalleryViewMode());
-    await waitFor(() => expect(result.current.isHydrated).toBe(true));
+    await flushRead();
     expect(result.current.viewMode).toBe('flip');
   });
 
-  it('読み出しが完了すると isHydrated が true になる', async () => {
-    const { result } = renderHook(() => useGalleryViewMode());
-    expect(result.current.isHydrated).toBe(false);
-    await waitFor(() => expect(result.current.isHydrated).toBe(true));
+  it('保存キーを読みに行く', async () => {
+    renderHook(() => useGalleryViewMode());
+    await flushRead();
+    expect(mockGetItem).toHaveBeenCalledWith(GALLERY_VIEW_MODE_KEY);
   });
 
   it('setViewMode で AsyncStorage に保存する', async () => {
@@ -61,7 +64,7 @@ describe('useGalleryViewMode', () => {
     const { result } = renderHook(() => useGalleryViewMode());
     act(() => result.current.setViewMode('grid'));
     expect(result.current.viewMode).toBe('grid');
-    await waitFor(() => expect(result.current.isHydrated).toBe(true));
+    await flushRead();
   });
 
   it('保存キーが gallery_view_mode である', () => {

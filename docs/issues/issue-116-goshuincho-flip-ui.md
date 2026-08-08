@@ -611,4 +611,6 @@ Issue #116 の本文に明記が無く、契約書側で決めた判断。push /
 
 **Tier B — 契約書の記述と食い違うもの**
 
-（実装中に生じたらここに追記する。無ければ「無し」と明示する）
+1. **`src/navigation/__tests__/TabNavigator.test.tsx` を3行変更した** — 契約書の「変更しないファイル」に `src/navigation/` 配下すべてを挙げていたが、この統合テストがグリッド専用の `gallery-list` を assert しており、既定モードをめくりにした時点で必ず落ちる。テストの意図（ログイン済みなら御朱印タブが普通に開く）を保ったまま `flip-list` に差し替えた。**Q-5 のスコープ検査はこの1ファイルだけ意図的な逸脱として扱う**
+2. **`useGalleryViewMode` から `isHydrated` を落とした** — 契約書の設計節では返り値に含めていたが、どの受入基準も参照しておらず `GalleryScreen` も使っていない。一方でこれを state に持つと、マウントのたびに必ず state 更新が走り、この hook を使う画面テスト全体に `act()` 警告を撒くことになる。読み出し結果が既定値と同じ / 不正 / 未設定のときは `setState` しない実装に変え、返り値は `{ viewMode, setViewMode }` の2つにした
+3. **調査結果 3 の検証手段が誤っていた** — `fireEvent.scroll` は `onScroll` にしか届かず `onMomentumScrollEnd` を発火しない。`fireEvent(list, 'momentumScrollEnd', …)` と、`layoutMeasurement` / `contentSize` の同梱が要る。契約書側を訂正済み（実装は変えていない）
