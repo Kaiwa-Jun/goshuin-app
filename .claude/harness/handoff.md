@@ -1,4 +1,32 @@
-# セッション引き継ぎ（最終更新: 2026-08-08）
+# セッション引き継ぎ（最終更新: 2026-08-09）
+
+## ▶ 再開したらここから（2026-08-09 時点）
+
+**いま止まっている場所: Issue #114 の人間ゲート直前。push も PR 作成もまだしていない。**
+
+- ブランチ `feature/issue-114-bottom-sheet-redesign` に **12コミット**。作業ツリーはクリーン
+- 機械検証は全通過（テスト910件/81 suite、lint 0 errors、typecheck clean）
+- Evaluator 1回目 80/94 FAIL → 指摘を修正済み → **2回目を実行中のまま `/clear` した**（結果は未取得）
+
+**次にやること（順に）**:
+
+1. **Evaluator の再検証をやり直す**。前回の agent は `/clear` で辿れなくなっているので、`general-purpose` に `.claude/agents/goshuin-evaluator.md` を読ませて代行させ、契約書 `docs/issues/issue-114-bottom-sheet-redesign.md` を渡す。**Expo Web は tmux セッション `goshuin-dev` が 8081 で配信中（二重起動は失敗する）**
+2. 合否が出たら **人間ゲート**（下記「ゲートで提示すべきこと」を提示して承認を待つ）
+3. 承認後: `merge-to-develop` スキルで PR 作成 → マージ → Issue #114 クローズ → `.claude/harness/feature-list.json` と `progress.md` を更新
+
+**ゲートで提示すべきこと（契約書に無い追加5点。これを出さないとゲートが不誠実になる）**:
+
+| #   | 追加した内容                                                  | 理由                                                                                                                                                       |
+| --- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | ハンドルのタップで展開/収納                                   | ドラッグのみだとタップ手段が無く、Expo Web でも検証できない                                                                                                |
+| 2   | web スタブ（`react-native-maps.web.ts`）に no-op の命令的 API | これが無いと Web でシートに到達できず検証不能。native には影響しない                                                                                       |
+| 3   | `SpotCompactCard` の削除                                      | 役割を `SpotSheetHeader` とシート本体に吸収したため                                                                                                        |
+| 4   | 行きたいアイコンを `flag`→`bookmark` に変更                   | 旗は「制覇した」とも読め、行きたい/行った が区別できなかった。`CollectionScreen` にも波及                                                                  |
+| 5   | **FAB 右下移動と設計ドキュメントが同じ PR に相乗り**          | ユーザーが個別承認した先行対応。契約書の「変更しないファイル」に `MapScreen.tsx` があるため Evaluator は Q-6 で FAIL 判定。**PR を分けるかはユーザー判断** |
+
+**ユーザー確認済み**: 実機でタブバー重なりの解消を確認済み（Evaluator が native 10項目を SKIP しているため、この確認が最重要だった）。
+
+---
 
 ## P2-02 Instagram Business Discovery — 完了（2026-08-08 運用投入）
 
@@ -26,6 +54,18 @@ Issue #111 / PR #112 マージ済み・本番投入完了（passes: true）。Me
 - 📌 恒久的な論点（未着手・要プロダクト判断）: 巡回対象を rank4 以下や他都道府県に拡大するかどうかは今回のスコープ外
 - メモ: deno を `~/.deno/bin/deno` にインストール済み（H 群テストの自動検証用）。Evaluator/Planner の goshuin-\_ エージェント型はセッションに未登録のことがある → general-purpose に `.claude/agents/*.md` を読ませて代行させる
 - メモ: Claude in Chrome は facebook.com / instagram.com / accountscenter.instagram.com / developers.facebook.com / appstoreconnect.apple.com を許可済み。クロスドメインに遷移するポップアップは拡張の追跡が切れるので、ポップアップ内は素早く1操作ずつ・親タブは触らず待つ。Apple/Meta のログインセッションは時々切れるので、切れたらユーザーに再ログインを頼む
+
+## Issue #114 ボトムシート改善 — 実装完了・ゲート待ち（2026-08-09）
+
+ブランチ `feature/issue-114-bottom-sheet-redesign`（12コミット）。契約書 `docs/issues/issue-114-bottom-sheet-redesign.md`（受入基準94項目）。
+
+- 全9スライスを TDD で実装。`SpotSheetHeader` / `SpotThumbnailStrip` / `SpotSheetActions` を新設し、`SpotCompactCard` を削除。compact/expanded を「共通ヘッダー + 段階的な情報追加」の構造に変更
+- 機械検証: **テスト 910件 / 81 suite 全パス**、lint 0 errors、typecheck clean
+- Evaluator 1回目: 80/94 で FAIL。**W-3 で本物のバグを検出**
+- ⚠️ **W-3 の教訓（重要）**: compact のアクション行がタブバーの裏に潜り込み、「記録する」の中心をタップするとタブバーに吸われていた。原因は `SpotBottomSheet` がシートの位置を `Dimensions.get('window').height` 基準で計算していたこと。**シートの親はタブバーを除いた領域**なので、その差分だけ下にずれる。`BottomTabBarHeightContext` から実タブバー高さを取り `availableHeight` 基準に変更して解消。**この位置計算は旧実装から同じで、compact の最下部に押せる要素が無かったため誰も気づいていなかった**。今後シート下端に操作要素を足すときは必ずこの重なりを疑うこと
+- ✅ **実機でタブバー重なりの解消をユーザーが確認済み**（Evaluator は native 系10項目を検証手段が無く SKIP していたため、この確認が最重要だった）
+- 📌 **人間ゲートで提示すべき「Issue 本文に無い追加」**: ①ハンドルのタップで展開/収納 ②web スタブへの命令的 API 追加（検証イネーブラ）③`SpotCompactCard` の削除 ④行きたいアイコンの語彙変更（`flag`→`bookmark`）と CollectionScreen への波及 ⑤FAB 右下移動と設計ドキュメントが同じ PR に相乗り（契約書の「変更しないファイル」に `MapScreen.tsx` があるため Evaluator は Q-6 で FAIL 判定。実装は正しく、PR を分けるかはユーザー判断）
+- 📌 契約書が前提にしていた `toHaveStyle` はこのプロジェクトに未導入（`@testing-library/jest-native` が無い）。`StyleSheet.flatten(node.props.style)` で代替した
 
 ## 画面構成（IA）の決定 — 案3 で確定（2026-08-09）
 
