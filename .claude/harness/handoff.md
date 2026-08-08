@@ -1,29 +1,71 @@
 # セッション引き継ぎ（最終更新: 2026-08-09）
 
-## ▶ 再開したらここから（2026-08-09 時点）
+## ▶ 再開したらここから（2026-08-09 深夜時点）
 
-**次にやること: 記録の「アップロードエラー」を直す（監査 A-4）。これが直るまで実機で御朱印を1件も記録できず、実機検証が全面的に止まる。**
+**アップロードエラー（監査 A-4）は原因特定・修正・機械検証まで完了。残っているのは実機確認だけ。**
 
-### 症状（ユーザー報告・2026-08-09）
+Issue #118 / ブランチ `fix/issue-118-record-upload-error`（3コミット・**push はしていない**）。契約書 `docs/issues/issue-118-record-upload-error.md`。
 
-実機で記録フローを進め、**写真の選択・表示まではできる**。そこから「記録する」で保存しようとすると **ErrorScreen の「アップロードエラー」に飛ぶ**。この状態なので、Issue #116（めくり UI）の実機確認 N 群8項目も未実施のまま。
+### 起きたら最初にやること: 実機で1件記録する
 
-### 分かっていること（コードを読んだ範囲。原因は未特定）
+dev サーバーは動いたまま。**`/dev` を叩き直す必要はない**（叩くとトンネル URL が変わって QR を読み直しになる）。
 
-- **エラー原文が画面に出ていないのが最大の障害**。`src/screens/RecordScreen.tsx:77-79` が `isNetworkError(result.error)` の真偽だけ見て `navigation.navigate('Error', { type: 'upload' })` し、`error.message` を捨てている
-- **ただしメッセージ自体は生きている**。`src/hooks/useRecordForm.ts` の `submit()` は catch で `setSubmitError(message)` しており、`form.submitError` に文字列が残る。**まずこれを画面か console に出すだけで切り分けが進む**（監査 A-4 の「対応順序①」）
-- **`'upload'` という表示は当てにならない**。ネットワークエラー以外は全部 `'upload'` に倒れる分岐なので、**Storage のアップロードではなく `createStamp`（stamps テーブルへの insert）の失敗でも同じ画面になる**。切り分けでは `uploadStampImage` と `createStamp` のどちらで落ちたかを最初に確定させること
-- `uploadStampImage`（`src/services/stamps.ts:30-51`）は `formData.append('', {...})` という**空フィールド名の FormData** で `goshuin-images` バケットへ上げている。Expo SDK 54 / 現行 supabase-js でこの書き方が通らなくなった可能性は監査時から候補に挙がっている
-- **`goshuin-images` バケットとその RLS ポリシーが `supabase/migrations/` に一切存在しない**（ダッシュボードで手作業作成とみられる）。環境再現性の穴でもあるので、原因がここなら migration に落とすところまでやる価値がある
-- 候補は他に認証セッションの状態（期限切れトークンで Storage / RLS が弾かれる）
+- トンネル URL: `https://agenda-insider-hop-oem.trycloudflare.com`（`.dev-tunnel/url.txt`）
+- tmux `goshuin-dev` の Metro / cloudflared とも生存確認済み。iOS バンドルのビルドも通ることを確認済み（7.8MB / 修正コードの混入もバンドル内で確認）
 
-### 進め方（監査 A-4 の対応順序）
+手順:
 
-1. **エラー原文を出す** — `submitError` を ErrorScreen かログに出す。実機は Expo Dev Client のログ、または `/dev`（tmux `goshuin-dev`）経由で拾う
-2. **再現して切り分け** — `uploadStampImage` / `createStamp` のどちらで落ちたか、Supabase 側のレスポンス（403 / 400 / RLS 違反のメッセージ）を見る
-3. **修正** — 原因次第。バケット・ポリシーが原因なら migration 化まで
+1. iPhone の Dev Client を開く。既にこの URL につながっていれば**端末を振って（or 3本指タップで）Dev Menu → Reload** するだけでよい
+   - つながっていなければ "Enter URL manually" で上記 URL を入力
+2. 地図タブの右下 FAB →「記録する」
+3. スポットを選ぶ → 写真を選ぶ（カメラでもギャラリーでも）→「この内容で記録する」→ 確認モーダルで確定
+4. **完了画面（RecordComplete）まで行けば成功**。御朱印帳タブ・ギャラリー・地図のピンに反映されるかも見る
 
-診断は小さいが、修正規模は原因次第。**契約書を作るのは原因が割れてから**でよい（`/build-feature` の Step 1 は原因特定の後）。
+### 失敗した場合（ここが今回の仕込み）
+
+ErrorScreen に**「詳細」ブロックが出て、例外の原文がそのまま表示される**ようになった。長押しでコピーできる。その文字列があれば原因はほぼ即断できるので、そのまま貼ってほしい。
+
+- 見出しが「**アップロードエラー**」= Storage への画像アップロードで失敗
+- 見出しが「**保存エラー**」= 画像は上がっていて stamps への insert で失敗
+
+**実機ログの拾い方**（画面の詳細だけで足りるはずだが、必要なら）:
+
+```bash
+tmux capture-pane -pt goshuin-dev -S -300 | grep -A 5 "submit failed at"
+```
+
+`console.error('[record] submit failed at <stage>: <message>')` を仕込んであるので Metro のペインに出る。ペインを直接見るなら `tmux attach -t goshuin-dev`（デタッチは `Ctrl-b` → `d`）。
+
+### 実機で通ったら
+
+1. Issue #116（めくり UI）の実機確認 N 群8項目に進める（スワイプの手触り・スナップ・小型端末での収まり・アプリ再起動をまたぐ永続化）
+2. #118 を push → PR → develop へマージ。**push/PR 前の人間ゲートは未通過**なので、そこで一度確認を挟む
+
+### 原因（調査済み・確定）
+
+`supabase-js` の Storage クライアントは FormData を渡されると内部で `body.has('cacheControl')` を呼ぶ。**RN の FormData ポリフィルは `append` / `getAll` / `getParts` しか持たず `has()` が無い**ため、通信が1バイトも出る前に `TypeError: body.has is not a function` で落ちていた。`isNetworkError()` にマッチしない例外は全部 `'upload'` に倒れる分岐だったので、画面には「アップロードエラー」としか出ていなかった。
+
+**Storage 側は無罪**だった（監査時の第一候補だったが違った）:
+
+- バケット `goshuin-images` は存在。`public=true` / 5MB上限 / `allowed_mime_types={image/jpeg, image/png, image/webp}`
+- `storage.objects` のポリシー6本すべて適切
+- **2026-03-04 にアプリ経由のアップロード成功実績が1件残っている** → 依存を上げたときに `has()` のガードが入って壊れた**回帰**
+
+### 修正の内容
+
+- `uploadStampImage` を `expo-file-system` の `File#bytes()` でバイト列を渡す方式に変更。`contentType: 'image/jpeg'` の明示は**必須**（`allowed_mime_types` があるので既定値だと弾かれる）
+- `expo-file-system` は `expo@54` の推移的依存として既にネイティブ側に入っている。`package.json` に明示しただけでバージョンは 19.0.21 のまま = **dev build の作り直しは不要**
+- `submit()` が `stage`（`'upload' | 'create'`）と `message` を返し、ErrorScreen が原文を表示する
+- RN の FormData を global に差し込んで supabase-js の実物を通す回帰テストを追加（`stamps-upload-native.test.ts`）。jest の node 環境の FormData は `has()` を持つのでこの仕込みが無いと検出できない
+- `goshuin-images` バケットとポリシーを migration 化（監査が指摘していた再現性の穴）。本番は既にこの状態なので適用不要
+
+機械検証: **テスト 89 suite / 1019 件全パス**、lint 0 errors、typecheck clean。
+
+### ⚠️ 今後のための教訓
+
+- **RN の FormData は web の FormData ではない**。ライブラリに渡すときは web API 前提になっていないか疑う
+- **jest（node 環境）と実機で global の実装が違うものは、テストが通っても実機で落ちる**（`FormData` / `Blob` / `atob`）。global を差し替えて実物のライブラリを通す特性テストで守る
+- **表示されているエラー名を信じない**。分岐が雑だと無関係な失敗が同じ画面に集まる
 
 ### 直近で終わったこと
 
@@ -174,13 +216,15 @@ Issue #111 / PR #112 マージ済み・本番投入完了（passes: true）。Me
 3. ~~cron 再登録~~ — **完了**（2026-08-08。次回火曜(8/11)朝に succeeded 確認予定）
 4. ~~Instagram 情報ソース棚卸し~~ — **完了**（金蛇水神社・大崎八幡宮・湯島天満宮を追加・本実行・実機確認済み。明治神宮は見送り確定）
 5. ~~P1-09 ボトムシートの情報設計改善~~ — **完了**（Issue #114 / PR #115、2026-08-09）
-6. **← いまここ: P1-03 御朱印帳のめくり UI**。仕様はユーザー合意済み（「画面構成（IA）の決定」節）。Issue 起票 → 契約書 → `/build-feature`
-7. **審査結果待ち**（buildNumber 12、最大48時間）。通過 → 手動リリース / リジェクト → 内容確認して対応
-8. P1-03 の完成後: **タブ入れ替え**（案3: 地図 / 御朱印帳 / あつめる / 自分。行きたいリストを地図タブへ移す）
-9. その他の候補（優先順は未合意・要相談）:
-   - **P2-02 第2柱**: 公式サイトの記事単位クロール
-   - **対象スポットの拡大**: rank4 以下や他都道府県への拡大（今回は既存29スポット内の欠落補完のみでスコープ外とした）
-10. Google Play（本人確認の承認後）
+6. ~~P1-03 御朱印帳のめくり UI~~ — **develop マージ済み・実機未確認**（Issue #116 / PR #117）
+7. **← いまここ: A-4 アップロードエラー（Issue #118）の実機確認**。修正・機械検証まで完了、ブランチ未 push。手順は冒頭の「▶ 再開したらここから」
+8. #118 が実機で通ったら → **#116 の実機確認 N 群8項目** → #118 を push/PR
+9. **審査結果待ち**（buildNumber 12、最大48時間）。通過 → 手動リリース / リジェクト → 内容確認して対応
+10. その後: **タブ入れ替え**（案3: 地図 / 御朱印帳 / あつめる / 自分。行きたいリストを地図タブへ移す）
+11. その他の候補（優先順は未合意・要相談）:
+    - **P2-02 第2柱**: 公式サイトの記事単位クロール
+    - **対象スポットの拡大**: rank4 以下や他都道府県への拡大（今回は既存29スポット内の欠落補完のみでスコープ外とした）
+12. Google Play（本人確認の承認後）
 
 ## ユーザー待ちの項目
 
