@@ -10,7 +10,7 @@ Issue #111 / PR #112 マージ済み・本番投入完了（passes: true）。Me
 - ✅ **本番デプロイ済み**。実クロール検証で23アカウント中19件で Claude 抽出成功、2件は個人アカウント判定でスキップ、failed 0件
 - ⚠️ **重要な落とし穴（本番投入時に発見・解決済み）**: Meta developer アプリが **Business Portfolio にリンクされていない**と、`business_discovery` が `OAuthException code 200 "API access blocked"` で全滅する。8/3 のセットアップ時点では未リンクでも一時的に動いていたが、8/8 の本番検証時には完全にブロックされていた（Standard Access アプリの猶予期間切れとみられる）。**対処**: Meta for Developers → アプリ設定 → ベーシック → 「ビジネスポートフォリオ」を「御朱印さんぽ」にリンク（Unverified 状態のままで解消する）。今後同様のエラーが出たらまずこれを疑う
 - ✅ **実機・DB 両方で確認済み**: 榴岡天満宮（公式サイト更新停止スポット）に Instagram 由来アイテムが表示され、リンクから実際の投稿に遷移できることを確認。浅草神社で web/Instagram 混在表示（文言の個別切り替え）も確認
-- 🔜 **cron の再登録がユーザー作業として残っている**（`supabase/cron/schedule_crawl_spot_sources.sql` を SQL Editor で実行。web 02:00 JST / instagram 02:30 JST の2ジョブ体制にする。実行後 `select jobname, schedule from cron.job;` で2行出ることを確認）
+- ✅ **cron 再登録完了（2026-08-08）**: `crawl-spot-sources-biweekly`（`0 17 * * 1,4` = 火金02:00 JST・web）/ `crawl-spot-sources-instagram`（`30 17 * * 1,4` = 火金02:30 JST・instagram）の2ジョブ体制で稼働中。**次回火曜(8/11)朝に両方 succeeded か確認**: `select jobname, status, start_time, end_time from cron.job_run_details order by start_time desc limit 10;`
 - 📌 **カバレッジの現状**: 全1,109スポット中、巡回対象は**29スポット・79ソース**（sns_link 39 / official 40）のみ。金蛇水神社など Instagram 運用中でも未登録のスポットは今回スコープ外（契約書で「seed への新規アカウント追加はしない」と明記）。**次にやるなら「対象スポットの棚卸し・追加」が候補**
 - メモ: deno を `~/.deno/bin/deno` にインストール済み（H 群テストの自動検証用）。Evaluator/Planner の goshuin-\_ エージェント型はセッションに未登録のことがある → general-purpose に `.claude/agents/*.md` を読ませて代行させる
 - メモ: Claude in Chrome は facebook.com / instagram.com / accountscenter.instagram.com / developers.facebook.com / appstoreconnect.apple.com を許可済み。クロスドメインに遷移するポップアップは拡張の追跡が切れるので、ポップアップ内は素早く1操作ずつ・親タブは触らず待つ。Apple/Meta のログインセッションは時々切れるので、切れたらユーザーに再ログインを頼む
