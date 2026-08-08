@@ -10,13 +10,26 @@ import type { StampWithSpot } from '@/types/supabase';
  */
 export const WEB_PREVIEW_QUERY = 'preview=goshuincho';
 
-/** 一色ベタ + 文字だけの軽い代替画像。外部ネットワークに出ない */
-function placeholderImage(label: string, background: string): string {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="300">
-<rect width="200" height="300" fill="${background}"/>
-<text x="100" y="160" font-size="20" text-anchor="middle" fill="${colors.gray[700]}">${label}</text>
-</svg>`;
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+/**
+ * 御朱印らしい墨線 + 朱印だけの軽い代替画像。外部ネットワークに出ない。
+ *
+ * SVG に日本語を入れない（スポット名はフッターに出る）。RN Web は data URI の
+ * プリロードに失敗すると背景を当てないだけで無言なので、確実に読める形に寄せる。
+ * メディアタイプのパラメータも付けない（`;utf8,` は不正で読めなくなる）。
+ */
+function placeholderImage(background: string, seal: string): string {
+  const svg = [
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 300">',
+    `<rect width="200" height="300" fill="${background}"/>`,
+    `<rect x="72" y="42" width="7" height="132" rx="3" fill="${colors.gray[800]}"/>`,
+    `<rect x="108" y="72" width="7" height="96" rx="3" fill="${colors.gray[800]}"/>`,
+    `<rect x="52" y="210" width="62" height="7" rx="3" fill="${colors.gray[800]}"/>`,
+    `<rect x="66" y="234" width="40" height="6" rx="3" fill="${colors.gray[800]}"/>`,
+    `<rect x="136" y="240" width="46" height="46" rx="4" fill="none" stroke="${seal}" stroke-width="5"/>`,
+    `<rect x="24" y="24" width="30" height="30" rx="3" fill="none" stroke="${seal}" stroke-width="4"/>`,
+    '</svg>',
+  ].join('');
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
 }
 
 function makePreviewStamp(
@@ -50,9 +63,9 @@ const PREVIEW_STAMPS: StampWithSpot[] = [
 ];
 
 const PREVIEW_IMAGES: Record<string, string> = {
-  'preview-1': placeholderImage('浅草寺', colors.primary[50]),
-  'preview-2': placeholderImage('神田明神', colors.shrine[50]),
-  'preview-3': placeholderImage('明治神宮', colors.temple[100]),
+  'preview-1': placeholderImage(colors.primary[50], colors.temple[600]),
+  'preview-2': placeholderImage(colors.shrine[50], colors.shrine[600]),
+  'preview-3': placeholderImage(colors.gray[50], colors.shrine[600]),
 };
 
 export function getWebPreviewStamps(): StampWithSpot[] | null {
@@ -62,5 +75,5 @@ export function getWebPreviewStamps(): StampWithSpot[] | null {
 }
 
 export function previewImageUrl(stamp: StampWithSpot): string {
-  return PREVIEW_IMAGES[stamp.id] ?? placeholderImage(stamp.spots.name, colors.surface);
+  return PREVIEW_IMAGES[stamp.id] ?? placeholderImage(colors.surface, colors.shrine[600]);
 }

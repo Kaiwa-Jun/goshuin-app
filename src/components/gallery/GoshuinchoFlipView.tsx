@@ -191,5 +191,7 @@ const styles = StyleSheet.create({
     color: colors.gray[500],
     textAlign: 'center',
     marginTop: spacing.lg,
+    // 下端に置く要素はタブバーに寄りすぎる（Issue #114 の W-3 と同じ罠）
+    marginBottom: spacing.lg,
   },
 });
