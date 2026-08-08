@@ -1,25 +1,27 @@
-# セッション引き継ぎ（最終更新: 2026-08-03 夜）
+# セッション引き継ぎ（最終更新: 2026-08-08）
 
-## P2-02 Meta セットアップ進捗（2026-08-03、Claude in Chrome で代行。次セッションはここから再開）
+## P2-02 Instagram Business Discovery — 完了（2026-08-08 運用投入）
 
-- ✅ FB 個人アカウント（ユーザーが電話番号で作成。メール kj.11235813213455@gmail.com は Meta 全体でブロック状態 → FB登録・IG登録・developer 連絡先すべてで使用不可だった）
-- ✅ FB ページ「御朱印さんぽ」: **Page ID `1301682473018397`**（プロフィール URL は profile.php?id=61592782890283）。website に GitHub Pages 設定済み
-- ✅ Instagram **`goshuinsampo`**（表示名: 御朱印さんぽ）作成 → ビジネスアカウント化済み（goshuin.sampo / goshuin_sampo は取得不可だった）
-- ✅ アカウントセンター統合（FB 鹿岩潤 + IG goshuinsampo）
-- ✅ FB ページ ⇔ IG 連携完了。**ハマりポイント: OIDC ポップアップ承認後、親タブに「ビジネスポートフォリオに追加」の最終確認が出る。これを押すまで連携されない**（親タブをリロードするとやり直し）。ビジネスポートフォリオ「御朱印さんぽ」が自動作成された
-- ✅ Meta developer 登録（連絡先: jun.kaiwa@taian-inc.com）
-- ✅ アプリ作成: **goshuin-sampo-watcher / App ID `1559445438958824`** / タイプ: ビジネス / 開発モード
-- ✅ Graph API Explorer（現行 **v26.0**）で権限4つ（instagram_basic / instagram_manage_insights / pages_read_engagement / pages_show_list）のユーザートークン生成済み。アセットは最小スコープ（ページ「御朱印さんぽ」1件 + IG goshuinsampo 1件のみオプトイン）
-- ✅ **IG User ID = `17841439672371375`**（goshuinsampo。OAuth のアセット選択画面と business_discovery 成功で二重確認済み）
-- ✅ **business_discovery 動作確認成功（2026-08-03）**: `17841439672371375?fields=business_discovery.username(kandamyoujin){username,media_count,media.limit(3){caption,permalink,timestamp}}` で神田明神の実投稿3件（caption/permalink/timestamp）取得。7/7 投稿に「七夕守は8月7日まで授与」という期限付き授与品告知あり → 鮮度判定・isLikelyGoshuin ガードの回帰テストケースに使える
-- ⚠️ `me/accounts` は空を返す（原因不明だが **business_discovery は IG User ID 直指定で動くため実害なし**。Edge Function は IG User ID を secrets から直接使う設計にする）
-- ✅ 長期トークン発行済み（**期限: 2026-10-02**）。手順は全 GUI で確立: Graph API Explorer でトークン生成 → [アクセストークンデバッガー](https://developers.facebook.com/tools/debug/accesstoken/)に貼って「デバッグ」→「アクセストークンを延長」（FB パスワード再入力あり）→ 延長トークン表示。**更新もこの GUI 手順で可**（トークンの貼り付け/コピーはユーザー、ボタン操作は Claude の分担）
-- ✅ **Meta セットアップ完了（2026-08-03 深夜）**: Supabase secrets に `META_ACCESS_TOKEN`（長期・期限 2026-10-02）と `META_IG_USER_ID`（17841439672371375）登録済み（`secrets list` で確認済み）。**10月初旬にトークン更新が必要 → アクセストークンデバッガーの GUI 手順で延長 → secrets 更新**
-- ✅ **Issue #111 実装完了・Evaluator PASS 75/75（2026-08-03 深夜、ユーザー就寝中に自律進行）**。ブランチ `feature/issue-111-instagram-business-discovery` に 6 コミット（契約書 / crawl.ts リファクタ / instagram.ts 9関数 / index.ts Instagram パス / cron 2 job 化 / UI 文言切替）。**push/PR 未実施・人間ゲートで停止中**
-- 🔜 朝のゲートで承認後: ① push + PR 作成 ② デプロイ（`npx supabase@latest functions deploy crawl-spot-sources --project-ref tvnozkpxncmnehyomoff --use-api --no-verify-jwt`）③ I 群検証 24 件（大半は Claude が curl で代行可。**I-2/I-3 は生トークンが必要でユーザー実行、I-18 はトークン復元が必要なため要ユーザー**）④ cron 再登録 SQL（ユーザーが SQL Editor で実行。unschedule → 2 job 登録）⑤ N 群実機確認 6 件
-- ⚠️ 注意: 現在デプロイ済みの本番関数は旧版。**火曜 02:00 JST の cron は旧版で走る**（無害）。新版デプロイ + cron 再登録が済むと金曜から 2 job 体制（web 02:00 / instagram 02:30）
-- メモ: deno を `~/.deno/bin/deno` にインストール済み（H 群 92 テストの自動検証用）。Evaluator/Planner の goshuin-_ エージェント型はセッションに未登録のことがある → general-purpose に .claude/agents/_.md を読ませて代行させる
-- メモ: Claude in Chrome は facebook.com / instagram.com / accountscenter.instagram.com / developers.facebook.com を許可済み。クロスドメインに遷移するポップアップは拡張の追跡が切れるので、ポップアップ内は素早く1操作ずつ・親タブは触らず待つ
+Issue #111 / PR #112 マージ済み・本番投入完了（passes: true）。Meta セットアップ〜実装〜検証〜運用投入までの全経緯。
+
+- ✅ Meta セットアップ完了: FB ページ「御朱印さんぽ」（Page ID `1301682473018397`）、Instagram `goshuinsampo`（ビジネスアカウント化済み）、FB⇔IG 連携、Meta developer アプリ `goshuin-sampo-watcher`（App ID `1559445438958824`）。IG User ID = `17841439672371375`
+- ✅ 長期アクセストークン発行済み（**期限: 2026-10-02**）。Supabase secrets に `META_ACCESS_TOKEN` / `META_IG_USER_ID` 登録済み。**10月初旬に更新要**: [アクセストークンデバッガー](https://developers.facebook.com/tools/debug/accesstoken/)にトークンを貼って「デバッグ」→「アクセストークンを延長」→ `npx supabase@latest secrets set META_ACCESS_TOKEN=<延長後トークン> --project-ref tvnozkpxncmnehyomoff`
+- ✅ 実装完了・Evaluator PASS 75/75。PR #112 マージ済み（`crawl-spot-sources` に Instagram パス追加、`mode` パラメータで web/instagram を制御）
+- ✅ **本番デプロイ済み**。実クロール検証で23アカウント中19件で Claude 抽出成功、2件は個人アカウント判定でスキップ、failed 0件
+- ⚠️ **重要な落とし穴（本番投入時に発見・解決済み）**: Meta developer アプリが **Business Portfolio にリンクされていない**と、`business_discovery` が `OAuthException code 200 "API access blocked"` で全滅する。8/3 のセットアップ時点では未リンクでも一時的に動いていたが、8/8 の本番検証時には完全にブロックされていた（Standard Access アプリの猶予期間切れとみられる）。**対処**: Meta for Developers → アプリ設定 → ベーシック → 「ビジネスポートフォリオ」を「御朱印さんぽ」にリンク（Unverified 状態のままで解消する）。今後同様のエラーが出たらまずこれを疑う
+- ✅ **実機・DB 両方で確認済み**: 榴岡天満宮（公式サイト更新停止スポット）に Instagram 由来アイテムが表示され、リンクから実際の投稿に遷移できることを確認。浅草神社で web/Instagram 混在表示（文言の個別切り替え）も確認
+- 🔜 **cron の再登録がユーザー作業として残っている**（`supabase/cron/schedule_crawl_spot_sources.sql` を SQL Editor で実行。web 02:00 JST / instagram 02:30 JST の2ジョブ体制にする。実行後 `select jobname, schedule from cron.job;` で2行出ることを確認）
+- 📌 **カバレッジの現状**: 全1,109スポット中、巡回対象は**29スポット・79ソース**（sns_link 39 / official 40）のみ。金蛇水神社など Instagram 運用中でも未登録のスポットは今回スコープ外（契約書で「seed への新規アカウント追加はしない」と明記）。**次にやるなら「対象スポットの棚卸し・追加」が候補**
+- メモ: deno を `~/.deno/bin/deno` にインストール済み（H 群テストの自動検証用）。Evaluator/Planner の goshuin-\_ エージェント型はセッションに未登録のことがある → general-purpose に `.claude/agents/*.md` を読ませて代行させる
+- メモ: Claude in Chrome は facebook.com / instagram.com / accountscenter.instagram.com / developers.facebook.com / appstoreconnect.apple.com を許可済み。クロスドメインに遷移するポップアップは拡張の追跡が切れるので、ポップアップ内は素早く1操作ずつ・親タブは触らず待つ。Apple/Meta のログインセッションは時々切れるので、切れたらユーザーに再ログインを頼む
+
+## App Store 審査対応（2026-08-08）
+
+- ✅ **v1.0.0 buildNumber 11 が Guideline 5.1.1（プライバシー）で却下**（2026-08-06）。原因: `expo-camera` / `expo-image-picker` の config plugin がデフォルトでマイク権限のプレースホルダー文言 `NSMicrophoneUsageDescription` を自動追加していた（コード上はマイクを一切使っていない。写真撮影は `expo-image-picker` の `launchCameraAsync` のみ）
+- ✅ **修正済み・PR #113 マージ済み**: `app.json` の両プラグインに `microphonePermission: false` を指定してマイク権限自体を削除（iOS: `NSMicrophoneUsageDescription` 削除 / Android: `RECORD_AUDIO` 削除）。カメラ・フォトライブラリの権限文言は元々具体的な日本語だったため無変更
+- ✅ **buildNumber 12 をビルド・submit・審査へ再提出済み（2026-08-08）**。最大48時間で結果通知
+- **submit の手順メモ**: `eas submit --non-interactive` は ASC API Key の初回設定ができないため、`eas.json` の `submit.production.ios` に一時的に `ascApiKeyPath`（`~/Downloads/AuthKey_D9CP6Y4YA3.p8`）/ `ascApiKeyId`（`D9CP6Y4YA3`）/ `ascApiKeyIssuerId` を追記して実行し、**完了後に必ず削除する**（コミットしない）。Issuer ID は App Store Connect の「ユーザーとアクセス → 統合 → App Store Connect API」で確認できる
+- **却下後の再提出フロー**: 配信タブ → 却下された提出物ページ → 右上「審査内容を更新」→ ダイアログで「提出」→ 提出物詳細ページでビルド行にホバーすると出る削除アイコンで**古いビルドを外す** → 「ビルドを追加」で新ビルドを選択 → 「保存」→「審査用に追加」→ 右パネル「審査へ提出」
 
 `/clear` 後の文脈復元用。読み終えたら「次のアクション」から再開する。方針の唯一のソースは `docs/product/direction.md`。
 
@@ -27,13 +29,13 @@
 
 御朱印アプリ（Expo + Supabase）の **Phase 0（iOS 先行リリース）が完了間近**。**v1.0.0 は App Store に提出済みで審査待ち**。ここからは Phase 1（記録体験の磨き込み）と、差別化の本丸である限定御朱印情報の機能に着手するフェーズ。開発は `/build-feature` の自律ループ（契約書 → TDD → 機械検証 → goshuin-evaluator → 人間ゲート → PR）で回す。**人間ゲートは push/PR 直前の1箇所のみ**。
 
-## リリース状況（2026-08-02 時点）
+## リリース状況（2026-08-08 時点）
 
 - **アプリ名: 御朱印さんぽ**（「御朱印コレクション」→「御朱印マップ」と変遷。マップは App Store で登録済みだったため。45競合を調査して決定）
-- **iOS: 審査待ち**。v1.0.0 / buildNumber 11 / ascAppId `6797201465` / Apple Team `292ZWTG3UD`
+- **iOS: 審査中（2回目）**。v1.0.0 / **buildNumber 12** / ascAppId `6797201465` / Apple Team `292ZWTG3UD`。1回目（buildNumber 11）は Guideline 5.1.1 で却下 → マイク権限修正（PR #113）→ 再提出済み。結果は最大48時間後
   - 掲載情報・スクショ6枚・プライバシー申告まで入力完了
   - ASC API Key は `~/Downloads/AuthKey_D9CP6Y4YA3.p8`（**再ダウンロード不可。安全な場所へのバックアップ推奨**）
-  - `eas.json` の submit プロファイルに ascAppId / appleTeamId 設定済み。`ascApiKeyPath` 等は個人パスのためコミットしていない（submit 時に一時的に足す）
+  - `eas.json` の submit プロファイルに ascAppId / appleTeamId 設定済み。`ascApiKeyPath` 等は個人パスのためコミットしていない（submit 時に一時的に足す。手順は上記「App Store 審査対応」参照）
 - **Android: 未着手**。Google Play の本人確認が審査中 + Android 実機での Play Console ログインが未完了
 - **main ブランチ**: develop をマージ済み（PR #101）。GitHub Pages の法務ページも「御朱印さんぽ」に更新済み
 
@@ -57,13 +59,17 @@
 2. **EAS に環境変数が未登録だった**。`eas env:create` で production/preview に8件登録済み
 3. **地図の全国スケールクラッシュは Apple Maps のタイルメモリ起因**とみられ、アプリコード側（マーカー churn・スナップショット機構・無限アニメリーク）は追補1〜3で潰し切った。解禁は P1-07
 
-## 次のアクション（優先順・2026-08-02 にユーザーと合意）
+## 次のアクション（2026-08-08 時点）
 
-1. ~~P1-08 初回体験の改善~~ — **完了**（Issue #102 / PR #103、2026-08-02）
-2. **P2-02 限定御朱印ウォッチャー v2** — 次の最優先。**Instagram Business Discovery API 対応から着手する**（2026-08-02 ユーザー合意、詳細は feature-list P2-02 の note）。狙い: アイテム単位の出典 URL（投稿 permalink）+ timestamp による機械的な鮮度判定。着手手順: (1) ユーザー側の Meta セットアップをガイド（IG ビジネスアカウント作成→プロアカウント切替→FB ページ連携→Meta developer アプリ→トークン。全部無料、30分〜1時間）(2) 契約書作成（トークンは Supabase secrets に保管、username は既存 sns_link の URL から導出、Business/Creator でないアカウントは取得不可→リンク表示のまま等を仕様化）(3) 実装は crawl-spot-sources への source 種別追加として既存パイプラインに乗せる。第2柱の記事単位クロール（公式サイト）は Instagram の後
-3. **P1-03 御朱印帳らしい閲覧UI** — 情緒的な差別化。ただし記録が溜まってから価値が出るため 2 の後で良い
-4. 審査結果が出たら対応（通過 → 手動リリース / リジェクト → 修正・再提出）
-5. Google Play（本人確認の承認後）
+1. ~~P1-08 初回体験の改善~~ — **完了**（Issue #102 / PR #103）
+2. ~~P2-02 限定御朱印ウォッチャー v2（Instagram 第1柱）~~ — **完了・運用投入済み**（Issue #111 / PR #112、2026-08-08）
+3. **cron 再登録**（ユーザー作業・未実施）: `supabase/cron/schedule_crawl_spot_sources.sql` を SQL Editor で実行
+4. **審査結果待ち**（buildNumber 12、最大48時間）。通過 → 手動リリース / リジェクト → 内容確認して対応
+5. 次にやること候補（優先順は未合意・要相談）:
+   - **P2-02 第2柱**: 公式サイトの記事単位クロール
+   - **対象スポットの棚卸し**: 現在29スポットのみ巡回対象。有名どころで未登録のものを洗い出して追加（例: 金蛇水神社が Instagram 運用中なのに未登録と判明）
+   - **P1-03 御朱印帳らしい閲覧UI** — 情緒的な差別化。記録が溜まってから価値が出るため急がなくてよい
+6. Google Play（本人確認の承認後）
 
 ## ユーザー待ちの項目
 
