@@ -25,6 +25,7 @@
 - **S-4**: 選んだ表示を `AsyncStorage` に永続化する（保存ボタンは出さない）
 - **S-5**: めくりページのフッターにスポット名と**和暦**の訪問日を出す（監査 A-2 の部分対応）
 - **S-6**: 覗いている隣のページをタップするとそのページへ送る（スワイプ以外の手段を用意する。アクセシビリティ改善であり、Maestro からページ送りを操作できるようにもなる）
+- **S-7**: **web 専用のプレビュー経路**を足し、Expo Web でめくり表示に到達できるようにする（検証イネーブラ。ユーザー承認済み。詳細は「web 専用プレビュー経路（S-7）」節）
 
 ### スコープ外（実装しないこと）
 
@@ -124,25 +125,28 @@ Hermes の `Intl` は和暦カレンダー（`ja-JP-u-ca-japanese`）のサポ�
 
 #### 新規
 
-| ファイル                                                       | 内容                                             |
-| -------------------------------------------------------------- | ------------------------------------------------ |
-| `src/utils/japaneseEra.ts`                                     | `formatJapaneseEraDate(dateStr: string): string` |
-| `src/utils/__tests__/japaneseEra.test.ts`                      | 上記のテスト（元号境界を含む）                   |
-| `src/hooks/useGalleryViewMode.ts`                              | 表示モードの読み書きと永続化                     |
-| `src/hooks/__tests__/useGalleryViewMode.test.ts`               | 上記のテスト                                     |
-| `src/components/gallery/GoshuinchoFlipView.tsx`                | めくり表示本体（横 FlatList + スナップ）         |
-| `src/components/gallery/GoshuinchoPage.tsx`                    | 1ページ分（御朱印ページ / 白紙ページ）           |
-| `src/components/gallery/ViewModeToggle.tsx`                    | めくり / グリッドの切り替えトグル                |
-| `src/components/gallery/__tests__/GoshuinchoFlipView.test.tsx` | 上記のテスト                                     |
-| `src/components/gallery/__tests__/GoshuinchoPage.test.tsx`     | 上記のテスト                                     |
-| `src/components/gallery/__tests__/ViewModeToggle.test.tsx`     | 上記のテスト                                     |
+| ファイル                                                       | 内容                                                                               |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `src/utils/japaneseEra.ts`                                     | `formatJapaneseEraDate(dateStr: string): string`                                   |
+| `src/utils/__tests__/japaneseEra.test.ts`                      | 上記のテスト（元号境界を含む）                                                     |
+| `src/hooks/useGalleryViewMode.ts`                              | 表示モードの読み書きと永続化                                                       |
+| `src/hooks/__tests__/useGalleryViewMode.test.ts`               | 上記のテスト                                                                       |
+| `src/components/gallery/GoshuinchoFlipView.tsx`                | めくり表示本体（横 FlatList + スナップ）                                           |
+| `src/components/gallery/GoshuinchoPage.tsx`                    | 1ページ分（御朱印ページ / 白紙ページ）                                             |
+| `src/components/gallery/ViewModeToggle.tsx`                    | めくり / グリッドの切り替えトグル                                                  |
+| `src/components/gallery/__tests__/GoshuinchoFlipView.test.tsx` | 上記のテスト                                                                       |
+| `src/components/gallery/__tests__/GoshuinchoPage.test.tsx`     | 上記のテスト                                                                       |
+| `src/components/gallery/__tests__/ViewModeToggle.test.tsx`     | 上記のテスト                                                                       |
+| `src/components/gallery/webPreview.ts`                         | **native / 既定**。`getWebPreviewStamps()` が常に `null` を返すだけのスタブ（S-7） |
+| `src/components/gallery/webPreview.web.ts`                     | **web 専用**。URL に `?preview=goshuincho` があるときだけ fixture を返す（S-7）    |
+| `src/components/gallery/__tests__/webPreview.test.ts`          | 既定スタブが常に `null` を返すことのテスト                                         |
 
 #### 変更
 
-| ファイル                                       | 変更内容                                                                                                                                                                                               |
-| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `src/screens/GalleryScreen.tsx`                | ヘッダーに `ViewModeToggle` を追加。`useGalleryViewMode` でモード分岐。めくりモードでは `GoshuinchoFlipView`、グリッドモードでは既存の `FlatList`。`sort-button` と `empty-state` はグリッドモードのみ |
-| `src/screens/__tests__/GalleryScreen.test.tsx` | 既存のグリッド系ケースに「グリッドへ切り替える」1行を前置き。めくりモードのケースを追加。**既存アサーションの内容は変更しない**                                                                        |
+| ファイル                                       | 変更内容                                                                                                                                                                                                                                                                    |
+| ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/screens/GalleryScreen.tsx`                | ヘッダーに `ViewModeToggle` を追加。`useGalleryViewMode` でモード分岐。めくりモードでは `GoshuinchoFlipView`、グリッドモードでは既存の `FlatList`。`sort-button` と `empty-state` はグリッドモードのみ。`getWebPreviewStamps()` が非 null のときは認証分岐を迂回する（S-7） |
+| `src/screens/__tests__/GalleryScreen.test.tsx` | 既存のグリッド系ケースに「グリッドへ切り替える」1行を前置き。めくりモードのケースを追加。**既存アサーションの内容は変更しない**                                                                                                                                             |
 
 #### 変更しないファイル
 
@@ -307,39 +311,88 @@ export function useGalleryViewMode(): {
 ### `GalleryScreen` の構造
 
 ```tsx
+const previewStamps = getWebPreviewStamps();          // native では常に null
+const isPreview = previewStamps !== null;
+const displayStamps = previewStamps ?? stamps;         // 以降の描画はすべてこちらを使う
+const showsGallery = isAuthenticated || isPreview;
+
 <View style={styles.rootContainer}>
   <SafeAreaView edges={['top']}>
     <View style={styles.header}>
       <Text style={styles.headerTitle}>御朱印</Text>
-      {isAuthenticated && <ViewModeToggle mode={viewMode} onChange={setViewMode} />}
+      {showsGallery && <ViewModeToggle mode={viewMode} onChange={setViewMode} />}
     </View>
 
-    {isAuthenticated && viewMode === 'grid' && (
+    {showsGallery && viewMode === 'grid' && (
       <View style={styles.sortRow}>{/* 既存の sort-button */}</View>
     )}
 
-    {!isAuthenticated ? (
+    {!showsGallery ? (
       /* 既存のゲスト空状態（無変更） */
-    ) : isLoading ? (
+    ) : isLoading && !isPreview ? (
       /* 既存の loading-indicator（無変更） */
     ) : viewMode === 'flip' ? (
       <GoshuinchoFlipView
-        stamps={stamps}
+        stamps={displayStamps}
+        resolveImageUrl={isPreview ? previewImageUrl : undefined}
         onPressStamp={index => setSelectedImageIndex(index)}
         onPressBlank={() => navigation.navigate('Record')}
       />
-    ) : stamps.length === 0 ? (
+    ) : displayStamps.length === 0 ? (
       /* 既存の empty-state（無変更） */
     ) : (
-      /* 既存の FlatList（無変更） */
+      /* 既存の FlatList（無変更。data は displayStamps） */
     )}
     {/* EditStampModal / DeleteConfirmModal は無変更 */}
   </SafeAreaView>
-  <ImageGalleryModal ... />   {/* 無変更 */}
+  <ImageGalleryModal ... />   {/* galleryImages は displayStamps から作る */}
 </View>
 ```
 
-**`onPressStamp` に渡すインデックスの注意**: `ImageGalleryModal` と `EditStampModal` / `DeleteConfirmModal` は `stamps`（**降順**）のインデックスで動く。めくり表示は昇順に反転しているので、`GoshuinchoFlipView` は**元の `stamps` 配列でのインデックス**を親に渡すこと。反転はあくまで表示順の話で、外に漏らさない。
+**`onPressStamp` に渡すインデックスの注意**: `ImageGalleryModal` と `EditStampModal` / `DeleteConfirmModal` は `displayStamps`（**降順**）のインデックスで動く。めくり表示は昇順に反転しているので、`GoshuinchoFlipView` は**元の配列でのインデックス**を親に渡すこと。反転はあくまで表示順の話で、外に漏らさない。
+
+---
+
+### web 専用プレビュー経路（S-7）
+
+Expo Web は Google / Apple のネイティブサインインしか経路が無くログイン済み状態に到達できない（`src/services/auth.ts` にメール+パスワードが無い）。めくり表示はログイン後の画面にしか無いため、**このままでは Evaluator が W 群をほぼ全滅で SKIP する**。ユーザー承認のもと、web 専用のプレビュー経路を足して到達性を回復する（Issue #114 の S-7「web スタブに no-op API を生やす」と同じ位置づけの検証イネーブラ）。
+
+**仕組み**: Metro のプラットフォーム拡張子解決（`.web.ts` が web ビルドでのみ優先される。**`metro.config.js` の変更は不要**）を使う。
+
+```ts
+// src/components/gallery/webPreview.ts        ← native / 既定
+export function getWebPreviewStamps(): StampWithSpot[] | null {
+  return null;
+}
+export function previewImageUrl(_stamp: StampWithSpot): string {
+  return '';
+}
+```
+
+```ts
+// src/components/gallery/webPreview.web.ts    ← web ビルドでのみ解決される
+export const WEB_PREVIEW_QUERY = 'preview=goshuincho';
+export function getWebPreviewStamps(): StampWithSpot[] | null {
+  if (typeof window === 'undefined') return null;
+  if (!window.location.search.includes(WEB_PREVIEW_QUERY)) return null;
+  return PREVIEW_STAMPS; // 固定 fixture（3件・visited_at は元号境界を含む）
+}
+export function previewImageUrl(stamp: StampWithSpot): string {
+  return `data:image/svg+xml;utf8,...`; // ネットワークに出ない inline SVG
+}
+```
+
+- **到達 URL**: `http://localhost:8081/?preview=goshuincho`
+- native では `webPreview.ts` が解決され `getWebPreviewStamps()` は常に `null`。**fixture データも SVG もネイティブのバンドルに入らない**
+- fixture は3件。`visited_at` に `2026-05-03` / `2019-05-01` / `1989-01-08` を含め、和暦の元号境界を目視で確認できるようにする
+- 画像は inline SVG の data URI。Supabase にも外部ネットワークにも出ない（オフラインでも検証が成立する）
+- `GoshuinchoFlipView` は `resolveImageUrl?: (stamp: StampWithSpot) => string` を任意で受け取り、未指定なら `getStampImageUrl` を使う。プレビューのためだけの分岐を本体に持たせない
+
+**この経路が本番に与える影響**:
+
+- ナビゲーションには一切載せない。URL にクエリを手で付けたときだけ有効
+- native ビルドでは分岐が常に false になる dead code
+- web の通常アクセス（クエリなし）は現状どおりゲスト空状態
 
 ---
 
@@ -419,6 +472,8 @@ export function formatJapaneseEraDate(dateStr: string): string;
 **A-38**: `visited_at` が解析不能なスタンプでは `flip-page-date-<id>` を描画しない（スポット名は描画する）
 **A-39**: グリッドモードの既存挙動（ソート切替・アイテムタップでモーダル・日付表示の有無）が既存テストのアサーションのまま通る
 **A-40**: 新規3コンポーネント・2 hooks/utils すべてに対応するテストファイルが存在する
+**A-41**: 既定の `webPreview.ts`（native / Jest で解決される側）の `getWebPreviewStamps()` が常に `null` を返す
+**A-42**: `GoshuinchoFlipView` は `resolveImageUrl` が渡されたときそれを使い、渡されないときは `getStampImageUrl` を使う
 
 ### UI. 視覚仕様（`StyleSheet.flatten` で検証）
 
@@ -441,32 +496,39 @@ export function formatJapaneseEraDate(dateStr: string): string;
 
 `npx expo start --web --port 8081` → 御朱印タブ。
 
-⚠️ **この issue の Web 検証は未ログイン状態しか通せない**。認証は Google / Apple のネイティブサインインのみで（`src/services/auth.ts` にメール+パスワードの経路が無い）、Expo Web からログイン済み状態に到達する手段が現状ゼロ。**めくり表示の中身は未ログインでは1画素も描画されない**ため、Issue #114 のときのような「web スタブを足せば到達できる」形の解決策がそのままは効かない。
+Expo Web はログイン済み状態に到達できないため、**S-7 の web 専用プレビュー経路**で検証する。到達 URL は `http://localhost:8081/?preview=goshuincho`（御朱印タブへ移動）。クエリなしの通常アクセスは未ログインのままなので、両方を確認する。
 
-→ したがって W 群はログイン不要のものだけに絞り、**ログインを要する操作検証は N 群（実機）に移した**。この穴の埋め方は「未解決事項」節を参照。めくりのタップ・スクロール・カウンタのロジック自体は A 群（Jest・コンポーネント単位）で全数カバーしているため、機械検証の網は空いていない。
+スワイプとスナップ物理、実データ、アプリ再起動をまたぐ永続化だけは Web で確認できないため N 群に残す。
 
-**W-1**: 未ログインで御朱印タブを開くと `gallery-guest-empty-state` が表示される
-**W-2**: 未ログインでは表示切り替えトグル（`view-mode-toggle`）が**出ていない**
-**W-3**: 未ログインでは `flip-list` も `gallery-list` も描画されていない
-**W-4**: 御朱印タブでコンソールに新規のエラー・警告が出ていない（`VirtualizedList` の警告を含む）
+**W-1**: クエリなしでアクセスすると、御朱印タブに `gallery-guest-empty-state` が表示される
+**W-2**: クエリなしでは表示切り替えトグル（`view-mode-toggle`）が**出ていない**
+**W-3**: クエリなしでは `flip-list` も `gallery-list` も描画されていない
+**W-4**: `?preview=goshuincho` 付きでアクセスすると、御朱印タブがめくり表示になり、中央に1枚・左右に隣のページが覗いている
+**W-5**: 覗いている**右**のページをクリックすると、そのページが中央に来る
+**W-6**: 覗いている**左**のページをクリックすると、そのページが中央に来る
+**W-7**: ページを送るとフッターのスポット名・和暦日付・ページ番号がそのページのものに入れ替わる
+**W-8**: fixture の `2026-05-03` のページに `令和8年5月3日`、`2019-05-01` のページに `令和元年5月1日`、`1989-01-08` のページに `平成元年1月8日` と表示される（元号境界の目視確認）
+**W-9**: 最後まで送ると白紙ページが現れ、カメラアイコンと「ここに御朱印を追加する」が中央に出る
+**W-10**: 白紙ページのページ番号が `4枚目`（fixture 3件 + 白紙）と表示される
+**W-11**: 中央の白紙ページをクリックすると記録画面に遷移する
+**W-12**: 中央の御朱印ページをクリックすると御朱印が全画面で開く
+**W-13**: 覗いている隣のページをクリックしても全画面は開かず、ページが送られるだけである
+**W-14**: グリッドアイコンを押すと3列グリッドに切り替わり、ソートボタンが現れる
+**W-15**: めくりアイコンに戻すとソートボタンが消える
+**W-16**: グリッドに切り替えてページをリロードしてもグリッドのままである（`AsyncStorage` 永続化の目視確認）
+**W-17**: コンソールに新規のエラー・警告が出ていない（`VirtualizedList` の警告を含む）
+**W-18**: プレビューの画像が data URI で描画されており、Supabase や外部ホストへの画像リクエストが発生していない（Network タブ）
 
 ### N. native-only（実機 / Maestro）
 
-**N-1**: **native-only（実機）** ログイン済みで御朱印タブを開くとめくり表示になっており、中央に1枚、左右に隣のページが覗いている
+**N-1**: **native-only（実機）** ログイン済みで御朱印タブを開くとめくり表示になっており、実データの御朱印が中央に1枚・左右に隣が覗いている
 **N-2**: **native-only（実機）** 横スワイプでページが1枚ずつ送られ、途中で止めても中央にスナップする
 **N-3**: **native-only（実機）** 勢いよくスワイプしても2枚以上飛ばない（`snapToInterval` + `decelerationRate="fast"` が効いている）
-**N-4**: **native-only（実機）** 覗いている**右**のページをタップすると、そのページが中央に来る
-**N-5**: **native-only（実機）** 覗いている**左**のページをタップすると、そのページが中央に来る
-**N-6**: **native-only（実機）** ページを送るとフッターのスポット名・和暦日付・ページ番号がそのページのものに入れ替わる
-**N-7**: **native-only（実機）** 和暦の表記が実データで正しい（例: 2026年5月3日の記録が `令和8年5月3日` と出る）
-**N-8**: **native-only（実機）** 最後まで送ると白紙ページが現れ、カメラアイコンと「ここに御朱印を追加する」が中央に出る
-**N-9**: **native-only（実機）** 中央の白紙ページをタップすると記録画面に遷移する
-**N-10**: **native-only（実機）** 白紙ページから記録画面に入り、保存後に御朱印タブへ戻ると、その御朱印が末尾（白紙の1つ手前）に増えている
-**N-11**: **native-only（実機）** めくり表示で中央のページをタップすると御朱印が全画面で開く
-**N-12**: **native-only（実機）** グリッドアイコンを押すと3列グリッドに切り替わりソートボタンが現れる。めくりに戻すとソートボタンが消える
-**N-13**: **native-only（実機）** グリッドに切り替えてアプリを完全終了 → 再起動しても、御朱印タブがグリッドで開く
-**N-14**: **native-only（実機・iPhone SE 相当の小型端末）** ページ全体が縦に収まり、フッターとページ番号がタブバーに隠れない（**Issue #114 の W-3 と同じ罠。シートではないが下端に要素がある**）
-**N-15**: **native-only（実機）** 御朱印が30枚以上あるアカウントでめくり表示をスクロールしても、体感の引っかかりが無い
+**N-4**: **native-only（実機）** 白紙ページから記録画面に入り、保存後に御朱印タブへ戻ると、その御朱印が末尾（白紙の1つ手前）に増えている
+**N-5**: **native-only（実機）** グリッドに切り替えてアプリを完全終了 → 再起動しても、御朱印タブがグリッドで開く
+**N-6**: **native-only（実機・iPhone SE 相当の小型端末）** ページ全体が縦に収まり、フッターとページ番号がタブバーに隠れない（**Issue #114 の W-3 と同じ罠。シートではないが下端に要素がある**）
+**N-7**: **native-only（実機）** 御朱印が30枚以上あるアカウントでめくり表示をスクロールしても、体感の引っかかりが無い
+**N-8**: **native-only（実機）** URL クエリという概念が無いネイティブで、プレビュー経路がどこからも到達できない（御朱印タブの表示が実データのみである）
 
 ### Q. 品質基準
 
@@ -477,15 +539,15 @@ export function formatJapaneseEraDate(dateStr: string): string;
 **Q-5**: `git diff --stat` に「変更しないファイル」節に挙げたファイルの変更が含まれない（新規ファイルの追加は逸脱ではない）
 **Q-6**: `package.json` / `package-lock.json` に差分が無い（新規ライブラリを入れていない）
 
-**受入基準の合計: 79 項目**
+**受入基準の合計: 88 項目**
 
-| 群                                   | 件数 | 検証手段                            |
-| ------------------------------------ | ---- | ----------------------------------- |
-| A-1〜A-40（機能）                    | 40   | Jest                                |
-| UI-1〜UI-14（視覚仕様）              | 14   | Jest（`StyleSheet.flatten` / grep） |
-| W-1〜W-4（Expo Web・未ログインのみ） | 4    | Expo Web 目視・Playwright           |
-| N-1〜N-15（ネイティブ動線）          | 15   | native-only（実機 / Maestro）       |
-| Q-1〜Q-6（品質）                     | 6    | コマンド実行                        |
+| 群                         | 件数 | 検証手段                                          |
+| -------------------------- | ---- | ------------------------------------------------- |
+| A-1〜A-42（機能）          | 42   | Jest                                              |
+| UI-1〜UI-14（視覚仕様）    | 14   | Jest（`StyleSheet.flatten` / grep）               |
+| W-1〜W-18（Expo Web）      | 18   | Expo Web 目視・Playwright（S-7 のプレビュー経路） |
+| N-1〜N-8（ネイティブ動線） | 8    | native-only（実機 / Maestro）                     |
+| Q-1〜Q-6（品質）           | 6    | コマンド実行                                      |
 
 ---
 
@@ -512,19 +574,16 @@ export function formatJapaneseEraDate(dateStr: string): string;
 | B-2（記録の入口が地図のみ） | **解決**。白紙ページが御朱印タブからの記録入口になる                                       |
 | B-4（表示の一覧性）         | めくりとグリッドの併存で対処。既定はめくり                                                 |
 
-### 未解決事項（実装セッションの冒頭でユーザーと決めること）
+### 決着済みの論点: Expo Web の到達性
 
-**Expo Web にログイン済み状態が無い**。この issue の見どころ（めくり・タップ送り・白紙ページ・トグル）はすべてログイン後の画面にあり、Web では1画素も描画できない。結果として **Evaluator が自力で見られるのは W 群4件だけ**で、N 群15件はユーザーの実機確認に全面的に依存する。Issue #114 は「web スタブに no-op API を生やす」で到達性を回復できたが、今回は認証そのものが壁なので同じ手が使えない。
+Expo Web にログイン済み状態が無い（認証が Google / Apple のネイティブサインインのみ）ため、当初は W 群4件・N 群15件という配分だった。**ユーザー判断で「web 専用のプレビュー経路を足す」案を採用**（2026-08-09）。これにより W 群18件・N 群8件となり、Evaluator が自力で見られる範囲が大きく広がった。設計は「web 専用プレビュー経路（S-7）」節を参照。
 
-埋め方の候補（**どれもまだ採用していない。契約書のスコープにも入っていない**）:
+採用しなかった案:
 
-| 案                                      | 内容                                                                                                                              | 懸念                                                                               |
-| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| ① 何もしない                            | N 群15件を実機確認で通す。#114 と同じ運用                                                                                         | ユーザーの手作業が15項目に増える。#114 は10項目だった                              |
-| ② Web 専用のプレビュー経路              | `GoshuinchoFlipView` を固定の fixture props で描画するだけの web 専用エントリを足す（#114 の S-7 と同じ「検証イネーブラ」の発想） | 本番コードに検証専用の経路が増える。ナビゲーションには載せない前提なら影響は限定的 |
-| ③ メール+パスワードのテスト用サインイン | Supabase ダッシュボードでテストユーザーを作り、`signInWithPassword` の経路を足す                                                  | 認証まわりに恒久的な面が増える。この issue のスコープから明らかに外れる            |
-
-**推奨は②**。ただし「本番コードに検証専用の経路を足すか」はユーザー判断なので、実装に入る前に確認する。①を選ぶ場合は、N 群15件の実機チェックリストをゲートでそのまま提示する。
+| 案                                      | 内容                                                              | 見送りの理由                                                            |
+| --------------------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| ① 何もしない                            | N 群15件を実機確認で通す                                          | ユーザーの手作業が15項目に増える（#114 は10項目だった）                 |
+| ③ メール+パスワードのテスト用サインイン | Supabase にテストユーザーを作り `signInWithPassword` の経路を足す | 認証まわりに恒久的な面が増える。この issue のスコープから明らかに外れる |
 
 ### 人間ゲート前に確認すること
 
@@ -537,6 +596,7 @@ Issue #116 の本文に明記が無く、契約書側で決めた判断。push /
 3. **スタンプ0件でもめくりモードでは白紙ページを出す（`empty-state` を出さない）** — 初日から御朱印タブが記録の入口になる。既存の空状態メッセージはグリッドモードにのみ残る
 4. **ソートボタンをグリッドモード限定にする** — 帳面の並びは1つ（古い順）という前提
 5. **既存 `GalleryScreen.test.tsx` のグリッド系ケースに1行足す** — 既定モードが変わるため。アサーション本体は無変更
+6. **web 専用プレビュー経路（S-7）** — 検証イネーブラ。**ユーザーが事前に承認済み**（2026-08-09、①③との比較のうえで②を選択）。`GalleryScreen` に `getWebPreviewStamps()` の分岐が1つ入るが、native では `.web.ts` が解決されないため常に `null` で dead code になる。ナビゲーションには載せず、URL に `?preview=goshuincho` を手で付けたときだけ有効
 
 **Tier B — 契約書の記述と食い違うもの**
 
