@@ -317,7 +317,7 @@ export function CollectionScreen({ navigation }: Props) {
         <Text style={styles.sectionTitle}>行きたいリスト</Text>
         {wishlistSpots.length === 0 ? (
           <Card style={styles.wishlistEmptyCard}>
-            <MaterialIcons name="outlined-flag" size={40} color={colors.gray[300]} />
+            <MaterialIcons name="bookmark-border" size={40} color={colors.gray[300]} />
             <Text style={styles.wishlistEmptyText}>行きたいスポットをマップで保存しましょう</Text>
           </Card>
         ) : (

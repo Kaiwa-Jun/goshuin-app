@@ -45,19 +45,20 @@ export const WishlistButton: React.FC<WishlistButtonProps> = ({
       onPress={handlePress}
       activeOpacity={0.7}
       testID="wishlist-button"
+      style={styles.touchable}
       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
     >
       <Animated.View style={[styles.container, { transform: [{ scale }] }]}>
         {isWishlisted ? (
           <MaterialIcons
-            name="flag"
+            name="bookmark"
             size={size}
-            color={colors.primary[500]}
+            color={colors.pin.wishlisted}
             testID="wishlist-button-active"
           />
         ) : (
           <MaterialIcons
-            name="outlined-flag"
+            name="bookmark-border"
             size={size}
             color={colors.gray[400]}
             testID="wishlist-button-inactive"
@@ -69,6 +70,13 @@ export const WishlistButton: React.FC<WishlistButtonProps> = ({
 };
 
 const styles = StyleSheet.create({
+  // アイコン単体では実効タップ領域が 40pt に留まるため 44pt を明示的に確保する
+  touchable: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   container: {
     alignItems: 'center',
     justifyContent: 'center',
