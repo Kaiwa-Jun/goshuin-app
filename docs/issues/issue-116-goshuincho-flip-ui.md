@@ -19,7 +19,7 @@
 
 ### やること
 
-- **S-1**: めくり表示（横スワイプ・1枚大きく・左右が覗く）を追加する
+- **S-1**: めくり表示（横スワイプ・1枚大きく・左右が覗く）を追加する。**紙が地続きで蛇腹に折られている**ように見せる（後述「蛇腹の折り（S-1）」節）
 - **S-2**: 最後の御朱印の次に白紙ページを1枚置き、タップで記録画面へ遷移させる
 - **S-3**: めくり / グリッドの表示切り替えトグルをヘッダー右上に置く
 - **S-4**: 選んだ表示を `AsyncStorage` に永続化する（保存ボタンは出さない）
@@ -35,7 +35,7 @@
 - 和暦表示の他画面への展開（記録画面 `RecordScreen:52` 等）。本 issue は**めくりページのフッターのみ**
 - 最後に読んだページの記憶。めくり表示は常に1ページ目から始める
 - グリッド表示自体の変更（列数・ソート・タップ時の挙動）
-- ページめくりの3D アニメーション（紙がめくれる表現）。横スナップのみ
+- ページが紙のように**たわむ / カールする**表現。折り（平面のまま角度が付く）までとする
 
 ---
 
@@ -235,6 +235,29 @@ export function computePageLayout(screenWidth: number): {
 ```
 
 `getItemLayout` は `scrollToIndex`（S-6 の隣ページタップ）を確実に効かせるために必須。
+
+---
+
+### 蛇腹の折り（S-1）
+
+実物の御朱印帳は1枚ずつ独立した紙ではなく、**地続きの紙が蛇腹に折られている**。カードが横に流れる見え方ではなく、**折り畳まれながらページが進む**ように見せる（ユーザー指定・2026-08-09）。
+
+- **ページ間の余白を 0 にする**（`PAGE_GAP = 0`）。隣り合うページは折り目で接する
+- スクロール量（`Animated.Value`）に**連動して連続的に**折り角と影を動かす。離散的な切り替えにしない
+- 中央のページは正対（`rotateY: 0deg`）。前後のページは折り目を軸に**外側の辺が奥へ倒れる**
+- 倒れて縮んで見える分（`(w/2)(1 - cosθ)`）を平行移動で詰め、**折り目で接したまま**にする（`computeFoldShift`）
+- 折れたページには影を重ねて奥行きを出す。`GoshuinchoPage` 側の平坦な減衰（`PEEK_OPACITY`）は控えめにし、奥行きは折りと影で表現する
+- 中央のページが必ず手前に描画されるよう `zIndex` を距離で決める（折りだけでは描画順が変わらず、隣が中央に被る）
+
+`GoshuinchoFlipView.tsx` で以下を **export** する:
+
+```ts
+export const FOLD_ANGLE_DEG = 48; // 中央から1ページ離れたページの折れ角
+export const FOLD_SHADE_OPACITY = 0.16; // 折れたページに乗る影の濃さ
+export function computeFoldShift(pageWidth: number, angleDeg?: number): number;
+```
+
+実装は React Native 標準の `Animated`（`Animated.FlatList` + `Animated.event` + `interpolate`）で行う。**新規ライブラリは追加しない**（`react-native-reanimated` は未導入のまま）。
 
 ---
 
@@ -491,6 +514,10 @@ export function formatJapaneseEraDate(dateStr: string): string;
 **A-41**: 既定の `webPreview.ts`（native / Jest で解決される側）の `getWebPreviewStamps()` が常に `null` を返す
 **A-42**: `GoshuinchoFlipView` は `resolveImageUrl` が渡されたときそれを使い、渡されないときは `getStampImageUrl` を使う
 **A-43**: `flip-list` の `inverted` が `true` である（右綴じ。1ページ目が右端）
+**A-44**: `PAGE_GAP` が `0` である（ページが折り目で接する）
+**A-45**: `computeFoldShift(292, 48)` が `(292 / 2) * (1 - Math.cos(48 * Math.PI / 180))` と一致する
+**A-46**: `computeFoldShift` は角度 0 のとき 0 を返す（折れていなければ詰めない）
+**A-47**: `flip-list` の `onScroll` が設定されている（折りをスクロール量に連動させるため）
 
 ### UI. 視覚仕様（`StyleSheet.flatten` で検証）
 
@@ -507,6 +534,7 @@ export function formatJapaneseEraDate(dateStr: string): string;
 **UI-11**: `ViewModeToggle` の各ボタンの `minHeight` と `minWidth` が 44 以上
 **UI-12**: `GoshuinchoFlipView` の背景が `colors.surface`（帳面の外の地色）
 **UI-13**: 御朱印画像の `resizeMode` が `'contain'`（御朱印の縦横比を潰さない）
+**UI-15**: 中央ではないページに折りの影（`FOLD_SHADE_OPACITY`）が重なる要素が存在する
 **UI-14**: `src/components/gallery/` 配下と `src/hooks/useGalleryViewMode.ts` の `StyleSheet.create` 内に、色の直値（`#` で始まる文字列リテラル）と、`spacing` / `borderRadius` / `typography` を経由しないサイズ数値リテラルが無い（`borderWidth: 1`、`flex: 1`、`opacity`、`minHeight: 44`、`minWidth: 44`、`aspectRatio`、`numberOfLines`、`computePageLayout` の算出値は除く）
 
 ### W. Expo Web での目視・操作検証
@@ -521,6 +549,7 @@ Expo Web はログイン済み状態に到達できないため、**S-7 の web 
 **W-2**: クエリなしでは表示切り替えトグル（`view-mode-toggle`）が**出ていない**
 **W-3**: クエリなしでは `flip-list` も `gallery-list` も描画されていない
 **W-4**: `?preview=goshuincho` 付きでアクセスすると、御朱印タブがめくり表示になり、中央に1枚・隣のページが覗いている。**初期表示は1ページ目（最も古い御朱印）で、隣は左にだけ覗く**（右綴じ）
+**W-4b**: 中央のページは正対し、隣のページは折り目から奥へ倒れて見える（蛇腹。中央のページに被らない）
 **W-5**: 覗いている**左**のページ（次のページ）をクリックすると、そのページが中央に来る
 **W-6**: そこから覗いている**右**のページ（前のページ）をクリックすると、元のページに戻る
 **W-7**: ページを送るとフッターのスポット名・和暦日付・ページ番号がそのページのものに入れ替わる
@@ -556,7 +585,7 @@ Expo Web はログイン済み状態に到達できないため、**S-7 の web 
 **Q-5**: `git diff --stat` に「変更しないファイル」節に挙げたファイルの変更が含まれない（新規ファイルの追加は逸脱ではない）
 **Q-6**: `package.json` / `package-lock.json` に差分が無い（新規ライブラリを入れていない）
 
-**受入基準の合計: 89 項目**
+**受入基準の合計: 95 項目**
 
 | 群                         | 件数 | 検証手段                                          |
 | -------------------------- | ---- | ------------------------------------------------- |
@@ -616,8 +645,13 @@ Issue #116 の本文に明記が無く、契約書側で決めた判断。push /
 5. **既存 `GalleryScreen.test.tsx` のグリッド系ケースに1行足す** — 既定モードが変わるため。アサーション本体は無変更
 6. **web 専用プレビュー経路（S-7）** — 検証イネーブラ。**ユーザーが事前に承認済み**（2026-08-09、①③との比較のうえで②を選択）。`GalleryScreen` に `getWebPreviewStamps()` の分岐が1つ入るが、native では `.web.ts` が解決されないため常に `null` で dead code になる。ナビゲーションには載せず、URL に `?preview=goshuincho` を手で付けたときだけ有効
 
+**既知の問題（本 issue では直さない）**
+
+- **`ImageGalleryModal` がレンダー中に `Animated.Value.setValue()` を呼んでいる**（`src/components/common/ImageGalleryModal.tsx:79-88`。「1フレームのちらつきを避けるため意図的にレンダー中に置いた」というコメント付きの既存実装）。React が `Cannot update a component while rendering a different component` を出す。**本 issue の変更が原因ではない**が、S-7 のプレビュー経路で初めて Web からモーダルに到達できるようになったため表面化した。同ファイルは契約書の「変更しないファイル」なので触っていない。**別 issue で対応する**
+
 **Tier B — 契約書の記述と食い違うもの**
 
 1. **`src/navigation/__tests__/TabNavigator.test.tsx` を3行変更した** — 契約書の「変更しないファイル」に `src/navigation/` 配下すべてを挙げていたが、この統合テストがグリッド専用の `gallery-list` を assert しており、既定モードをめくりにした時点で必ず落ちる。テストの意図（ログイン済みなら御朱印タブが普通に開く）を保ったまま `flip-list` に差し替えた。**Q-5 のスコープ検査はこの1ファイルだけ意図的な逸脱として扱う**
 2. **`useGalleryViewMode` から `isHydrated` を落とした** — 契約書の設計節では返り値に含めていたが、どの受入基準も参照しておらず `GalleryScreen` も使っていない。一方でこれを state に持つと、マウントのたびに必ず state 更新が走り、この hook を使う画面テスト全体に `act()` 警告を撒くことになる。読み出し結果が既定値と同じ / 不正 / 未設定のときは `setState` しない実装に変え、返り値は `{ viewMode, setViewMode }` の2つにした
-3. **調査結果 3 の検証手段が誤っていた** — `fireEvent.scroll` は `onScroll` にしか届かず `onMomentumScrollEnd` を発火しない。`fireEvent(list, 'momentumScrollEnd', …)` と、`layoutMeasurement` / `contentSize` の同梱が要る。契約書側を訂正済み（実装は変えていない）
+3. **`PEEK_OPACITY` を 0.45 → 0.9 に緩めた** — 蛇腹の折り（S-1）を入れたことで、奥行きは `rotateY` と影が担うようになった。平坦な減衰を強く残すと紙が透けて見える。UI-4 / UI-5 は export した定数と比較しているため基準自体は変わっていない
+4. **調査結果 3 の検証手段が誤っていた** — `fireEvent.scroll` は `onScroll` にしか届かず `onMomentumScrollEnd` を発火しない。`fireEvent(list, 'momentumScrollEnd', …)` と、`layoutMeasurement` / `contentSize` の同梱が要る。契約書側を訂正済み（実装は変えていない）

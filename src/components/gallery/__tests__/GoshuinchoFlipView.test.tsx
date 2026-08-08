@@ -4,8 +4,10 @@ import { StyleSheet, Dimensions } from 'react-native';
 import {
   GoshuinchoFlipView,
   computePageLayout,
+  computeFoldShift,
   PAGE_WIDTH_RATIO,
   PAGE_GAP,
+  FOLD_ANGLE_DEG,
 } from '@components/gallery/GoshuinchoFlipView';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
@@ -83,7 +85,7 @@ function scrollTo(
 
 describe('computePageLayout', () => {
   it('390pt 幅で期待どおりの値を返す', () => {
-    expect(computePageLayout(390)).toEqual({ pageWidth: 265, sidePadding: 63, snapInterval: 277 });
+    expect(computePageLayout(390)).toEqual({ pageWidth: 265, sidePadding: 63, snapInterval: 265 });
   });
 
   it('snapInterval は常に pageWidth + PAGE_GAP に一致する', () => {
@@ -95,6 +97,25 @@ describe('computePageLayout', () => {
 
   it('pageWidth は画面幅 × PAGE_WIDTH_RATIO を丸めた値である', () => {
     expect(computePageLayout(428).pageWidth).toBe(Math.round(428 * PAGE_WIDTH_RATIO));
+  });
+
+  it('ページ間に余白を入れない（折り目で接する）', () => {
+    expect(PAGE_GAP).toBe(0);
+  });
+});
+
+describe('computeFoldShift', () => {
+  it('折れて縮んだ分を詰める量を返す', () => {
+    const expected = (292 / 2) * (1 - Math.cos((48 * Math.PI) / 180));
+    expect(computeFoldShift(292, 48)).toBeCloseTo(expected, 6);
+  });
+
+  it('折れていなければ詰めない', () => {
+    expect(computeFoldShift(292, 0)).toBe(0);
+  });
+
+  it('既定の折れ角を使う', () => {
+    expect(computeFoldShift(292)).toBe(computeFoldShift(292, FOLD_ANGLE_DEG));
   });
 });
 
@@ -240,6 +261,11 @@ describe('GoshuinchoFlipView', () => {
         offset: LAYOUT.snapInterval * 2,
         index: 2,
       });
+    });
+
+    it('折りをスクロール量に連動させるため onScroll を持つ', () => {
+      const { getByTestId } = renderFlipView();
+      expect(getByTestId('flip-list').props.onScroll).toBeDefined();
     });
 
     it('中央寄せのために左右へパディングを入れる', () => {

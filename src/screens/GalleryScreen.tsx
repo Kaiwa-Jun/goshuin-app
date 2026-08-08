@@ -65,8 +65,10 @@ export function GalleryScreen({ navigation }: Props) {
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
 
   const currentStamp = selectedImageIndex !== null ? displayStamps[selectedImageIndex] : null;
+  // プレビューの ID は DB に無いので、そのまま渡すと 404 相当の 400 を叩き続ける。
+  // 検証用の経路が本番には無いエラーを生まないよう、ここでは問い合わせない
   const { isUpdating, isDeleting, handleUpdate, handleDelete } = useStampDetail(
-    currentStamp?.id ?? ''
+    isPreview ? '' : (currentStamp?.id ?? '')
   );
 
   const sortLabel = sortOrder === 'date' ? '日付順' : 'スポット順';

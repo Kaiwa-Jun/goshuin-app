@@ -6,8 +6,13 @@ import { typography } from '@theme/typography';
 import { spacing, borderRadius } from '@theme/spacing';
 import { formatJapaneseEraDate } from '@utils/japaneseEra';
 
-/** 覗いている（中央ではない）ページの不透明度 */
-export const PEEK_OPACITY = 0.45;
+/**
+ * 覗いている（中央ではない）ページの不透明度。
+ *
+ * 奥行きの表現は GoshuinchoFlipView 側の折り（rotateY）と影が担うので、
+ * ここでの減衰は控えめにする。強く落とすと紙が透けて見えてしまう。
+ */
+export const PEEK_OPACITY = 0.9;
 
 /** 高さ / 幅。縦長の帳面に見えるようにする */
 export const PAGE_ASPECT_RATIO = 1.5;
