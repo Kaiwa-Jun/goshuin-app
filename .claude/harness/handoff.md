@@ -2,18 +2,19 @@
 
 ## ▶ 再開したらここから（2026-08-09 時点）
 
-**Issue #114 は完了（PR #115 マージ済み・issue クローズ済み・台帳更新済み）。次は P1-03（御朱印帳のめくり UI）の契約書作成から。**
+**Issue #114 は完了（PR #115 マージ済み）。P1-03 は Issue #116 を起票し契約書まで完成。次は実装（TDD）から。**
 
-- develop は最新。作業ツリーはクリーン
-- P1-03 の仕様はユーザーと合意済み（下記「画面構成（IA）の決定」節が唯一のソース）。モック `docs/design/mockups/ia-options.html`
-- **次にやること**: P1-03 の Issue 起票 → 契約書 `docs/issues/issue-XXX-goshuincho-flip-ui.md` 作成 → `/build-feature` の自律ループ（TDD → 機械検証 → goshuin-evaluator → 人間ゲート → PR）
+- develop は最新・作業ツリーはクリーン。**ブランチはまだ作っていない**
+- 契約書: **`docs/issues/issue-116-goshuincho-flip-ui.md`**（受入基準 79 項目。develop にコミット済み）
+- **次にやること**: `feature/issue-116-goshuincho-flip-ui` を切って `/build-feature` の Step 2 から（TDD → 機械検証 → goshuin-evaluator → 人間ゲート → PR）
 
-**P1-03 で決まっていること（詳細は「画面構成（IA）の決定」節）**:
+**P1-03 のスコープ（ユーザー承認済み・2026-08-09）**: モック画面②めくり・③白紙が記録入口・④グリッド切り替えの3つだけ。**①帳面一覧は入れない**。
 
-- めくり UI = 1枚を大きく表示し、左右に隣のページが覗く形。横スワイプで送る。白紙ページ＝記録ボタン
-- グリッド表示との切り替えボタンを併設し、選択を `AsyncStorage` で永続化（`useOnboarding` / `useSearchHistory` に既存パターンあり）
-- `goshuincho` テーブルは既に DB にありサインアップ時にデフォルト1冊作られている。**UI が無いだけ**
-- タブ入れ替え（案3: 地図 / 御朱印帳 / あつめる / 自分）は P1-03 の完成をもって別途行う
+- 理由: `createStamp` が `goshuincho_id` を設定しておらず**既存の御朱印は全件 `goshuincho_id = null`**。帳面ごとの表示には記録フロー改修 + backfill migration がセットで要る。本 issue は**全 stamps を1冊とみなす**
+- 実装方針: 横 `FlatList` + `snapToInterval`（reanimated / gesture-handler / pager-view はいずれも未導入。新規ライブラリは入れない）
+- 和暦は `Intl` を使わず `src/utils/japaneseEra.ts` の純関数で（Hermes の和暦サポートが環境依存のため）
+- **既定の表示モードをめくりにする**ため、既存 `GalleryScreen.test.tsx` のグリッド系ケースは「グリッドへ切り替える1行」を前置きする必要がある（アサーション本体は無変更）
+- ゲートで出すべき項目は契約書末尾の「人間ゲート前に確認すること」に Tier A 5点として整理済み
 
 （参考）Expo Web は tmux セッション `goshuin-dev` が 8081 で配信中。**二重起動は失敗する**
 
