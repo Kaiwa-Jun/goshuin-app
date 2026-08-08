@@ -76,6 +76,59 @@ describe('ErrorScreen', () => {
     expect(getByText('キャンセル')).toBeTruthy();
   });
 
+  it('エラー原文が渡されたら詳細として表示する', () => {
+    const mockRoute = {
+      key: 'test',
+      name: 'Error' as const,
+      params: {
+        type: 'upload' as const,
+        origin: 'record' as const,
+        stage: 'upload' as const,
+        message: 'new row violates row-level security policy (status=403)',
+      },
+    } as unknown as RootStackScreenProps<'Error'>['route'];
+
+    const { getByText, getByTestId } = render(
+      <ErrorScreen navigation={mockNavigation} route={mockRoute} />
+    );
+
+    expect(getByTestId('error-detail')).toBeTruthy();
+    expect(getByText('new row violates row-level security policy (status=403)')).toBeTruthy();
+  });
+
+  it('原文が無いときは詳細を出さない', () => {
+    const mockRoute = {
+      key: 'test',
+      name: 'Error' as const,
+      params: { type: 'upload' as const },
+    } as unknown as RootStackScreenProps<'Error'>['route'];
+
+    const { queryByTestId } = render(<ErrorScreen navigation={mockNavigation} route={mockRoute} />);
+
+    expect(queryByTestId('error-detail')).toBeNull();
+  });
+
+  it('DB への保存で落ちたときは「アップロードエラー」と名乗らない', () => {
+    const mockRoute = {
+      key: 'test',
+      name: 'Error' as const,
+      params: {
+        type: 'upload' as const,
+        origin: 'record' as const,
+        stage: 'create' as const,
+        message: 'insert failed (code=42501)',
+      },
+    } as unknown as RootStackScreenProps<'Error'>['route'];
+
+    const { getByText, queryByText } = render(
+      <ErrorScreen navigation={mockNavigation} route={mockRoute} />
+    );
+
+    expect(getByText('保存エラー')).toBeTruthy();
+    expect(getByText('記録の保存に失敗しました')).toBeTruthy();
+    expect(queryByText('アップロードエラー')).toBeNull();
+  });
+
   it('does not render secondary button for network error', () => {
     const mockRoute = {
       key: 'test',
