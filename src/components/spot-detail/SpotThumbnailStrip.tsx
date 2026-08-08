@@ -74,7 +74,6 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     gap: GRID_GAP,
-    paddingHorizontal: CONTENT_PADDING,
     marginTop: spacing.sm,
   },
   image: {

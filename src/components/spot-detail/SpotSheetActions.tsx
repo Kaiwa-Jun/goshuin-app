@@ -52,7 +52,6 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
     marginTop: spacing.md,
   },
   action: {

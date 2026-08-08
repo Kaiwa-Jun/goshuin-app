@@ -3,10 +3,10 @@ import { Dimensions, Image, StyleSheet, Text, TouchableOpacity, View } from 'rea
 import MapView, { Marker } from 'react-native-maps';
 import { MaterialIcons } from '@expo/vector-icons';
 
-import { Badge } from '@components/common/Badge';
 import { ImageGalleryModal, GalleryImage } from '@components/common/ImageGalleryModal';
-import { WishlistButton } from '@components/animated/WishlistButton';
 import { SpotInfoSection } from '@components/spot-detail/SpotInfoSection';
+import { SpotSheetHeader } from '@components/spot-detail/SpotSheetHeader';
+import { SpotSheetActions } from '@components/spot-detail/SpotSheetActions';
 import { LimitedGoshuinSection } from '@components/spot-detail/LimitedGoshuinSection';
 import { getStampImageUrl } from '@services/stamps';
 import type { Spot, Stamp, PublicStampWithUser } from '@/types/supabase';
@@ -32,6 +32,11 @@ interface SpotDetailContentProps {
   publicStamps?: PublicStampWithUser[];
   spotInfo?: ParsedSpotInfo;
   onGalleryVisibleChange?: (visible: boolean) => void;
+  /**
+   * 'sheet' はボトムシートの展開時に使う。ヘッダー・情報行・アクション行は
+   * シート側が常時描画しているため、ここでは描画しない（二重表示の防止）。
+   */
+  variant?: 'standalone' | 'sheet';
 }
 
 export function SpotDetailContent({
@@ -46,8 +51,9 @@ export function SpotDetailContent({
   publicStamps = [],
   spotInfo,
   onGalleryVisibleChange,
+  variant = 'standalone',
 }: SpotDetailContentProps) {
-  const badgeType = spot.type === 'shrine' ? 'shrine' : 'temple';
+  const isStandalone = variant === 'standalone';
   const showVisited = isAuthenticated && visitCount > 0;
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
 
@@ -82,35 +88,24 @@ export function SpotDetailContent({
 
   return (
     <View style={styles.content} testID="spot-detail-content">
-      <View style={styles.badgeRow}>
-        <Badge type={badgeType} />
-        {showVisited && <Badge type="visited" />}
-      </View>
-
-      <View style={styles.nameRow}>
-        <Text style={[styles.spotName, styles.spotNameFlex]} testID="spot-name">
-          {spot.name}
-        </Text>
-        {onWishlistPress && isWishlisted !== undefined && (
-          <WishlistButton isWishlisted={isWishlisted} onPress={onWishlistPress} />
-        )}
-      </View>
-      {spot.address && (
-        <View style={[styles.addressRow, spotInfo && styles.addressRowCompact]}>
-          <MaterialIcons name="place" size={16} color={colors.gray[400]} />
-          <Text style={styles.address}>{spot.address}</Text>
-        </View>
+      {isStandalone && (
+        <>
+          <SpotSheetHeader spot={spot} isVisited={showVisited} isWishlisted={isWishlisted} />
+          {spotInfo && <SpotInfoSection spotInfo={spotInfo} />}
+        </>
       )}
 
-      {spotInfo && <SpotInfoSection spotInfo={spotInfo} />}
       {spotInfo && (
         <LimitedGoshuinSection info={spotInfo.limitedGoshuin} snsLinks={spotInfo.snsLinks} />
       )}
 
-      <TouchableOpacity style={styles.recordLink} onPress={onRecord} testID="record-link">
-        <MaterialIcons name="photo-camera" size={18} color={colors.primary[500]} />
-        <Text style={styles.recordLinkText}>御朱印を記録</Text>
-      </TouchableOpacity>
+      {isStandalone && (
+        <SpotSheetActions
+          isWishlisted={isWishlisted}
+          onWishlistPress={onWishlistPress}
+          onRecordPress={onRecord}
+        />
+      )}
 
       {(stamps.length > 0 || publicStamps.length > 0) && (
         <View style={styles.stampGrid} testID="stamp-grid">
@@ -183,47 +178,6 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing['3xl'],
-  },
-  badgeRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  spotName: {
-    ...typography.h2,
-    color: colors.gray[900],
-  },
-  spotNameFlex: {
-    flex: 1,
-  },
-  addressRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    marginBottom: spacing.xl,
-  },
-  addressRowCompact: {
-    marginBottom: spacing.sm,
-  },
-  address: {
-    ...typography.bodySmall,
-    color: colors.gray[500],
-    flex: 1,
-  },
-  recordLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    marginBottom: spacing.xl,
-  },
-  recordLinkText: {
-    ...typography.body,
-    color: colors.primary[500],
   },
   sectionTitle: {
     ...typography.h3,

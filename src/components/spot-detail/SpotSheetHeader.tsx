@@ -53,9 +53,8 @@ export function SpotSheetHeader({ spot, isVisited, isWishlisted }: SpotSheetHead
 }
 
 const styles = StyleSheet.create({
-  container: {
-    paddingHorizontal: spacing.lg,
-  },
+  // 水平パディングは配置側のコンテナが持つ（シート / スポット詳細で二重にしない）
+  container: {},
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
