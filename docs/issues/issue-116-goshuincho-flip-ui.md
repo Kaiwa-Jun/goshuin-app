@@ -57,7 +57,18 @@
 
 ### 3. 現在ページの追跡は `onMomentumScrollEnd` で行う
 
-`onViewableItemsChanged` は Jest（jest-expo）でイベントを発火させる手段が無い。`onMomentumScrollEnd` なら `fireEvent.scroll` で `nativeEvent.contentOffset.x` を渡して検証できる。
+`onViewableItemsChanged` は Jest（jest-expo）でイベントを発火させる手段が無い。`onMomentumScrollEnd` なら検証できるが、**`fireEvent.scroll` は `onScroll` にしか届かない**ので、イベント名を明示して発火する必要がある（実装中に判明・2026-08-09）:
+
+```ts
+fireEvent(getByTestId('flip-list'), 'momentumScrollEnd', {
+  nativeEvent: {
+    contentOffset: { x: snapInterval * pageIndex, y: 0 },
+    // VirtualizedList が参照するため、この2つが無いと TypeError で落ちる
+    layoutMeasurement: { width: SCREEN_WIDTH, height: 600 },
+    contentSize: { width: snapInterval * totalPages, height: 600 },
+  },
+});
+```
 
 - → インデックスは `Math.round(contentOffset.x / snapInterval)` で求める。`snapInterval` はモジュール定数ではなく `computePageLayout(screenWidth).snapInterval`（後述）の戻り値
 
@@ -445,7 +456,7 @@ export function formatJapaneseEraDate(dateStr: string): string;
 **A-11**: めくり表示の末尾に `flip-blank-page` がちょうど1つ存在する
 **A-12**: スタンプ N 件のとき `flip-list` の `data` 長は `N + 1` である
 **A-13**: 1ページ目を表示している状態で `flip-page-counter` が `1 ／ N` を表示する
-**A-14**: `flip-list` に `contentOffset.x = computePageLayout(<テスト時の画面幅>).snapInterval * 2` の scroll イベントを送ると `flip-page-counter` が `3 ／ N` になる（`SNAP_INTERVAL` という定数は存在しない。テストは `computePageLayout` の戻り値から算出すること）
+**A-14**: `flip-list` に `contentOffset.x = computePageLayout(<テスト時の画面幅>).snapInterval * 2` の `momentumScrollEnd` イベントを送ると `flip-page-counter` が `3 ／ N` になる（`SNAP_INTERVAL` という定数は存在しない。テストは `computePageLayout` の戻り値から算出すること。発火の仕方は調査結果 3 参照）
 **A-15**: 白紙ページまでスクロールすると `flip-page-counter` が `N+1枚目` を表示する（例: 3件なら `4枚目`）
 **A-16**: 中央の御朱印ページをタップすると `ImageGalleryModal`（`gallery-image`）が開く
 **A-17**: A-16 で渡されるインデックスは**元の `stamps`（降順）でのインデックス**である（昇順の表示位置ではない）
@@ -562,7 +573,7 @@ Expo Web はログイン済み状態に到達できないため、**S-7 の web 
 5. **`AsyncStorage.setItem` を await しない**: `useSearchHistory.addHistory` と同じく即時に state を更新する。await すると A-27 が落ちる
 6. **既存テストのアサーションを書き換えない**: グリッド系のケースには `fireEvent.press(getByTestId('view-mode-grid'))` を足すだけ。期待値を緩めたら A-39 は不合格
 7. **`PageIndicator` を使わない**: ドットが枚数分並ぶ。進捗は `flip-page-counter` のテキストのみ
-8. **`onViewableItemsChanged` を使わない**: Jest から発火できない。`onMomentumScrollEnd` を使う（A-14 の検証手段）
+8. **`onViewableItemsChanged` を使わない**: Jest から発火できない。`onMomentumScrollEnd` を使う（A-14 の検証手段）。テストからは `fireEvent.scroll` ではなく `fireEvent(list, 'momentumScrollEnd', …)` で発火する
 9. **`stamps.ts` / `useGalleryStamps.ts` を触らない**: 並び順の反転は表示側の責務。サービス層に昇順オプションを足したくなっても我慢する
 10. **白紙ページは常に1枚**: 「白紙が2枚以上」「白紙が先頭にもある」は仕様ではない（A-11）
 
