@@ -50,6 +50,21 @@ interface LimitedGoshuinSectionProps {
   variant?: 'full' | 'compact';
 }
 
+const INSTAGRAM_HOSTS = ['instagram.com', 'www.instagram.com', 'm.instagram.com'];
+
+/**
+ * 出典リンクの文言。Instagram の投稿 permalink に「公式サイトで確認」と表示するのは
+ * 事実と異なるため、ホストで切り替える（Issue #111）。パース不能は従来文言のまま。
+ */
+export function sourceLinkLabel(url: string): string {
+  try {
+    const hostname = new URL(url).hostname.toLowerCase();
+    return INSTAGRAM_HOSTS.includes(hostname) ? 'Instagramの投稿を見る' : '公式サイトで確認';
+  } catch {
+    return '公式サイトで確認';
+  }
+}
+
 export function LimitedGoshuinSection({
   info,
   snsLinks,
@@ -100,7 +115,7 @@ export function LimitedGoshuinSection({
             onPress={() => Linking.openURL(item.source_url)}
           >
             <MaterialIcons name="open-in-new" size={14} color={colors.primary[500]} />
-            <Text style={styles.linkText}>公式サイトで確認</Text>
+            <Text style={styles.linkText}>{sourceLinkLabel(item.source_url)}</Text>
           </TouchableOpacity>
         </View>
       ))}

@@ -69,9 +69,10 @@
       "id": "P2-02",
       "title": "限定御朱印ウォッチャー v2（Instagram 取得 + 記事単位クロール）",
       "note": [
-        "2026-08-02 ユーザー合意: 2本柱で「アイテム単位の出典 URL + 日付による機械的な鮮度判定」を実現する。**優先①: Instagram Business Discovery API** — Meta 公式 API(無料・規約クリーン)で他の Business/Creator アカウントの公開投稿(caption/permalink/timestamp)を取得し既存の Haiku 抽出に流す。permalink=投稿単位の出典、timestamp=鮮度判定。seed の SNS リンク39件中23件が Instagram。榴岡天満宮のように公式サイトが放置(最終2022年)で Instagram で発信する神社を拾えるようになる。前提: ユーザー側の Meta セットアップ(IG ビジネスアカウント+FB ページ+Meta developer アプリ+トークン、無料)。対象神社が個人アカウントの場合は取得不可→現行のリンク表示のまま。**②: 公式サイトの記事単位クロール** — 一覧ページから記事リンクを検知→新規記事の個別ページを fetch→記事単位で抽出、source_url を記事 URL に。X(旧Twitter)は API が月200ドル級のため収益化後に判断。着手前に契約書を作ること"
+        "2026-08-02 ユーザー合意: 2本柱で「アイテム単位の出典 URL + 日付による機械的な鮮度判定」を実現する。**優先①: Instagram Business Discovery API** — Meta 公式 API(無料・規約クリーン)で他の Business/Creator アカウントの公開投稿(caption/permalink/timestamp)を取得し既存の Haiku 抽出に流す。permalink=投稿単位の出典、timestamp=鮮度判定。seed の SNS リンク39件中23件が Instagram。榴岡天満宮のように公式サイトが放置(最終2022年)で Instagram で発信する神社を拾えるようになる。前提: ユーザー側の Meta セットアップ(IG ビジネスアカウント+FB ページ+Meta developer アプリ+トークン、無料)。対象神社が個人アカウントの場合は取得不可→現行のリンク表示のまま。**②: 公式サイトの記事単位クロール** — 一覧ページから記事リンクを検知→新規記事の個別ページを fetch→記事単位で抽出、source_url を記事 URL に。X(旧Twitter)は API が月200ドル級のため収益化後に判断。着手前に契約書を作ること",
+        "2026-08-03 深夜: ①Instagram を Issue #111 として実装完了・Evaluator PASS 75/75(I群24件/N群6件はゲート後)。Meta セットアップ完了(トークン期限 2026-10-02)。push/PR 未実施でゲート停止中。②記事単位クロールは未着手(別 issue 予定)"
       ],
-      "issue": null,
+      "issue": 111,
       "passes": false
     }
   ]

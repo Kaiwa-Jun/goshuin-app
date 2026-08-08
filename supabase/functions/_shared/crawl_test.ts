@@ -13,6 +13,8 @@ import {
   isPastDeadline,
   type LimitedGoshuinItem,
 } from './crawl.ts';
+// Issue #111 で追加した export（既存 import 行を変更しないため別 import にしている）
+import { normalizeGoshuinItem, mergeItemsBySourceKey } from './crawl.ts';
 
 // --- isServiceRoleAuthorized (H-2) ---
 
@@ -283,4 +285,102 @@ Deno.test('isPastDeadline: 予算ちょうどで true', () => {
 
 Deno.test('isPastDeadline: 予算未満で false', () => {
   assertEquals(isPastDeadline(0, 99_999, 100_000), false);
+});
+
+// --- normalizeGoshuinItem (Issue #111 / H-33) ---
+
+Deno.test('normalizeGoshuinItem: name 欠落なら null', () => {
+  assertEquals(normalizeGoshuinItem({ period: '7月' }, 'https://a.jp', FETCHED_AT), null);
+});
+
+Deno.test('normalizeGoshuinItem: 御朱印らしくない要素（授与品）は null', () => {
+  assertEquals(
+    normalizeGoshuinItem(
+      { name: '七夕守', description: '8月7日まで授与' },
+      'https://a.jp',
+      FETCHED_AT
+    ),
+    null
+  );
+});
+
+Deno.test('normalizeGoshuinItem: オブジェクトでない要素は null', () => {
+  assertEquals(normalizeGoshuinItem('文字列', 'https://a.jp', FETCHED_AT), null);
+  assertEquals(normalizeGoshuinItem(null, 'https://a.jp', FETCHED_AT), null);
+});
+
+Deno.test('normalizeGoshuinItem: 正常時は source_url / fetched_at が引数値で埋まる', () => {
+  const result = normalizeGoshuinItem(
+    {
+      name: '七夕限定御朱印',
+      period: '7月1日〜7月7日',
+      source_url: 'https://evil.example/fake',
+      fetched_at: '1999-01-01T00:00:00Z',
+    },
+    'https://a.jp/post',
+    FETCHED_AT
+  );
+  assertEquals(result?.name, '七夕限定御朱印');
+  assertEquals(result?.source_url, 'https://a.jp/post');
+  assertEquals(result?.fetched_at, FETCHED_AT);
+});
+
+Deno.test('normalizeGoshuinItem: 戻り値に source_key キーを含まない', () => {
+  const result = normalizeGoshuinItem({ name: '限定御朱印' }, 'https://a.jp', FETCHED_AT);
+  assertEquals(result !== null && 'source_key' in result, false);
+});
+
+// --- mergeItemsBySourceKey (Issue #111 / H-34, H-35) ---
+
+const keyedItem = (
+  name: string,
+  source_url: string,
+  source_key?: string | null
+): LimitedGoshuinItem => ({
+  ...item(name, source_url),
+  ...(source_key !== undefined ? { source_key } : {}),
+});
+
+Deno.test('mergeItemsBySourceKey: 同一 source_key の既存要素だけを置き換える', () => {
+  const existing = [
+    keyedItem('web由来', 'https://a.jp'),
+    keyedItem('旧IG-A', 'https://www.instagram.com/p/old-a/', 'instagram:a'),
+    keyedItem('IG-B', 'https://www.instagram.com/p/b/', 'instagram:b'),
+  ];
+  const incoming = [keyedItem('新IG-A', 'https://www.instagram.com/p/new-a/', 'instagram:a')];
+  const merged = mergeItemsBySourceKey(existing, 'instagram:a', incoming);
+  assertEquals(
+    merged.map(i => i.name),
+    ['web由来', 'IG-B', '新IG-A']
+  );
+});
+
+Deno.test('mergeItemsBySourceKey: source_key を持たない要素（web 由来）は常に保持される', () => {
+  const existing = [keyedItem('web由来', 'https://a.jp')];
+  const merged = mergeItemsBySourceKey(existing, 'instagram:a', []);
+  assertEquals(
+    merged.map(i => i.name),
+    ['web由来']
+  );
+});
+
+Deno.test('mergeItemsBySourceKey: incoming が空なら該当 source_key の要素だけが消える', () => {
+  const existing = [
+    keyedItem('旧IG-A', 'https://www.instagram.com/p/old-a/', 'instagram:a'),
+    keyedItem('IG-B', 'https://www.instagram.com/p/b/', 'instagram:b'),
+  ];
+  const merged = mergeItemsBySourceKey(existing, 'instagram:a', []);
+  assertEquals(
+    merged.map(i => i.name),
+    ['IG-B']
+  );
+});
+
+Deno.test('mergeItemsBySourceKey: 入力配列を破壊しない', () => {
+  const existing = [keyedItem('旧IG-A', 'https://www.instagram.com/p/old-a/', 'instagram:a')];
+  const incoming = [keyedItem('新IG-A', 'https://www.instagram.com/p/new-a/', 'instagram:a')];
+  mergeItemsBySourceKey(existing, 'instagram:a', incoming);
+  assertEquals(existing.length, 1);
+  assertEquals(existing[0].name, '旧IG-A');
+  assertEquals(incoming.length, 1);
 });
