@@ -66,9 +66,10 @@ export function SpotBottomSheet({
   const insets = useSafeAreaInsets();
   // シートの親はタブバーを除いた領域なので、ウィンドウ高だけで位置を決めると
   // 下端がタブバーの裏に潜り込み、アクション行のタップがタブに奪われる。
-  // タブナビゲーターの外で使われたときは undefined が返るので 0 とみなす。
+  // タブバーの高さは下部セーフエリアを含むため、両方を引くと二重に差し引かれる。
+  // タブナビゲーターの外で使われたときは undefined が返るので、その場合だけ
+  // セーフエリアを使う。
   const tabBarHeight = useContext(BottomTabBarHeightContext);
-  // タブバーの高さは下部セーフエリアを含むため、両方を引くと二重に差し引かれる
   const bottomOffset = tabBarHeight ?? insets.bottom;
   const availableHeight = SCREEN_HEIGHT - bottomOffset;
   const expandedHeight = availableHeight * 0.85;
