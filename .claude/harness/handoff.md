@@ -11,7 +11,16 @@ Issue #111 / PR #112 マージ済み・本番投入完了（passes: true）。Me
 - ⚠️ **重要な落とし穴（本番投入時に発見・解決済み）**: Meta developer アプリが **Business Portfolio にリンクされていない**と、`business_discovery` が `OAuthException code 200 "API access blocked"` で全滅する。8/3 のセットアップ時点では未リンクでも一時的に動いていたが、8/8 の本番検証時には完全にブロックされていた（Standard Access アプリの猶予期間切れとみられる）。**対処**: Meta for Developers → アプリ設定 → ベーシック → 「ビジネスポートフォリオ」を「御朱印さんぽ」にリンク（Unverified 状態のままで解消する）。今後同様のエラーが出たらまずこれを疑う
 - ✅ **実機・DB 両方で確認済み**: 榴岡天満宮（公式サイト更新停止スポット）に Instagram 由来アイテムが表示され、リンクから実際の投稿に遷移できることを確認。浅草神社で web/Instagram 混在表示（文言の個別切り替え）も確認
 - ✅ **cron 再登録完了（2026-08-08）**: `crawl-spot-sources-biweekly`（`0 17 * * 1,4` = 火金02:00 JST・web）/ `crawl-spot-sources-instagram`（`30 17 * * 1,4` = 火金02:30 JST・instagram）の2ジョブ体制で稼働中。**次回火曜(8/11)朝に両方 succeeded か確認**: `select jobname, status, start_time, end_time from cron.job_run_details order by start_time desc limit 10;`
-- 📌 **カバレッジの現状**: 全1,109スポット中、巡回対象は**29スポット・79ソース**（sns_link 39 / official 40）のみ。金蛇水神社など Instagram 運用中でも未登録のスポットは今回スコープ外（契約書で「seed への新規アカウント追加はしない」と明記）。**次にやるなら「対象スポットの棚卸し・追加」が候補**
+- 📌 **カバレッジの現状**: 全1,109スポット中、巡回対象は**29スポット・79ソース**（東京・宮城・京都の rank5 全29件。official 40 / sns_link 39）。**対象スポット自体に漏れは無い**（rank5 29件は全件登録済み）
+
+## Instagram 情報ソース棚卸し（2026-08-08、進行中・次セッションで再開）
+
+ユーザーが金蛇水神社（Instagram 運用中なのにアプリに出ない）から気づいて着手。詳細と追加用 SQL は `docs/project/instagram-source-inventory-2026-08.md`。
+
+- 調査済み: 対象29スポット中 **7件が Instagram(`sns_link`) 未登録**と判明（official は全件あり、rank5 の選定漏れではなく sns_link の欠落）
+- WebSearch で調査した結果: **3件は追加対象確定**（金蛇水神社 `@kanahebi_shrine` / 大崎八幡宮 `@osakihachimangu_shrine` / 湯島天満宮 `@yushimatenmangu`。湯島天満宮は「#限定御朱印」の実投稿まで確認済み）、**1件は要検証**（明治神宮 `@meijijingu_sukeikai` = 崇敬会名義で本体公式サイトからの直接リンクなし）、**3件は Instagram 未運用と判断**（志波彦神社・鹽竈神社 / 烏森神社 / 東寺）
+- 🔜 **次セッションでやること**: `docs/project/instagram-source-inventory-2026-08.md` の INSERT SQL を SQL Editor で実行 → dry_run で `skipped_not_business` にならないか確認 → 本実行 → 実機確認。明治神宮は3件の結果を見てから追加判断
+- 📌 恒久的な論点（未着手・要プロダクト判断）: 巡回対象を rank4 以下や他都道府県に拡大するかどうかは今回のスコープ外
 - メモ: deno を `~/.deno/bin/deno` にインストール済み（H 群テストの自動検証用）。Evaluator/Planner の goshuin-\_ エージェント型はセッションに未登録のことがある → general-purpose に `.claude/agents/*.md` を読ませて代行させる
 - メモ: Claude in Chrome は facebook.com / instagram.com / accountscenter.instagram.com / developers.facebook.com / appstoreconnect.apple.com を許可済み。クロスドメインに遷移するポップアップは拡張の追跡が切れるので、ポップアップ内は素早く1操作ずつ・親タブは触らず待つ。Apple/Meta のログインセッションは時々切れるので、切れたらユーザーに再ログインを頼む
 
