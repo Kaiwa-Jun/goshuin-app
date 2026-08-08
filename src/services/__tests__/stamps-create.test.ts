@@ -35,10 +35,11 @@ describe('uploadStampImage', () => {
 
     const result = await uploadStampImage('user-1', 'file:///photo.jpg');
 
+    // FormData ではなくバイト列を渡す（実機の FormData は has() が無く落ちる）
     expect(mockUpload).toHaveBeenCalledWith(
       expect.stringMatching(/^user-1\/\d+-[a-z0-9]+\.jpg$/),
-      expect.any(FormData),
-      { contentType: 'multipart/form-data' }
+      expect.any(Uint8Array),
+      { contentType: 'image/jpeg' }
     );
     expect(typeof result).toBe('string');
     expect(result).toMatch(/^user-1\//);
@@ -48,6 +49,17 @@ describe('uploadStampImage', () => {
     mockUpload.mockResolvedValue({ data: null, error: { message: 'Upload failed' } });
 
     await expect(uploadStampImage('user-1', 'file:///photo.jpg')).rejects.toThrow('Upload failed');
+  });
+
+  it('切り分けのため Storage のステータスコードもメッセージに残す', async () => {
+    mockUpload.mockResolvedValue({
+      data: null,
+      error: { message: 'new row violates row-level security policy', statusCode: '403' },
+    });
+
+    await expect(uploadStampImage('user-1', 'file:///photo.jpg')).rejects.toThrow(
+      'new row violates row-level security policy (status=403)'
+    );
   });
 });
 
@@ -170,6 +182,28 @@ describe('createStamp', () => {
         visitedAt: '2024-06-01',
       })
     ).rejects.toThrow('DB error');
+  });
+
+  it('PostgREST のエラーコードもメッセージに残す', async () => {
+    mockFrom.mockReturnValue({ insert: mockInsert });
+    mockInsert.mockReturnValue({ select: mockSelect });
+    mockSelect.mockReturnValue({ single: mockSingle });
+    mockSingle.mockResolvedValue({
+      data: null,
+      error: {
+        message: 'new row violates row-level security policy for table "stamps"',
+        code: '42501',
+      },
+    });
+
+    await expect(
+      createStamp({
+        userId: 'user-1',
+        spotId: 'spot-1',
+        imagePath: 'user-1/img.jpg',
+        visitedAt: '2024-06-01',
+      })
+    ).rejects.toThrow('code=42501');
   });
 });
 
