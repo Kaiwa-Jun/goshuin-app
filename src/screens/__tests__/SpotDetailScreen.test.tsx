@@ -206,11 +206,12 @@ describe('SpotDetailScreen', () => {
     expect(getAllByText('宮城県仙台市青葉区八幡4-6-1').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('displays record link', () => {
-    const { getByText } = render(
+  it('displays record action button', () => {
+    const { getByTestId, getByText } = render(
       <SpotDetailScreen navigation={mockNavigation as never} route={mockRoute} />
     );
-    expect(getByText('御朱印を記録')).toBeTruthy();
+    expect(getByTestId('record-action-button')).toBeTruthy();
+    expect(getByText('記録する')).toBeTruthy();
   });
 
   it('displays mini map', () => {
@@ -358,11 +359,11 @@ describe('SpotDetailScreen', () => {
   });
 
   describe('record navigation', () => {
-    it('navigates to Record with spotId on record link press', () => {
-      const { getByText } = render(
+    it('navigates to Record with spotId on record action button press', () => {
+      const { getByTestId } = render(
         <SpotDetailScreen navigation={mockNavigation as never} route={mockRoute} />
       );
-      fireEvent.press(getByText('御朱印を記録'));
+      fireEvent.press(getByTestId('record-action-button'));
       expect(mockParentNavigate).toHaveBeenCalledWith('Record', { spotId: 'spot-1' });
     });
   });

@@ -1,7 +1,19 @@
 import React from 'react';
-import { render } from '@testing-library/react-native';
-import { SpotBottomSheet } from '../SpotBottomSheet';
+import { render, fireEvent } from '@testing-library/react-native';
+import {
+  SpotBottomSheet,
+  resolveCompactHeight,
+  COMPACT_MIN_HEIGHT,
+  COMPACT_MAX_HEIGHT,
+  COMPACT_FALLBACK_HEIGHT,
+} from '../SpotBottomSheet';
 import type { Spot } from '@/types/supabase';
+
+jest.mock('@react-navigation/bottom-tabs', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+  const ReactModule = require('react');
+  return { BottomTabBarHeightContext: ReactModule.createContext(49) };
+});
 
 jest.mock('@services/stamps', () => ({
   fetchStampsBySpotId: jest.fn(() => Promise.resolve([])),
@@ -90,5 +102,107 @@ describe('SpotBottomSheet', () => {
     const { getAllByTestId } = render(<SpotBottomSheet {...defaultProps} />);
     const visitedBadges = getAllByTestId('badge-visited');
     expect(visitedBadges.length).toBeGreaterThanOrEqual(1);
+  });
+
+  // A-5: 展開しても差し替わらない共通部分を持つ
+  describe('共通ヘッダーと段階的な情報追加', () => {
+    it('compact でヘッダーを描画する', () => {
+      const { getByTestId } = render(<SpotBottomSheet {...defaultProps} />);
+      expect(getByTestId('spot-sheet-header')).toBeTruthy();
+    });
+
+    it('compact では詳細を描画しない', () => {
+      const { queryByTestId } = render(<SpotBottomSheet {...defaultProps} />);
+      expect(queryByTestId('spot-detail-content')).toBeNull();
+    });
+
+    it('ハンドルのタップで詳細が現れる', () => {
+      const { getByTestId } = render(<SpotBottomSheet {...defaultProps} />);
+      fireEvent.press(getByTestId('sheet-handle'));
+      expect(getByTestId('spot-detail-content')).toBeTruthy();
+    });
+
+    it('展開してもヘッダーが同じ testID のまま残る', () => {
+      const { getByTestId } = render(<SpotBottomSheet {...defaultProps} />);
+      fireEvent.press(getByTestId('sheet-handle'));
+      expect(getByTestId('spot-sheet-header')).toBeTruthy();
+    });
+
+    it('展開してもアクション行が残る', () => {
+      const { getByTestId } = render(<SpotBottomSheet {...defaultProps} />);
+      fireEvent.press(getByTestId('sheet-handle'));
+      expect(getByTestId('spot-sheet-actions')).toBeTruthy();
+    });
+
+    it('ハンドルを2回タップすると詳細が閉じる', () => {
+      const { getByTestId, queryByTestId } = render(<SpotBottomSheet {...defaultProps} />);
+      fireEvent.press(getByTestId('sheet-handle'));
+      fireEvent.press(getByTestId('sheet-handle'));
+      expect(queryByTestId('spot-detail-content')).toBeNull();
+    });
+
+    it('展開時にヘッダーが二重に描画されない', () => {
+      const { getAllByTestId, getByTestId } = render(<SpotBottomSheet {...defaultProps} />);
+      fireEvent.press(getByTestId('sheet-handle'));
+      expect(getAllByTestId('spot-sheet-header')).toHaveLength(1);
+    });
+  });
+
+  // A-7: 記録の導線が展開しなくても届く
+  describe('アクション行', () => {
+    it('compact の時点で記録するボタンが出ている', () => {
+      const { getByTestId } = render(<SpotBottomSheet {...defaultProps} />);
+      expect(getByTestId('record-action-button')).toBeTruthy();
+    });
+
+    it('記録するのタップで onRecord に spotId を渡す', () => {
+      const onRecord = jest.fn();
+      const { getByTestId } = render(<SpotBottomSheet {...defaultProps} onRecord={onRecord} />);
+      fireEvent.press(getByTestId('record-action-button'));
+      expect(onRecord).toHaveBeenCalledWith('spot-1');
+    });
+
+    it('行きたいのタップで onWishlistToggle に spotId を渡す', () => {
+      const onWishlistToggle = jest.fn();
+      const { getByTestId } = render(
+        <SpotBottomSheet {...defaultProps} onWishlistToggle={onWishlistToggle} />
+      );
+      fireEvent.press(getByTestId('wishlist-action-button'));
+      expect(onWishlistToggle).toHaveBeenCalledWith('spot-1');
+    });
+
+    it('onWishlistToggle が無いとき行きたいを出さない', () => {
+      const { queryByTestId } = render(
+        <SpotBottomSheet {...defaultProps} onWishlistToggle={undefined} />
+      );
+      expect(queryByTestId('wishlist-action-button')).toBeNull();
+    });
+  });
+});
+
+describe('resolveCompactHeight', () => {
+  const SCREEN = 800;
+
+  it('計測値をそのまま使う（範囲内のとき）', () => {
+    expect(resolveCompactHeight(260, SCREEN)).toBe(260);
+  });
+
+  it('小さすぎる値は下限に丸める', () => {
+    expect(resolveCompactHeight(100, SCREEN)).toBe(COMPACT_MIN_HEIGHT);
+  });
+
+  it('大きすぎる値は上限に丸める', () => {
+    expect(resolveCompactHeight(999, SCREEN)).toBe(COMPACT_MAX_HEIGHT);
+  });
+
+  it('小型端末では画面の半分を超えない', () => {
+    // iPhone SE 相当。380 ではなく 334 が上限になる
+    expect(resolveCompactHeight(999, 667)).toBe(334);
+  });
+
+  it('不正な値はフォールバックする', () => {
+    expect(resolveCompactHeight(0, SCREEN)).toBe(COMPACT_FALLBACK_HEIGHT);
+    expect(resolveCompactHeight(-10, SCREEN)).toBe(COMPACT_FALLBACK_HEIGHT);
+    expect(resolveCompactHeight(NaN, SCREEN)).toBe(COMPACT_FALLBACK_HEIGHT);
   });
 });

@@ -548,6 +548,6 @@ const styles = StyleSheet.create({
   fabContainer: {
     position: 'absolute',
     bottom: 20,
-    alignSelf: 'center',
+    right: 20,
   },
 });

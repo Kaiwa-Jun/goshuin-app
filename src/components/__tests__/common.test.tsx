@@ -11,7 +11,8 @@ import { Header } from '@components/common/Header';
 import { Modal } from '@components/common/Modal';
 import { MapPin } from '@components/common/MapPin';
 import { SpotMarker } from '@components/common/SpotMarker';
-import { Text } from 'react-native';
+import { Text, StyleSheet } from 'react-native';
+import { colors } from '@theme/colors';
 
 describe('Common Components', () => {
   describe('Button', () => {
@@ -42,6 +43,54 @@ describe('Common Components', () => {
     it('renders ghost variant', () => {
       const { getByTestId } = render(<Button title="テスト" onPress={() => {}} variant="ghost" />);
       expect(getByTestId('button-ghost')).toBeTruthy();
+    });
+
+    it('renders no icon when icon prop is omitted', () => {
+      const { queryByTestId } = render(<Button title="テスト" onPress={() => {}} />);
+      expect(queryByTestId('button-icon')).toBeNull();
+    });
+
+    it('renders an icon before the label when icon prop is given', () => {
+      const { getByTestId, getByText } = render(
+        <Button title="記録する" onPress={() => {}} icon="photo-camera" />
+      );
+      expect(getByTestId('button-icon')).toBeTruthy();
+      expect(getByText('記録する')).toBeTruthy();
+    });
+
+    it('lays the icon out in a row when icon prop is given', () => {
+      const { getByTestId } = render(
+        <Button title="記録する" onPress={() => {}} icon="photo-camera" />
+      );
+      const style = StyleSheet.flatten(getByTestId('button-primary').props.style);
+      expect(style.flexDirection).toBe('row');
+    });
+
+    it('keeps the layout unchanged when icon prop is omitted', () => {
+      const { getByTestId } = render(<Button title="テスト" onPress={() => {}} />);
+      const style = StyleSheet.flatten(getByTestId('button-primary').props.style);
+      expect(style.flexDirection).toBeUndefined();
+    });
+
+    it('matches the icon colour to the resolved label colour', () => {
+      const { getByTestId } = render(
+        <Button title="記録する" onPress={() => {}} icon="photo-camera" />
+      );
+      // primary variant label is colors.white
+      expect(getByTestId('button-icon').props.color).toBe(colors.white);
+    });
+
+    it('lets textStyle override the icon colour', () => {
+      const { getByTestId } = render(
+        <Button
+          title="行きたい"
+          onPress={() => {}}
+          variant="outline"
+          icon="bookmark"
+          textStyle={{ color: colors.primary[700] }}
+        />
+      );
+      expect(getByTestId('button-icon').props.color).toBe(colors.primary[700]);
     });
   });
 
