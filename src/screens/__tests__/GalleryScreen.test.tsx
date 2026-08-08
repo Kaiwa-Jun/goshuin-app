@@ -75,6 +75,16 @@ function renderGalleryScreen() {
   return render(<GalleryScreen navigation={mockNavigation as never} route={mockRoute} />);
 }
 
+/**
+ * 既定の表示モードはめくり（Issue #116）。グリッド前提のケースはここを通す。
+ * アサーションの中身は変えず、モードを切り替える1行を前置きするだけにしている。
+ */
+function renderGalleryScreenInGrid() {
+  const utils = renderGalleryScreen();
+  fireEvent.press(utils.getByTestId('view-mode-grid'));
+  return utils;
+}
+
 const makeStamp = (overrides: Partial<StampWithSpot> = {}): StampWithSpot => ({
   id: '1',
   user_id: 'user-1',
@@ -121,7 +131,7 @@ describe('GalleryScreen', () => {
       updateStamp: jest.fn(),
     });
 
-    const { getByText } = renderGalleryScreen();
+    const { getByText } = renderGalleryScreenInGrid();
     expect(getByText('明治神宮')).toBeTruthy();
   });
 
@@ -135,7 +145,7 @@ describe('GalleryScreen', () => {
       updateStamp: jest.fn(),
     });
 
-    const { getByTestId } = renderGalleryScreen();
+    const { getByTestId } = renderGalleryScreenInGrid();
     expect(getByTestId('stamp-image-1')).toBeTruthy();
   });
 
@@ -149,7 +159,7 @@ describe('GalleryScreen', () => {
       updateStamp: jest.fn(),
     });
 
-    const { getByTestId } = renderGalleryScreen();
+    const { getByTestId } = renderGalleryScreenInGrid();
     expect(getByTestId('empty-state')).toBeTruthy();
   });
 
@@ -163,7 +173,7 @@ describe('GalleryScreen', () => {
       updateStamp: jest.fn(),
     });
 
-    const { getByTestId, getByText } = renderGalleryScreen();
+    const { getByTestId, getByText } = renderGalleryScreenInGrid();
     expect(getByText('日付順 ▼')).toBeTruthy();
     fireEvent.press(getByTestId('sort-button'));
     expect(getByText('スポット順 ▼')).toBeTruthy();
@@ -179,7 +189,7 @@ describe('GalleryScreen', () => {
       updateStamp: jest.fn(),
     });
 
-    const { getByText } = renderGalleryScreen();
+    const { getByText } = renderGalleryScreenInGrid();
     expect(getByText('2024/01/15')).toBeTruthy();
   });
 
@@ -193,7 +203,7 @@ describe('GalleryScreen', () => {
       updateStamp: jest.fn(),
     });
 
-    const { getByTestId, queryByText } = renderGalleryScreen();
+    const { getByTestId, queryByText } = renderGalleryScreenInGrid();
     fireEvent.press(getByTestId('sort-button'));
     expect(queryByText('2024/01/15')).toBeNull();
   });
@@ -208,9 +218,107 @@ describe('GalleryScreen', () => {
       updateStamp: jest.fn(),
     });
 
-    const { getByTestId } = renderGalleryScreen();
+    const { getByTestId } = renderGalleryScreenInGrid();
     fireEvent.press(getByTestId('gallery-item-stamp-abc'));
     expect(getByTestId('gallery-image')).toBeTruthy();
+  });
+
+  describe('表示モードの切り替え（Issue #116）', () => {
+    const withStamps = (stamps: StampWithSpot[]) =>
+      mockUseGalleryStamps.mockReturnValue({
+        stamps,
+        totalCount: stamps.length,
+        isLoading: false,
+        error: null,
+        removeStamp: jest.fn(),
+        updateStamp: jest.fn(),
+      });
+
+    it('既定でめくり表示になり、グリッドは出ない', () => {
+      withStamps([makeStamp({ id: '1' })]);
+      const { getByTestId, queryByTestId } = renderGalleryScreen();
+      expect(getByTestId('flip-list')).toBeTruthy();
+      expect(queryByTestId('gallery-list')).toBeNull();
+    });
+
+    it('グリッドに切り替えるとめくりが消える', () => {
+      withStamps([makeStamp({ id: '1' })]);
+      const { getByTestId, queryByTestId } = renderGalleryScreen();
+      fireEvent.press(getByTestId('view-mode-grid'));
+      expect(getByTestId('gallery-list')).toBeTruthy();
+      expect(queryByTestId('flip-list')).toBeNull();
+    });
+
+    it('めくりに戻すとグリッドが消える', () => {
+      withStamps([makeStamp({ id: '1' })]);
+      const { getByTestId, queryByTestId } = renderGalleryScreen();
+      fireEvent.press(getByTestId('view-mode-grid'));
+      fireEvent.press(getByTestId('view-mode-flip'));
+      expect(getByTestId('flip-list')).toBeTruthy();
+      expect(queryByTestId('gallery-list')).toBeNull();
+    });
+
+    it('ソートボタンはグリッドモードでのみ出る', () => {
+      withStamps([makeStamp({ id: '1' })]);
+      const { getByTestId, queryByTestId } = renderGalleryScreen();
+      expect(queryByTestId('sort-button')).toBeNull();
+      fireEvent.press(getByTestId('view-mode-grid'));
+      expect(getByTestId('sort-button')).toBeTruthy();
+    });
+
+    it('未ログイン時は表示切り替えトグルを出さない', () => {
+      mockAuth = { user: null, isAuthenticated: false };
+      withStamps([]);
+      const { queryByTestId } = renderGalleryScreen();
+      expect(queryByTestId('view-mode-toggle')).toBeNull();
+    });
+
+    it('ログイン済みなら表示切り替えトグルを出す', () => {
+      withStamps([]);
+      const { getByTestId } = renderGalleryScreen();
+      expect(getByTestId('view-mode-toggle')).toBeTruthy();
+    });
+
+    it('ローディング中はめくり表示を出さない', () => {
+      mockUseGalleryStamps.mockReturnValue({
+        stamps: [],
+        totalCount: 0,
+        isLoading: true,
+        error: null,
+        removeStamp: jest.fn(),
+        updateStamp: jest.fn(),
+      });
+      const { getByTestId, queryByTestId } = renderGalleryScreen();
+      expect(getByTestId('loading-indicator')).toBeTruthy();
+      expect(queryByTestId('flip-list')).toBeNull();
+    });
+
+    it('スタンプ0件のめくり表示では白紙ページを出し、通常空状態は出さない', () => {
+      withStamps([]);
+      const { getByTestId, queryByTestId } = renderGalleryScreen();
+      expect(getByTestId('flip-blank-page')).toBeTruthy();
+      expect(queryByTestId('empty-state')).toBeNull();
+    });
+
+    it('中央の白紙ページをタップすると Record へ navigate する', () => {
+      withStamps([]);
+      const { getByTestId } = renderGalleryScreen();
+      fireEvent.press(getByTestId('flip-blank-page'));
+      expect(mockNavigation.navigate).toHaveBeenCalledWith('Record');
+    });
+
+    it('めくり表示で中央のページをタップするとギャラリーモーダルが開く', () => {
+      withStamps([makeStamp({ id: 'stamp-abc' })]);
+      const { getByTestId } = renderGalleryScreen();
+      fireEvent.press(getByTestId('flip-page-stamp-abc'));
+      expect(getByTestId('gallery-image')).toBeTruthy();
+    });
+
+    it('めくり表示のフッターに和暦の訪問日を出す', () => {
+      withStamps([makeStamp({ id: 'stamp-abc', visited_at: '2026-05-03' })]);
+      const { getByTestId } = renderGalleryScreen();
+      expect(getByTestId('flip-page-date-stamp-abc').props.children).toBe('令和8年5月3日');
+    });
   });
 
   describe('未ログイン時のゲスト空状態', () => {
@@ -279,7 +387,7 @@ describe('GalleryScreen', () => {
       updateStamp: jest.fn(),
     });
 
-    const { getByTestId, getByText, queryByTestId } = renderGalleryScreen();
+    const { getByTestId, getByText, queryByTestId } = renderGalleryScreenInGrid();
     expect(getByTestId('empty-state')).toBeTruthy();
     expect(getByText('御朱印がまだありません')).toBeTruthy();
     expect(queryByTestId('gallery-guest-empty-state')).toBeNull();
@@ -295,7 +403,7 @@ describe('GalleryScreen', () => {
       updateStamp: jest.fn(),
     });
 
-    const { getByTestId, queryByTestId } = renderGalleryScreen();
+    const { getByTestId, queryByTestId } = renderGalleryScreenInGrid();
     expect(getByTestId('gallery-list')).toBeTruthy();
     expect(queryByTestId('gallery-guest-empty-state')).toBeNull();
   });

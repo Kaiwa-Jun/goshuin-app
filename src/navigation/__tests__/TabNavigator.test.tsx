@@ -284,7 +284,8 @@ describe('TabNavigator', () => {
     fireEvent.press(getByText('御朱印'));
 
     await waitFor(() => {
-      expect(getByTestId('gallery-list')).toBeTruthy();
+      // 既定の表示モードはめくり（Issue #116）。グリッドの gallery-list ではない
+      expect(getByTestId('flip-list')).toBeTruthy();
     });
 
     expect(queryByText('Login Screen')).toBeNull();

@@ -16,10 +16,14 @@ import { typography } from '@theme/typography';
 import { spacing, borderRadius } from '@theme/spacing';
 import { useAuth } from '@hooks/useAuth';
 import { useGalleryStamps } from '@hooks/useGalleryStamps';
+import { useGalleryViewMode } from '@hooks/useGalleryViewMode';
 import { useStampDetail } from '@hooks/useStampDetail';
 import { getStampImageUrl } from '@services/stamps';
 import { Button } from '@components/common/Button';
 import { ImageGalleryModal, GalleryImage } from '@components/common/ImageGalleryModal';
+import { GoshuinchoFlipView } from '@components/gallery/GoshuinchoFlipView';
+import { ViewModeToggle } from '@components/gallery/ViewModeToggle';
+import { getWebPreviewStamps, previewImageUrl } from '@components/gallery/webPreview';
 import { EditStampModal } from '@components/stamp-detail/EditStampModal';
 import { DeleteConfirmModal } from '@components/stamp-detail/DeleteConfirmModal';
 import type { StampWithSpot } from '@/types/supabase';
@@ -48,14 +52,23 @@ export function GalleryScreen({ navigation }: Props) {
     removeStamp,
     updateStamp: updateGalleryStamp,
   } = useGalleryStamps(sortOrder);
+  const { viewMode, setViewMode } = useGalleryViewMode();
+
+  // Expo Web の検証イネーブラ（Issue #116 S-7）。native では常に null
+  const previewStamps = getWebPreviewStamps();
+  const isPreview = previewStamps !== null;
+  const displayStamps = previewStamps ?? stamps;
+  const showsGallery = isAuthenticated || isPreview;
 
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
 
-  const currentStamp = selectedImageIndex !== null ? stamps[selectedImageIndex] : null;
+  const currentStamp = selectedImageIndex !== null ? displayStamps[selectedImageIndex] : null;
+  // プレビューの ID は DB に無いので、そのまま渡すと 404 相当の 400 を叩き続ける。
+  // 検証用の経路が本番には無いエラーを生まないよう、ここでは問い合わせない
   const { isUpdating, isDeleting, handleUpdate, handleDelete } = useStampDetail(
-    currentStamp?.id ?? ''
+    isPreview ? '' : (currentStamp?.id ?? '')
   );
 
   const sortLabel = sortOrder === 'date' ? '日付順' : 'スポット順';
@@ -66,13 +79,13 @@ export function GalleryScreen({ navigation }: Props) {
 
   const galleryImages: GalleryImage[] = useMemo(
     () =>
-      stamps.map(s => ({
+      displayStamps.map(s => ({
         id: s.id,
-        imageUrl: getStampImageUrl(s.image_path),
+        imageUrl: isPreview ? previewImageUrl(s) : getStampImageUrl(s.image_path),
         memo: s.memo,
         visitedAt: s.visited_at,
       })),
-    [stamps]
+    [displayStamps, isPreview]
   );
 
   const handleEdit = useCallback((index: number) => {
@@ -112,7 +125,7 @@ export function GalleryScreen({ navigation }: Props) {
 
   const renderItem = ({ item, index }: { item: StampWithSpot; index: number }) => {
     const isMiddleColumn = index % NUM_COLUMNS === 1;
-    const imageUrl = getStampImageUrl(item.image_path);
+    const imageUrl = isPreview ? previewImageUrl(item) : getStampImageUrl(item.image_path);
 
     return (
       <TouchableOpacity
@@ -138,9 +151,10 @@ export function GalleryScreen({ navigation }: Props) {
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>御朱印</Text>
+          {showsGallery && <ViewModeToggle mode={viewMode} onChange={setViewMode} />}
         </View>
 
-        {isAuthenticated && (
+        {showsGallery && viewMode === 'grid' && (
           <View style={styles.sortRow}>
             <TouchableOpacity onPress={handleToggleSort} testID="sort-button">
               <Text style={styles.sortText}>{sortLabel} ▼</Text>
@@ -148,7 +162,7 @@ export function GalleryScreen({ navigation }: Props) {
           </View>
         )}
 
-        {!isAuthenticated ? (
+        {!showsGallery ? (
           <View style={styles.centerContainer} testID="gallery-guest-empty-state">
             <MaterialIcons name="photo-library" size={48} color={colors.gray[400]} />
             <Text style={styles.emptyText}>あなたの御朱印帳</Text>
@@ -169,7 +183,7 @@ export function GalleryScreen({ navigation }: Props) {
               style={styles.guestCta}
             />
           </View>
-        ) : isLoading ? (
+        ) : isLoading && !isPreview ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator
               size="large"
@@ -177,7 +191,14 @@ export function GalleryScreen({ navigation }: Props) {
               testID="loading-indicator"
             />
           </View>
-        ) : stamps.length === 0 ? (
+        ) : viewMode === 'flip' ? (
+          <GoshuinchoFlipView
+            stamps={displayStamps}
+            resolveImageUrl={isPreview ? previewImageUrl : undefined}
+            onPressStamp={setSelectedImageIndex}
+            onPressBlank={() => navigation.navigate('Record')}
+          />
+        ) : displayStamps.length === 0 ? (
           <View style={styles.centerContainer} testID="empty-state">
             <MaterialIcons name="photo-library" size={48} color={colors.gray[400]} />
             <Text style={styles.emptyText}>御朱印がまだありません</Text>
@@ -185,7 +206,7 @@ export function GalleryScreen({ navigation }: Props) {
           </View>
         ) : (
           <FlatList
-            data={stamps}
+            data={displayStamps}
             renderItem={renderItem}
             keyExtractor={item => item.id}
             numColumns={NUM_COLUMNS}
@@ -238,6 +259,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.lg,
   },
