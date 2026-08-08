@@ -417,4 +417,30 @@ describe('RecordScreen', () => {
       });
     });
   });
+
+  it('失敗箇所とエラー原文をエラー画面へ引き渡す', async () => {
+    // ここが抜けると「失敗しても詳細が出ない」形で実機で発覚する
+    mockFormState.selectedSpot = fakeSpot;
+    mockFormState.imageUri = 'file:///photo.jpg';
+    mockSubmit.mockResolvedValue({
+      success: false,
+      error: new Error('insert failed (code=42501)'),
+      stage: 'create',
+      message: 'insert failed (code=42501)',
+    });
+    mockFetchVisitedSpotIds.mockResolvedValue(new Set());
+
+    const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent.press(getByText('この内容で記録する'));
+    fireEvent.press(getByText('登録する'));
+
+    await waitFor(() => {
+      expect(mockNavigation.navigate).toHaveBeenCalledWith('Error', {
+        type: 'upload',
+        origin: 'record',
+        stage: 'create',
+        message: 'insert failed (code=42501)',
+      });
+    });
+  });
 });
