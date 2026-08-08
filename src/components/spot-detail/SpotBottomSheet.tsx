@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BottomTabBarHeightContext } from '@react-navigation/bottom-tabs';
 
 import { SpotSheetHeader } from './SpotSheetHeader';
 import { SpotSheetActions } from './SpotSheetActions';
@@ -63,7 +64,14 @@ export function SpotBottomSheet({
   onWishlistToggle,
 }: SpotBottomSheetProps) {
   const insets = useSafeAreaInsets();
-  const expandedHeight = SCREEN_HEIGHT * 0.85;
+  // シートの親はタブバーを除いた領域なので、ウィンドウ高だけで位置を決めると
+  // 下端がタブバーの裏に潜り込み、アクション行のタップがタブに奪われる。
+  // タブナビゲーターの外で使われたときは undefined が返るので 0 とみなす。
+  const tabBarHeight = useContext(BottomTabBarHeightContext);
+  // タブバーの高さは下部セーフエリアを含むため、両方を引くと二重に差し引かれる
+  const bottomOffset = tabBarHeight ?? insets.bottom;
+  const availableHeight = SCREEN_HEIGHT - bottomOffset;
+  const expandedHeight = availableHeight * 0.85;
   const { spot } = useSpotDetail(spotId ?? '');
   const { stamps, visitCount, latestVisitDate, publicStamps } = useSpotStamps(spotId ?? '');
   const { spotInfo } = useSpotInfo(spotId ?? '');
@@ -74,8 +82,8 @@ export function SpotBottomSheet({
   const galleryOpenRef = useRef(false);
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
 
-  const compactPosition = SCREEN_HEIGHT - compactHeight - insets.bottom;
-  const expandedPosition = SCREEN_HEIGHT - expandedHeight;
+  const compactPosition = availableHeight - compactHeight;
+  const expandedPosition = availableHeight - expandedHeight;
 
   // Keep mutable refs so PanResponder always reads latest values
   const modeRef = useRef(mode);
@@ -106,9 +114,15 @@ export function SpotBottomSheet({
    * compact の中身の高さを実測する。expanded では compact 専用の要素が描画されず
    * 不当に縮んだ値を拾ってしまうため、そのときは採用しない。
    */
+  const availableHeightRef = useRef(availableHeight);
+  availableHeightRef.current = availableHeight;
+
   const handlePrimaryLayout = useCallback((event: LayoutChangeEvent) => {
     if (modeRef.current === 'expanded') return;
-    const measured = resolveCompactHeight(event.nativeEvent.layout.height, SCREEN_HEIGHT);
+    const measured = resolveCompactHeight(
+      event.nativeEvent.layout.height,
+      availableHeightRef.current
+    );
     setCompactHeight(previous => (previous === measured ? previous : measured));
   }, []);
 
@@ -116,13 +130,13 @@ export function SpotBottomSheet({
   useEffect(() => {
     if (spotId && spot) {
       setMode('compact');
-      animateToRef.current(SCREEN_HEIGHT - COMPACT_FALLBACK_HEIGHT - insets.bottom);
+      animateToRef.current(availableHeightRef.current - COMPACT_FALLBACK_HEIGHT);
     } else {
       animateToRef.current(SCREEN_HEIGHT, () => {
         setMode('hidden');
       });
     }
-  }, [spotId, spot, insets.bottom]);
+  }, [spotId, spot]);
 
   // 計測で高さが変わったときの再配置。compact のときだけ動かす
   useEffect(() => {
@@ -299,12 +313,12 @@ const styles = StyleSheet.create({
   },
   handleContainer: {
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: spacing.sm,
   },
   handle: {
     width: 40,
     height: 4,
-    borderRadius: 2,
+    borderRadius: borderRadius.sm,
     backgroundColor: colors.gray[300],
   },
   scrollView: {

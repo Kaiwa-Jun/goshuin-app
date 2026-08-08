@@ -9,6 +9,12 @@ import {
 } from '../SpotBottomSheet';
 import type { Spot } from '@/types/supabase';
 
+jest.mock('@react-navigation/bottom-tabs', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+  const ReactModule = require('react');
+  return { BottomTabBarHeightContext: ReactModule.createContext(49) };
+});
+
 jest.mock('@services/stamps', () => ({
   fetchStampsBySpotId: jest.fn(() => Promise.resolve([])),
   getStampImageUrl: jest.fn((path: string) => `https://example.com/${path}`),
