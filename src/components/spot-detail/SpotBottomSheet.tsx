@@ -1,15 +1,28 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Dimensions, PanResponder, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  Animated,
+  Dimensions,
+  LayoutChangeEvent,
+  PanResponder,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { SpotCompactCard } from './SpotCompactCard';
+import { SpotSheetHeader } from './SpotSheetHeader';
+import { SpotSheetActions } from './SpotSheetActions';
+import { SpotThumbnailStrip } from './SpotThumbnailStrip';
 import { SpotDetailContent } from './SpotDetailContent';
+import { SpotInfoSection } from './SpotInfoSection';
+import { LimitedGoshuinSection } from './LimitedGoshuinSection';
 import { useSpotDetail } from '@hooks/useSpotDetail';
 import { useSpotStamps } from '@hooks/useSpotStamps';
 import { useSpotInfo } from '@hooks/useSpotInfo';
 import { useAuth } from '@hooks/useAuth';
 import { colors } from '@theme/colors';
-import { borderRadius } from '@theme/spacing';
+import { borderRadius, spacing } from '@theme/spacing';
 import { shadows } from '@theme/shadows';
 
 interface SpotBottomSheetProps {
@@ -22,7 +35,22 @@ interface SpotBottomSheetProps {
 }
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
-const COMPACT_HEIGHT = 240;
+
+export const COMPACT_MIN_HEIGHT = 176;
+export const COMPACT_MAX_HEIGHT = 380;
+/** レイアウト計測が終わるまでの初期値 */
+export const COMPACT_FALLBACK_HEIGHT = 240;
+
+/**
+ * 実測した中身の高さを compact の高さに丸める。
+ * 上限を画面の半分に抑えているのは、小型端末で compact が地図を覆わないようにするため。
+ */
+export function resolveCompactHeight(contentHeight: number, screenHeight: number): number {
+  if (!Number.isFinite(contentHeight) || contentHeight <= 0) return COMPACT_FALLBACK_HEIGHT;
+  const upper = Math.min(COMPACT_MAX_HEIGHT, Math.round(screenHeight * 0.5));
+  const lower = Math.min(COMPACT_MIN_HEIGHT, upper);
+  return Math.min(Math.max(Math.round(contentHeight), lower), upper);
+}
 
 type SheetMode = 'hidden' | 'compact' | 'expanded';
 
@@ -42,10 +70,11 @@ export function SpotBottomSheet({
   const { isAuthenticated } = useAuth();
 
   const [mode, setMode] = useState<SheetMode>('hidden');
+  const [compactHeight, setCompactHeight] = useState(COMPACT_FALLBACK_HEIGHT);
   const galleryOpenRef = useRef(false);
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
 
-  const compactPosition = SCREEN_HEIGHT - COMPACT_HEIGHT - insets.bottom;
+  const compactPosition = SCREEN_HEIGHT - compactHeight - insets.bottom;
   const expandedPosition = SCREEN_HEIGHT - expandedHeight;
 
   // Keep mutable refs so PanResponder always reads latest values
@@ -73,16 +102,34 @@ export function SpotBottomSheet({
   const animateToRef = useRef(animateTo);
   animateToRef.current = animateTo;
 
+  /**
+   * compact の中身の高さを実測する。expanded では compact 専用の要素が描画されず
+   * 不当に縮んだ値を拾ってしまうため、そのときは採用しない。
+   */
+  const handlePrimaryLayout = useCallback((event: LayoutChangeEvent) => {
+    if (modeRef.current === 'expanded') return;
+    const measured = resolveCompactHeight(event.nativeEvent.layout.height, SCREEN_HEIGHT);
+    setCompactHeight(previous => (previous === measured ? previous : measured));
+  }, []);
+
+  // 開閉。compactPosition に依存させると、計測のたびに expanded から引き戻される
   useEffect(() => {
     if (spotId && spot) {
       setMode('compact');
-      animateTo(compactPosition);
+      animateToRef.current(SCREEN_HEIGHT - COMPACT_FALLBACK_HEIGHT - insets.bottom);
     } else {
-      animateTo(SCREEN_HEIGHT, () => {
+      animateToRef.current(SCREEN_HEIGHT, () => {
         setMode('hidden');
       });
     }
-  }, [spotId, spot, compactPosition, animateTo]);
+  }, [spotId, spot, insets.bottom]);
+
+  // 計測で高さが変わったときの再配置。compact のときだけ動かす
+  useEffect(() => {
+    if (mode === 'compact') {
+      animateToRef.current(compactPosition);
+    }
+  }, [compactPosition, mode]);
 
   const panResponder = useMemo(
     () =>
@@ -150,9 +197,20 @@ export function SpotBottomSheet({
     }
   }, [spotId, onWishlistToggle]);
 
+  // ドラッグでしか展開できないとタップ手段が無く、Web での検証もできない
+  const toggleMode = useCallback(() => {
+    setMode(current => {
+      const next = current === 'expanded' ? 'compact' : 'expanded';
+      animateToRef.current(next === 'expanded' ? expandedPosRef.current : compactPosRef.current);
+      return next;
+    });
+  }, []);
+
   if (!spotId || !spot) {
     return null;
   }
+
+  const isExpanded = mode === 'expanded';
 
   return (
     <Animated.View
@@ -166,30 +224,45 @@ export function SpotBottomSheet({
       testID="bottom-sheet"
       {...panResponder.panHandlers}
     >
-      {/* Drag handle */}
-      <View style={styles.handleContainer}>
-        <View style={styles.handle} />
-      </View>
+      {/* 両モードで常に出す部分。展開しても内容が差し替わらない */}
+      <View style={styles.primary} onLayout={handlePrimaryLayout} testID="spot-sheet-primary">
+        <TouchableOpacity
+          style={styles.handleContainer}
+          onPress={toggleMode}
+          activeOpacity={0.7}
+          testID="sheet-handle"
+        >
+          <View style={styles.handle} />
+        </TouchableOpacity>
 
-      {/* Compact card (hidden when expanded) */}
-      {mode !== 'expanded' && (
-        <SpotCompactCard
-          spot={spot}
-          isVisited={isVisited}
+        <SpotSheetHeader spot={spot} isVisited={isVisited} isWishlisted={isWishlisted} />
+
+        {spotInfo && <SpotInfoSection spotInfo={spotInfo} />}
+
+        {/* compact でだけ出す要約。展開時は下の詳細が同等以上を描画する */}
+        {!isExpanded && (
+          <>
+            {spotInfo && <LimitedGoshuinSection info={spotInfo.limitedGoshuin} variant="compact" />}
+            <SpotThumbnailStrip stamps={stamps} publicStamps={publicStamps} onPress={toggleMode} />
+          </>
+        )}
+
+        <SpotSheetActions
           isWishlisted={isWishlisted}
           onWishlistPress={onWishlistToggle ? handleWishlistPress : undefined}
-          spotInfo={spotInfo ?? undefined}
+          onRecordPress={handleRecord}
         />
-      )}
+      </View>
 
-      {/* Scrollable detail content (visible when expanded) */}
-      {mode === 'expanded' && (
+      {/* 展開時に下へ足される情報 */}
+      {isExpanded && (
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator
         >
           <SpotDetailContent
+            variant="sheet"
             spot={spot}
             stamps={stamps}
             visitCount={visitCount}
@@ -219,6 +292,10 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: borderRadius.xl,
     borderTopRightRadius: borderRadius.xl,
     ...shadows.lg,
+  },
+  primary: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
   },
   handleContainer: {
     alignItems: 'center',
