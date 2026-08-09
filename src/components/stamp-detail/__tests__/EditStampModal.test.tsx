@@ -17,9 +17,11 @@ jest.mock('@react-native-community/datetimepicker', () => {
   const { View } = require('react-native');
   return {
     __esModule: true,
-    default: (props: { testID?: string; onChange?: (event: unknown, date?: Date) => void }) => (
-      <View testID={props.testID} />
-    ),
+    default: (props: {
+      testID?: string;
+      display?: string;
+      onChange?: (event: unknown, date?: Date) => void;
+    }) => <View testID={props.testID} display={props.display} />,
   };
 });
 
@@ -183,6 +185,18 @@ describe('EditStampModal', () => {
     expect(onSave).toHaveBeenCalledWith({
       visited_at: '2024-01-15',
       memo: 'テストメモ',
+    });
+  });
+
+  describe('日付ピッカーの表示形式（Issue #128）', () => {
+    it('iOS ではホイール3列（spinner）を使う', () => {
+      const { getByTestId } = render(<EditStampModal {...defaultProps} />);
+
+      fireEvent.press(getByTestId('date-picker-trigger'));
+
+      // inline は「カレンダー ⇄ 年月ホイール」の2モードを持ち、年月ホイールの
+      // 途中で完了を押すと日が未確定のまま閉じてしまう（実機で判明）
+      expect(getByTestId('date-picker').props.display).toBe('spinner');
     });
   });
 });

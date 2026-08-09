@@ -461,3 +461,15 @@ describe('訪問日の和暦併記（監査 A-2 / 入力補助）', () => {
     expect(String(label.props.children)).toMatch(/^令和(元|\d+)年\d+月\d+日$/);
   });
 });
+
+describe('日付ピッカーの表示形式（Issue #128）', () => {
+  it('iOS ではホイール3列（spinner）を使う', () => {
+    const { getByTestId } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+
+    fireEvent.press(getByTestId('date-picker-trigger'));
+
+    // inline は「カレンダー ⇄ 年月ホイール」の2モードを持ち、年月ホイールの
+    // 途中で完了を押すと日が未確定のまま閉じてしまう（実機で判明）
+    expect(getByTestId('date-picker').props.display).toBe('spinner');
+  });
+});
