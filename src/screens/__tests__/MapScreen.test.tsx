@@ -1,6 +1,7 @@
 import React from 'react';
 import { act, render, fireEvent, waitFor } from '@testing-library/react-native';
 import { MapScreen } from '@screens/MapScreen';
+import { StyleSheet } from 'react-native';
 import { CLUSTER_BUBBLE_IMAGES } from '@components/common/ClusterMarker';
 import { CLUSTER_REGION_DEBOUNCE_MS } from '@utils/regionHysteresis';
 
@@ -156,6 +157,17 @@ jest.mock('@hooks/useUserStamps', () => ({
 
 let mockWishlistSpotIds = new Set<string>();
 
+let mockWishlistSpots: unknown[] = [];
+
+jest.mock('@hooks/useWishlistSpots', () => ({
+  useWishlistSpots: () => ({
+    spots: mockWishlistSpots,
+    isLoading: false,
+    error: null,
+    refetch: jest.fn(),
+  }),
+}));
+
 jest.mock('@hooks/useWishlist', () => ({
   useWishlist: () => ({
     wishlistSpotIds: mockWishlistSpotIds,
@@ -168,6 +180,7 @@ jest.mock('@hooks/useWishlist', () => ({
 afterEach(() => {
   mockSpotsOverride = null;
   mockWishlistSpotIds = new Set<string>();
+  mockWishlistSpots = [];
 });
 
 const mockParentNavigate = jest.fn();
@@ -1077,5 +1090,63 @@ describe('MapScreen', () => {
       expect(queryAllByTestId(/^spot-marker-/)).toHaveLength(0);
       expect(clusterMarkers[0].props.image).toBe(CLUSTER_BUBBLE_IMAGES['1000p']);
     });
+  });
+});
+
+describe('MapScreen 行きたいリストへの導線（Issue #123）', () => {
+  it('行きたいが0件でもエントリポイントが表示される', () => {
+    mockWishlistSpots = [];
+
+    const { getByTestId } = render(
+      <MapScreen navigation={mockNavigation as never} route={mockRoute as never} />
+    );
+
+    expect(getByTestId('wishlist-entry')).toBeTruthy();
+  });
+
+  it('エントリポイントをタップすると行きたいリストへ遷移する', () => {
+    const { getByTestId } = render(
+      <MapScreen navigation={mockNavigation as never} route={mockRoute as never} />
+    );
+
+    fireEvent.press(getByTestId('wishlist-entry'));
+
+    expect(mockNavigation.navigate).toHaveBeenCalledWith('Wishlist');
+  });
+
+  it('行きたいが1件以上のとき件数が出る', () => {
+    mockWishlistSpots = [{ id: 'w1' }, { id: 'w2' }, { id: 'w3' }];
+
+    const { getByText } = render(
+      <MapScreen navigation={mockNavigation as never} route={mockRoute as never} />
+    );
+
+    expect(getByText('行きたい (3)')).toBeTruthy();
+  });
+
+  it('0件のときは件数を出さない', () => {
+    mockWishlistSpots = [];
+
+    const { getByText } = render(
+      <MapScreen navigation={mockNavigation as never} route={mockRoute as never} />
+    );
+
+    expect(getByText('行きたい')).toBeTruthy();
+  });
+
+  it('エントリポイントは検索行の直下に置かれ、位置情報バナーはその下にずれる', () => {
+    const { getByTestId } = render(
+      <MapScreen navigation={mockNavigation as never} route={mockRoute as never} />
+    );
+
+    const entry = StyleSheet.flatten(getByTestId('wishlist-entry').props.style) as {
+      top?: number;
+      zIndex?: number;
+    };
+
+    // 検索行(insets.top + spacing.xs)の 52pt 下。フィルタボタンの真下に来る
+    expect(entry.top).toBeGreaterThan(0);
+    // 検索行(10)より下、フィルタのドロップダウン(15)より下の重なり順
+    expect(entry.zIndex).toBeLessThan(15);
   });
 });
