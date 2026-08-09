@@ -90,8 +90,10 @@ handleSavePress() → form.validate() → setShowConfirm(true)
 
 変更後: `handleSavePress()` が `handleConfirm()` の中身をそのまま実行する。`showConfirm` state と `ConfirmModal` の描画を削除する。
 
-- `form.submit()` は内部で `validate()` を呼ぶ（`useRecordForm.ts:115`）ので、二重の `validate()` 呼び出しは残さない
-- 送信中の二重タップは既存の `disabled={form.isSubmitting}`（`RecordScreen.tsx:239`）で防がれる。**この防御は維持する**
+- ~~`form.submit()` は内部で `validate()` を呼ぶ（`useRecordForm.ts:115`）ので、二重の `validate()` 呼び出しは残さない~~
+  → **実装時に訂正**。外側の `validate()` は削れない。`submit()` は検証失敗時に `{ success: false }` を `stage` / `message` 無しで返すため、外側で先に弾かないと `else if (!result.success)` に落ちて**入力不備でエラー画面に飛んでしまう**。加えて、不備のある入力で `fetchVisitedSpotIds()` の通信を撃たずに済む。二重呼び出しは冪等なので許容する（A-8 / A-9 がこの分岐を固定している）
+- ~~送信中の二重タップは既存の `disabled={form.isSubmitting}` で防がれる~~
+  → **実装時に訂正**。`isSubmitting` は `submit()` の中で初めて true になるため、**その手前の `fetchVisitedSpotIds()` を待っている間はボタンが押せる**。確認モーダルが二度押しを吸収していたぶん、廃止するとこの窓が露出し、素早い二度押しで御朱印が2件・画像も2枚できる。`useRef` の in-flight ガードを `handleSavePress` の先頭に置いて塞ぐ（受入基準 A-11〜A-13）
 - `src/components/record/ConfirmModal.tsx` とそのテストを削除する
 
 ### S-2: 記録完了画面の取り消し
@@ -183,7 +185,10 @@ export function usePhotoPicker(): {
 | A-7  | 送信失敗時に `Error` 画面へ `stage` と `message` を渡して遷移する（既存挙動が維持されている）                                                    | テスト |
 | A-8  | スポット未選択で「この内容で記録する」を押すと `spotError` が表示され、遷移しない                                                                | テスト |
 | A-9  | 写真未選択で「この内容で記録する」を押すと `imageError` が表示され、遷移しない                                                                   | テスト |
-| A-10 | `form.isSubmitting` が true のとき「この内容で記録する」が `disabled` である                                                                     | テスト |
+| A-10 | `form.isSubmitting` が true のとき「この内容で記録する」を押しても `submit` が呼ばれない                                                         | テスト |
+| A-11 | `fetchVisitedSpotIds()` の解決前に記録ボタンを2回押しても `submit` が1回しか呼ばれない                                                           | テスト |
+| A-12 | 送信が完了した後は再度記録できる（in-flight ガードが張り付かない）                                                                               | テスト |
+| A-13 | 送信が失敗した後も再送信できる                                                                                                                   | テスト |
 
 ### B 群: 記録完了画面の取り消し（S-2）
 

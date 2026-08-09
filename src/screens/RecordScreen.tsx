@@ -54,6 +54,7 @@ export function RecordScreen({ navigation, route }: Props) {
   const scrollViewRef = useRef<ScrollView>(null);
   const memoLayoutY = useRef(0);
   const dateLayoutY = useRef(0);
+  const isSavingRef = useRef(false);
 
   const [showSpotAdd, setShowSpotAdd] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -68,8 +69,22 @@ export function RecordScreen({ navigation, route }: Props) {
   // どちらも直前のフォーム上に見えており、一番間違えやすい写真は確認していなかった。
   // 誤登録は記録完了画面の「記録を取り消す」で回復する
   const handleSavePress = async () => {
+    // ⚠️ isSubmitting は submit() の中で初めて true になるため、その手前の
+    // fetchVisitedSpotIds を待っている間はボタンの disabled が効かない。
+    // 確認モーダルが二度押しを吸収していたぶん、ここを塞がないと
+    // 素早い二度押しで御朱印が2件・画像も2枚できてしまう
+    if (isSavingRef.current) return;
     if (!form.validate()) return;
 
+    isSavingRef.current = true;
+    try {
+      await save();
+    } finally {
+      isSavingRef.current = false;
+    }
+  };
+
+  const save = async () => {
     const visitedSpotIds = await fetchVisitedSpotIds();
     const previousCount = visitedSpotIds.size;
 

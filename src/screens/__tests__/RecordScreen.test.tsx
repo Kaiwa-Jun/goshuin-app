@@ -852,3 +852,107 @@ describe('タップ数（Issue #130 / F 群）', () => {
     expect(taps).toBe(4);
   });
 });
+
+describe('二重送信の防止（Issue #130 / A-10 補強）', () => {
+  const fakeStamp: Stamp = {
+    id: 'stamp-1',
+    user_id: 'user-1',
+    spot_id: 'spot-1',
+    goshuincho_id: null,
+    visited_at: '2024-06-01T00:00:00.000Z',
+    image_path: 'user-1/12345.jpg',
+    memo: '',
+    is_public: false,
+    extracted_info: null,
+    created_at: '2024-06-01T00:00:00Z',
+    updated_at: '2024-06-01T00:00:00Z',
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockFormState = {
+      selectedSpot: fakeSpot,
+      imageUri: 'file:///photo.jpg',
+      visitedAt: new Date('2024-06-01'),
+      memo: '',
+      isPublic: false,
+      spotError: null,
+      imageError: null,
+      isSubmitting: false,
+      submitError: null,
+      selectSpot: mockSelectSpot,
+      setImageUri: mockSetImageUri,
+      setVisitedAt: mockSetVisitedAt,
+      setMemo: mockSetMemo,
+      setIsPublic: mockSetIsPublic,
+      validate: mockValidate,
+      submit: mockSubmit,
+      reset: mockReset,
+    };
+    mockValidate.mockReturnValue(true);
+  });
+
+  // 確認モーダルを廃したことで、記録ボタンが唯一の入口になった。
+  // isSubmitting は submit() の中で初めて true になるため、その手前の
+  // fetchVisitedSpotIds を待っている間はボタンが押せてしまう。
+  // ここを塞がないと素早い二度押しで御朱印が2件・画像も2枚できる
+  it('fetchVisitedSpotIds の待ち時間に二度押ししても submit は1回だけ', async () => {
+    let releaseFetch: (v: Set<string>) => void = () => {};
+    mockFetchVisitedSpotIds.mockReturnValue(
+      new Promise<Set<string>>(resolve => {
+        releaseFetch = resolve;
+      })
+    );
+    mockSubmit.mockResolvedValue({ success: true, stamp: fakeStamp });
+
+    const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+
+    const button = getByText('この内容で記録する');
+    fireEvent.press(button);
+    fireEvent.press(button);
+
+    releaseFetch(new Set());
+
+    await waitFor(() => {
+      expect(mockSubmit).toHaveBeenCalledTimes(1);
+    });
+    expect(mockFetchVisitedSpotIds).toHaveBeenCalledTimes(1);
+    expect(mockNavigation.navigate).toHaveBeenCalledTimes(1);
+  });
+
+  it('送信が終われば次の記録を送信できる', async () => {
+    mockFetchVisitedSpotIds.mockResolvedValue(new Set());
+    mockSubmit.mockResolvedValue({ success: true, stamp: fakeStamp });
+
+    const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    const button = getByText('この内容で記録する');
+
+    fireEvent.press(button);
+    await waitFor(() => {
+      expect(mockSubmit).toHaveBeenCalledTimes(1);
+    });
+
+    fireEvent.press(button);
+    await waitFor(() => {
+      expect(mockSubmit).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it('送信に失敗した後も再送信できる', async () => {
+    mockFetchVisitedSpotIds.mockResolvedValue(new Set());
+    mockSubmit.mockResolvedValue({ success: false, error: new Error('boom'), stage: 'upload' });
+
+    const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    const button = getByText('この内容で記録する');
+
+    fireEvent.press(button);
+    await waitFor(() => {
+      expect(mockSubmit).toHaveBeenCalledTimes(1);
+    });
+
+    fireEvent.press(button);
+    await waitFor(() => {
+      expect(mockSubmit).toHaveBeenCalledTimes(2);
+    });
+  });
+});
