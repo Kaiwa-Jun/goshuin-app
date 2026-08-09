@@ -164,7 +164,8 @@ OS の権限はアプリから直接トグルできない（iOS/Android 共通�
 #### 変更しないファイル
 
 - `src/navigation/RootNavigator.tsx` / `GalleryStack.tsx` / `CollectionStack.tsx`
-- `src/screens/GalleryScreen.tsx` および `src/components/gallery/*`（御朱印帳タブは表示名のみの変更）
+- `src/components/gallery/*`
+- ~~`src/screens/GalleryScreen.tsx`~~ — ⚠️ **契約書からの逸脱**: 当初「変更しない」に挙げていたが、タブ名だけ「御朱印帳」にすると画面内ヘッダーが「御朱印」のままで食い違うため、**ヘッダー文言1行だけ変更した**。同じ理由で `CollectionScreen`（コレクション → あつめる）と `SettingsScreen`（設定 → 自分）のヘッダーも変更している
 - `src/services/wishlist.ts` / `src/components/animated/WishlistButton.tsx`
 - `src/screens/OnboardingScreen.tsx`（`MapTab` 参照のみで表示名に依存しない）
 - `e2e/flows/store-screenshots.yaml`
@@ -282,10 +283,12 @@ OS の権限はアプリから直接トグルできない（iOS/Android 共通�
 - [ ] E-1 `RecordCompleteScreen` のボタン文言が「あつめるを見る」である
 - [ ] E-2 そのボタンの遷移先が従来どおり `CollectionTab` / `CollectionList` である
 - [ ] E-3 `e2e/flows/smoke.yaml` のタブ名が新しい表示名に更新されている
+- [ ] E-4 各画面の**画面内ヘッダー文言**がタブ名と一致している（あつめる / 自分 / 御朱印帳）
 
 ### UI. 視覚仕様（`StyleSheet.flatten` で検証）
 
-- [ ] UI-1 行きたいのエントリポイントが `searchRowTop + 52` より下にある（フィルタのドロップダウン・位置情報バナーと重ならない）
+- [ ] UI-1 エントリポイントが検索行の直下（`searchRowTop + 52`）にあり、**位置情報バナーがその下（`+ 44`）へずれている**
+  - ⚠️ 当初の基準は「エントリポイントを `searchRowTop + 52` より下に置く」だったが、位置情報バナーが条件表示のため位置が動的になり基準として機能しない。エントリポイントを固定位置に置きバナー側をずらす形に変更した。フィルタのドロップダウン（`zIndex: 15`）はオーバーレイなのでチップ（`zIndex: 9`）の上に出るのが正しい挙動として据え置く
 - [ ] UI-2 エントリポイントが FAB（`bottom: 20 / right: 20`）と重ならない
 - [ ] UI-3 新規に追加した色・余白・文字がすべて `src/theme/` のトークン参照である（直値なし）
 - [ ] UI-4 `WishlistScreen` のカードのタップ領域が 44×44pt 以上である
