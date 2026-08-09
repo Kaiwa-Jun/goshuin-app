@@ -30,15 +30,15 @@ export function TabNavigator() {
         name="GalleryTab"
         component={GalleryStack}
         options={{
-          title: '御朱印',
-          tabBarIcon: ({ color }) => <MaterialIcons name="photo-library" size={24} color={color} />,
+          title: '御朱印帳',
+          tabBarIcon: ({ color }) => <MaterialIcons name="menu-book" size={24} color={color} />,
         }}
       />
       <Tab.Screen
         name="CollectionTab"
         component={CollectionStack}
         options={{
-          title: 'コレクション',
+          title: 'あつめる',
           headerShown: false,
           tabBarIcon: ({ color }) => <MaterialIcons name="emoji-events" size={24} color={color} />,
         }}
@@ -47,8 +47,8 @@ export function TabNavigator() {
         name="Settings"
         component={SettingsScreen}
         options={{
-          title: '設定',
-          tabBarIcon: ({ color }) => <MaterialIcons name="settings" size={24} color={color} />,
+          title: '自分',
+          tabBarIcon: ({ color }) => <MaterialIcons name="person" size={24} color={color} />,
         }}
       />
     </Tab.Navigator>

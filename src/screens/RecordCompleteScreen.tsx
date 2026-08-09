@@ -98,7 +98,7 @@ export function RecordCompleteScreen({ navigation, route }: Props) {
             onPress={handleViewCollection}
             testID="button-view-collection"
           >
-            <Text style={styles.buttonViewCollectionText}>コレクションを確認</Text>
+            <Text style={styles.buttonViewCollectionText}>あつめるを見る</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>

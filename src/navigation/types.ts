@@ -45,6 +45,7 @@ export type MapStackParamList = {
   Map: { focusSpotId?: string; focusPrefecture?: string } | undefined;
   SpotDetail: { spotId: string };
   Search: undefined;
+  Wishlist: undefined;
 };
 
 export type GalleryStackParamList = {

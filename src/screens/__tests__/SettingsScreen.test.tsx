@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import { Alert } from 'react-native';
+import { Alert, Linking } from 'react-native';
 
 import { SettingsScreen } from '../SettingsScreen';
 import type { MainTabScreenProps } from '@/navigation/types';
@@ -21,6 +21,16 @@ jest.mock('react-native-safe-area-context', () => {
     useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
   };
 });
+
+let mockLocationStatus: string | Error = 'granted';
+
+jest.mock('expo-location', () => ({
+  getForegroundPermissionsAsync: jest.fn(async () => {
+    if (mockLocationStatus instanceof Error) throw mockLocationStatus;
+    return { status: mockLocationStatus };
+  }),
+  PermissionStatus: { GRANTED: 'granted', DENIED: 'denied', UNDETERMINED: 'undetermined' },
+}));
 
 const mockSignOut = jest.fn();
 const mockSignInWithGoogle = jest.fn();
@@ -81,7 +91,7 @@ describe('SettingsScreen', () => {
 
   it('renders the header', () => {
     const { getByText } = render(<SettingsScreen navigation={mockNavigation} route={mockRoute} />);
-    expect(getByText('設定')).toBeTruthy();
+    expect(getByText('自分')).toBeTruthy();
   });
 
   it('renders account section', () => {
@@ -265,5 +275,77 @@ describe('SettingsScreen', () => {
     const { getByText } = render(<SettingsScreen navigation={nav} route={mockRoute} />);
     fireEvent.press(getByText('プライバシーポリシー'));
     expect(parentNavigate).toHaveBeenCalledWith('PrivacyPolicy');
+  });
+});
+
+describe('SettingsScreen 位置情報の行（Issue #123 / 監査 A-14）', () => {
+  beforeEach(() => {
+    mockLocationStatus = 'granted';
+  });
+
+  it('位置情報の行が表示される', async () => {
+    const { getByTestId } = render(
+      <SettingsScreen navigation={mockNavigation} route={mockRoute} />
+    );
+
+    await waitFor(() => {
+      expect(getByTestId('location-settings-row')).toBeTruthy();
+    });
+  });
+
+  it('タップすると OS の設定アプリを開く', async () => {
+    const openSettingsSpy = jest
+      .spyOn(Linking, 'openSettings')
+      .mockImplementation(() => Promise.resolve());
+
+    const { getByTestId } = render(
+      <SettingsScreen navigation={mockNavigation} route={mockRoute} />
+    );
+
+    await waitFor(() => {
+      expect(getByTestId('location-settings-row')).toBeTruthy();
+    });
+
+    fireEvent.press(getByTestId('location-settings-row'));
+
+    expect(openSettingsSpy).toHaveBeenCalled();
+    openSettingsSpy.mockRestore();
+  });
+
+  it('許可されているとき「許可済み」と出る', async () => {
+    mockLocationStatus = 'granted';
+
+    const { getByText } = render(<SettingsScreen navigation={mockNavigation} route={mockRoute} />);
+
+    await waitFor(() => {
+      expect(getByText('許可済み')).toBeTruthy();
+    });
+  });
+
+  it('拒否されているとき「未許可」と出る', async () => {
+    mockLocationStatus = 'denied';
+
+    const { getByText } = render(<SettingsScreen navigation={mockNavigation} route={mockRoute} />);
+
+    await waitFor(() => {
+      expect(getByText('未許可')).toBeTruthy();
+    });
+  });
+
+  it('権限の取得に失敗しても落ちず、行自体は出る', async () => {
+    mockLocationStatus = new Error('boom');
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const { getByTestId, queryByText } = render(
+      <SettingsScreen navigation={mockNavigation} route={mockRoute} />
+    );
+
+    await waitFor(() => {
+      expect(getByTestId('location-settings-row')).toBeTruthy();
+    });
+    expect(queryByText('許可済み')).toBeNull();
+    expect(queryByText('未許可')).toBeNull();
+
+    warnSpy.mockRestore();
   });
 });
