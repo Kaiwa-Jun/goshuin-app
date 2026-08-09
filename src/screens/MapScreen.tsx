@@ -19,7 +19,6 @@ import { useSpotClusters } from '@hooks/useSpotClusters';
 import { useSpots } from '@hooks/useSpots';
 import { useUserStamps } from '@hooks/useUserStamps';
 import { useWishlist } from '@hooks/useWishlist';
-import { useWishlistSpots } from '@hooks/useWishlistSpots';
 import type { MapStackScreenProps } from '@/navigation/types';
 import type { Spot } from '@/types/supabase';
 import type { SpotCluster } from '@utils/spotClustering';
@@ -102,8 +101,6 @@ export function MapScreen({ navigation, route }: Props) {
     (effectiveRegion?.latitudeDelta ?? LATITUDE_DELTA) <= LABEL_VISIBLE_DELTA || forceLabelVisible;
   const mapRef = useRef<MapView>(null);
   const insets = useSafeAreaInsets();
-
-  const { spots: wishlistSpots } = useWishlistSpots();
 
   const searchRowTop = insets.top + spacing.xs;
   // 検索行の直下。位置情報バナーはさらにこの下へずらす
@@ -349,7 +346,9 @@ export function MapScreen({ navigation, route }: Props) {
       >
         <MaterialIcons name="bookmark" size={18} color={colors.pin.wishlisted} />
         <Text style={styles.wishlistEntryText}>
-          {wishlistSpots.length > 0 ? `行きたい (${wishlistSpots.length})` : '行きたい'}
+          {/* ピン着色用に既に取っている ID の Set を使う。
+              件数表示のために詳細付きの JOIN クエリを再取得しない */}
+          {wishlistSpotIds.size > 0 ? `行きたい (${wishlistSpotIds.size})` : '行きたい'}
         </Text>
       </TouchableOpacity>
 

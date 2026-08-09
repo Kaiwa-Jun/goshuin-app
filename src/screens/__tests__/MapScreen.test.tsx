@@ -157,17 +157,6 @@ jest.mock('@hooks/useUserStamps', () => ({
 
 let mockWishlistSpotIds = new Set<string>();
 
-let mockWishlistSpots: unknown[] = [];
-
-jest.mock('@hooks/useWishlistSpots', () => ({
-  useWishlistSpots: () => ({
-    spots: mockWishlistSpots,
-    isLoading: false,
-    error: null,
-    refetch: jest.fn(),
-  }),
-}));
-
 jest.mock('@hooks/useWishlist', () => ({
   useWishlist: () => ({
     wishlistSpotIds: mockWishlistSpotIds,
@@ -180,7 +169,6 @@ jest.mock('@hooks/useWishlist', () => ({
 afterEach(() => {
   mockSpotsOverride = null;
   mockWishlistSpotIds = new Set<string>();
-  mockWishlistSpots = [];
 });
 
 const mockParentNavigate = jest.fn();
@@ -1095,7 +1083,7 @@ describe('MapScreen', () => {
 
 describe('MapScreen 行きたいリストへの導線（Issue #123）', () => {
   it('行きたいが0件でもエントリポイントが表示される', () => {
-    mockWishlistSpots = [];
+    mockWishlistSpotIds = new Set<string>();
 
     const { getByTestId } = render(
       <MapScreen navigation={mockNavigation as never} route={mockRoute as never} />
@@ -1115,7 +1103,7 @@ describe('MapScreen 行きたいリストへの導線（Issue #123）', () => {
   });
 
   it('行きたいが1件以上のとき件数が出る', () => {
-    mockWishlistSpots = [{ id: 'w1' }, { id: 'w2' }, { id: 'w3' }];
+    mockWishlistSpotIds = new Set(['spot-1', 'spot-2', 'spot-3']);
 
     const { getByText } = render(
       <MapScreen navigation={mockNavigation as never} route={mockRoute as never} />
@@ -1125,7 +1113,7 @@ describe('MapScreen 行きたいリストへの導線（Issue #123）', () => {
   });
 
   it('0件のときは件数を出さない', () => {
-    mockWishlistSpots = [];
+    mockWishlistSpotIds = new Set<string>();
 
     const { getByText } = render(
       <MapScreen navigation={mockNavigation as never} route={mockRoute as never} />

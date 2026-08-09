@@ -301,8 +301,6 @@ export function CollectionScreen({ navigation }: Props) {
             );
           })
         )}
-
-        {/* Wishlist Section */}
       </ScrollView>
     </SafeAreaView>
   );
