@@ -150,7 +150,7 @@ export function GalleryScreen({ navigation }: Props) {
     <View style={styles.rootContainer}>
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>御朱印</Text>
+          <Text style={styles.headerTitle}>御朱印帳</Text>
           {showsGallery && <ViewModeToggle mode={viewMode} onChange={setViewMode} />}
         </View>
 

@@ -81,7 +81,7 @@ describe('SettingsScreen', () => {
 
   it('renders the header', () => {
     const { getByText } = render(<SettingsScreen navigation={mockNavigation} route={mockRoute} />);
-    expect(getByText('設定')).toBeTruthy();
+    expect(getByText('自分')).toBeTruthy();
   });
 
   it('renders account section', () => {
