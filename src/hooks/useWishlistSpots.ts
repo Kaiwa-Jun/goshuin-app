@@ -12,7 +12,7 @@ interface UseWishlistSpotsReturn {
 }
 
 /**
- * CollectionScreen用。フォーカス時にwishlistスポット一覧をリフェッチする
+ * 行きたいリストの取得。フォーカス時にリフェッチする（WishlistScreen / MapScreen で使う）
  */
 export function useWishlistSpots(): UseWishlistSpotsReturn {
   const { user } = useAuth();
