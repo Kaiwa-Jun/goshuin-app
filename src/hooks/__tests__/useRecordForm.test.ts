@@ -1,5 +1,6 @@
 import { renderHook, act, waitFor } from '@testing-library/react-native';
 import { useRecordForm } from '@hooks/useRecordForm';
+import type { RecordSubmitResult } from '@hooks/useRecordForm';
 import type { Spot, Stamp } from '@/types/supabase';
 
 const mockFetchSpotById = jest.fn();
@@ -212,6 +213,49 @@ describe('useRecordForm', () => {
     expect(submitResult!.stamp).toBeUndefined();
     expect(result.current.submitError).toBe('Upload failed');
     expect(result.current.isSubmitting).toBe(false);
+  });
+
+  it('アップロードで落ちたら stage=upload と原文を返す', async () => {
+    mockUploadStampImage.mockRejectedValue(
+      new Error('new row violates row-level security policy (status=403)')
+    );
+
+    const { result } = renderHook(() => useRecordForm());
+
+    act(() => {
+      result.current.selectSpot(fakeSpot);
+      result.current.setImageUri('file:///photo.jpg');
+    });
+
+    let submitResult: RecordSubmitResult;
+    await act(async () => {
+      submitResult = await result.current.submit();
+    });
+
+    expect(submitResult!.stage).toBe('upload');
+    expect(submitResult!.message).toBe('new row violates row-level security policy (status=403)');
+    expect(mockCreateStamp).not.toHaveBeenCalled();
+  });
+
+  it('stamps への insert で落ちたら stage=create を返す', async () => {
+    mockUploadStampImage.mockResolvedValue('user-1/12345.jpg');
+    mockCreateStamp.mockRejectedValue(new Error('insert failed (code=42501)'));
+
+    const { result } = renderHook(() => useRecordForm());
+
+    act(() => {
+      result.current.selectSpot(fakeSpot);
+      result.current.setImageUri('file:///photo.jpg');
+    });
+
+    let submitResult: RecordSubmitResult;
+    await act(async () => {
+      submitResult = await result.current.submit();
+    });
+
+    // 画像は上がっているので「アップロードエラー」ではない
+    expect(submitResult!.stage).toBe('create');
+    expect(submitResult!.message).toBe('insert failed (code=42501)');
   });
 
   it('auto-selects spot when initialSpotId is provided', async () => {

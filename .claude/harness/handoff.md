@@ -2,34 +2,76 @@
 
 ## ▶ 再開したらここから（2026-08-09 時点）
 
-**次にやること: 記録の「アップロードエラー」を直す（監査 A-4）。これが直るまで実機で御朱印を1件も記録できず、実機検証が全面的に止まる。**
+**アップロードエラー（監査 A-4）は完了**（Issue #118 / PR #119 マージ済み・**実機で記録できることをユーザーが確認済み**・passes: true）。これで実機検証の詰まりが解消した。
 
-### 症状（ユーザー報告・2026-08-09）
+**次にやること: Issue #116（めくり UI）の実機確認 N 群8項目。** #116 は develop にマージ済みだが `passes` が false のまま止まっている。
 
-実機で記録フローを進め、**写真の選択・表示まではできる**。そこから「記録する」で保存しようとすると **ErrorScreen の「アップロードエラー」に飛ぶ**。この状態なので、Issue #116（めくり UI）の実機確認 N 群8項目も未実施のまま。
+- スワイプの手触り / スナップの効き
+- 小型端末での収まり
+- アプリ再起動をまたいだ表示モードの永続化（`AsyncStorage` の `gallery_view_mode`）
+- 白紙ページ（末尾＝一番左）タップで記録画面に入れること
+- 記録が1件入った状態でのページ番号・和暦表示
 
-### 分かっていること（コードを読んだ範囲。原因は未特定）
+記録が投稿できるようになったので、実データを入れながら確認できる。
 
-- **エラー原文が画面に出ていないのが最大の障害**。`src/screens/RecordScreen.tsx:77-79` が `isNetworkError(result.error)` の真偽だけ見て `navigation.navigate('Error', { type: 'upload' })` し、`error.message` を捨てている
-- **ただしメッセージ自体は生きている**。`src/hooks/useRecordForm.ts` の `submit()` は catch で `setSubmitError(message)` しており、`form.submitError` に文字列が残る。**まずこれを画面か console に出すだけで切り分けが進む**（監査 A-4 の「対応順序①」）
-- **`'upload'` という表示は当てにならない**。ネットワークエラー以外は全部 `'upload'` に倒れる分岐なので、**Storage のアップロードではなく `createStamp`（stamps テーブルへの insert）の失敗でも同じ画面になる**。切り分けでは `uploadStampImage` と `createStamp` のどちらで落ちたかを最初に確定させること
-- `uploadStampImage`（`src/services/stamps.ts:30-51`）は `formData.append('', {...})` という**空フィールド名の FormData** で `goshuin-images` バケットへ上げている。Expo SDK 54 / 現行 supabase-js でこの書き方が通らなくなった可能性は監査時から候補に挙がっている
-- **`goshuin-images` バケットとその RLS ポリシーが `supabase/migrations/` に一切存在しない**（ダッシュボードで手作業作成とみられる）。環境再現性の穴でもあるので、原因がここなら migration に落とすところまでやる価値がある
-- 候補は他に認証セッションの状態（期限切れトークンで Storage / RLS が弾かれる）
+### 実機の動かし方
 
-### 進め方（監査 A-4 の対応順序）
+dev サーバーは tmux `goshuin-dev` で動いている。**まず生きているか確認してから**。
 
-1. **エラー原文を出す** — `submitError` を ErrorScreen かログに出す。実機は Expo Dev Client のログ、または `/dev`（tmux `goshuin-dev`）経由で拾う
-2. **再現して切り分け** — `uploadStampImage` / `createStamp` のどちらで落ちたか、Supabase 側のレスポンス（403 / 400 / RLS 違反のメッセージ）を見る
-3. **修正** — 原因次第。バケット・ポリシーが原因なら migration 化まで
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" --max-time 10 http://localhost:8081/status
+cat .dev-tunnel/url.txt
+```
 
-診断は小さいが、修正規模は原因次第。**契約書を作るのは原因が割れてから**でよい（`/build-feature` の Step 1 は原因特定の後）。
+- 200 が返れば Dev Client を Reload するだけでよい
+- ⚠️ **つながらない場合だけ `/dev` を叩き直す**。trycloudflare の quick tunnel は無保証で切れる。叩き直すと URL が変わるので `./scripts/dev.sh qr` で QR を出して読み直すこと
+
+### 記録が失敗したときの拾い方（#118 で入れた仕込み）
+
+ErrorScreen に**「詳細」ブロックが出て、例外の原文がそのまま表示される**。長押しでコピーできる。
+
+- 見出しが「**アップロードエラー**」= Storage への画像アップロードで失敗
+- 見出しが「**保存エラー**」= 画像は上がっていて stamps への insert で失敗
+
+Metro のログから拾う場合:
+
+```bash
+tmux capture-pane -pt goshuin-dev -S -300 | grep -A 5 "submit failed at"
+```
+
+`console.error('[record] submit failed at <stage>: <message>')` が出る。ペインを直接見るなら `tmux attach -t goshuin-dev`（デタッチは `Ctrl-b` → `d`）。
+
+### #118 で分かったこと（要点）
+
+`supabase-js` の Storage クライアントは FormData を渡されると内部で `body.has('cacheControl')` を呼ぶ。**RN の FormData ポリフィルは `append` / `getAll` / `getParts` しか持たず `has()` が無い**ため、通信が1バイトも出る前に `TypeError: body.has is not a function` で落ちていた。`isNetworkError()` にマッチしない例外は全部 `'upload'` に倒れる分岐だったので、画面には「アップロードエラー」としか出ていなかった。
+
+**Storage 側は無罪だった**（監査時の第一候補だったが違った）:
+
+- バケット `goshuin-images` は存在。`public=true` / 5MB上限 / `allowed_mime_types={image/jpeg, image/png, image/webp}`
+- `storage.objects` のポリシー6本すべて適切
+- **2026-03-04 にアプリ経由のアップロード成功実績が1件残っている** → 依存を上げたときに `has()` のガードが入って壊れた**回帰**
+
+### #118 の修正の内容
+
+- `uploadStampImage` を `expo-file-system` の `File#bytes()` でバイト列を渡す方式に変更。`contentType: 'image/jpeg'` の明示は**必須**（`allowed_mime_types` があるので既定値だと弾かれる）
+- `expo-file-system` は `expo@54` の推移的依存として既にネイティブ側に入っている。`package.json` に明示しただけでバージョンは 19.0.21 のまま = **dev build の作り直しは不要**
+- `submit()` が `stage`（`'upload' | 'create'`）と `message` を返し、ErrorScreen が原文を表示する
+- RN の FormData を global に差し込んで supabase-js の実物を通す回帰テストを追加（`stamps-upload-native.test.ts`）。jest の node 環境の FormData は `has()` を持つのでこの仕込みが無いと検出できない
+- `goshuin-images` バケットとポリシーを migration 化（監査が指摘していた再現性の穴）。本番は既にこの状態なので適用不要
+
+機械検証: **テスト 89 suite / 1020 件全パス**、lint 0 errors、typecheck clean。実機確認済み。
+
+### ⚠️ 今後のための教訓
+
+- **RN の FormData は web の FormData ではない**。ライブラリに渡すときは web API 前提になっていないか疑う
+- **jest（node 環境）と実機で global の実装が違うものは、テストが通っても実機で落ちる**（`FormData` / `Blob` / `atob`）。global を差し替えて実物のライブラリを通す特性テストで守る
+- **表示されているエラー名を信じない**。分岐が雑だと無関係な失敗が同じ画面に集まる
 
 ### 直近で終わったこと
 
 - **Issue #114（P1-09 ボトムシート）完了** — PR #115 マージ済み・`passes: true`・実機確認済み
 - **Issue #116（P1-03 めくり UI）を develop にマージ** — PR #117。契約書 `docs/issues/issue-116-goshuincho-flip-ui.md`（95項目）。右綴じ（`FlatList inverted`）+ 蛇腹の折り（RN 標準 `Animated` でスクロール連動）+ 白紙ページ = 記録入口 + グリッド切替の永続化 + 和暦。テスト1002件
-  - ⚠️ **`passes` は false のまま**。理由3つ: ①**実機未確認**（上記 A-4 のため。N 群8項目 = スワイプの手触り・スナップ・小型端末での収まり・アプリ再起動をまたぐ永続化）②Evaluator の結果（80 PASS / 1 FAIL / 8 SKIP）は**右綴じと蛇腹を入れる前の版**に対するもの ③W-17 の残件（下記）
+  - ⚠️ **`passes` は false のまま**。理由3つ: ①**実機未確認**（N 群8項目 = スワイプの手触り・スナップ・小型端末での収まり・アプリ再起動をまたぐ永続化。**ブロッカーだった A-4 は #118 で解消済みなので、いま着手できる**）②Evaluator の結果（80 PASS / 1 FAIL / 8 SKIP）は**右綴じと蛇腹を入れる前の版**に対するもの ③W-17 の残件（下記）
   - **Expo Web での検証手段を作った**: 認証が Google/Apple のネイティブサインインのみで Web からログインできないため、`?preview=goshuincho` で fixture を差し込む web 専用プレビュー経路を足した（契約書 S-7・ユーザー承認済み）。`http://localhost:8081/?preview=goshuincho` → 御朱印タブ。native では `.web.ts` が解決されないので常に無効
   - 📌 **別 issue 化すべき既知の問題**: `ImageGalleryModal` がレンダー中に `Animated.Value.setValue()` を呼んでおり React が `Cannot update a component while rendering...` を出す（`src/components/common/ImageGalleryModal.tsx:79-88`。「ちらつき回避のため意図的」というコメント付きの既存実装）。#116 が原因ではなく、S-7 で Web から到達できるようになって表面化しただけ
 - **P1-03 完成後の予定だったタブ入れ替え（案3: 地図 / 御朱印帳 / あつめる / 自分）は未着手**。めくり UI は入ったので着手可能
@@ -174,13 +216,14 @@ Issue #111 / PR #112 マージ済み・本番投入完了（passes: true）。Me
 3. ~~cron 再登録~~ — **完了**（2026-08-08。次回火曜(8/11)朝に succeeded 確認予定）
 4. ~~Instagram 情報ソース棚卸し~~ — **完了**（金蛇水神社・大崎八幡宮・湯島天満宮を追加・本実行・実機確認済み。明治神宮は見送り確定）
 5. ~~P1-09 ボトムシートの情報設計改善~~ — **完了**（Issue #114 / PR #115、2026-08-09）
-6. **← いまここ: P1-03 御朱印帳のめくり UI**。仕様はユーザー合意済み（「画面構成（IA）の決定」節）。Issue 起票 → 契約書 → `/build-feature`
-7. **審査結果待ち**（buildNumber 12、最大48時間）。通過 → 手動リリース / リジェクト → 内容確認して対応
-8. P1-03 の完成後: **タブ入れ替え**（案3: 地図 / 御朱印帳 / あつめる / 自分。行きたいリストを地図タブへ移す）
-9. その他の候補（優先順は未合意・要相談）:
-   - **P2-02 第2柱**: 公式サイトの記事単位クロール
-   - **対象スポットの拡大**: rank4 以下や他都道府県への拡大（今回は既存29スポット内の欠落補完のみでスコープ外とした）
-10. Google Play（本人確認の承認後）
+6. ~~A-4 アップロードエラー~~ — **完了**（Issue #118 / PR #119、実機確認済み・passes: true）
+7. **← いまここ: Issue #116（P1-03 めくり UI）の実機確認 N 群8項目**。develop マージ済みだが passes: false のまま。記録が投稿できるようになったので実データで確認できる
+8. **審査結果待ち**（buildNumber 12、最大48時間）。通過 → 手動リリース / リジェクト → 内容確認して対応
+9. その後: **タブ入れ替え**（案3: 地図 / 御朱印帳 / あつめる / 自分。行きたいリストを地図タブへ移す）
+10. その他の候補（優先順は未合意・要相談）:
+    - **P2-02 第2柱**: 公式サイトの記事単位クロール
+    - **対象スポットの拡大**: rank4 以下や他都道府県への拡大（今回は既存29スポット内の欠落補完のみでスコープ外とした）
+11. Google Play（本人確認の承認後）
 
 ## ユーザー待ちの項目
 

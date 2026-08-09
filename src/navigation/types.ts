@@ -19,7 +19,14 @@ export type RootStackParamList = {
   Login: undefined;
   TermsOfService: undefined;
   PrivacyPolicy: undefined;
-  Error: { type: 'network' | 'location' | 'upload'; origin?: 'record' };
+  Error: {
+    type: 'network' | 'location' | 'upload';
+    origin?: 'record';
+    /** 失敗した処理。'upload' と 'create' で画面の見出しが変わる */
+    stage?: 'upload' | 'create';
+    /** 例外の原文。切り分けのため画面にそのまま出す */
+    message?: string;
+  };
 };
 
 export type CollectionStackParamList = {

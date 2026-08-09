@@ -76,7 +76,12 @@ export function RecordScreen({ navigation, route }: Props) {
       });
     } else if (!result.success) {
       const errorType = isNetworkError(result.error) ? 'network' : 'upload';
-      navigation.navigate('Error', { type: errorType, origin: 'record' });
+      navigation.navigate('Error', {
+        type: errorType,
+        origin: 'record',
+        stage: result.stage,
+        message: result.message,
+      });
     }
   };
 

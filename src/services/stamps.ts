@@ -1,5 +1,15 @@
+import { File } from 'expo-file-system';
+
 import { supabase } from '@services/supabase';
+import { describeSupabaseError } from '@/utils/supabaseError';
 import type { Stamp, StampWithSpot, PublicStampWithUser } from '@/types/supabase';
+
+/**
+ * goshuin-images バケットは allowed_mime_types が
+ * {image/jpeg, image/png, image/webp} に制限されている。
+ * contentType を渡さないと supabase-js の既定値 text/plain で送られて弾かれる
+ */
+const STAMP_IMAGE_CONTENT_TYPE = 'image/jpeg';
 
 export async function fetchVisitedSpotIds(): Promise<Set<string>> {
   const { data, error } = await supabase.from('stamps').select('spot_id');
@@ -30,21 +40,23 @@ export async function fetchStampsBySpotId(spotId: string): Promise<Stamp[]> {
 export async function uploadStampImage(userId: string, imageUri: string): Promise<string> {
   const filePath = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
 
-  // React Native では fetch(localUri).blob() が空の Blob を返すため、
-  // FormData を使ってアップロードする
-  const formData = new FormData();
-  formData.append('', {
-    uri: imageUri,
-    name: filePath.split('/').pop(),
-    type: 'image/jpeg',
-  } as unknown as Blob);
+  // ⚠ ここに FormData を渡してはいけない。
+  // supabase-js の Storage クライアントは FormData を受け取ると内部で
+  // `body.has('cacheControl')` を呼ぶが、React Native の FormData ポリフィルは
+  // append / getAll / getParts しか持たず has() が無いため、
+  // 送信前に `TypeError: body.has is not a function` で落ちる。
+  // jest の実行環境は Node の FormData（has() あり）なので、この経路の回帰は
+  // 通常のユニットテストでは検出できない（stamps-upload-native.test.ts で再現している）。
+  //
+  // バイト列を直接渡す経路なら RN でも Node でも同じように通る。
+  const bytes = await new File(imageUri).bytes();
 
   const { data, error } = await supabase.storage
     .from('goshuin-images')
-    .upload(filePath, formData, { contentType: 'multipart/form-data' });
+    .upload(filePath, bytes, { contentType: STAMP_IMAGE_CONTENT_TYPE });
 
   if (error) {
-    throw new Error(error.message);
+    throw new Error(describeSupabaseError(error, '画像のアップロードに失敗しました'));
   }
 
   return data.path;
@@ -72,7 +84,7 @@ export async function createStamp(params: {
     .single();
 
   if (error) {
-    throw new Error(error.message);
+    throw new Error(describeSupabaseError(error, '記録の保存に失敗しました'));
   }
 
   return data as Stamp;

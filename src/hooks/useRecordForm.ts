@@ -10,6 +10,22 @@ interface UseRecordFormParams {
   initialSpotId?: string;
 }
 
+/**
+ * submit() のどこで落ちたか。
+ * 'upload' = Storage への画像アップロード / 'create' = stamps への insert。
+ * 画面には「アップロードエラー」としか出ていなかったため、
+ * DB 側の失敗が Storage の失敗と区別できなかった
+ */
+export type RecordSubmitStage = 'upload' | 'create';
+
+export interface RecordSubmitResult {
+  success: boolean;
+  stamp?: Stamp;
+  error?: unknown;
+  stage?: RecordSubmitStage;
+  message?: string;
+}
+
 interface UseRecordFormReturn {
   selectedSpot: Spot | null;
   imageUri: string | null;
@@ -26,11 +42,7 @@ interface UseRecordFormReturn {
   setMemo: (text: string) => void;
   setIsPublic: (value: boolean) => void;
   validate: () => boolean;
-  submit: () => Promise<{
-    success: boolean;
-    stamp?: Stamp;
-    error?: unknown;
-  }>;
+  submit: () => Promise<RecordSubmitResult>;
   reset: () => void;
 }
 
@@ -99,11 +111,7 @@ export function useRecordForm(params?: UseRecordFormParams): UseRecordFormReturn
     return valid;
   }, [selectedSpot, imageUri]);
 
-  const submit = useCallback(async (): Promise<{
-    success: boolean;
-    stamp?: Stamp;
-    error?: unknown;
-  }> => {
+  const submit = useCallback(async (): Promise<RecordSubmitResult> => {
     if (!validate()) {
       return { success: false };
     }
@@ -111,9 +119,16 @@ export function useRecordForm(params?: UseRecordFormParams): UseRecordFormReturn
     setIsSubmitting(true);
     setSubmitError(null);
 
+    // 例外が飛んだ時点でどちらの処理中だったかを残す。
+    // Storage の失敗と stamps への insert の失敗は同じ catch に落ちてくるため、
+    // これが無いと画面にもログにも区別が残らない
+    let stage: RecordSubmitStage = 'upload';
+
     try {
       const userId = user!.id;
       const imagePath = await uploadStampImage(userId, imageUri!);
+
+      stage = 'create';
       const stamp = await createStamp({
         userId,
         spotId: selectedSpot!.id,
@@ -130,7 +145,9 @@ export function useRecordForm(params?: UseRecordFormParams): UseRecordFormReturn
     } catch (error) {
       const message = error instanceof Error ? error.message : '保存に失敗しました';
       setSubmitError(message);
-      return { success: false, error };
+      // 実機では Metro のログに出る。画面にも出すが、コピーしづらい場面用に残す
+      console.error(`[record] submit failed at ${stage}: ${message}`, error);
+      return { success: false, error, stage, message };
     } finally {
       setIsSubmitting(false);
     }
