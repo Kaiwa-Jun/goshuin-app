@@ -2,9 +2,11 @@
 
 ## ▶ 再開したらここから（2026-08-09 時点）
 
-**アップロードエラー（監査 A-4）は完了**（Issue #118 / PR #119 マージ済み・**実機で記録できることをユーザーが確認済み**・passes: true）。これで実機検証の詰まりが解消した。
+**残タスクの一覧はタスクボードが正**: `.claude/harness/task-board.html` / Artifact https://claude.ai/code/artifact/961421e9-0005-4116-9b18-f3856646e0aa （更新方法は下記「残タスクの棚卸し」参照）
 
-**次にやること: Issue #116（めくり UI）の実機確認 N 群8項目の残り。** #116 は develop にマージ済みだが `passes` は **false のまま**。
+**直近で完了**: 監査 A-4 アップロードエラー（#118 / PR #119）、グリッドの並び（PR #120）、**監査 A-1 カメラが起動しない（PR #121・実機確認済み）**。
+
+**次にやること: Issue #116（めくり UI）の実機確認 N 群8項目の残り。** #116 は develop にマージ済みだが `passes` は **false のまま**。これが `true` になると案3のタブ入れ替えのブロッカーが外れる。
 
 **未消化（これが残っている）**:
 
@@ -18,16 +20,19 @@
 
 記録が投稿できるようになったので（#118）、実データを入れながら確認できる。
 
-### 残タスクの棚卸し（2026-08-09 に確認した事実。次に何をやるか決めるための素材）
+### 残タスクの棚卸し → **`.claude/harness/task-board.html` に集約した**
 
-**コードを見て「未対応」と確認済み**:
+**一覧の正はタスクボード**（Artifact: https://claude.ai/code/artifact/961421e9-0005-4116-9b18-f3856646e0aa ）。全31件 + ユーザー作業7件を性質別（バグ / 小さい改善 / 設計判断 / バックログ / リリース・期日 / ユーザー作業）に束ね、規模・根拠の file:line・ブロッカー・期日を載せてある。**チェックは Claude が更新する運用**（完了したら該当項目に `done` クラスを付け、セクションと rail のカウントも直して同じ URL に再デプロイする。`file_path` を同じにすれば URL は変わらない）。
 
-- **A-1 カメラが起動しない（バグ・規模 S）** — `PhotoPickerModal.tsx` に `requestCameraPermissionsAsync()` の呼び出しも try/catch も**無い**。監査の第一候補どおりで「ギャラリーだけ動く」症状と整合する。#118 と同じ記録フローのバグ
+以下は棚卸し時に**コードで裏を取った事実**。ボードの内容と重複するが、根拠として残す。
+
+- ~~**A-1 カメラが起動しない**~~ — **完了（PR #121・実機確認済み・2026-08-09）**
 - **A-2 記録画面の訪問日が西暦のみ** — `RecordScreen.tsx:52` が `getFullYear()` 直書き。和暦ユーティリティ `src/utils/japaneseEra.ts` は #116 で作ったが `GoshuinchoPage.tsx` でしか使っていない。**繋ぐだけ**
-- **A-10 ログイン済み0件の空状態に CTA ボタンが無い** — `GalleryScreen.tsx:204-206` はテキストのみ。ゲスト側には「ログインして始める」がある
-- **A-13 行きたいリストのカードがタップできない** — `CollectionScreen.tsx:324-` が `View` + `Card` で `TouchableOpacity` が無い
-
-**監査の記載のまま（今回は未検証）**: A-3 日付ピッカーのスクロール位置（`display='inline'` にはなっている）/ A-11「他の巡礼を見る」の展開 / A-14 位置情報を設定画面から
+- **A-3 日付ピッカーのスクロール位置** — 未対応と確認。`RecordScreen.tsx:139-144` に `display='inline'` はあるが日付側に `scrollTo` が無い。同ファイル `162-176` のメモ欄が既に同じ問題を解決済みなので**同じパターンを1つ足すだけ**
+- **A-10 0件の空状態に CTA ボタンが無い** — `GalleryScreen.tsx:201-206` はテキストのみ。⚠️ **監査から状況が変わっている**: `194-199` のとおり flip モードでは白紙ページが記録入口になるため、**欠落はグリッドモード限定に縮小した**
+- **A-11「他の巡礼を見る」の展開** — 未対応と確認。`CollectionScreen.tsx:217` の `onPress` に `LayoutAnimation` が無い（同ファイル `49` にパターンあり）
+- **A-13 行きたいリストのカードがタップできない** — `CollectionScreen.tsx:323-350` が `View` + `Card`。⚠️ **監査より小さい**: `MapScreen.tsx:160-177` に `focusSpotId` が実装済みで `navigation/types.ts:45` に型もある → **繋ぐだけ**
+- **A-14 位置情報を設定画面から** — 未対応と確認。`SettingsScreen.tsx` はアカウント / 公開設定 / アプリ情報の3セクションのみ（`51 / 78 / 100`）
 
 **#114・#116 で吸収済み**: A-5 / A-6 / A-7 / A-8 / A-12（ボトムシート再設計）、めくり側の和暦
 
@@ -39,11 +44,11 @@
 
 **別 issue 化すべき既知の問題**: `ImageGalleryModal` がレンダー中に `Animated.Value.setValue()` を呼び React が警告を出す（`src/components/common/ImageGalleryModal.tsx:79-88`）
 
-**CI の既存不具合**: `auto-review` ワークフローがリタイア済みモデル `claude-sonnet-4-20250514` を叩いて毎回 404 で落ちる。#117 / #119 / #120 すべて同じ。実質のゲートは `lint-and-test`
+**CI の既存不具合（CI-1）**: ⚠️ 前回の記述は不正確だった。ワークフローは **`.github/workflows/pr-review.yml` の1本だけ**で、その中の3ジョブ（`auto-review` / `mention-response` / `lint-and-test`）のうち **`auto-review` だけ**がリタイア済みモデル `claude-sonnet-4-20250514` を叩いて 404 で落ちる。`lint-and-test` は同じファイル内にあり success。#117 / #119 / #120 / #121 すべて同じ。修正は `auto-review` に現行モデルを指定するだけ（`anthropics/claude-code-base-action@beta` の入力名は README で確認すること）
 
 **期日があるもの**:
 
-- **App Store 審査結果**（buildNumber 12 を 8/8 提出・最大48時間）→ **もう出ている頃**。通過なら手動リリース
+- **App Store 審査結果**（buildNumber 12 を 8/8 提出）→ **8/9 時点で結果メールは未着**（Apple からのメールを全件確認済み）。バイナリの ASC アップロードは `eas submit:list` で `FINISHED / 8-08 09:33 JST` を確認。⚠️ **build 11 は提出 8/2 → 却下 8/6 で約4日**かかっているので、48時間で焦らなくてよい。唯一未確認なのは **8/8 の「審査へ提出」が ASC 上で審査待ちになっているか**（要 Apple ログイン・ユーザー作業）。通過なら手動リリース
 - **8/11(火)朝: cron 実行確認** — `crawl-spot-sources` の2ジョブが succeeded か（`select jobname, status, start_time from cron.job_run_details order by start_time desc limit 10;`）
 - **10月初旬: Meta アクセストークン更新**（期限 2026-10-02）
 
