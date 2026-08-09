@@ -88,7 +88,12 @@ PR #124 の auto-review が「`MapScreen` が `useWishlist`（ID の Set）と `
 - **8/11(火)朝: cron 実行確認** — `crawl-spot-sources` の2ジョブが succeeded か（`select jobname, status, start_time from cron.job_run_details order by start_time desc limit 10;`）
 - **10月初旬: Meta アクセストークン更新**（期限 2026-10-02）
 
-**ユーザー作業待ち**: 実機スクショ3枚（コレクション / 御朱印ギャラリー / 記録画面。**記録できるようになったので今日から撮れる**。direction.md の Phase 0 で唯一残っている実作業）/ Google Play の本人確認 + Android 実機での Play Console ログイン
+**ユーザー作業待ち**:
+
+- **ASC で 8/8 の再提出ステータスを確認**（「審査待ち / 審査中」になっているか）。今回の棚卸しで唯一、事実にできなかった点。要 Apple ログイン
+- **Google Play**: 本人確認（審査中）+ Android 実機での Play Console ログイン
+- ~~実機スクショ3枚~~ → **次のビルド提出とセットで6枚とも撮り直す方針に変更**（下記「ストアスクショの方針」参照）。いま撮る必要はない
+- **実機確認**: 新機能を入れたときのみ。8/9 時点の実装（P1-03 / P1-10 / 小さい改善 / 日付ピッカー）はすべて実機確認済み
 
 ### 実機の動かし方
 
