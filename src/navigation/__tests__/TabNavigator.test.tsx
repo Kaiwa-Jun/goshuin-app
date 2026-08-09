@@ -215,9 +215,79 @@ describe('TabNavigator', () => {
 
     await waitFor(() => {
       expect(getByText('地図')).toBeTruthy();
-      expect(getByText('御朱印')).toBeTruthy();
-      expect(getByText('コレクション')).toBeTruthy();
-      expect(getByText('設定')).toBeTruthy();
+      expect(getByText('御朱印帳')).toBeTruthy();
+      expect(getByText('あつめる')).toBeTruthy();
+      expect(getByText('自分')).toBeTruthy();
+    });
+  });
+
+  it('タブが 地図 → 御朱印帳 → あつめる → 自分 の順に並ぶ', async () => {
+    mockUseAuth.mockReturnValue({
+      user: null,
+      session: null,
+      isLoading: false,
+      isAuthenticated: true,
+    });
+
+    const { getByText, getAllByRole } = renderTabNavigator();
+
+    await waitFor(() => {
+      expect(getByText('地図')).toBeTruthy();
+    });
+
+    // タブバーのボタンから表示名を順番に拾う
+    const labels = getAllByRole('button')
+      .map(node => {
+        const found: string[] = [];
+        const walk = (n: { children?: unknown[] }) => {
+          for (const child of n.children ?? []) {
+            if (typeof child === 'string') found.push(child);
+            else if (child && typeof child === 'object') walk(child as { children?: unknown[] });
+          }
+        };
+        walk(node as unknown as { children?: unknown[] });
+        return found;
+      })
+      .flat();
+
+    const tabOrder = ['地図', '御朱印帳', 'あつめる', '自分'].map(label => labels.indexOf(label));
+
+    expect(tabOrder.every(i => i >= 0)).toBe(true);
+    expect(tabOrder).toEqual([...tabOrder].sort((a, b) => a - b));
+  });
+
+  it('初期表示のタブは地図である', async () => {
+    mockUseAuth.mockReturnValue({
+      user: null,
+      session: null,
+      isLoading: false,
+      isAuthenticated: true,
+    });
+
+    const { getByTestId } = renderTabNavigator();
+
+    await waitFor(() => {
+      expect(getByTestId('map-screen')).toBeTruthy();
+    });
+  });
+
+  it('御朱印帳は menu-book、自分は person のアイコンを使う', async () => {
+    mockUseAuth.mockReturnValue({
+      user: null,
+      session: null,
+      isLoading: false,
+      isAuthenticated: true,
+    });
+
+    const { getAllByText } = renderTabNavigator();
+
+    await waitFor(() => {
+      // @expo/vector-icons のモックはアイコン名をテキストとして描画する
+      expect(getAllByText('menu-book').length).toBeGreaterThan(0);
+      expect(getAllByText('person').length).toBeGreaterThan(0);
+      // 地図とあつめるのアイコンは据え置き
+      expect(getAllByText('explore').length).toBeGreaterThan(0);
+      expect(getAllByText('emoji-events').length).toBeGreaterThan(0);
     });
   });
 
@@ -232,10 +302,10 @@ describe('TabNavigator', () => {
     const { getByText, getByTestId, queryByText } = renderTabNavigator();
 
     await waitFor(() => {
-      expect(getByText('御朱印')).toBeTruthy();
+      expect(getByText('御朱印帳')).toBeTruthy();
     });
 
-    fireEvent.press(getByText('御朱印'));
+    fireEvent.press(getByText('御朱印帳'));
 
     await waitFor(() => {
       expect(getByTestId('gallery-guest-empty-state')).toBeTruthy();
@@ -255,10 +325,10 @@ describe('TabNavigator', () => {
     const { getByText, getByTestId, queryByText } = renderTabNavigator();
 
     await waitFor(() => {
-      expect(getByText('コレクション')).toBeTruthy();
+      expect(getByText('あつめる')).toBeTruthy();
     });
 
-    fireEvent.press(getByText('コレクション'));
+    fireEvent.press(getByText('あつめる'));
 
     await waitFor(() => {
       expect(getByTestId('collection-guest-empty-state')).toBeTruthy();
@@ -278,10 +348,10 @@ describe('TabNavigator', () => {
     const { getByText, queryByText, getByTestId } = renderTabNavigator();
 
     await waitFor(() => {
-      expect(getByText('御朱印')).toBeTruthy();
+      expect(getByText('御朱印帳')).toBeTruthy();
     });
 
-    fireEvent.press(getByText('御朱印'));
+    fireEvent.press(getByText('御朱印帳'));
 
     await waitFor(() => {
       // 既定の表示モードはめくり（Issue #116）。グリッドの gallery-list ではない

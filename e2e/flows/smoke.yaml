@@ -10,12 +10,12 @@ appId: com.goshuin.app
       - tapOn: "スキップ"
 # メインタブの表示確認
 - assertVisible: "地図"
-- assertVisible: "御朱印"
-- assertVisible: "コレクション"
-- assertVisible: "設定"
-# 未ログインでも御朱印/コレクションタブに入れる（Issue #102）
-- tapOn: "御朱印"
+- assertVisible: "御朱印帳"
+- assertVisible: "あつめる"
+- assertVisible: "自分"
+# 未ログインでも御朱印帳/あつめるタブに入れる（Issue #102）
+- tapOn: "御朱印帳"
 - assertVisible: "あなたの御朱印帳"
-- tapOn: "コレクション"
+- tapOn: "あつめる"
 - assertVisible: "記録するとここに集計されます"
 - tapOn: "地図"
