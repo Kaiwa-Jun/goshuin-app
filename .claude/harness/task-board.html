@@ -509,7 +509,7 @@
       <div class="rail-block">
         <h2>進捗</h2>
         <div class="tally">
-          <span class="big">13</span>
+          <span class="big">14</span>
           <span class="of">/ 33 完了</span>
         </div>
         <div class="bars">
@@ -525,8 +525,8 @@
           </div>
           <div class="bar-row">
             <span class="bar-label"><span class="dot" style="background:var(--design)"></span>設計判断</span>
-            <span class="bar-count">3 / 8</span>
-            <span class="track"><span style="width:38%;background:var(--design)"></span></span>
+            <span class="bar-count">4 / 8</span>
+            <span class="track"><span style="width:50%;background:var(--design)"></span></span>
           </div>
           <div class="bar-row">
             <span class="bar-label"><span class="dot" style="background:var(--muted)"></span>バックログ</span>
@@ -570,8 +570,10 @@
           <li class="done-step">CI-1 を直して PR の赤を消す（完了）</li>
           <li class="done-step">#116 の実機 N群8項目（完了）</li>
           <li class="done-step">小さい改善を1 PR に束ねる（完了）</li>
-          <li class="now">残る設計判断 D-3 / D-5 / D-6 を決める（D-4 は決定済み）</li>
           <li class="done-step">案3 タブ入れ替えの契約書 → 実装（完了）</li>
+          <li class="done-step">D-3 を決めて P1-02 を実装（完了・実機確認待ち）</li>
+          <li class="now">P1-02 の実機確認 → マージ</li>
+          <li>残る設計判断 D-5 / D-6（D-3 / D-4 は決定済み）</li>
           <li>期日ものは上と並行</li>
         </ol>
       </div>
@@ -720,7 +722,7 @@
         <div class="section-head">
           <h2>設計判断が要るもの</h2>
           <span class="rule"></span>
-          <span class="count">3 / 8</span>
+          <span class="count">4 / 8</span>
         </div>
 
         <ul class="items">
@@ -733,12 +735,12 @@
             <span class="size l">L</span>
           </li>
 
-          <li class="item">
-            <span class="box" role="img" aria-label="未完了"></span>
+          <li class="item done">
+            <span class="box" role="img" aria-label="完了"></span>
             <div>
               <div class="line"><span class="id">D-3</span><span class="name">記録の確認モーダルを残すか</span></div>
-              <p class="ev">コアバリュー「3タップで記録完了」が実際は5〜6タップ（監査 B-1）。誤登録防止とのトレードオフ。</p>
-              <p class="blocker">これが決まらないと P1-02 の契約書が書けない</p>
+              <p class="ev">決定（2026-08-09）: <strong>廃止し、記録完了画面に取り消し導線を出す</strong>。モーダルが出していたのはスポット名と訪問日だけで、どちらも直前のフォーム上に見えており、一番間違えやすい写真は確認していなかった。</p>
+              <p class="blocker">Issue #130 / PR 準備中で反映済み</p>
             </div>
             <span class="size">M</span>
           </li>
@@ -840,8 +842,8 @@ D-5（要 #099 追補）  ──▶ A-9 ピン色</pre>
             <span class="box" role="img" aria-label="未完了"></span>
             <div>
               <div class="line"><span class="id">P1-02</span><span class="name">記録フローの最短化</span></div>
-              <p class="ev">起動 → 記録完了のタップ数削減。</p>
-              <p class="blocker">D-3 の判断待ち</p>
+              <p class="ev">実装完了・機械検証通過（Issue #130・テスト1084件）。<strong>着手時の実測は監査 B-1 の5〜6ではなく地図 FAB 経路で7タップ</strong>（監査は未実装の自動選択を前提にしていた）。レバー3本＝モーダル廃止／カメラ直起動／最寄りスポットの既定選択で、記録画面内は2タップ（既定選択あり）・4タップ（なし）。</p>
+              <p class="blocker">実機確認待ち: カメラ直起動・位置情報の既定選択・タップ数（Web はログインできず記録画面に到達不可）</p>
             </div>
             <span class="size">M</span>
           </li>
