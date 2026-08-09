@@ -17,8 +17,8 @@ import { Button } from '@components/common/Button';
 import { Header } from '@components/common/Header';
 import { SpotSelector } from '@components/record/SpotSelector';
 import { PhotoSection } from '@components/record/PhotoSection';
-import { PhotoPickerModal } from '@components/record/PhotoPickerModal';
 import { SpotAddModal } from '@components/record/SpotAddModal';
+import { usePhotoPicker } from '@hooks/usePhotoPicker';
 import { useRecordForm } from '@hooks/useRecordForm';
 import { useNearbySpots } from '@hooks/useNearbySpots';
 import { useAuth } from '@hooks/useAuth';
@@ -39,13 +39,13 @@ export function RecordScreen({ navigation, route }: Props) {
   const { user } = useAuth();
   const { location } = useLocation();
   const { filteredSpots, searchQuery, setSearchQuery } = useNearbySpots();
+  const { takePhoto, pickFromLibrary } = usePhotoPicker();
   const form = useRecordForm(initialSpotId ? { initialSpotId } : undefined);
 
   const scrollViewRef = useRef<ScrollView>(null);
   const memoLayoutY = useRef(0);
   const dateLayoutY = useRef(0);
 
-  const [showPhotoPicker, setShowPhotoPicker] = useState(false);
   const [showSpotAdd, setShowSpotAdd] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
@@ -91,6 +91,16 @@ export function RecordScreen({ navigation, route }: Props) {
     }
   };
 
+  const handleTakePhoto = async () => {
+    const uri = await takePhoto();
+    if (uri) form.setImageUri(uri);
+  };
+
+  const handlePickFromLibrary = async () => {
+    const uri = await pickFromLibrary();
+    if (uri) form.setImageUri(uri);
+  };
+
   const handleDateChange = (_event: unknown, selectedDate?: Date) => {
     if (Platform.OS === 'android') {
       setShowDatePicker(false);
@@ -127,11 +137,20 @@ export function RecordScreen({ navigation, route }: Props) {
           />
 
           <Text style={styles.sectionLabel}>御朱印の写真</Text>
+          {/* 写真枠のタップでカメラを直接起動する。選択モーダルを1タップ挟んでいた分を削った。
+              ギャラリーは使用頻度が低いので、常時見えるリンクとして枠の下に残す */}
           <PhotoSection
             imageUri={form.imageUri}
-            onPress={() => setShowPhotoPicker(true)}
+            onPress={handleTakePhoto}
             error={form.imageError}
           />
+          <TouchableOpacity
+            style={styles.libraryLink}
+            onPress={handlePickFromLibrary}
+            testID="pick-from-library"
+          >
+            <Text style={styles.libraryLinkText}>ギャラリーから選ぶ</Text>
+          </TouchableOpacity>
 
           <Text style={styles.sectionLabel}>訪問日</Text>
           <TouchableOpacity
@@ -240,15 +259,6 @@ export function RecordScreen({ navigation, route }: Props) {
         />
       </View>
 
-      <PhotoPickerModal
-        visible={showPhotoPicker}
-        onClose={() => setShowPhotoPicker(false)}
-        onImageSelected={uri => {
-          form.setImageUri(uri);
-          setShowPhotoPicker(false);
-        }}
-      />
-
       {user && (
         <SpotAddModal
           visible={showSpotAdd}
@@ -304,6 +314,16 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.gray[500],
     marginTop: spacing.xs,
+  },
+  libraryLink: {
+    alignSelf: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    marginTop: spacing.xs,
+  },
+  libraryLinkText: {
+    ...typography.caption,
+    color: colors.primary[500],
   },
   memoInput: {
     ...typography.body,

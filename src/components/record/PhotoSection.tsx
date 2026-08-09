@@ -39,7 +39,8 @@ export function PhotoSection({ imageUri, onPress, error }: PhotoSectionProps) {
         ) : (
           <View style={styles.placeholder}>
             <Text style={styles.cameraIcon}>📷</Text>
-            <Text style={styles.placeholderText}>写真を追加</Text>
+            {/* 選択モーダルを廃してカメラ直起動にしたので、何が起きるかを文言で示す */}
+            <Text style={styles.placeholderText}>タップして撮影</Text>
           </View>
         )}
       </TouchableOpacity>

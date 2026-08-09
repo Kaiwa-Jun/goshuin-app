@@ -99,6 +99,16 @@ jest.mock('expo-image-picker', () => ({
   launchImageLibraryAsync: jest.fn(),
 }));
 
+const mockTakePhoto = jest.fn();
+const mockPickFromLibrary = jest.fn();
+
+jest.mock('@hooks/usePhotoPicker', () => ({
+  usePhotoPicker: () => ({
+    takePhoto: mockTakePhoto,
+    pickFromLibrary: mockPickFromLibrary,
+  }),
+}));
+
 const mockFetchVisitedSpotIds = jest.fn();
 
 jest.mock('@services/stamps', () => ({
@@ -589,5 +599,88 @@ describe('日付ピッカーの表示形式（Issue #128）', () => {
     // inline は「カレンダー ⇄ 年月ホイール」の2モードを持ち、年月ホイールの
     // 途中で完了を押すと日が未確定のまま閉じてしまう（実機で判明）
     expect(getByTestId('date-picker').props.display).toBe('spinner');
+  });
+});
+
+describe('写真のカメラ直起動（Issue #130 / S-3）', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockFormState = {
+      selectedSpot: null,
+      imageUri: null,
+      visitedAt: new Date('2024-06-01'),
+      memo: '',
+      isPublic: false,
+      spotError: null,
+      imageError: null,
+      isSubmitting: false,
+      submitError: null,
+      selectSpot: mockSelectSpot,
+      setImageUri: mockSetImageUri,
+      setVisitedAt: mockSetVisitedAt,
+      setMemo: mockSetMemo,
+      setIsPublic: mockSetIsPublic,
+      validate: mockValidate,
+      submit: mockSubmit,
+      reset: mockReset,
+    };
+    mockTakePhoto.mockReset();
+    mockPickFromLibrary.mockReset();
+  });
+
+  // C-3: 選択モーダルを挟まない
+  it('写真枠のタップでカメラが直接起動する', async () => {
+    mockTakePhoto.mockResolvedValue('file:///photo.jpg');
+
+    const { getByTestId, queryByText } = render(
+      <RecordScreen navigation={mockNavigation} route={mockRoute} />
+    );
+    fireEvent.press(getByTestId('photo-section'));
+
+    await waitFor(() => {
+      expect(mockTakePhoto).toHaveBeenCalledTimes(1);
+    });
+    // 選択モーダルが出ていないこと
+    expect(queryByText('カメラで撮影')).toBeNull();
+    expect(queryByText('ギャラリーから選択')).toBeNull();
+    expect(mockSetImageUri).toHaveBeenCalledWith('file:///photo.jpg');
+  });
+
+  // C-7: キャンセル時に選択済みの写真を壊さない
+  it('撮影をキャンセルしたら imageUri を更新しない', async () => {
+    mockTakePhoto.mockResolvedValue(null);
+
+    const { getByTestId } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent.press(getByTestId('photo-section'));
+
+    await waitFor(() => {
+      expect(mockTakePhoto).toHaveBeenCalled();
+    });
+    expect(mockSetImageUri).not.toHaveBeenCalled();
+  });
+
+  // C-6: モーダルを廃してもギャラリーに到達できる
+  it('ギャラリーのリンクからライブラリを開ける', async () => {
+    mockPickFromLibrary.mockResolvedValue('file:///library.jpg');
+
+    const { getByTestId } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent.press(getByTestId('pick-from-library'));
+
+    await waitFor(() => {
+      expect(mockPickFromLibrary).toHaveBeenCalledTimes(1);
+    });
+    expect(mockSetImageUri).toHaveBeenCalledWith('file:///library.jpg');
+  });
+
+  it('ギャラリーの選択をキャンセルしたら imageUri を更新しない', async () => {
+    mockPickFromLibrary.mockResolvedValue(null);
+
+    const { getByTestId } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent.press(getByTestId('pick-from-library'));
+
+    await waitFor(() => {
+      expect(mockPickFromLibrary).toHaveBeenCalled();
+    });
+    expect(mockSetImageUri).not.toHaveBeenCalled();
   });
 });
