@@ -68,9 +68,9 @@
     {
       "id": "P1-10",
       "title": "画面構成の入れ替え（案3: 地図 / 御朱印帳 / あつめる / 自分）",
-      "note": "実装完了・develop マージ済み(Issue #123 / PR #124・2026-08-09)。契約書 docs/issues/issue-123-ia-tab-restructure.md(受入基準51項目)。タブを 地図/御朱印帳/あつめる/自分 に変更し、行きたいリストを CollectionScreen から MapStack の新設 WishlistScreen へ移設(カードタップで地図の該当スポットへ = 監査 A-13)。自分タブに位置情報の行を追加(監査 A-14)。監査 B-6 も副次的に解消。内部ルート名は据え置き(改名の波及が大きく得るものが可読性だけのため)。表示名依存だった e2e/flows/smoke.yaml と RecordCompleteScreen のボタン文言も追随。契約書からの逸脱2件を記録(GalleryScreen のヘッダー1行変更 / UI-1 の基準見直し)。auto-review の指摘で MapScreen の行きたい二重取得(useWishlist と useWishlistSpots の併用)を解消。テスト1045件・lint/typecheck クリーン・Expo Web で実操作確認済み。**passes は false**: N群6項目(実機)が未検証 — タブラベルの表示崩れ、行きたいカードのタップで地図が動くか、削除でピンの色が変わるか、位置情報の行から OS 設定へ飛ぶか、OS 側で許可/拒否を変えたときの追随、小型端末でのラベル。Maestro E2E も未実行",
+      "note": "実装完了・develop マージ済み(Issue #123 / PR #124・2026-08-09)。契約書 docs/issues/issue-123-ia-tab-restructure.md(受入基準51項目)。タブを 地図/御朱印帳/あつめる/自分 に変更し、行きたいリストを CollectionScreen から MapStack の新設 WishlistScreen へ移設(カードタップで地図の該当スポットへ = 監査 A-13)。自分タブに位置情報の行を追加(監査 A-14)。監査 B-6 も副次的に解消。内部ルート名は据え置き(改名の波及が大きく得るものが可読性だけのため)。表示名依存だった e2e/flows/smoke.yaml と RecordCompleteScreen のボタン文言も追随。契約書からの逸脱2件を記録(GalleryScreen のヘッダー1行変更 / UI-1 の基準見直し)。auto-review の指摘で MapScreen の行きたい二重取得(useWishlist と useWishlistSpots の併用)を解消。テスト1045件・lint/typecheck クリーン・Expo Web で実操作確認済み。**実機 N群6項目も確認済み(2026-08-09)**。1回目の実機確認で「行きたいから削除しても地図の件数とピンの色が即時に変わらない」バグを検出 → Issue #125 / PR #126 で修正(useWishlist が useEffect でしかフェッチせずフォーカス復帰で取り直していなかった。件数のずれは PR #124 の auto-review 対応で入れた退行、ピンの色のずれは案3より前からある既存問題)。再確認で解消を確認し passes: true。Maestro E2E は未実行(smoke.yaml のタブ名は更新済み)",
       "issue": 123,
-      "passes": false
+      "passes": true
     },
     {
       "id": "P2-01",

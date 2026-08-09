@@ -569,7 +569,7 @@
         <ol class="order">
           <li class="done-step">CI-1 を直して PR の赤を消す（完了）</li>
           <li class="done-step">#116 の実機 N群8項目（完了）</li>
-          <li class="now">P1-10 の実機確認 → 小さい改善を1 PR に束ねる</li>
+          <li class="now">小さい改善を1 PR に束ねる（A-3 / A-10 / A-11 + B-4）</li>
           <li>設計判断 D-3 / D-4 / D-5 / D-6 をまとめて決める</li>
           <li class="done-step">案3 タブ入れ替えの契約書 → 実装（完了）</li>
           <li>期日ものは上と並行</li>
@@ -710,8 +710,8 @@
           <li class="item done">
             <span class="box" role="img" aria-label="完了"></span>
             <div>
-              <div class="line"><span class="id">IA-3</span><span class="name">タブ入れ替え（地図 / 御朱印帳 / あつめる / 自分）</span><span class="pill pill-done">実装完了 8/9</span></div>
-              <p class="ev">#123 / <b>PR #124 マージ済み</b>。行きたいリストを <code>WishlistScreen</code> として地図タブへ移設し、A-13 / A-14 も同時に解決。B-6 も副次解消。テスト1045件・Expo Web で実操作確認済み。<b>残るは実機 N 群6項目のみ</b>（P1-10 として feature-list に登録）。</p>
+              <div class="line"><span class="id">IA-3</span><span class="name">タブ入れ替え（地図 / 御朱印帳 / あつめる / 自分）</span><span class="pill pill-done">完了 8/9</span></div>
+              <p class="ev">#123 / <b>PR #124 マージ済み</b>。行きたいリストを <code>WishlistScreen</code> として地図タブへ移設し、A-13 / A-14 も同時に解決。B-6 も副次解消。テスト1045件・Expo Web で実操作確認済み。<b>実機 N 群6項目も確認済みで <code>passes: true</code></b>。実機確認で見つかった「削除しても地図の件数とピンの色が即時に変わらない」バグは Issue #125 / PR #126 で修正済み。</p>
             </div>
             <span class="size l">L</span>
           </li>
@@ -783,13 +783,10 @@
         </ul>
 
         <div class="deps">
-          <pre>P1-03 passes:true（8/9 達成）──▶ <b>IA-3 タブ入れ替え（L）着手可能</b>
-                                              ▲
-                              A-10 / A-13 はこの画面を触る
-                              → 案3 を先にやるなら後回しでよい
+          <pre>P1-03 ──▶ <b>IA-3 タブ入れ替え</b> ──▶ A-13 / A-14 も解決（8/9 完了）
 
 D-3 確認モーダル判断 ──▶ P1-02 記録フロー最短化
-D-4 和暦スコープ    ──▶ A-2
+D-4 和暦スコープ    ──▶ A-2      ← いま残っている唯一のブロッカー
 D-5（要 #099 追補）  ──▶ A-9 ピン色</pre>
         </div>
       </section>
