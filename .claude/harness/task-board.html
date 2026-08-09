@@ -509,14 +509,14 @@
       <div class="rail-block">
         <h2>進捗</h2>
         <div class="tally">
-          <span class="big">11</span>
-          <span class="of">/ 31 完了</span>
+          <span class="big">13</span>
+          <span class="of">/ 33 完了</span>
         </div>
         <div class="bars">
           <div class="bar-row">
             <span class="bar-label"><span class="dot" style="background:var(--bug)"></span>バグ</span>
-            <span class="bar-count">2 / 3</span>
-            <span class="track"><span style="width:67%;background:var(--bug)"></span></span>
+            <span class="bar-count">4 / 5</span>
+            <span class="track"><span style="width:80%;background:var(--bug)"></span></span>
           </div>
           <div class="bar-row">
             <span class="bar-label"><span class="dot" style="background:var(--improve)"></span>小さい改善</span>
@@ -583,7 +583,7 @@
         <div class="section-head">
           <h2>バグ</h2>
           <span class="rule"></span>
-          <span class="count">2 / 3</span>
+          <span class="count">4 / 5</span>
         </div>
 
         <ul class="items">
@@ -609,6 +609,24 @@
                 <span class="pill pill-done">完了 8/9</span>
               </div>
               <p class="ev">原因は action にモデルを渡しておらず、既定のリタイア済みモデル <code>claude-sonnet-4-20250514</code> が使われていたこと。<code>auto-review</code> と <code>mention-response</code> に <code>model: claude-sonnet-5</code> を追加。<b>PR #122 マージ済み・auto-review が pass し実際にレビューが投稿されることまで確認</b>。</p>
+            </div>
+            <span class="size">S</span>
+          </li>
+
+          <li class="item done">
+            <span class="box" role="img" aria-label="完了"></span>
+            <div>
+              <div class="line"><span class="id">#128</span><span class="name">日付ピッカーで年月を変えると日を選ばずに閉じる</span><span class="pill pill-done">完了 8/9</span></div>
+              <p class="ev">実機で発見。<code>display="inline"</code> は「カレンダー ⇄ 年月ホイール」の2モードを持つが<b>どちらのモードかを知る手段が無い</b>ため、完了ボタン側では直せなかった。<code>spinner</code>（年・月・日の3列）にしてモード切替自体を無くした。<code>EditStampModal</code> も同じパターンだったので同時に修正。<b>PR #129・実機確認済み</b>。</p>
+            </div>
+            <span class="size">S</span>
+          </li>
+
+          <li class="item done">
+            <span class="box" role="img" aria-label="完了"></span>
+            <div>
+              <div class="line"><span class="id">#125</span><span class="name">行きたいの削除が地図に即時反映されない</span><span class="pill pill-done">完了 8/9</span></div>
+              <p class="ev">実機で発見。<code>useWishlist</code> が <code>useEffect</code> でしか取得せずフォーカス復帰で取り直していなかった。<code>useFocusEffect</code> に変更し、件数とピンの色を1つの軽いクエリで同時に解決。<b>PR #126・実機確認済み</b>。⚠️ 件数のずれは PR #124 の auto-review 対応で入れた退行。</p>
             </div>
             <span class="size">S</span>
           </li>
