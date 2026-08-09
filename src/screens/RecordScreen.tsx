@@ -24,6 +24,7 @@ import { useRecordForm } from '@hooks/useRecordForm';
 import { useNearbySpots } from '@hooks/useNearbySpots';
 import { useAuth } from '@hooks/useAuth';
 import { useLocation } from '@hooks/useLocation';
+import { formatJapaneseEraDate } from '@utils/japaneseEra';
 import { getStampImageUrl, fetchVisitedSpotIds } from '@services/stamps';
 import { isNetworkError } from '@/utils/errorClassifier';
 import { evaluateNewBadge } from '@services/badges';
@@ -43,6 +44,7 @@ export function RecordScreen({ navigation, route }: Props) {
 
   const scrollViewRef = useRef<ScrollView>(null);
   const memoLayoutY = useRef(0);
+  const dateLayoutY = useRef(0);
 
   const [showPhotoPicker, setShowPhotoPicker] = useState(false);
   const [showSpotAdd, setShowSpotAdd] = useState(false);
@@ -50,6 +52,10 @@ export function RecordScreen({ navigation, route }: Props) {
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   const formattedDate = `${form.visitedAt.getFullYear()}年${form.visitedAt.getMonth() + 1}月${form.visitedAt.getDate()}日`;
+  // 紙の御朱印は和暦で書かれている。ピッカーは西暦なので、照合できるよう併記する（監査 A-2）
+  const eraDate = formatJapaneseEraDate(
+    `${form.visitedAt.getFullYear()}-${String(form.visitedAt.getMonth() + 1).padStart(2, '0')}-${String(form.visitedAt.getDate()).padStart(2, '0')}`
+  );
 
   const handleSavePress = () => {
     if (!form.validate()) return;
@@ -130,11 +136,26 @@ export function RecordScreen({ navigation, route }: Props) {
           <Text style={styles.sectionLabel}>訪問日</Text>
           <TouchableOpacity
             style={styles.dateRow}
-            onPress={() => setShowDatePicker(true)}
+            onLayout={e => {
+              dateLayoutY.current = e.nativeEvent.layout.y;
+            }}
+            onPress={() => {
+              setShowDatePicker(true);
+              // iOS の inline カレンダーは ScrollView の流れの中に展開されるため、
+              // そのままだと画面外に出る。メモ欄と同じ作法でスクロールさせる（監査 A-3）
+              setTimeout(() => {
+                scrollViewRef.current?.scrollTo({ y: dateLayoutY.current, animated: true });
+              }, 300);
+            }}
             testID="date-picker-trigger"
           >
             <MaterialIcons name="calendar-today" size={20} color={colors.gray[500]} />
-            <Text style={styles.dateText}>{formattedDate}</Text>
+            <View style={styles.dateTextGroup}>
+              <Text style={styles.dateText}>{formattedDate}</Text>
+              <Text style={styles.dateEraText} testID="date-era-label">
+                {eraDate}
+              </Text>
+            </View>
           </TouchableOpacity>
           {showDatePicker && (
             <View>
@@ -284,6 +305,14 @@ const styles = StyleSheet.create({
   dateText: {
     ...typography.body,
     color: colors.gray[800],
+  },
+  dateTextGroup: {
+    flex: 1,
+  },
+  dateEraText: {
+    ...typography.caption,
+    color: colors.gray[500],
+    marginTop: spacing.xs,
   },
   memoInput: {
     ...typography.body,
