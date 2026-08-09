@@ -11,6 +11,17 @@ jest.mock('@services/wishlist', () => ({
   removeFromWishlist: (...args: unknown[]) => mockRemoveFromWishlist(...args),
 }));
 
+// useFocusEffect を useEffect として動作させるモック（useWishlistSpots.test と同じ）
+let focusCallback: (() => void) | null = null;
+jest.mock('@react-navigation/native', () => ({
+  useFocusEffect: (cb: () => void) => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+    const { useEffect } = require('react');
+    focusCallback = cb;
+    useEffect(cb, [cb]);
+  },
+}));
+
 let mockUser: { id: string } | null = null;
 
 jest.mock('@hooks/useAuth', () => ({
@@ -160,5 +171,35 @@ describe('useWishlist', () => {
     await waitFor(() => {
       expect(result.current.isToggling).toBe(false);
     });
+  });
+});
+
+describe('useWishlist フォーカス復帰時の再取得（Issue #125）', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockUser = { id: 'user-1' };
+    focusCallback = null;
+  });
+
+  it('画面にフォーカスが戻るたびに ID を取り直す', async () => {
+    mockFetchWishlistSpotIds
+      .mockResolvedValueOnce(new Set(['spot-1', 'spot-2']))
+      .mockResolvedValueOnce(new Set(['spot-1']));
+
+    const { result } = renderHook(() => useWishlist());
+
+    await waitFor(() => {
+      expect(result.current.wishlistSpotIds.size).toBe(2);
+    });
+
+    // 別画面で削除されたあと、地図に戻ってきた想定
+    await act(async () => {
+      focusCallback?.();
+    });
+
+    await waitFor(() => {
+      expect(result.current.wishlistSpotIds.size).toBe(1);
+    });
+    expect(mockFetchWishlistSpotIds).toHaveBeenCalledTimes(2);
   });
 });
