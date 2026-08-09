@@ -283,6 +283,8 @@
     margin-top: 1px;
   }
 
+  .order li.done-step { color: var(--faint); text-decoration: line-through; text-decoration-thickness: 1px; }
+  .order li.done-step::before { border-color: var(--done); color: var(--done); text-decoration: none; }
   .order li.now { color: var(--ink); font-weight: 600; }
   .order li.now::before { background: var(--accent); color: var(--panel); }
 
@@ -507,14 +509,14 @@
       <div class="rail-block">
         <h2>進捗</h2>
         <div class="tally">
-          <span class="big">1</span>
+          <span class="big">2</span>
           <span class="of">/ 31 完了</span>
         </div>
         <div class="bars">
           <div class="bar-row">
             <span class="bar-label"><span class="dot" style="background:var(--bug)"></span>バグ</span>
-            <span class="bar-count">1 / 3</span>
-            <span class="track"><span style="width:33%;background:var(--bug)"></span></span>
+            <span class="bar-count">2 / 3</span>
+            <span class="track"><span style="width:67%;background:var(--bug)"></span></span>
           </div>
           <div class="bar-row">
             <span class="bar-label"><span class="dot" style="background:var(--improve)"></span>小さい改善</span>
@@ -565,7 +567,7 @@
       <div class="rail-block">
         <h2>着手順（提案）</h2>
         <ol class="order">
-          <li>CI-1 を直して PR の赤を消す</li>
+          <li class="done-step">CI-1 を直して PR の赤を消す（完了）</li>
           <li class="now">#116 の実機 N群8項目（A-1 カメラは完了）</li>
           <li>小さい改善を1 PR に束ねる</li>
           <li>設計判断 D-3 / D-4 / D-5 / D-6 をまとめて決める</li>
@@ -581,7 +583,7 @@
         <div class="section-head">
           <h2>バグ</h2>
           <span class="rule"></span>
-          <span class="count">1 / 3</span>
+          <span class="count">2 / 3</span>
         </div>
 
         <ul class="items">
@@ -598,15 +600,15 @@
             <span class="size">S</span>
           </li>
 
-          <li class="item">
-            <span class="box" role="img" aria-label="未完了"></span>
+          <li class="item done">
+            <span class="box" role="img" aria-label="完了"></span>
             <div>
               <div class="line">
                 <span class="id">CI-1</span>
                 <span class="name">PR のたびに CI が赤くなる</span>
+                <span class="pill pill-done">完了 8/9</span>
               </div>
-              <p class="ev"><code>pr-review.yml</code> の <code>auto-review</code> が <code>404 model: claude-sonnet-4-20250514</code>（run 31289875034 のログで確認）。引き継ぎの「auto-review ワークフロー」は不正確で、ワークフローは1本・その中の3ジョブのうち1つだけが落ちている。<code>lint-and-test</code> は同ファイル内で success。</p>
-              <p class="blocker fixed">ブロッカーなし。現行モデルを指定するだけ（入力名は action の README で確認）</p>
+              <p class="ev">原因は action にモデルを渡しておらず、既定のリタイア済みモデル <code>claude-sonnet-4-20250514</code> が使われていたこと。<code>auto-review</code> と <code>mention-response</code> に <code>model: claude-sonnet-5</code> を追加。<b>PR #122 マージ済み・auto-review が pass し実際にレビューが投稿されることまで確認</b>。</p>
             </div>
             <span class="size">S</span>
           </li>

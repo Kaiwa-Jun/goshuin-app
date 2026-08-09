@@ -44,7 +44,11 @@
 
 **別 issue 化すべき既知の問題**: `ImageGalleryModal` がレンダー中に `Animated.Value.setValue()` を呼び React が警告を出す（`src/components/common/ImageGalleryModal.tsx:79-88`）
 
-**CI の既存不具合（CI-1）**: ⚠️ 前回の記述は不正確だった。ワークフローは **`.github/workflows/pr-review.yml` の1本だけ**で、その中の3ジョブ（`auto-review` / `mention-response` / `lint-and-test`）のうち **`auto-review` だけ**がリタイア済みモデル `claude-sonnet-4-20250514` を叩いて 404 で落ちる。`lint-and-test` は同じファイル内にあり success。#117 / #119 / #120 / #121 すべて同じ。修正は `auto-review` に現行モデルを指定するだけ（`anthropics/claude-code-base-action@beta` の入力名は README で確認すること）
+**CI（CI-1）— 解消済み（PR #122・2026-08-09）**: `auto-review` が毎回 404 で落ちていた原因は、**action にモデルを渡していなかった**ため、インストールされる Claude Code の既定モデル（リタイア済みの `claude-sonnet-4-20250514`）が使われていたこと。`claude-code-base-action@beta` の **`model` 入力**に `claude-sonnet-5` を指定して解消（`anthropic_model` は DEPRECATED、`model` が現行。`allowed_tools` は `beta` タグ時点でも有効な入力）。同じ action を使う `mention-response` にも同じ指定を入れた。**PR #122 で auto-review が pass し、実際にレビューコメントが投稿されることまで確認済み**。
+
+⚠️ 過去の記述の訂正: ワークフローは **`.github/workflows/pr-review.yml` の1本だけ**で、その中の3ジョブ（`auto-review` / `mention-response` / `lint-and-test`）のうち `auto-review` だけが落ちていた。`lint-and-test` は同じファイル内にあり元から success。
+
+📌 **CI-1 の作業中に見つかった別件（未対応・要判断）**: ①`mention-response` が `${{ github.event.comment.body }}` を `prompt` に直接展開している（シェルではなく action 入力なのでコマンドインジェクションではないが、コメント本文でプロンプトを動かせる）②`permissions` が3ジョブ共通で `contents: write` / `pull-requests: write` / `issues: write` と広く、`lint-and-test` には不要
 
 **期日があるもの**:
 
