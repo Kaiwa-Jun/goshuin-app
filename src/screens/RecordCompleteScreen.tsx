@@ -36,10 +36,12 @@ export function RecordCompleteScreen({ navigation, route }: Props) {
     navigation.navigate('MainTabs', { screen: 'MapTab', params: { screen: 'Map' } });
   };
 
-  const runUndo = async () => {
+  // 呼び出し元が canUndo のボタンだけとは限らなくなっても壊れないよう、
+  // ここでも揃っていることを確かめてから消す
+  const runUndo = async (id: string, path: string) => {
     setIsUndoing(true);
     try {
-      await deleteStamp(stampId!, imagePath!);
+      await deleteStamp(id, path);
       navigation.navigate('MainTabs', { screen: 'MapTab', params: { screen: 'Map' } });
     } catch (error) {
       // 消せていないのに消えた顔をしない。原文を出して画面に留まる
@@ -53,9 +55,11 @@ export function RecordCompleteScreen({ navigation, route }: Props) {
   // 取り消しは非可逆（redo は無い）ので、ここだけは確認を挟む。
   // 主導線ではないためタップ数の目標には影響しない
   const handleUndoPress = () => {
+    if (!stampId || !imagePath) return;
+
     Alert.alert('この記録を取り消しますか？', '御朱印の写真ごと削除されます。元には戻せません。', [
       { text: 'やめる', style: 'cancel' },
-      { text: '取り消す', style: 'destructive', onPress: runUndo },
+      { text: '取り消す', style: 'destructive', onPress: () => runUndo(stampId, imagePath) },
     ]);
   };
 
