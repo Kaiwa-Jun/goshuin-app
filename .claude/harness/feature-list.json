@@ -66,6 +66,13 @@
       "passes": true
     },
     {
+      "id": "P1-10",
+      "title": "画面構成の入れ替え（案3: 地図 / 御朱印帳 / あつめる / 自分）",
+      "note": "実装完了・develop マージ済み(Issue #123 / PR #124・2026-08-09)。契約書 docs/issues/issue-123-ia-tab-restructure.md(受入基準51項目)。タブを 地図/御朱印帳/あつめる/自分 に変更し、行きたいリストを CollectionScreen から MapStack の新設 WishlistScreen へ移設(カードタップで地図の該当スポットへ = 監査 A-13)。自分タブに位置情報の行を追加(監査 A-14)。監査 B-6 も副次的に解消。内部ルート名は据え置き(改名の波及が大きく得るものが可読性だけのため)。表示名依存だった e2e/flows/smoke.yaml と RecordCompleteScreen のボタン文言も追随。契約書からの逸脱2件を記録(GalleryScreen のヘッダー1行変更 / UI-1 の基準見直し)。auto-review の指摘で MapScreen の行きたい二重取得(useWishlist と useWishlistSpots の併用)を解消。テスト1045件・lint/typecheck クリーン・Expo Web で実操作確認済み。**passes は false**: N群6項目(実機)が未検証 — タブラベルの表示崩れ、行きたいカードのタップで地図が動くか、削除でピンの色が変わるか、位置情報の行から OS 設定へ飛ぶか、OS 側で許可/拒否を変えたときの追随、小型端末でのラベル。Maestro E2E も未実行",
+      "issue": 123,
+      "passes": false
+    },
+    {
       "id": "P2-01",
       "title": "限定御朱印ウォッチャー MVP（情報ソース登録 + 巡回 + 表示）",
       "note": "完了(Issue #104 / PR #105-109・Evaluator PASS 93/93・実機確認済み 2026-08-02)。運用投入済み: seed 29スポット79ソース・cron 週2回(火金02:00 JST)・Vault は sb_secret 使用。実クロール 39/40成功(平安神宮のみ先方SSL不備で失敗)・差分検知動作。品質対応: 授与品混入→isLikelyGoshuin ガード(PR #108)、過去告知の混入→日付注入プロンプト(PR #109)。精度の根本改善は P2-02 へ",

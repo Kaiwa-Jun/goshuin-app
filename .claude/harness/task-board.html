@@ -509,7 +509,7 @@
       <div class="rail-block">
         <h2>進捗</h2>
         <div class="tally">
-          <span class="big">3</span>
+          <span class="big">6</span>
           <span class="of">/ 31 完了</span>
         </div>
         <div class="bars">
@@ -520,13 +520,13 @@
           </div>
           <div class="bar-row">
             <span class="bar-label"><span class="dot" style="background:var(--improve)"></span>小さい改善</span>
-            <span class="bar-count">0 / 6</span>
-            <span class="track"><span style="width:0%;background:var(--improve)"></span></span>
+            <span class="bar-count">2 / 6</span>
+            <span class="track"><span style="width:33%;background:var(--improve)"></span></span>
           </div>
           <div class="bar-row">
             <span class="bar-label"><span class="dot" style="background:var(--design)"></span>設計判断</span>
-            <span class="bar-count">0 / 8</span>
-            <span class="track"><span style="width:0%;background:var(--design)"></span></span>
+            <span class="bar-count">1 / 8</span>
+            <span class="track"><span style="width:13%;background:var(--design)"></span></span>
           </div>
           <div class="bar-row">
             <span class="bar-label"><span class="dot" style="background:var(--muted)"></span>バックログ</span>
@@ -569,9 +569,9 @@
         <ol class="order">
           <li class="done-step">CI-1 を直して PR の赤を消す（完了）</li>
           <li class="done-step">#116 の実機 N群8項目（完了）</li>
-          <li>小さい改善を1 PR に束ねる</li>
+          <li class="now">P1-10 の実機確認 → 小さい改善を1 PR に束ねる</li>
           <li>設計判断 D-3 / D-4 / D-5 / D-6 をまとめて決める</li>
-          <li class="now">案3 タブ入れ替えの契約書 → 実装</li>
+          <li class="done-step">案3 タブ入れ替えの契約書 → 実装（完了）</li>
           <li>期日ものは上と並行</li>
         </ol>
       </div>
@@ -633,7 +633,7 @@
         <div class="section-head">
           <h2>小さい改善</h2>
           <span class="rule"></span>
-          <span class="count">0 / 6</span>
+          <span class="count">2 / 6</span>
         </div>
         <p class="section-note">
           設計判断なしで着手でき、1 PR に束ねられる。監査 E の束から <b>A-6 は除外</b>（#114 で解決済み）。
@@ -678,20 +678,20 @@
             <span class="size">XS</span>
           </li>
 
-          <li class="item">
-            <span class="box" role="img" aria-label="未完了"></span>
+          <li class="item done">
+            <span class="box" role="img" aria-label="完了"></span>
             <div>
-              <div class="line"><span class="id">A-13</span><span class="name">行きたいリストのカードがタップできない</span></div>
-              <p class="ev"><code>CollectionScreen.tsx:323-350</code> が <code>View</code> + <code>Card</code> で <code>onPress</code> は削除ボタンのみ。<b>監査より小さい</b>：<code>MapScreen.tsx:160-177</code> に <code>focusSpotId</code> が実装済みで <code>navigation/types.ts:45</code> に型もある → 繋ぐだけ。</p>
+              <div class="line"><span class="id">A-13</span><span class="name">行きたいリストのカードがタップできない</span><span class="pill pill-done">完了 8/9</span></div>
+              <p class="ev"><b>PR #124（案3）で解決</b>。移設先の <code>WishlistScreen</code> でカード全体をタップ可能にし、地図の該当スポットへ戻すようにした。</p>
             </div>
             <span class="size">S</span>
           </li>
 
-          <li class="item">
-            <span class="box" role="img" aria-label="未完了"></span>
+          <li class="item done">
+            <span class="box" role="img" aria-label="完了"></span>
             <div>
-              <div class="line"><span class="id">A-14</span><span class="name">位置情報の設定を設定画面から</span></div>
-              <p class="ev"><code>SettingsScreen.tsx</code> はアカウント / 公開設定 / アプリ情報の3セクションのみ（<code>51 / 78 / 100</code>）。位置情報の行なし。OS 権限は直接トグルできないので <code>Linking.openSettings()</code> で OS 設定へ飛ばす。</p>
+              <div class="line"><span class="id">A-14</span><span class="name">位置情報の設定を設定画面から</span><span class="pill pill-done">完了 8/9</span></div>
+              <p class="ev"><b>PR #124（案3）で解決</b>。自分タブに「現在地の利用」の行を追加し、許諾状態の表示と <code>Linking.openSettings()</code> での OS 設定への遷移を実装。</p>
             </div>
             <span class="size">S</span>
           </li>
@@ -703,16 +703,15 @@
         <div class="section-head">
           <h2>設計判断が要るもの</h2>
           <span class="rule"></span>
-          <span class="count">0 / 8</span>
+          <span class="count">1 / 8</span>
         </div>
 
         <ul class="items">
-          <li class="item">
-            <span class="box" role="img" aria-label="未完了"></span>
+          <li class="item done">
+            <span class="box" role="img" aria-label="完了"></span>
             <div>
-              <div class="line"><span class="id">IA-3</span><span class="name">タブ入れ替え（地図 / 御朱印帳 / あつめる / 自分）</span></div>
-              <p class="ev">方針は合意済み・未着手。行きたいリストを地図タブへ移す。</p>
-              <p class="blocker fixed">ブロッカーは解消（P1-03 が 8/9 に <code>passes: true</code>）。着手可能</p>
+              <div class="line"><span class="id">IA-3</span><span class="name">タブ入れ替え（地図 / 御朱印帳 / あつめる / 自分）</span><span class="pill pill-done">実装完了 8/9</span></div>
+              <p class="ev">#123 / <b>PR #124 マージ済み</b>。行きたいリストを <code>WishlistScreen</code> として地図タブへ移設し、A-13 / A-14 も同時に解決。B-6 も副次解消。テスト1045件・Expo Web で実操作確認済み。<b>残るは実機 N 群6項目のみ</b>（P1-10 として feature-list に登録）。</p>
             </div>
             <span class="size l">L</span>
           </li>
