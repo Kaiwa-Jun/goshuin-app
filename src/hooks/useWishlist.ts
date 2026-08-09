@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '@hooks/useAuth';
 import { fetchWishlistSpotIds, addToWishlist, removeFromWishlist } from '@services/wishlist';
 
@@ -15,30 +16,35 @@ export function useWishlist(): UseWishlistReturn {
   const [isLoading, setIsLoading] = useState(true);
   const [isToggling, setIsToggling] = useState(false);
 
-  useEffect(() => {
-    if (!isAuthenticated || !user) {
-      setWishlistSpotIds(new Set());
-      setIsLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-
-    (async () => {
-      try {
-        const ids = await fetchWishlistSpotIds(user.id);
-        if (!cancelled) setWishlistSpotIds(ids);
-      } catch {
-        if (!cancelled) setWishlistSpotIds(new Set());
-      } finally {
-        if (!cancelled) setIsLoading(false);
+  // 他の画面（行きたい一覧など）で増減しうるので、フォーカスのたびに取り直す。
+  // マウント時の useEffect だけだと、削除して地図に戻ったときにピンの色と
+  // 件数が古いまま残る
+  useFocusEffect(
+    useCallback(() => {
+      if (!isAuthenticated || !user) {
+        setWishlistSpotIds(new Set());
+        setIsLoading(false);
+        return;
       }
-    })();
 
-    return () => {
-      cancelled = true;
-    };
-  }, [isAuthenticated, user]);
+      let cancelled = false;
+
+      (async () => {
+        try {
+          const ids = await fetchWishlistSpotIds(user.id);
+          if (!cancelled) setWishlistSpotIds(ids);
+        } catch {
+          if (!cancelled) setWishlistSpotIds(new Set());
+        } finally {
+          if (!cancelled) setIsLoading(false);
+        }
+      })();
+
+      return () => {
+        cancelled = true;
+      };
+    }, [isAuthenticated, user])
+  );
 
   const toggleWishlist = useCallback(
     async (spotId: string) => {
