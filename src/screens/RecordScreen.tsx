@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   StyleSheet,
   Switch,
@@ -24,6 +24,7 @@ import { useNearbySpots } from '@hooks/useNearbySpots';
 import { useAuth } from '@hooks/useAuth';
 import { useLocation } from '@hooks/useLocation';
 import { formatJapaneseEraDate } from '@utils/japaneseEra';
+import { pickAutoSelectableSpot } from '@utils/autoSelectSpot';
 import { getStampImageUrl, fetchVisitedSpotIds } from '@services/stamps';
 import { isNetworkError } from '@/utils/errorClassifier';
 import { evaluateNewBadge } from '@services/badges';
@@ -37,10 +38,18 @@ type Props = RootStackScreenProps<'Record'>;
 export function RecordScreen({ navigation, route }: Props) {
   const initialSpotId = route.params?.spotId;
   const { user } = useAuth();
-  const { location } = useLocation();
-  const { filteredSpots, searchQuery, setSearchQuery } = useNearbySpots();
+  const { location, permissionStatus } = useLocation();
+  const { nearbySpots, filteredSpots, searchQuery, setSearchQuery } = useNearbySpots();
   const { takePhoto, pickFromLibrary } = usePhotoPicker();
-  const form = useRecordForm(initialSpotId ? { initialSpotId } : undefined);
+
+  // 境内にいるときだけ最寄りを既定選択する。位置情報が未許可でも useLocation は
+  // DEFAULT_LOCATION（仙台）を返すため、許可状態のガードは必須（S-4）
+  const autoSelectableSpot = useMemo(
+    () => pickAutoSelectableSpot(nearbySpots, permissionStatus),
+    [nearbySpots, permissionStatus]
+  );
+
+  const form = useRecordForm(initialSpotId ? { initialSpotId } : { autoSelectableSpot });
 
   const scrollViewRef = useRef<ScrollView>(null);
   const memoLayoutY = useRef(0);
@@ -134,6 +143,7 @@ export function RecordScreen({ navigation, route }: Props) {
             onSelectSpot={form.selectSpot}
             onAddSpotPress={() => setShowSpotAdd(true)}
             error={form.spotError}
+            isAutoSelected={form.isSpotAutoSelected}
           />
 
           <Text style={styles.sectionLabel}>御朱印の写真</Text>

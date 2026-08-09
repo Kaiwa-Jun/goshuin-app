@@ -684,3 +684,171 @@ describe('写真のカメラ直起動（Issue #130 / S-3）', () => {
     expect(mockSetImageUri).not.toHaveBeenCalled();
   });
 });
+
+describe('最寄りスポットの自動選択ラベル（Issue #130 / S-5）', () => {
+  const baseFormState = () => ({
+    selectedSpot: null as Spot | null,
+    imageUri: null as string | null,
+    visitedAt: new Date('2024-06-01'),
+    memo: '',
+    isPublic: false,
+    spotError: null as string | null,
+    imageError: null as string | null,
+    isSubmitting: false,
+    submitError: null as string | null,
+    selectSpot: mockSelectSpot,
+    setImageUri: mockSetImageUri,
+    setVisitedAt: mockSetVisitedAt,
+    setMemo: mockSetMemo,
+    setIsPublic: mockSetIsPublic,
+    validate: mockValidate,
+    submit: mockSubmit,
+    reset: mockReset,
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockFormState = baseFormState();
+  });
+
+  // D-7
+  it('自動選択されたときはラベルを出す', () => {
+    mockFormState = { ...baseFormState(), selectedSpot: fakeSpot, isSpotAutoSelected: true } as any;
+
+    const { getByTestId } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    expect(getByTestId('spot-auto-selected-label')).toBeTruthy();
+  });
+
+  // D-8
+  it('ユーザーが選んだ場合はラベルを出さない', () => {
+    mockFormState = {
+      ...baseFormState(),
+      selectedSpot: fakeSpot,
+      isSpotAutoSelected: false,
+    } as any;
+
+    const { queryByTestId } = render(
+      <RecordScreen navigation={mockNavigation} route={mockRoute} />
+    );
+    expect(queryByTestId('spot-auto-selected-label')).toBeNull();
+  });
+
+  // D-9: ボトムシート経由の明示指定は「自動選択」ではない
+  it('spotId 指定で入った場合はラベルを出さない', () => {
+    mockFormState = {
+      ...baseFormState(),
+      selectedSpot: fakeSpot,
+      isSpotAutoSelected: false,
+    } as any;
+    const routeWithSpot = { ...mockRoute, params: { spotId: 'spot-1' } };
+
+    const { queryByTestId } = render(
+      <RecordScreen navigation={mockNavigation} route={routeWithSpot as any} />
+    );
+    expect(queryByTestId('spot-auto-selected-label')).toBeNull();
+  });
+});
+
+describe('タップ数（Issue #130 / F 群）', () => {
+  const baseFormState = () => ({
+    selectedSpot: null as Spot | null,
+    imageUri: null as string | null,
+    visitedAt: new Date('2024-06-01'),
+    memo: '',
+    isPublic: false,
+    spotError: null as string | null,
+    imageError: null as string | null,
+    isSubmitting: false,
+    submitError: null as string | null,
+    selectSpot: mockSelectSpot,
+    setImageUri: mockSetImageUri,
+    setVisitedAt: mockSetVisitedAt,
+    setMemo: mockSetMemo,
+    setIsPublic: mockSetIsPublic,
+    validate: mockValidate,
+    submit: mockSubmit,
+    reset: mockReset,
+  });
+
+  const fakeStamp: Stamp = {
+    id: 'stamp-1',
+    user_id: 'user-1',
+    spot_id: 'spot-1',
+    goshuincho_id: null,
+    visited_at: '2024-06-01T00:00:00.000Z',
+    image_path: 'user-1/12345.jpg',
+    memo: '',
+    is_public: false,
+    extracted_info: null,
+    created_at: '2024-06-01T00:00:00Z',
+    updated_at: '2024-06-01T00:00:00Z',
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockFormState = baseFormState();
+    mockValidate.mockReturnValue(true);
+    mockSubmit.mockResolvedValue({ success: true, stamp: fakeStamp });
+    mockFetchVisitedSpotIds.mockResolvedValue(new Set());
+    mockTakePhoto.mockResolvedValue('file:///photo.jpg');
+  });
+
+  // F-1: 既定選択が効く典型ケース。地図の FAB を足して 3 タップになる
+  it('既定選択が効けば記録画面での操作は2タップ', async () => {
+    mockFormState = {
+      ...baseFormState(),
+      selectedSpot: fakeSpot,
+      isSpotAutoSelected: true,
+      imageUri: 'file:///photo.jpg',
+    } as any;
+
+    const { getByTestId, getByText } = render(
+      <RecordScreen navigation={mockNavigation} route={mockRoute} />
+    );
+
+    let taps = 0;
+    fireEvent.press(getByTestId('photo-section'));
+    taps++;
+    fireEvent.press(getByText('この内容で記録する'));
+    taps++;
+
+    await waitFor(() => {
+      expect(mockNavigation.navigate).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
+    });
+    expect(taps).toBe(2);
+  });
+
+  // F-2: 既定選択が効かない場合。検索欄と候補で2タップ増える
+  it('既定選択が効かなければ記録画面での操作は4タップ', async () => {
+    const { getByTestId, getByText } = render(
+      <RecordScreen navigation={mockNavigation} route={mockRoute} />
+    );
+
+    let taps = 0;
+    // 1. 検索欄をタップして候補を開く
+    fireEvent(getByTestId('search-input'), 'focus');
+    taps++;
+    // 2. 候補をタップ
+    fireEvent.press(getByText('大崎八幡宮'));
+    taps++;
+    expect(mockSelectSpot).toHaveBeenCalledWith(fakeSpot);
+
+    // 3. 写真枠をタップ（カメラが直接起動する）
+    fireEvent.press(getByTestId('photo-section'));
+    taps++;
+    await waitFor(() => {
+      expect(mockTakePhoto).toHaveBeenCalled();
+    });
+
+    // 4. 記録する
+    mockFormState.selectedSpot = fakeSpot;
+    mockFormState.imageUri = 'file:///photo.jpg';
+    fireEvent.press(getByText('この内容で記録する'));
+    taps++;
+
+    await waitFor(() => {
+      expect(mockSubmit).toHaveBeenCalled();
+    });
+    expect(taps).toBe(4);
+  });
+});

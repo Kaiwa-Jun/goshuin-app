@@ -21,6 +21,8 @@ interface SpotSelectorProps {
   onSelectSpot: (spot: Spot) => void;
   onAddSpotPress: () => void;
   error: string | null;
+  /** 現在地から自動で選ばれた状態か。勝手に選ばれたことを隠さないためのラベルを出す */
+  isAutoSelected?: boolean;
 }
 
 export function SpotSelector({
@@ -31,6 +33,7 @@ export function SpotSelector({
   onSelectSpot,
   onAddSpotPress,
   error,
+  isAutoSelected = false,
 }: SpotSelectorProps) {
   const [showDropdown, setShowDropdown] = useState(false);
 
@@ -57,7 +60,14 @@ export function SpotSelector({
           activeOpacity={0.7}
           testID="spot-selector-trigger"
         >
-          <Text style={styles.selectedName}>{selectedSpot.name}</Text>
+          <View style={styles.selectedTextGroup}>
+            <Text style={styles.selectedName}>{selectedSpot.name}</Text>
+            {isAutoSelected && (
+              <Text style={styles.autoSelectedLabel} testID="spot-auto-selected-label">
+                現在地から自動選択
+              </Text>
+            )}
+          </View>
           <Badge type={selectedSpot.type} />
         </TouchableOpacity>
       ) : (
@@ -136,10 +146,17 @@ const styles = StyleSheet.create({
   selectedRowError: {
     borderColor: colors.error,
   },
+  selectedTextGroup: {
+    flex: 1,
+  },
   selectedName: {
     ...typography.body,
     color: colors.gray[800],
-    flex: 1,
+  },
+  autoSelectedLabel: {
+    ...typography.caption,
+    color: colors.gray[500],
+    marginTop: spacing.xs,
   },
   errorText: {
     ...typography.caption,

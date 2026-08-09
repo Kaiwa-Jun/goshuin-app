@@ -403,3 +403,101 @@ describe('useRecordForm', () => {
     expect(result.current.isPublic).toBe(true);
   });
 });
+
+describe('最寄りスポットの既定選択（Issue #130 / S-4）', () => {
+  const otherSpot: Spot = { ...fakeSpot, id: 'spot-9', name: '榴岡天満宮' };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockUseAuth.mockReturnValue({ user: { id: 'user-1' } });
+    mockFetchProfile.mockResolvedValue({ default_stamp_public: false });
+  });
+
+  // D-2 / D-7
+  it('候補が渡されたら既定選択し、自動選択フラグを立てる', async () => {
+    const { result } = renderHook(() => useRecordForm({ autoSelectableSpot: fakeSpot }));
+
+    await waitFor(() => {
+      expect(result.current.selectedSpot).toEqual(fakeSpot);
+    });
+    expect(result.current.isSpotAutoSelected).toBe(true);
+  });
+
+  it('候補が null なら何も選ばない', async () => {
+    const { result } = renderHook(() => useRecordForm({ autoSelectableSpot: null }));
+
+    await waitFor(() => {
+      expect(result.current.selectedSpot).toBeNull();
+    });
+    expect(result.current.isSpotAutoSelected).toBe(false);
+  });
+
+  // D-5: ボトムシート経由の明示指定を壊さない
+  it('initialSpotId があれば既定選択は働かない', async () => {
+    mockFetchSpotById.mockResolvedValue(otherSpot);
+
+    const { result } = renderHook(() =>
+      useRecordForm({ initialSpotId: 'spot-9', autoSelectableSpot: fakeSpot })
+    );
+
+    await waitFor(() => {
+      expect(result.current.selectedSpot).toEqual(otherSpot);
+    });
+    // D-9: 明示指定は「自動選択」ではない
+    expect(result.current.isSpotAutoSelected).toBe(false);
+  });
+
+  // D-8
+  it('ユーザーが選び直すと自動選択フラグが下りる', async () => {
+    const { result } = renderHook(() => useRecordForm({ autoSelectableSpot: fakeSpot }));
+
+    await waitFor(() => {
+      expect(result.current.isSpotAutoSelected).toBe(true);
+    });
+
+    act(() => {
+      result.current.selectSpot(otherSpot);
+    });
+
+    expect(result.current.selectedSpot).toEqual(otherSpot);
+    expect(result.current.isSpotAutoSelected).toBe(false);
+  });
+
+  // D-6: 現在地が動いても、選ばれているものを勝手に差し替えない
+  it('選択済みなら候補が変わっても上書きしない', async () => {
+    const { result, rerender } = renderHook(
+      ({ candidate }: { candidate: Spot | null }) =>
+        useRecordForm({ autoSelectableSpot: candidate }),
+      { initialProps: { candidate: fakeSpot as Spot | null } }
+    );
+
+    await waitFor(() => {
+      expect(result.current.selectedSpot).toEqual(fakeSpot);
+    });
+
+    act(() => {
+      result.current.selectSpot(otherSpot);
+    });
+
+    // 位置情報が更新されて別のスポットが最寄りになった状況
+    rerender({ candidate: fakeSpot });
+
+    expect(result.current.selectedSpot).toEqual(otherSpot);
+    expect(result.current.isSpotAutoSelected).toBe(false);
+  });
+
+  it('reset で自動選択フラグも戻る', async () => {
+    const { result } = renderHook(() => useRecordForm({ autoSelectableSpot: fakeSpot }));
+
+    await waitFor(() => {
+      expect(result.current.isSpotAutoSelected).toBe(true);
+    });
+
+    act(() => {
+      result.current.reset();
+    });
+
+    expect(result.current.selectedSpot).toBeNull();
+    expect(result.current.isSpotAutoSelected).toBe(false);
+  });
+});
