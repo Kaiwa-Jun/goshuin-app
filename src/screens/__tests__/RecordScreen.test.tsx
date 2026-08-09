@@ -444,3 +444,20 @@ describe('RecordScreen', () => {
     });
   });
 });
+
+describe('訪問日の和暦併記（監査 A-2 / 入力補助）', () => {
+  it('日付の行に和暦のラベルが併記される', () => {
+    const { getByTestId } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+
+    // 紙の御朱印は和暦で書かれているため、ピッカーの西暦と照合できるようにする
+    expect(getByTestId('date-era-label')).toBeTruthy();
+  });
+
+  it('和暦ラベルが選択中の日付に追随する', () => {
+    const { getByTestId } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+
+    const label = getByTestId('date-era-label');
+    // 既定は今日。令和のいずれかの年になっているはず
+    expect(String(label.props.children)).toMatch(/^令和(元|\d+)年\d+月\d+日$/);
+  });
+});

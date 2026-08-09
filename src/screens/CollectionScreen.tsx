@@ -203,7 +203,11 @@ export function CollectionScreen({ navigation }: Props) {
 
             {otherPilgrimages.length > 0 && (
               <TouchableOpacity
-                onPress={() => setShowAllPilgrimages(!showAllPilgrimages)}
+                onPress={() => {
+                  // 地域別ブロックの開閉と同じ作法に揃える（監査 A-11）
+                  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                  setShowAllPilgrimages(!showAllPilgrimages);
+                }}
                 style={styles.toggleButton}
               >
                 <Text style={styles.toggleText}>

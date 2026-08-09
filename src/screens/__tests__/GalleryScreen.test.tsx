@@ -408,3 +408,38 @@ describe('GalleryScreen', () => {
     expect(queryByTestId('gallery-guest-empty-state')).toBeNull();
   });
 });
+
+describe('グリッド0件時の CTA（監査 A-10）', () => {
+  it('ログイン済みで0件のとき記録への CTA が出る', () => {
+    mockUseGalleryStamps.mockReturnValue({
+      stamps: [],
+      totalCount: 0,
+      isLoading: false,
+      error: null,
+      removeStamp: jest.fn(),
+      updateStamp: jest.fn(),
+    });
+
+    const { getByTestId } = renderGalleryScreenInGrid();
+
+    expect(getByTestId('empty-state')).toBeTruthy();
+    expect(getByTestId('gallery-record-cta')).toBeTruthy();
+  });
+
+  it('CTA をタップすると記録画面へ遷移する', () => {
+    mockUseGalleryStamps.mockReturnValue({
+      stamps: [],
+      totalCount: 0,
+      isLoading: false,
+      error: null,
+      removeStamp: jest.fn(),
+      updateStamp: jest.fn(),
+    });
+
+    const { getByTestId } = renderGalleryScreenInGrid();
+
+    fireEvent.press(getByTestId('gallery-record-cta'));
+
+    expect(mockNavigation.navigate).toHaveBeenCalledWith('Record');
+  });
+});
