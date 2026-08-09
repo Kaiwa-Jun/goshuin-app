@@ -166,8 +166,13 @@ export async function deleteStampImage(imagePath: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+/**
+ * 行を先に消してから画像を消す。逆順だと、行の削除に失敗したときに
+ * 画像だけ消えて「画像の出ない御朱印」がギャラリーに残る。
+ * この順なら失敗時に残るのは孤児画像だけで、ユーザーから見た表示は壊れない
+ */
 export async function deleteStamp(stampId: string, imagePath: string): Promise<void> {
-  await deleteStampImage(imagePath);
   const { error } = await supabase.from('stamps').delete().eq('id', stampId);
   if (error) throw new Error(error.message);
+  await deleteStampImage(imagePath);
 }

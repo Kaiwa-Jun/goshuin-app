@@ -14,6 +14,9 @@ export type RootStackParamList = {
         spotName?: string;
         visitCount?: number;
         badge?: { name: string; description: string } | null;
+        // 記録の取り消し用。deleteStamp が ID と画像パスの両方を要求する
+        stampId?: string;
+        imagePath?: string;
       }
     | undefined;
   Login: undefined;

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
+import { deleteStamp } from '@services/stamps';
 import { CheckmarkAnimation } from '@components/animated/CheckmarkAnimation';
 import { BadgeAnimation } from '@components/animated/BadgeAnimation';
 import { ConfettiEffect } from '@components/animated/ConfettiEffect';
@@ -18,7 +19,14 @@ export function RecordCompleteScreen({ navigation, route }: Props) {
   const spotName = route.params?.spotName;
   const visitCount = route.params?.visitCount;
   const badge = route.params?.badge;
+  const stampId = route.params?.stampId;
+  const imagePath = route.params?.imagePath;
   const [imageError, setImageError] = useState(false);
+  const [isUndoing, setIsUndoing] = useState(false);
+
+  // 確認モーダルを廃した（D-3）ぶんの受け皿。誤登録はここで回復する。
+  // 両方揃っていないと deleteStamp を呼べないので、その場合はボタン自体を出さない
+  const canUndo = Boolean(stampId && imagePath);
 
   const handleRecordAnother = () => {
     navigation.navigate('Record');
@@ -26,6 +34,33 @@ export function RecordCompleteScreen({ navigation, route }: Props) {
 
   const handleViewMap = () => {
     navigation.navigate('MainTabs', { screen: 'MapTab', params: { screen: 'Map' } });
+  };
+
+  // 呼び出し元が canUndo のボタンだけとは限らなくなっても壊れないよう、
+  // ここでも揃っていることを確かめてから消す
+  const runUndo = async (id: string, path: string) => {
+    setIsUndoing(true);
+    try {
+      await deleteStamp(id, path);
+      navigation.navigate('MainTabs', { screen: 'MapTab', params: { screen: 'Map' } });
+    } catch (error) {
+      // 消せていないのに消えた顔をしない。原文を出して画面に留まる
+      const message = error instanceof Error ? error.message : String(error);
+      Alert.alert('取り消せませんでした', message);
+    } finally {
+      setIsUndoing(false);
+    }
+  };
+
+  // 取り消しは非可逆（redo は無い）ので、ここだけは確認を挟む。
+  // 主導線ではないためタップ数の目標には影響しない
+  const handleUndoPress = () => {
+    if (!stampId || !imagePath) return;
+
+    Alert.alert('この記録を取り消しますか？', '御朱印の写真ごと削除されます。元には戻せません。', [
+      { text: 'やめる', style: 'cancel' },
+      { text: '取り消す', style: 'destructive', onPress: () => runUndo(stampId, imagePath) },
+    ]);
   };
 
   const handleViewCollection = () => {
@@ -100,6 +135,19 @@ export function RecordCompleteScreen({ navigation, route }: Props) {
           >
             <Text style={styles.buttonViewCollectionText}>あつめるを見る</Text>
           </TouchableOpacity>
+
+          {canUndo && (
+            <TouchableOpacity
+              style={styles.buttonUndo}
+              onPress={handleUndoPress}
+              disabled={isUndoing}
+              testID="button-undo-record"
+            >
+              <Text style={styles.buttonUndoText}>
+                {isUndoing ? '取り消しています...' : '記録を取り消す'}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       </SafeAreaView>
     </LinearGradient>
@@ -178,5 +226,17 @@ const styles = StyleSheet.create({
   buttonViewCollectionText: {
     ...typography.button,
     color: 'rgba(255,255,255,0.8)',
+  },
+  // 主導線の3ボタンより控えめに、かつ間隔を空けて誤タップを避ける
+  buttonUndo: {
+    paddingVertical: spacing.md,
+    marginTop: spacing.lg,
+    alignItems: 'center',
+  },
+  buttonUndoText: {
+    ...typography.caption,
+    color: colors.white,
+    opacity: 0.7,
+    textDecorationLine: 'underline',
   },
 });

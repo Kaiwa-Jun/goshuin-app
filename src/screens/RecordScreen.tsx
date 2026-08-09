@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   StyleSheet,
   Switch,
@@ -17,14 +17,14 @@ import { Button } from '@components/common/Button';
 import { Header } from '@components/common/Header';
 import { SpotSelector } from '@components/record/SpotSelector';
 import { PhotoSection } from '@components/record/PhotoSection';
-import { PhotoPickerModal } from '@components/record/PhotoPickerModal';
 import { SpotAddModal } from '@components/record/SpotAddModal';
-import { ConfirmModal } from '@components/record/ConfirmModal';
+import { usePhotoPicker } from '@hooks/usePhotoPicker';
 import { useRecordForm } from '@hooks/useRecordForm';
 import { useNearbySpots } from '@hooks/useNearbySpots';
 import { useAuth } from '@hooks/useAuth';
 import { useLocation } from '@hooks/useLocation';
 import { formatJapaneseEraDate } from '@utils/japaneseEra';
+import { pickAutoSelectableSpot } from '@utils/autoSelectSpot';
 import { getStampImageUrl, fetchVisitedSpotIds } from '@services/stamps';
 import { isNetworkError } from '@/utils/errorClassifier';
 import { evaluateNewBadge } from '@services/badges';
@@ -38,17 +38,25 @@ type Props = RootStackScreenProps<'Record'>;
 export function RecordScreen({ navigation, route }: Props) {
   const initialSpotId = route.params?.spotId;
   const { user } = useAuth();
-  const { location } = useLocation();
-  const { filteredSpots, searchQuery, setSearchQuery } = useNearbySpots();
-  const form = useRecordForm(initialSpotId ? { initialSpotId } : undefined);
+  const { location, permissionStatus } = useLocation();
+  const { nearbySpots, filteredSpots, searchQuery, setSearchQuery } = useNearbySpots();
+  const { takePhoto, pickFromLibrary } = usePhotoPicker();
+
+  // 境内にいるときだけ最寄りを既定選択する。位置情報が未許可でも useLocation は
+  // DEFAULT_LOCATION（仙台）を返すため、許可状態のガードは必須（S-4）
+  const autoSelectableSpot = useMemo(
+    () => pickAutoSelectableSpot(nearbySpots, permissionStatus),
+    [nearbySpots, permissionStatus]
+  );
+
+  const form = useRecordForm(initialSpotId ? { initialSpotId } : { autoSelectableSpot });
 
   const scrollViewRef = useRef<ScrollView>(null);
   const memoLayoutY = useRef(0);
   const dateLayoutY = useRef(0);
+  const isSavingRef = useRef(false);
 
-  const [showPhotoPicker, setShowPhotoPicker] = useState(false);
   const [showSpotAdd, setShowSpotAdd] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   const formattedDate = `${form.visitedAt.getFullYear()}年${form.visitedAt.getMonth() + 1}月${form.visitedAt.getDate()}日`;
@@ -57,17 +65,30 @@ export function RecordScreen({ navigation, route }: Props) {
     `${form.visitedAt.getFullYear()}-${String(form.visitedAt.getMonth() + 1).padStart(2, '0')}-${String(form.visitedAt.getDate()).padStart(2, '0')}`
   );
 
-  const handleSavePress = () => {
+  // 確認モーダルは廃止した（D-3）。モーダルが出していたのはスポット名と訪問日だけで
+  // どちらも直前のフォーム上に見えており、一番間違えやすい写真は確認していなかった。
+  // 誤登録は記録完了画面の「記録を取り消す」で回復する
+  const handleSavePress = async () => {
+    // ⚠️ isSubmitting は submit() の中で初めて true になるため、その手前の
+    // fetchVisitedSpotIds を待っている間はボタンの disabled が効かない。
+    // 確認モーダルが二度押しを吸収していたぶん、ここを塞がないと
+    // 素早い二度押しで御朱印が2件・画像も2枚できてしまう
+    if (isSavingRef.current) return;
     if (!form.validate()) return;
-    setShowConfirm(true);
+
+    isSavingRef.current = true;
+    try {
+      await save();
+    } finally {
+      isSavingRef.current = false;
+    }
   };
 
-  const handleConfirm = async () => {
+  const save = async () => {
     const visitedSpotIds = await fetchVisitedSpotIds();
     const previousCount = visitedSpotIds.size;
 
     const result = await form.submit();
-    setShowConfirm(false);
 
     if (result.success && result.stamp) {
       const isNewSpot = form.selectedSpot ? !visitedSpotIds.has(form.selectedSpot.id) : false;
@@ -79,6 +100,9 @@ export function RecordScreen({ navigation, route }: Props) {
         spotName: form.selectedSpot?.name,
         visitCount: currentCount,
         badge,
+        // 取り消し（deleteStamp）に ID と画像パスの両方が要る
+        stampId: result.stamp.id,
+        imagePath: result.stamp.image_path,
       });
     } else if (!result.success) {
       const errorType = isNetworkError(result.error) ? 'network' : 'upload';
@@ -89,6 +113,16 @@ export function RecordScreen({ navigation, route }: Props) {
         message: result.message,
       });
     }
+  };
+
+  const handleTakePhoto = async () => {
+    const uri = await takePhoto();
+    if (uri) form.setImageUri(uri);
+  };
+
+  const handlePickFromLibrary = async () => {
+    const uri = await pickFromLibrary();
+    if (uri) form.setImageUri(uri);
   };
 
   const handleDateChange = (_event: unknown, selectedDate?: Date) => {
@@ -124,14 +158,24 @@ export function RecordScreen({ navigation, route }: Props) {
             onSelectSpot={form.selectSpot}
             onAddSpotPress={() => setShowSpotAdd(true)}
             error={form.spotError}
+            isAutoSelected={form.isSpotAutoSelected}
           />
 
           <Text style={styles.sectionLabel}>御朱印の写真</Text>
+          {/* 写真枠のタップでカメラを直接起動する。選択モーダルを1タップ挟んでいた分を削った。
+              ギャラリーは使用頻度が低いので、常時見えるリンクとして枠の下に残す */}
           <PhotoSection
             imageUri={form.imageUri}
-            onPress={() => setShowPhotoPicker(true)}
+            onPress={handleTakePhoto}
             error={form.imageError}
           />
+          <TouchableOpacity
+            style={styles.libraryLink}
+            onPress={handlePickFromLibrary}
+            testID="pick-from-library"
+          >
+            <Text style={styles.libraryLinkText}>ギャラリーから選ぶ</Text>
+          </TouchableOpacity>
 
           <Text style={styles.sectionLabel}>訪問日</Text>
           <TouchableOpacity
@@ -240,15 +284,6 @@ export function RecordScreen({ navigation, route }: Props) {
         />
       </View>
 
-      <PhotoPickerModal
-        visible={showPhotoPicker}
-        onClose={() => setShowPhotoPicker(false)}
-        onImageSelected={uri => {
-          form.setImageUri(uri);
-          setShowPhotoPicker(false);
-        }}
-      />
-
       {user && (
         <SpotAddModal
           visible={showSpotAdd}
@@ -259,18 +294,6 @@ export function RecordScreen({ navigation, route }: Props) {
           }}
           userLocation={location}
           userId={user.id}
-        />
-      )}
-
-      {form.selectedSpot && (
-        <ConfirmModal
-          visible={showConfirm}
-          onClose={() => setShowConfirm(false)}
-          onConfirm={handleConfirm}
-          spotName={form.selectedSpot.name}
-          spotType={form.selectedSpot.type}
-          visitedAt={form.visitedAt}
-          isSubmitting={form.isSubmitting}
         />
       )}
     </SafeAreaView>
@@ -316,6 +339,16 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.gray[500],
     marginTop: spacing.xs,
+  },
+  libraryLink: {
+    alignSelf: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    marginTop: spacing.xs,
+  },
+  libraryLinkText: {
+    ...typography.caption,
+    color: colors.primary[500],
   },
   memoInput: {
     ...typography.body,

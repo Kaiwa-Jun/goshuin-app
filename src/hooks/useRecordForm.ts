@@ -8,6 +8,12 @@ import { useAuth } from '@hooks/useAuth';
 
 interface UseRecordFormParams {
   initialSpotId?: string;
+  /**
+   * 現在地から既定選択してよいスポット（`pickAutoSelectableSpot` の結果）。
+   * 呼び出し側が算出して渡す。ここで `useNearbySpots` を呼ぶと
+   * 画面側と二重にスポットを取得することになるため受け取る形にしている
+   */
+  autoSelectableSpot?: Spot | null;
 }
 
 /**
@@ -28,6 +34,8 @@ export interface RecordSubmitResult {
 
 interface UseRecordFormReturn {
   selectedSpot: Spot | null;
+  /** 現在地から自動で選ばれた状態か。ユーザーが選び直すと false になる */
+  isSpotAutoSelected: boolean;
   imageUri: string | null;
   visitedAt: Date;
   memo: string;
@@ -50,6 +58,7 @@ export function useRecordForm(params?: UseRecordFormParams): UseRecordFormReturn
   const { user } = useAuth();
 
   const [selectedSpot, setSelectedSpot] = useState<Spot | null>(null);
+  const [isSpotAutoSelected, setIsSpotAutoSelected] = useState(false);
   const [imageUri, setImageUriState] = useState<string | null>(null);
   const [visitedAt, setVisitedAt] = useState<Date>(new Date());
   const [memo, setMemo] = useState('');
@@ -81,8 +90,22 @@ export function useRecordForm(params?: UseRecordFormParams): UseRecordFormReturn
     }
   }, [user]);
 
+  // 既定選択。明示指定（ボトムシート経由）が最優先で、
+  // 一度選ばれた後は現在地が動いても上書きしない。
+  // ⚠️ setState の更新関数は純粋でなければならない（StrictMode で2回呼ばれる）ので、
+  // 「選択済みか」の判定は更新関数の中ではなくここで済ませる
+  useEffect(() => {
+    if (params?.initialSpotId) return;
+    if (!params?.autoSelectableSpot) return;
+    if (selectedSpot) return;
+
+    setSelectedSpot(params.autoSelectableSpot);
+    setIsSpotAutoSelected(true);
+  }, [params?.initialSpotId, params?.autoSelectableSpot, selectedSpot]);
+
   const selectSpot = useCallback((spot: Spot) => {
     setSelectedSpot(spot);
+    setIsSpotAutoSelected(false);
     setSpotError(null);
   }, []);
 
@@ -155,6 +178,7 @@ export function useRecordForm(params?: UseRecordFormParams): UseRecordFormReturn
 
   const reset = useCallback(() => {
     setSelectedSpot(null);
+    setIsSpotAutoSelected(false);
     setImageUriState(null);
     setVisitedAt(new Date());
     setMemo('');
@@ -167,6 +191,7 @@ export function useRecordForm(params?: UseRecordFormParams): UseRecordFormReturn
 
   return {
     selectedSpot,
+    isSpotAutoSelected,
     imageUri,
     visitedAt,
     memo,
