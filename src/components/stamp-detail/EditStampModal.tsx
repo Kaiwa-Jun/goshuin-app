@@ -163,7 +163,10 @@ export function EditStampModal({
               <DateTimePicker
                 value={visitedAtDate}
                 mode="date"
-                display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                // inline は「カレンダー ⇄ 年月ホイール」の2モードを持ち、年月ホイールの
+                // 途中で完了を押すと日が未確定のまま閉じてしまう。spinner なら
+                // 年・月・日が常に見えており、決め忘れが構造的に起きない（Issue #128）
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                 onChange={handleDateChange}
                 maximumDate={new Date()}
                 themeVariant="light"
