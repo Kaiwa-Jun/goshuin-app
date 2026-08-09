@@ -19,9 +19,9 @@
     {
       "id": "P1-03",
       "title": "御朱印帳らしい質感の閲覧UI（見開き・めくり体験）",
-      "note": "実装完了・develop マージ済み(Issue #116 / PR #117・2026-08-09)。契約書 docs/issues/issue-116-goshuincho-flip-ui.md(受入基準95項目)。御朱印タブに右綴じ+蛇腹の折りのめくり表示、白紙ページ=記録入口、グリッド切替(AsyncStorage 永続化)、めくりページの和暦表示を追加。帳面(goshuincho)一覧はスコープ外(既存 stamps が全件 goshuincho_id=null で記録フロー改修+backfill migration が別途要る)。実装は横 FlatList + snapToInterval + RN 標準 Animated のみ(新規ライブラリなし)。**passes は false のまま**: ①実機未確認(N群8項目=スワイプの手触り・スナップ・小型端末での収まり・再起動をまたぐ永続化。ブロッカーだった監査A-4 のアップロードエラーは Issue #118 / PR #119 で解消済みなので、実データを入れながら確認できる) ②Evaluator は右綴じ・蛇腹を入れる前の版に対して 80PASS/1FAIL/8SKIP で、この2つは未検証 ③W-17 の残件は ImageGalleryModal のレンダー中 setValue(既存実装・変更しないファイル・別issue)。次: タブ入れ替え(案3)",
+      "note": "完了(Issue #116 / PR #117 マージ済み・**実機確認済み 2026-08-09**)。契約書 docs/issues/issue-116-goshuincho-flip-ui.md(受入基準95項目)。御朱印タブに右綴じ+蛇腹の折りのめくり表示、白紙ページ=記録入口、グリッド切替(AsyncStorage 永続化)、めくりページの和暦表示を追加。実装は横 FlatList + snapToInterval + RN 標準 Animated のみ(新規ライブラリなし)。実機 N群8項目はユーザーが2回に分けて確認: グリッドの並び関連3項目(→ PR #120 で古い順に修正)と、残り5項目(スワイプの手触り/スナップ・小型端末での収まり・再起動をまたぐ表示モード永続化・白紙ページから記録画面・1件入った状態のページ番号と和暦)を全て OK と確認。Evaluator の 80PASS/1FAIL/8SKIP は右綴じ・蛇腹を入れる前の版に対する結果だが、当該2機能は実機確認で代替した。帳面(goshuincho)一覧はスコープ外(既存 stamps が全件 goshuincho_id=null で記録フロー改修+backfill migration が別途要る)。残件は ImageGalleryModal のレンダー中 setValue(既存実装・別 issue 予定)。**これで案3のタブ入れ替えのブロッカーが外れた**",
       "issue": 116,
-      "passes": false
+      "passes": true
     },
     {
       "id": "P1-04",

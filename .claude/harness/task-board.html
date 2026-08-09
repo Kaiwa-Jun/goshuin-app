@@ -509,7 +509,7 @@
       <div class="rail-block">
         <h2>進捗</h2>
         <div class="tally">
-          <span class="big">2</span>
+          <span class="big">3</span>
           <span class="of">/ 31 完了</span>
         </div>
         <div class="bars">
@@ -530,8 +530,8 @@
           </div>
           <div class="bar-row">
             <span class="bar-label"><span class="dot" style="background:var(--muted)"></span>バックログ</span>
-            <span class="bar-count">0 / 8</span>
-            <span class="track"><span style="width:0%;background:var(--muted)"></span></span>
+            <span class="bar-count">1 / 8</span>
+            <span class="track"><span style="width:13%;background:var(--muted)"></span></span>
           </div>
           <div class="bar-row">
             <span class="bar-label"><span class="dot" style="background:var(--release)"></span>リリース・期日</span>
@@ -540,8 +540,8 @@
           </div>
           <div class="bar-row">
             <span class="bar-label"><span class="dot" style="background:var(--user)"></span>あなたの作業</span>
-            <span class="bar-count">0 / 7</span>
-            <span class="track"><span style="width:0%;background:var(--user)"></span></span>
+            <span class="bar-count">1 / 7</span>
+            <span class="track"><span style="width:14%;background:var(--user)"></span></span>
           </div>
         </div>
       </div>
@@ -568,10 +568,10 @@
         <h2>着手順（提案）</h2>
         <ol class="order">
           <li class="done-step">CI-1 を直して PR の赤を消す（完了）</li>
-          <li class="now">#116 の実機 N群8項目（A-1 カメラは完了）</li>
+          <li class="done-step">#116 の実機 N群8項目（完了）</li>
           <li>小さい改善を1 PR に束ねる</li>
           <li>設計判断 D-3 / D-4 / D-5 / D-6 をまとめて決める</li>
-          <li>案3 タブ入れ替えの契約書 → 実装</li>
+          <li class="now">案3 タブ入れ替えの契約書 → 実装</li>
           <li>期日ものは上と並行</li>
         </ol>
       </div>
@@ -712,7 +712,7 @@
             <div>
               <div class="line"><span class="id">IA-3</span><span class="name">タブ入れ替え（地図 / 御朱印帳 / あつめる / 自分）</span></div>
               <p class="ev">方針は合意済み・未着手。行きたいリストを地図タブへ移す。</p>
-              <p class="blocker">ブロッカー: P1-03 が <code>passes: true</code> になること（＝実機 N 群8項目）</p>
+              <p class="blocker fixed">ブロッカーは解消（P1-03 が 8/9 に <code>passes: true</code>）。着手可能</p>
             </div>
             <span class="size l">L</span>
           </li>
@@ -784,14 +784,14 @@
         </ul>
 
         <div class="deps">
-          <pre>P1-03 実機N群8項目 ──▶ P1-03 passes:true ──▶ <b>IA-3 タブ入れ替え（L）</b>
-                                                    ▲
-                                    A-10 / A-13 はこの画面を触る（手戻りリスク小）
+          <pre>P1-03 passes:true（8/9 達成）──▶ <b>IA-3 タブ入れ替え（L）着手可能</b>
+                                              ▲
+                              A-10 / A-13 はこの画面を触る
+                              → 案3 を先にやるなら後回しでよい
 
 D-3 確認モーダル判断 ──▶ P1-02 記録フロー最短化
 D-4 和暦スコープ    ──▶ A-2
-D-5（要 #099 追補）  ──▶ A-9 ピン色
-実機セッション      ──▶ <b>A-1 カメラ修正の検証</b>（N群と同席で消化できる）</pre>
+D-5（要 #099 追補）  ──▶ A-9 ピン色</pre>
         </div>
       </section>
 
@@ -800,16 +800,16 @@ D-5（要 #099 追補）  ──▶ A-9 ピン色
         <div class="section-head">
           <h2>バックログ</h2>
           <span class="rule"></span>
-          <span class="count">0 / 8</span>
+          <span class="count">1 / 8</span>
         </div>
         <p class="section-note">feature-list で <code>passes: false</code> のものと、GitHub の open issue。規模は見積もり（未検証）。</p>
 
         <ul class="items">
-          <li class="item">
-            <span class="box" role="img" aria-label="未完了"></span>
+          <li class="item done">
+            <span class="box" role="img" aria-label="完了"></span>
             <div>
-              <div class="line"><span class="id">P1-03</span><span class="name">御朱印帳らしいめくり UI</span><span class="pill pill-wait">検証のみ残</span></div>
-              <p class="ev">実装は完了・develop マージ済み（#116 / PR #117）。残りは<b>実機 N 群8項目</b>のみ：スワイプの手触り / スナップ / 小型端末での収まり / 再起動をまたぐ永続化 / 白紙ページから記録画面 / 1件入った状態のページ番号・和暦。</p>
+              <div class="line"><span class="id">P1-03</span><span class="name">御朱印帳らしいめくり UI</span><span class="pill pill-done">完了 8/9</span></div>
+              <p class="ev">#116 / PR #117。実機 N 群8項目をユーザーが2回に分けて全消化（グリッドの並び → PR #120 で修正、残り5項目は OK）。<b><code>passes: true</code> に更新済み。これで IA-3 のブロッカーが外れた</b>。</p>
             </div>
             <span class="size">S</span>
           </li>
@@ -952,15 +952,15 @@ D-5（要 #099 追補）  ──▶ A-9 ピン色
         <div class="section-head">
           <h2>あなたがやる必要がある作業</h2>
           <span class="rule"></span>
-          <span class="count">0 / 7</span>
+          <span class="count">1 / 7</span>
         </div>
         <p class="section-note">上の各束と一部重なる横断ビュー。進捗カウントは別枠にしてある。</p>
 
         <ul class="items">
-          <li class="item">
-            <span class="box" role="img" aria-label="未完了"></span>
+          <li class="item done">
+            <span class="box" role="img" aria-label="完了"></span>
             <div>
-              <div class="line"><span class="id">U-1</span><span class="name">実機セッション（#116 N群8項目）</span><span class="pill pill-active">次はここ</span></div>
+              <div class="line"><span class="id">U-1</span><span class="name">実機セッション（#116 N群8項目）</span><span class="pill pill-done">完了 8/9</span></div>
               <p class="ev">実機を触るのはあなた。項目提示と修正はこちらで駆動する。dev サーバーは生存確認済み（<code>localhost:8081</code> = 200 / <code>https://agenda-insider-hop-oem.trycloudflare.com</code>）。</p>
             </div>
             <span class="size">M</span>
