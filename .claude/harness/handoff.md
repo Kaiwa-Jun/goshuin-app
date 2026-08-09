@@ -18,6 +18,37 @@
 
 記録が投稿できるようになったので（#118）、実データを入れながら確認できる。
 
+### 残タスクの棚卸し（2026-08-09 に確認した事実。次に何をやるか決めるための素材）
+
+**コードを見て「未対応」と確認済み**:
+
+- **A-1 カメラが起動しない（バグ・規模 S）** — `PhotoPickerModal.tsx` に `requestCameraPermissionsAsync()` の呼び出しも try/catch も**無い**。監査の第一候補どおりで「ギャラリーだけ動く」症状と整合する。#118 と同じ記録フローのバグ
+- **A-2 記録画面の訪問日が西暦のみ** — `RecordScreen.tsx:52` が `getFullYear()` 直書き。和暦ユーティリティ `src/utils/japaneseEra.ts` は #116 で作ったが `GoshuinchoPage.tsx` でしか使っていない。**繋ぐだけ**
+- **A-10 ログイン済み0件の空状態に CTA ボタンが無い** — `GalleryScreen.tsx:204-206` はテキストのみ。ゲスト側には「ログインして始める」がある
+- **A-13 行きたいリストのカードがタップできない** — `CollectionScreen.tsx:324-` が `View` + `Card` で `TouchableOpacity` が無い
+
+**監査の記載のまま（今回は未検証）**: A-3 日付ピッカーのスクロール位置（`display='inline'` にはなっている）/ A-11「他の巡礼を見る」の展開 / A-14 位置情報を設定画面から
+
+**#114・#116 で吸収済み**: A-5 / A-6 / A-7 / A-8 / A-12（ボトムシート再設計）、めくり側の和暦
+
+**feature-list で passes: false**: P1-01 Maestro E2E の実戦検証 / P1-02 記録フローの最短化（監査 B-1「3タップ」が実際は5〜6タップ）/ P1-03（実機 N 群8項目のみ残）/ P1-04 パーソナル年報 / P1-07 地図の全国スケール解禁
+
+**GitHub の open issue**: #82 買い切り型プレミアム（low）/ #67 全国ランク3マスタデータ（medium）/ #47 訪問ルートの記録・共有
+
+**設計判断が要るもの**: タブ入れ替え（案3: 地図 / 御朱印帳 / あつめる / 自分。合意済み・未着手）/ 監査 B-4（ui-design v6 が撤回済み方針のまま）/ B-6 コレクションタブの中身が混在 / B-7 受付時間は仕組みだけあってデータが無い
+
+**別 issue 化すべき既知の問題**: `ImageGalleryModal` がレンダー中に `Animated.Value.setValue()` を呼び React が警告を出す（`src/components/common/ImageGalleryModal.tsx:79-88`）
+
+**CI の既存不具合**: `auto-review` ワークフローがリタイア済みモデル `claude-sonnet-4-20250514` を叩いて毎回 404 で落ちる。#117 / #119 / #120 すべて同じ。実質のゲートは `lint-and-test`
+
+**期日があるもの**:
+
+- **App Store 審査結果**（buildNumber 12 を 8/8 提出・最大48時間）→ **もう出ている頃**。通過なら手動リリース
+- **8/11(火)朝: cron 実行確認** — `crawl-spot-sources` の2ジョブが succeeded か（`select jobname, status, start_time from cron.job_run_details order by start_time desc limit 10;`）
+- **10月初旬: Meta アクセストークン更新**（期限 2026-10-02）
+
+**ユーザー作業待ち**: 実機スクショ3枚（コレクション / 御朱印ギャラリー / 記録画面。**記録できるようになったので今日から撮れる**。direction.md の Phase 0 で唯一残っている実作業）/ Google Play の本人確認 + Android 実機での Play Console ログイン
+
 ### 実機の動かし方
 
 dev サーバーは tmux `goshuin-dev` で動いている。**まず生きているか確認してから**。
