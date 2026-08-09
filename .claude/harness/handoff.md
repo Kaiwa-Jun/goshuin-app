@@ -51,17 +51,7 @@ tmux capture-pane -pt goshuin-dev -S -300 | grep -A 5 "submit failed at"
 - `storage.objects` のポリシー6本すべて適切
 - **2026-03-04 にアプリ経由のアップロード成功実績が1件残っている** → 依存を上げたときに `has()` のガードが入って壊れた**回帰**
 
-### 原因（調査済み・確定）
-
-`supabase-js` の Storage クライアントは FormData を渡されると内部で `body.has('cacheControl')` を呼ぶ。**RN の FormData ポリフィルは `append` / `getAll` / `getParts` しか持たず `has()` が無い**ため、通信が1バイトも出る前に `TypeError: body.has is not a function` で落ちていた。`isNetworkError()` にマッチしない例外は全部 `'upload'` に倒れる分岐だったので、画面には「アップロードエラー」としか出ていなかった。
-
-**Storage 側は無罪**だった（監査時の第一候補だったが違った）:
-
-- バケット `goshuin-images` は存在。`public=true` / 5MB上限 / `allowed_mime_types={image/jpeg, image/png, image/webp}`
-- `storage.objects` のポリシー6本すべて適切
-- **2026-03-04 にアプリ経由のアップロード成功実績が1件残っている** → 依存を上げたときに `has()` のガードが入って壊れた**回帰**
-
-### 修正の内容
+### #118 の修正の内容
 
 - `uploadStampImage` を `expo-file-system` の `File#bytes()` でバイト列を渡す方式に変更。`contentType: 'image/jpeg'` の明示は**必須**（`allowed_mime_types` があるので既定値だと弾かれる）
 - `expo-file-system` は `expo@54` の推移的依存として既にネイティブ側に入っている。`package.json` に明示しただけでバージョンは 19.0.21 のまま = **dev build の作り直しは不要**
@@ -69,7 +59,7 @@ tmux capture-pane -pt goshuin-dev -S -300 | grep -A 5 "submit failed at"
 - RN の FormData を global に差し込んで supabase-js の実物を通す回帰テストを追加（`stamps-upload-native.test.ts`）。jest の node 環境の FormData は `has()` を持つのでこの仕込みが無いと検出できない
 - `goshuin-images` バケットとポリシーを migration 化（監査が指摘していた再現性の穴）。本番は既にこの状態なので適用不要
 
-機械検証: **テスト 89 suite / 1019 件全パス**、lint 0 errors、typecheck clean。
+機械検証: **テスト 89 suite / 1020 件全パス**、lint 0 errors、typecheck clean。実機確認済み。
 
 ### ⚠️ 今後のための教訓
 
@@ -81,7 +71,7 @@ tmux capture-pane -pt goshuin-dev -S -300 | grep -A 5 "submit failed at"
 
 - **Issue #114（P1-09 ボトムシート）完了** — PR #115 マージ済み・`passes: true`・実機確認済み
 - **Issue #116（P1-03 めくり UI）を develop にマージ** — PR #117。契約書 `docs/issues/issue-116-goshuincho-flip-ui.md`（95項目）。右綴じ（`FlatList inverted`）+ 蛇腹の折り（RN 標準 `Animated` でスクロール連動）+ 白紙ページ = 記録入口 + グリッド切替の永続化 + 和暦。テスト1002件
-  - ⚠️ **`passes` は false のまま**。理由3つ: ①**実機未確認**（上記 A-4 のため。N 群8項目 = スワイプの手触り・スナップ・小型端末での収まり・アプリ再起動をまたぐ永続化）②Evaluator の結果（80 PASS / 1 FAIL / 8 SKIP）は**右綴じと蛇腹を入れる前の版**に対するもの ③W-17 の残件（下記）
+  - ⚠️ **`passes` は false のまま**。理由3つ: ①**実機未確認**（N 群8項目 = スワイプの手触り・スナップ・小型端末での収まり・アプリ再起動をまたぐ永続化。**ブロッカーだった A-4 は #118 で解消済みなので、いま着手できる**）②Evaluator の結果（80 PASS / 1 FAIL / 8 SKIP）は**右綴じと蛇腹を入れる前の版**に対するもの ③W-17 の残件（下記）
   - **Expo Web での検証手段を作った**: 認証が Google/Apple のネイティブサインインのみで Web からログインできないため、`?preview=goshuincho` で fixture を差し込む web 専用プレビュー経路を足した（契約書 S-7・ユーザー承認済み）。`http://localhost:8081/?preview=goshuincho` → 御朱印タブ。native では `.web.ts` が解決されないので常に無効
   - 📌 **別 issue 化すべき既知の問題**: `ImageGalleryModal` がレンダー中に `Animated.Value.setValue()` を呼んでおり React が `Cannot update a component while rendering...` を出す（`src/components/common/ImageGalleryModal.tsx:79-88`。「ちらつき回避のため意図的」というコメント付きの既存実装）。#116 が原因ではなく、S-7 で Web から到達できるようになって表面化しただけ
 - **P1-03 完成後の予定だったタブ入れ替え（案3: 地図 / 御朱印帳 / あつめる / 自分）は未着手**。めくり UI は入ったので着手可能
