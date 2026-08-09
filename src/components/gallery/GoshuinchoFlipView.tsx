@@ -96,17 +96,15 @@ export function GoshuinchoFlipView({
   const scrollX = useRef(new Animated.Value(0)).current;
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  // 御朱印帳は古い順に綴じていくので、表示だけ昇順に反転する。
-  // 親に返すのは常に元の（降順の）インデックス。
+  // stamps は昇順（古い順）で渡ってくる。1ページ目 = 先頭 = 最も古い。
+  // 末尾の白紙が一番新しい側（＝記録の入口）になる。
   const pages: Page[] = useMemo(() => {
-    const ascending: Page[] = stamps
-      .map((stamp, sourceIndex) => ({
-        key: stamp.id,
-        kind: 'stamp' as const,
-        stamp,
-        sourceIndex,
-      }))
-      .reverse();
+    const ascending: Page[] = stamps.map((stamp, sourceIndex) => ({
+      key: stamp.id,
+      kind: 'stamp' as const,
+      stamp,
+      sourceIndex,
+    }));
     return [...ascending, { key: 'blank', kind: 'blank' }];
   }, [stamps]);
 
