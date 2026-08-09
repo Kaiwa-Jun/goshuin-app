@@ -54,12 +54,12 @@ function makePreviewStamp(
   };
 }
 
-// useGalleryStamps と同じ visited_at 降順で並べる。
-// 訪問日は元号の境界（令和 / 令和元年 / 平成元年）を目視で確認できるものにした。
+// useGalleryStamps と同じ visited_at 昇順（古い順）で並べる。
+// 訪問日は元号の境界（平成元年 / 令和元年 / 令和）を目視で確認できるものにした。
 const PREVIEW_STAMPS: StampWithSpot[] = [
-  makePreviewStamp('preview-1', '浅草寺', '2026-05-03', 'temple'),
-  makePreviewStamp('preview-2', '神田明神', '2019-05-01', 'shrine'),
   makePreviewStamp('preview-3', '明治神宮', '1989-01-08', 'shrine'),
+  makePreviewStamp('preview-2', '神田明神', '2019-05-01', 'shrine'),
+  makePreviewStamp('preview-1', '浅草寺', '2026-05-03', 'temple'),
 ];
 
 const PREVIEW_IMAGES: Record<string, string> = {

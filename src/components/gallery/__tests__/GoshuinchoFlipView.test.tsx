@@ -36,19 +36,19 @@ const makeStamp = (overrides: Partial<StampWithSpot> = {}): StampWithSpot => ({
   ...overrides,
 });
 
-// useGalleryStamps と同じく visited_at 降順（新しい順）で渡す
-const DESC_STAMPS: StampWithSpot[] = [
-  makeStamp({ id: 'newest', visited_at: '2026-05-03', spots: { name: '浅草寺', type: 'temple' } }),
-  makeStamp({
-    id: 'middle',
-    visited_at: '2025-03-10',
-    spots: { name: '神田明神', type: 'shrine' },
-  }),
+// useGalleryStamps と同じく visited_at 昇順（古い順）で渡す
+const ASC_STAMPS: StampWithSpot[] = [
   makeStamp({
     id: 'oldest',
     visited_at: '2024-01-15',
     spots: { name: '明治神宮', type: 'shrine' },
   }),
+  makeStamp({
+    id: 'middle',
+    visited_at: '2025-03-10',
+    spots: { name: '神田明神', type: 'shrine' },
+  }),
+  makeStamp({ id: 'newest', visited_at: '2026-05-03', spots: { name: '浅草寺', type: 'temple' } }),
 ];
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -57,7 +57,7 @@ const LAYOUT = computePageLayout(SCREEN_WIDTH);
 function renderFlipView(props: Partial<React.ComponentProps<typeof GoshuinchoFlipView>> = {}) {
   return render(
     <GoshuinchoFlipView
-      stamps={DESC_STAMPS}
+      stamps={ASC_STAMPS}
       onPressStamp={jest.fn()}
       onPressBlank={jest.fn()}
       {...props}
@@ -68,7 +68,7 @@ function renderFlipView(props: Partial<React.ComponentProps<typeof GoshuinchoFli
 function scrollTo(
   getByTestId: ReturnType<typeof renderFlipView>['getByTestId'],
   pageIndex: number,
-  totalPages = DESC_STAMPS.length + 1
+  totalPages = ASC_STAMPS.length + 1
 ) {
   // fireEvent.scroll は onScroll にしか届かない。ページ確定は onMomentumScrollEnd で
   // 行うので、イベント名を明示して発火する。
@@ -123,7 +123,7 @@ describe('GoshuinchoFlipView', () => {
   describe('ページの構成', () => {
     it('御朱印 N 件 + 白紙1枚を並べる', () => {
       const { getByTestId } = renderFlipView();
-      expect(getByTestId('flip-list').props.data).toHaveLength(DESC_STAMPS.length + 1);
+      expect(getByTestId('flip-list').props.data).toHaveLength(ASC_STAMPS.length + 1);
     });
 
     it('白紙ページはちょうど1つである', () => {
@@ -181,18 +181,18 @@ describe('GoshuinchoFlipView', () => {
       expect(onPressStamp).toHaveBeenCalledTimes(1);
     });
 
-    it('onPressStamp には元の stamps（降順）でのインデックスを渡す', () => {
+    it('onPressStamp には stamps（昇順）でのインデックスを渡す', () => {
       const onPressStamp = jest.fn();
       const { getByTestId } = renderFlipView({ onPressStamp });
 
-      // 表示 1 ページ目 = oldest = 降順配列では index 2
+      // 表示 1 ページ目 = oldest = 昇順配列では index 0
       fireEvent.press(getByTestId('flip-page-oldest'));
-      expect(onPressStamp).toHaveBeenCalledWith(2);
+      expect(onPressStamp).toHaveBeenCalledWith(0);
 
-      // 表示 3 ページ目 = newest = 降順配列では index 0
+      // 表示 3 ページ目 = newest = 昇順配列では index 2
       scrollTo(getByTestId, 2);
       fireEvent.press(getByTestId('flip-page-newest'));
-      expect(onPressStamp).toHaveBeenCalledWith(0);
+      expect(onPressStamp).toHaveBeenCalledWith(2);
     });
 
     it('中央の白紙ページをタップすると onPressBlank が呼ばれる', () => {
@@ -219,7 +219,7 @@ describe('GoshuinchoFlipView', () => {
 
     it('覗いている白紙ページをタップしても onPressBlank を呼ばない', () => {
       const onPressBlank = jest.fn();
-      const { getByTestId } = renderFlipView({ stamps: [DESC_STAMPS[0]], onPressBlank });
+      const { getByTestId } = renderFlipView({ stamps: [ASC_STAMPS[0]], onPressBlank });
       // 1ページ目（御朱印）を表示中に白紙（隣）をタップ
       fireEvent.press(getByTestId('flip-blank-page'));
       expect(onPressBlank).not.toHaveBeenCalled();
