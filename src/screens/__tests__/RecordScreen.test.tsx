@@ -220,11 +220,7 @@ describe('RecordScreen', () => {
 
     const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
 
-    // Press save button -> opens confirm modal
     fireEvent.press(getByText('この内容で記録する'));
-
-    // Press confirm button inside modal
-    fireEvent.press(getByText('登録する'));
 
     await waitFor(() => {
       expect(mockSubmit).toHaveBeenCalled();
@@ -255,7 +251,6 @@ describe('RecordScreen', () => {
 
     const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
     fireEvent.press(getByText('この内容で記録する'));
-    fireEvent.press(getByText('登録する'));
 
     await waitFor(() => {
       expect(mockNavigation.navigate).toHaveBeenCalledWith(
@@ -290,7 +285,6 @@ describe('RecordScreen', () => {
 
     const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
     fireEvent.press(getByText('この内容で記録する'));
-    fireEvent.press(getByText('登録する'));
 
     await waitFor(() => {
       expect(mockNavigation.navigate).toHaveBeenCalledWith(
@@ -327,7 +321,6 @@ describe('RecordScreen', () => {
 
     const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
     fireEvent.press(getByText('この内容で記録する'));
-    fireEvent.press(getByText('登録する'));
 
     await waitFor(() => {
       expect(mockNavigation.navigate).toHaveBeenCalledWith(
@@ -366,7 +359,6 @@ describe('RecordScreen', () => {
 
     const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
     fireEvent.press(getByText('この内容で記録する'));
-    fireEvent.press(getByText('登録する'));
 
     await waitFor(() => {
       expect(mockNavigation.navigate).toHaveBeenCalledWith('Error', {
@@ -387,7 +379,6 @@ describe('RecordScreen', () => {
 
     const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
     fireEvent.press(getByText('この内容で記録する'));
-    fireEvent.press(getByText('登録する'));
 
     await waitFor(() => {
       expect(mockNavigation.navigate).toHaveBeenCalledWith('Error', {
@@ -408,7 +399,6 @@ describe('RecordScreen', () => {
 
     const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
     fireEvent.press(getByText('この内容で記録する'));
-    fireEvent.press(getByText('登録する'));
 
     await waitFor(() => {
       expect(mockNavigation.navigate).toHaveBeenCalledWith('Error', {
@@ -432,7 +422,6 @@ describe('RecordScreen', () => {
 
     const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
     fireEvent.press(getByText('この内容で記録する'));
-    fireEvent.press(getByText('登録する'));
 
     await waitFor(() => {
       expect(mockNavigation.navigate).toHaveBeenCalledWith('Error', {
@@ -442,6 +431,135 @@ describe('RecordScreen', () => {
         message: 'insert failed (code=42501)',
       });
     });
+  });
+});
+
+describe('確認モーダルの廃止（Issue #130 / D-3）', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockFormState = {
+      selectedSpot: null,
+      imageUri: null,
+      visitedAt: new Date('2024-06-01'),
+      memo: '',
+      isPublic: false,
+      spotError: null,
+      imageError: null,
+      isSubmitting: false,
+      submitError: null,
+      selectSpot: mockSelectSpot,
+      setImageUri: mockSetImageUri,
+      setVisitedAt: mockSetVisitedAt,
+      setMemo: mockSetMemo,
+      setIsPublic: mockSetIsPublic,
+      validate: mockValidate,
+      submit: mockSubmit,
+      reset: mockReset,
+    };
+    mockValidate.mockReturnValue(true);
+  });
+
+  const fakeStamp: Stamp = {
+    id: 'stamp-1',
+    user_id: 'user-1',
+    spot_id: 'spot-1',
+    goshuincho_id: null,
+    visited_at: '2024-06-01T00:00:00.000Z',
+    image_path: 'user-1/12345.jpg',
+    memo: '',
+    is_public: false,
+    extracted_info: null,
+    created_at: '2024-06-01T00:00:00Z',
+    updated_at: '2024-06-01T00:00:00Z',
+  };
+
+  // A-5: モーダルを挟まず1回で送信される
+  it('「この内容で記録する」の1タップで submit が1回だけ呼ばれる', async () => {
+    mockFormState.selectedSpot = fakeSpot;
+    mockFormState.imageUri = 'file:///photo.jpg';
+    mockSubmit.mockResolvedValue({ success: true, stamp: fakeStamp });
+    mockFetchVisitedSpotIds.mockResolvedValue(new Set());
+
+    const { getByText, queryByText } = render(
+      <RecordScreen navigation={mockNavigation} route={mockRoute} />
+    );
+
+    fireEvent.press(getByText('この内容で記録する'));
+
+    await waitFor(() => {
+      expect(mockSubmit).toHaveBeenCalledTimes(1);
+    });
+    // 確認モーダルが出ていないこと
+    expect(queryByText('登録内容の確認')).toBeNull();
+    expect(queryByText('登録する')).toBeNull();
+  });
+
+  // B-2: 取り消しに要る stampId / imagePath を完了画面へ渡す
+  it('完了画面へ stampId と imagePath を渡す', async () => {
+    mockFormState.selectedSpot = fakeSpot;
+    mockFormState.imageUri = 'file:///photo.jpg';
+    mockSubmit.mockResolvedValue({ success: true, stamp: fakeStamp });
+    mockFetchVisitedSpotIds.mockResolvedValue(new Set());
+
+    const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent.press(getByText('この内容で記録する'));
+
+    await waitFor(() => {
+      expect(mockNavigation.navigate).toHaveBeenCalledWith(
+        'RecordComplete',
+        expect.objectContaining({
+          stampId: 'stamp-1',
+          imagePath: 'user-1/12345.jpg',
+        })
+      );
+    });
+  });
+
+  // A-8: スポット未選択なら遷移しない
+  it('スポット未選択なら送信も遷移もしない', async () => {
+    mockFormState.selectedSpot = null;
+    mockFormState.imageUri = 'file:///photo.jpg';
+    mockValidate.mockReturnValueOnce(false);
+
+    const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent.press(getByText('この内容で記録する'));
+
+    await waitFor(() => {
+      expect(mockSubmit).not.toHaveBeenCalled();
+    });
+    expect(mockNavigation.navigate).not.toHaveBeenCalled();
+  });
+
+  // A-9: 写真未選択なら遷移しない
+  it('写真未選択なら送信も遷移もしない', async () => {
+    mockFormState.selectedSpot = fakeSpot;
+    mockFormState.imageUri = null;
+    mockValidate.mockReturnValueOnce(false);
+
+    const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent.press(getByText('この内容で記録する'));
+
+    await waitFor(() => {
+      expect(mockSubmit).not.toHaveBeenCalled();
+    });
+    expect(mockNavigation.navigate).not.toHaveBeenCalled();
+  });
+
+  // A-10: 送信中は二重タップできない。モーダルが無くなったぶん、これが唯一の二重送信防御になる。
+  // toBeDisabled は @testing-library/jest-native 未導入のため使えないので挙動で確認する
+  it('送信中は記録ボタンを押しても submit が呼ばれない', async () => {
+    mockFormState.selectedSpot = fakeSpot;
+    mockFormState.imageUri = 'file:///photo.jpg';
+    mockFormState.isSubmitting = true;
+    mockFetchVisitedSpotIds.mockResolvedValue(new Set());
+
+    const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent.press(getByText('この内容で記録する'));
+
+    await waitFor(() => {
+      expect(mockFetchVisitedSpotIds).not.toHaveBeenCalled();
+    });
+    expect(mockSubmit).not.toHaveBeenCalled();
   });
 });
 

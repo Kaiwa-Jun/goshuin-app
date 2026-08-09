@@ -19,7 +19,6 @@ import { SpotSelector } from '@components/record/SpotSelector';
 import { PhotoSection } from '@components/record/PhotoSection';
 import { PhotoPickerModal } from '@components/record/PhotoPickerModal';
 import { SpotAddModal } from '@components/record/SpotAddModal';
-import { ConfirmModal } from '@components/record/ConfirmModal';
 import { useRecordForm } from '@hooks/useRecordForm';
 import { useNearbySpots } from '@hooks/useNearbySpots';
 import { useAuth } from '@hooks/useAuth';
@@ -48,7 +47,6 @@ export function RecordScreen({ navigation, route }: Props) {
 
   const [showPhotoPicker, setShowPhotoPicker] = useState(false);
   const [showSpotAdd, setShowSpotAdd] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   const formattedDate = `${form.visitedAt.getFullYear()}年${form.visitedAt.getMonth() + 1}月${form.visitedAt.getDate()}日`;
@@ -57,17 +55,16 @@ export function RecordScreen({ navigation, route }: Props) {
     `${form.visitedAt.getFullYear()}-${String(form.visitedAt.getMonth() + 1).padStart(2, '0')}-${String(form.visitedAt.getDate()).padStart(2, '0')}`
   );
 
-  const handleSavePress = () => {
+  // 確認モーダルは廃止した（D-3）。モーダルが出していたのはスポット名と訪問日だけで
+  // どちらも直前のフォーム上に見えており、一番間違えやすい写真は確認していなかった。
+  // 誤登録は記録完了画面の「記録を取り消す」で回復する
+  const handleSavePress = async () => {
     if (!form.validate()) return;
-    setShowConfirm(true);
-  };
 
-  const handleConfirm = async () => {
     const visitedSpotIds = await fetchVisitedSpotIds();
     const previousCount = visitedSpotIds.size;
 
     const result = await form.submit();
-    setShowConfirm(false);
 
     if (result.success && result.stamp) {
       const isNewSpot = form.selectedSpot ? !visitedSpotIds.has(form.selectedSpot.id) : false;
@@ -79,6 +76,9 @@ export function RecordScreen({ navigation, route }: Props) {
         spotName: form.selectedSpot?.name,
         visitCount: currentCount,
         badge,
+        // 取り消し（deleteStamp）に ID と画像パスの両方が要る
+        stampId: result.stamp.id,
+        imagePath: result.stamp.image_path,
       });
     } else if (!result.success) {
       const errorType = isNetworkError(result.error) ? 'network' : 'upload';
@@ -259,18 +259,6 @@ export function RecordScreen({ navigation, route }: Props) {
           }}
           userLocation={location}
           userId={user.id}
-        />
-      )}
-
-      {form.selectedSpot && (
-        <ConfirmModal
-          visible={showConfirm}
-          onClose={() => setShowConfirm(false)}
-          onConfirm={handleConfirm}
-          spotName={form.selectedSpot.name}
-          spotType={form.selectedSpot.type}
-          visitedAt={form.visitedAt}
-          isSubmitting={form.isSubmitting}
         />
       )}
     </SafeAreaView>

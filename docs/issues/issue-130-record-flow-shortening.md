@@ -172,18 +172,18 @@ export function usePhotoPicker(): {
 
 ### A 群: `ConfirmModal` の廃止（S-1）
 
-| #    | 基準                                                                                                   | 検証   |
-| ---- | ------------------------------------------------------------------------------------------------------ | ------ |
-| A-1  | `src/components/record/ConfirmModal.tsx` が存在しない                                                  | 機械   |
-| A-2  | `src/components/record/__tests__/ConfirmModal.test.tsx` が存在しない                                   | 機械   |
-| A-3  | リポジトリ全体を `ConfirmModal` で grep して 0 件（`docs/` を除く）                                    | 機械   |
-| A-4  | `RecordScreen.tsx` に `showConfirm` という識別子が存在しない                                           | 機械   |
-| A-5  | 記録画面で有効な入力後に「この内容で記録する」を押すと、モーダルを挟まず `form.submit()` が1回呼ばれる | テスト |
-| A-6  | 送信成功時に `RecordComplete` へ遷移する                                                               | テスト |
-| A-7  | 送信失敗時に `Error` 画面へ `stage` と `message` を渡して遷移する（既存挙動が維持されている）          | テスト |
-| A-8  | スポット未選択で「この内容で記録する」を押すと `spotError` が表示され、遷移しない                      | テスト |
-| A-9  | 写真未選択で「この内容で記録する」を押すと `imageError` が表示され、遷移しない                         | テスト |
-| A-10 | `form.isSubmitting` が true のとき「この内容で記録する」が `disabled` である                           | テスト |
+| #    | 基準                                                                                                                                             | 検証   |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ------ |
+| A-1  | `src/components/record/ConfirmModal.tsx` が存在しない                                                                                            | 機械   |
+| A-2  | `src/components/record/__tests__/ConfirmModal.test.tsx` が存在しない                                                                             | 機械   |
+| A-3  | `grep -rnE "(^\|[^a-zA-Z])ConfirmModal" src/ \| grep -v DeleteConfirmModal` が 0 件（`DeleteConfirmModal` は御朱印詳細の削除用で別物・存続する） | 機械   |
+| A-4  | `RecordScreen.tsx` に `showConfirm` という識別子が存在しない                                                                                     | 機械   |
+| A-5  | 記録画面で有効な入力後に「この内容で記録する」を押すと、モーダルを挟まず `form.submit()` が1回呼ばれる                                           | テスト |
+| A-6  | 送信成功時に `RecordComplete` へ遷移する                                                                                                         | テスト |
+| A-7  | 送信失敗時に `Error` 画面へ `stage` と `message` を渡して遷移する（既存挙動が維持されている）                                                    | テスト |
+| A-8  | スポット未選択で「この内容で記録する」を押すと `spotError` が表示され、遷移しない                                                                | テスト |
+| A-9  | 写真未選択で「この内容で記録する」を押すと `imageError` が表示され、遷移しない                                                                   | テスト |
+| A-10 | `form.isSubmitting` が true のとき「この内容で記録する」が `disabled` である                                                                     | テスト |
 
 ### B 群: 記録完了画面の取り消し（S-2）
 
