@@ -509,7 +509,7 @@
       <div class="rail-block">
         <h2>進捗</h2>
         <div class="tally">
-          <span class="big">6</span>
+          <span class="big">11</span>
           <span class="of">/ 31 完了</span>
         </div>
         <div class="bars">
@@ -520,13 +520,13 @@
           </div>
           <div class="bar-row">
             <span class="bar-label"><span class="dot" style="background:var(--improve)"></span>小さい改善</span>
-            <span class="bar-count">2 / 6</span>
-            <span class="track"><span style="width:33%;background:var(--improve)"></span></span>
+            <span class="bar-count">6 / 6</span>
+            <span class="track"><span style="width:100%;background:var(--improve)"></span></span>
           </div>
           <div class="bar-row">
             <span class="bar-label"><span class="dot" style="background:var(--design)"></span>設計判断</span>
-            <span class="bar-count">1 / 8</span>
-            <span class="track"><span style="width:13%;background:var(--design)"></span></span>
+            <span class="bar-count">3 / 8</span>
+            <span class="track"><span style="width:38%;background:var(--design)"></span></span>
           </div>
           <div class="bar-row">
             <span class="bar-label"><span class="dot" style="background:var(--muted)"></span>バックログ</span>
@@ -569,8 +569,8 @@
         <ol class="order">
           <li class="done-step">CI-1 を直して PR の赤を消す（完了）</li>
           <li class="done-step">#116 の実機 N群8項目（完了）</li>
-          <li class="now">小さい改善を1 PR に束ねる（A-3 / A-10 / A-11 + B-4）</li>
-          <li>設計判断 D-3 / D-4 / D-5 / D-6 をまとめて決める</li>
+          <li class="done-step">小さい改善を1 PR に束ねる（完了）</li>
+          <li class="now">残る設計判断 D-3 / D-5 / D-6 を決める（D-4 は決定済み）</li>
           <li class="done-step">案3 タブ入れ替えの契約書 → 実装（完了）</li>
           <li>期日ものは上と並行</li>
         </ol>
@@ -633,7 +633,7 @@
         <div class="section-head">
           <h2>小さい改善</h2>
           <span class="rule"></span>
-          <span class="count">2 / 6</span>
+          <span class="count">6 / 6 ✓</span>
         </div>
         <p class="section-note">
           設計判断なしで着手でき、1 PR に束ねられる。監査 E の束から <b>A-6 は除外</b>（#114 で解決済み）。
@@ -641,39 +641,38 @@
         </p>
 
         <ul class="items">
-          <li class="item">
-            <span class="box" role="img" aria-label="未完了"></span>
+          <li class="item done">
+            <span class="box" role="img" aria-label="完了"></span>
             <div>
-              <div class="line"><span class="id">A-2</span><span class="name">記録画面の訪問日が西暦のみ</span></div>
-              <p class="ev"><code>RecordScreen.tsx:52</code> が <code>getFullYear()</code> 直書き。<code>utils/japaneseEra.ts</code> は <code>GoshuinchoPage.tsx</code> でしか使われていない（grep 確認）。繋ぐだけ。</p>
-              <p class="blocker">D-4「和暦をどこまで出すか」の判断待ち</p>
+              <div class="line"><span class="id">A-2</span><span class="name">記録画面の訪問日が西暦のみ</span><span class="pill pill-done">完了 8/9</span></div>
+              <p class="ev"><b>PR #127 で解決</b>。⚠️ 監査の書き方（表示が西暦のみ）とは違い、実際の困りごとは<b>入力側</b>だった — 紙の御朱印は和暦なのにピッカーが西暦で照合できない。表示を和暦に変えるのではなく、選択中の日付に追随する和暦ラベルを日付の行に併記した。</p>
             </div>
             <span class="size">S</span>
           </li>
 
-          <li class="item">
-            <span class="box" role="img" aria-label="未完了"></span>
+          <li class="item done">
+            <span class="box" role="img" aria-label="完了"></span>
             <div>
-              <div class="line"><span class="id">A-3</span><span class="name">日付ピッカーが画面外に出る</span></div>
-              <p class="ev"><code>RecordScreen.tsx:139-144</code> に <code>display='inline'</code> はあるが日付側に <code>scrollTo</code> が無い。同ファイル <code>162-176</code> でメモ欄が既に同じ問題を解決済み → 同じパターンを1つ足すだけ。</p>
+              <div class="line"><span class="id">A-3</span><span class="name">日付ピッカーが画面外に出る</span><span class="pill pill-done">完了 8/9</span></div>
+              <p class="ev"><b>PR #127 で解決</b>。メモ欄が既に使っていた <code>onLayout</code> + <code>scrollTo</code> のパターンを踏襲。</p>
             </div>
             <span class="size">S</span>
           </li>
 
-          <li class="item">
-            <span class="box" role="img" aria-label="未完了"></span>
+          <li class="item done">
+            <span class="box" role="img" aria-label="完了"></span>
             <div>
-              <div class="line"><span class="id">A-10</span><span class="name">0件の空状態に CTA ボタンが無い</span></div>
-              <p class="ev"><code>GalleryScreen.tsx:201-206</code> はテキストのみ。<b>監査から状況が変わっている</b>：<code>194-199</code> のとおり flip モードでは白紙ページが記録入口になるため、CTA 欠落は<b>グリッドモード限定</b>に縮小した。</p>
+              <div class="line"><span class="id">A-10</span><span class="name">0件の空状態に CTA ボタンが無い</span><span class="pill pill-done">完了 8/9</span></div>
+              <p class="ev"><b>PR #127 で解決</b>。グリッド表示の0件に「御朱印を記録する」を追加（めくり表示は白紙ページが入口なので元から不要）。</p>
             </div>
             <span class="size">S</span>
           </li>
 
-          <li class="item">
-            <span class="box" role="img" aria-label="未完了"></span>
+          <li class="item done">
+            <span class="box" role="img" aria-label="完了"></span>
             <div>
-              <div class="line"><span class="id">A-11</span><span class="name">「他の巡礼を見る」の展開がふわっとしない</span></div>
-              <p class="ev"><code>CollectionScreen.tsx:217</code> の <code>onPress</code> に <code>LayoutAnimation</code> が無い。同ファイル <code>49</code> に既にパターンあり → 1行。</p>
+              <div class="line"><span class="id">A-11</span><span class="name">「他の巡礼を見る」の展開がふわっとしない</span><span class="pill pill-done">完了 8/9</span></div>
+              <p class="ev"><b>PR #127 で解決</b>。同じ画面の地域別ブロックと同じ <code>LayoutAnimation.Presets.easeInEaseOut</code> に揃えた。</p>
             </div>
             <span class="size">XS</span>
           </li>
@@ -703,7 +702,7 @@
         <div class="section-head">
           <h2>設計判断が要るもの</h2>
           <span class="rule"></span>
-          <span class="count">1 / 8</span>
+          <span class="count">3 / 8</span>
         </div>
 
         <ul class="items">
@@ -726,11 +725,11 @@
             <span class="size">M</span>
           </li>
 
-          <li class="item">
-            <span class="box" role="img" aria-label="未完了"></span>
+          <li class="item done">
+            <span class="box" role="img" aria-label="完了"></span>
             <div>
-              <div class="line"><span class="id">D-4</span><span class="name">和暦をどこまで出すか</span></div>
-              <p class="ev">記録画面のみ / 全画面 / 併記。現状は「めくりページだけ和暦」で不統一。A-2 の前提になる。</p>
+              <div class="line"><span class="id">D-4</span><span class="name">和暦をどこまで出すか</span><span class="pill pill-done">決定 8/9</span></div>
+              <p class="ev"><b>「御朱印帳の中だけ」で決定</b>。めくりページは和暦、それ以外の表示は西暦のまま。⚠️ ただし議論の中で<b>本当の困りごとは表示ではなく入力</b>（紙が和暦でピッカーが西暦）と判明し、A-2 は日付選択への和暦併記として実装した。</p>
             </div>
             <span class="size">XS</span>
           </li>
@@ -754,11 +753,11 @@
             <span class="size">M</span>
           </li>
 
-          <li class="item">
-            <span class="box" role="img" aria-label="未完了"></span>
+          <li class="item done">
+            <span class="box" role="img" aria-label="完了"></span>
             <div>
-              <div class="line"><span class="id">B-4</span><span class="name">ui-design v6 が撤回済み方針のまま</span></div>
-              <p class="ev">「ギャラリー無料版は直近20件」が direction v2 の「コア体験は永久無料」と矛盾。実装は direction v2 準拠なので、ドキュメントだけ直す。小さい改善 PR に相乗りできる。</p>
+              <div class="line"><span class="id">B-4</span><span class="name">ui-design v6 が撤回済み方針のまま</span><span class="pill pill-done">完了 8/9</span></div>
+              <p class="ev"><b>PR #127 で解決</b>。「無料版は直近20件」の撤回、タブ構成の案3への更新、御朱印帳タブの現況を追記。冒頭に「direction.md と実装が優先」と明記した。</p>
             </div>
             <span class="size">S</span>
           </li>
