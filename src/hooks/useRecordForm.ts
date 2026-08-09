@@ -91,17 +91,17 @@ export function useRecordForm(params?: UseRecordFormParams): UseRecordFormReturn
   }, [user]);
 
   // 既定選択。明示指定（ボトムシート経由）が最優先で、
-  // 一度選ばれた後は現在地が動いても上書きしない
+  // 一度選ばれた後は現在地が動いても上書きしない。
+  // ⚠️ setState の更新関数は純粋でなければならない（StrictMode で2回呼ばれる）ので、
+  // 「選択済みか」の判定は更新関数の中ではなくここで済ませる
   useEffect(() => {
     if (params?.initialSpotId) return;
     if (!params?.autoSelectableSpot) return;
+    if (selectedSpot) return;
 
-    setSelectedSpot(current => {
-      if (current) return current;
-      setIsSpotAutoSelected(true);
-      return params.autoSelectableSpot!;
-    });
-  }, [params?.initialSpotId, params?.autoSelectableSpot]);
+    setSelectedSpot(params.autoSelectableSpot);
+    setIsSpotAutoSelected(true);
+  }, [params?.initialSpotId, params?.autoSelectableSpot, selectedSpot]);
 
   const selectSpot = useCallback((spot: Spot) => {
     setSelectedSpot(spot);

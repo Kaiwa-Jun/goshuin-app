@@ -486,11 +486,36 @@ describe('最寄りスポットの既定選択（Issue #130 / S-4）', () => {
     expect(result.current.isSpotAutoSelected).toBe(false);
   });
 
-  it('reset で自動選択フラグも戻る', async () => {
+  // reset はフォームを初期状態に戻すもので、既定選択は初期状態の一部。
+  // 画面を開き直したときと同じ結果になるのが自然なので、選び直しの後でも
+  // reset すれば既定値に戻る
+  it('reset すると既定選択の状態に戻る', async () => {
     const { result } = renderHook(() => useRecordForm({ autoSelectableSpot: fakeSpot }));
 
     await waitFor(() => {
       expect(result.current.isSpotAutoSelected).toBe(true);
+    });
+
+    act(() => {
+      result.current.selectSpot(otherSpot);
+    });
+    expect(result.current.isSpotAutoSelected).toBe(false);
+
+    act(() => {
+      result.current.reset();
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedSpot).toEqual(fakeSpot);
+    });
+    expect(result.current.isSpotAutoSelected).toBe(true);
+  });
+
+  it('候補が無ければ reset 後も何も選ばれない', async () => {
+    const { result } = renderHook(() => useRecordForm({ autoSelectableSpot: null }));
+
+    act(() => {
+      result.current.selectSpot(otherSpot);
     });
 
     act(() => {
