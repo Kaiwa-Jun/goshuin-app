@@ -1,6 +1,14 @@
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
+import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { Alert, StyleSheet, Text } from 'react-native';
 import { RecordCompleteScreen } from '@screens/RecordCompleteScreen';
+import { colors } from '@theme/colors';
+
+const mockDeleteStamp = jest.fn();
+
+jest.mock('@services/stamps', () => ({
+  deleteStamp: (...args: unknown[]) => mockDeleteStamp(...args),
+}));
 
 jest.mock('react-native-safe-area-context', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
@@ -274,5 +282,145 @@ describe('RecordCompleteScreen', () => {
       expect(getByText('1箇所目の御朱印！')).toBeTruthy();
       expect(getByTestId('badge-animation')).toBeTruthy();
     });
+  });
+});
+
+describe('記録の取り消し（Issue #130 / D-3）', () => {
+  const routeWithUndo = {
+    key: 'test',
+    name: 'RecordComplete' as const,
+    params: {
+      stampImageUrl: 'https://example.com/stamps/user-1/12345.jpg',
+      spotName: '大崎八幡宮',
+      visitCount: 5,
+      stampId: 'stamp-1',
+      imagePath: 'user-1/12345.jpg',
+    },
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  // B-3
+  it('stampId と imagePath が揃っていれば取り消しボタンを出す', () => {
+    const { getByTestId } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={routeWithUndo} />
+    );
+    expect(getByTestId('button-undo-record')).toBeTruthy();
+  });
+
+  // B-4: 旧来の遷移や params 欠落で押せる取り消しを出さない
+  it('stampId が無ければ取り消しボタンを出さない', () => {
+    const { queryByTestId } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={mockRouteWithParams} />
+    );
+    expect(queryByTestId('button-undo-record')).toBeNull();
+  });
+
+  it('imagePath が無ければ取り消しボタンを出さない', () => {
+    const route = {
+      ...routeWithUndo,
+      params: { ...routeWithUndo.params, imagePath: undefined },
+    };
+    const { queryByTestId } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={route} />
+    );
+    expect(queryByTestId('button-undo-record')).toBeNull();
+  });
+
+  // B-5: 取り消しは非可逆なので、確認を挟むまで消さない
+  it('タップした時点では削除せず確認 Alert を出す', () => {
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+
+    const { getByTestId } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={routeWithUndo} />
+    );
+    fireEvent.press(getByTestId('button-undo-record'));
+
+    expect(alertSpy).toHaveBeenCalled();
+    expect(mockDeleteStamp).not.toHaveBeenCalled();
+  });
+
+  // B-6 / B-7
+  it('確認すると deleteStamp を呼び、成功したら地図へ戻る', async () => {
+    mockDeleteStamp.mockResolvedValue(undefined);
+    jest.spyOn(Alert, 'alert').mockImplementation((_t, _m, buttons) => {
+      const destructive = buttons?.find(b => b.style === 'destructive');
+      destructive?.onPress?.();
+    });
+
+    const { getByTestId } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={routeWithUndo} />
+    );
+    fireEvent.press(getByTestId('button-undo-record'));
+
+    await waitFor(() => {
+      expect(mockDeleteStamp).toHaveBeenCalledWith('stamp-1', 'user-1/12345.jpg');
+    });
+    await waitFor(() => {
+      expect(mockNavigation.navigate).toHaveBeenCalledWith('MainTabs', {
+        screen: 'MapTab',
+        params: { screen: 'Map' },
+      });
+    });
+  });
+
+  // B-8: 消せていないのに消えた顔をしない
+  it('削除に失敗したらエラー原文を出し、画面に留まる', async () => {
+    mockDeleteStamp.mockRejectedValue(new Error('delete failed (code=42501)'));
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_t, _m, buttons) => {
+      const destructive = buttons?.find(b => b.style === 'destructive');
+      destructive?.onPress?.();
+    });
+
+    const { getByTestId } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={routeWithUndo} />
+    );
+    fireEvent.press(getByTestId('button-undo-record'));
+
+    await waitFor(() => {
+      const messages = alertSpy.mock.calls.map(c => `${c[0]} ${c[1]}`).join('\n');
+      expect(messages).toContain('delete failed (code=42501)');
+    });
+    expect(mockNavigation.navigate).not.toHaveBeenCalled();
+  });
+
+  // B-9: 誤タップを避けるため主導線の後ろに置く
+  it('取り消しボタンは既存3ボタンより後に描画される', () => {
+    const { toJSON } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={routeWithUndo} />
+    );
+
+    const tracked = [
+      'button-record-another',
+      'button-view-map',
+      'button-view-collection',
+      'button-undo-record',
+    ];
+
+    // 描画ツリーを深さ優先で辿り、testID の出現順を取る
+    const order: string[] = [];
+    const walk = (node: any) => {
+      if (!node || typeof node !== 'object') return;
+      const id = node.props?.testID;
+      if (id && tracked.includes(id)) order.push(id);
+      (node.children ?? []).forEach(walk);
+    };
+    walk(toJSON());
+
+    expect(order).toEqual(tracked);
+  });
+
+  // B-10: 直値の色を書かない（CLAUDE.md のトークン規約）
+  it('取り消しボタンの文字色がテーマトークン由来である', () => {
+    const { getByTestId } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={routeWithUndo} />
+    );
+    const undo = getByTestId('button-undo-record');
+    const label = undo.findByType(Text);
+    const style = StyleSheet.flatten(label.props.style);
+
+    expect(style.color).toBe(colors.white);
   });
 });
