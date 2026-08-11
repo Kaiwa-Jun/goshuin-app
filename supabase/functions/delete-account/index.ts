@@ -66,7 +66,8 @@ Deno.serve(async req => {
           const { data: files, error } = await admin.storage
             .from(BUCKET)
             .list(id, { limit: pageSize, offset });
-          if (error) return { names: [], error: error.message };
+          // 途中で失敗しても、そこまでに集めた分は返して消させる
+          if (error) return { names, error: error.message };
           const page = files ?? [];
           names.push(...page.map(f => f.name));
           if (page.length < pageSize) break;

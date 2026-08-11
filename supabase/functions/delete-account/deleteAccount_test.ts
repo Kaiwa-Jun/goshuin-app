@@ -142,6 +142,24 @@ Deno.test(
   }
 );
 
+// 一覧の途中で失敗しても、そこまでに集まった分は消す。
+// 「全件消し残し」に悪化させないための保険（PR #136 の auto-review 指摘）
+Deno.test(
+  'deleteAccountForUser: list が途中で失敗しても取得済みの分は remove する',
+  async () => {
+    const { deps, removedPaths } = makeDeps({
+      names: ['1.jpg', '2.jpg'],
+      listError: 'page 2 boom',
+    });
+
+    const result = await deleteAccountForUser(deps, USER_ID);
+
+    assertEquals(removedPaths, [[`${USER_ID}/1.jpg`, `${USER_ID}/2.jpg`]]);
+    assertEquals(result.status, 200);
+    assertEquals(result.body, { success: true, warnings: ['画像の一覧取得に失敗: page 2 boom'] });
+  }
+);
+
 Deno.test(
   'deleteAccountForUser: remove に失敗しても deleteUser は実行し warnings に載せる',
   async () => {

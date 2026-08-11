@@ -3,7 +3,10 @@
 // 契約書: docs/issues/issue-134-account-deletion.md
 
 export interface DeleteAccountDeps {
-  /** goshuin-images/<userId>/ 配下のファイル名一覧 */
+  /**
+   * goshuin-images/<userId>/ 配下のファイル名一覧。
+   * 途中で失敗した場合も、そこまでに集まった names と error の両方を返す
+   */
   listImages(userId: string): Promise<{ names: string[]; error: string | null }>;
   /** バケット内のフルパスを渡して削除する */
   removeImages(paths: string[]): Promise<{ error: string | null }>;
@@ -49,9 +52,12 @@ export async function deleteAccountForUser(
 
   try {
     const { names, error } = await deps.listImages(userId);
+    // 一覧が途中で失敗しても、取れている分は消す。ここで諦めると
+    // 「一部の消し残し」が「全件の消し残し」に悪化してしまう
     if (error) {
       warnings.push(`画像の一覧取得に失敗: ${error}`);
-    } else if (names.length > 0) {
+    }
+    if (names.length > 0) {
       const { error: removeError } = await deps.removeImages(
         names.map(name => `${userId}/${name}`)
       );
