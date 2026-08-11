@@ -109,7 +109,7 @@ PR #124 の auto-review が「`MapScreen` が `useWishlist`（ID の Set）と `
 **ユーザー作業待ち**:
 
 - **ASC で 8/8 の再提出ステータスを確認**（「審査待ち / 審査中」になっているか）。今回の棚卸しで唯一、事実にできなかった点。要 Apple ログイン
-- **Google Play**: 本人確認（審査中）+ Android 実機での Play Console ログイン
+- ~~**Google Play**: 本人確認（審査中）+ Android 実機での Play Console ログイン~~ → **iOS 優先のため保留**
 - ~~実機スクショ3枚~~ → **次のビルド提出とセットで6枚とも撮り直す方針に変更**（下記「ストアスクショの方針」参照）。いま撮る必要はない
 - **実機確認**: 新機能を入れたときのみ。8/9 時点の実装（P1-03 / P1-10 / 小さい改善 / 日付ピッカー）はすべて実機確認済み
 
@@ -269,7 +269,7 @@ Issue #111 / PR #112 マージ済み・本番投入完了（passes: true）。Me
 - ✅ **v1.0.0 buildNumber 11 が Guideline 5.1.1（プライバシー）で却下**（2026-08-06）。原因: `expo-camera` / `expo-image-picker` の config plugin がデフォルトでマイク権限のプレースホルダー文言 `NSMicrophoneUsageDescription` を自動追加していた（コード上はマイクを一切使っていない。写真撮影は `expo-image-picker` の `launchCameraAsync` のみ）
 - ✅ **修正済み・PR #113 マージ済み**: `app.json` の両プラグインに `microphonePermission: false` を指定してマイク権限自体を削除（iOS: `NSMicrophoneUsageDescription` 削除 / Android: `RECORD_AUDIO` 削除）。カメラ・フォトライブラリの権限文言は元々具体的な日本語だったため無変更
 - ✅ **buildNumber 12 をビルド・submit・審査へ再提出済み（2026-08-08）**。最大48時間で結果通知
-- **submit の手順メモ**: `eas submit --non-interactive` は ASC API Key の初回設定ができないため、`eas.json` の `submit.production.ios` に一時的に `ascApiKeyPath`（`~/Downloads/AuthKey_D9CP6Y4YA3.p8`）/ `ascApiKeyId`（`D9CP6Y4YA3`）/ `ascApiKeyIssuerId` を追記して実行し、**完了後に必ず削除する**（コミットしない）。Issuer ID は App Store Connect の「ユーザーとアクセス → 統合 → App Store Connect API」で確認できる
+- **submit の手順メモ**: `eas submit --non-interactive` は ASC API Key の初回設定ができないため、`eas.json` の `submit.production.ios` に一時的に `ascApiKeyPath` / `ascApiKeyId` / `ascApiKeyIssuerId` を追記して実行し、**完了後に必ず `git checkout eas.json` で戻す**（コミットしない）。値は **`~/.appstoreconnect/README.md`** にまとめてある（2026-08-11 に整備）。⚠️ **`ascApiKeyPath` は `~` が展開されないので絶対パスで書くこと**。Issuer ID は**リポジトリには置かない方針**（.p8 と組み合わさると submit 権限そのものになる）
 - **却下後の再提出フロー**: 配信タブ → 却下された提出物ページ → 右上「審査内容を更新」→ ダイアログで「提出」→ 提出物詳細ページでビルド行にホバーすると出る削除アイコンで**古いビルドを外す** → 「ビルドを追加」で新ビルドを選択 → 「保存」→「審査用に追加」→ 右パネル「審査へ提出」
 
 `/clear` 後の文脈復元用。読み終えたら「次のアクション」から再開する。方針の唯一のソースは `docs/product/direction.md`。
@@ -283,9 +283,9 @@ Issue #111 / PR #112 マージ済み・本番投入完了（passes: true）。Me
 - **アプリ名: 御朱印さんぽ**（「御朱印コレクション」→「御朱印マップ」と変遷。マップは App Store で登録済みだったため。45競合を調査して決定）
 - **iOS: 審査中（2回目）**。v1.0.0 / **buildNumber 12** / ascAppId `6797201465` / Apple Team `292ZWTG3UD`。1回目（buildNumber 11）は Guideline 5.1.1 で却下 → マイク権限修正（PR #113）→ 再提出済み。結果は最大48時間後
   - 掲載情報・スクショ6枚・プライバシー申告まで入力完了
-  - ASC API Key は `~/Downloads/AuthKey_D9CP6Y4YA3.p8`（**再ダウンロード不可。安全な場所へのバックアップ推奨**）
+  - ASC API Key は **`~/.appstoreconnect/AuthKey_D9CP6Y4YA3.p8`**（権限 600 / フォルダ 700。同フォルダの `README.md` に Key ID・Issuer ID・submit 手順あり）。**Apple から再ダウンロードできない**ので、失うとキーを失効させて作り直すことになる。`~/Downloads` にも同じものが残っているが、そちらは掃除で消える前提で扱う
   - `eas.json` の submit プロファイルに ascAppId / appleTeamId 設定済み。`ascApiKeyPath` 等は個人パスのためコミットしていない（submit 時に一時的に足す。手順は上記「App Store 審査対応」参照）
-- **Android: 未着手**。Google Play の本人確認が審査中 + Android 実機での Play Console ログインが未完了
+- **Android: 未着手・優先度を下げた（2026-08-11 ユーザー判断）**。まず iOS のリリースを通すことに集中する。Google Play の本人確認が審査中 + Android 実機での Play Console ログインが未完了
 - **main ブランチ**: develop をマージ済み（PR #101）。GitHub Pages の法務ページも「御朱印さんぽ」に更新済み
 
 ## これまでの経緯（2026-08-02、時系列）
@@ -324,12 +324,12 @@ Issue #111 / PR #112 マージ済み・本番投入完了（passes: true）。Me
 10. その他の候補（優先順は未合意・要相談）:
     - **P2-02 第2柱**: 公式サイトの記事単位クロール
     - **対象スポットの拡大**: rank4 以下や他都道府県への拡大（今回は既存29スポット内の欠落補完のみでスコープ外とした）
-11. Google Play（本人確認の承認後）
+11. ~~Google Play~~ — **iOS 優先のため保留**（2026-08-11 ユーザー判断）
 
 ## ユーザー待ちの項目
 
 - **実機でのスクショ3枚**（コレクション / 御朱印ギャラリー / 記録画面）— ログイン済み実データが必要。撮影 → AirDrop → こちらで 1284×2778 に変換して差し替え
-- **Google Play**: 本人確認（審査中）/ Android 実機での Play Console ログイン
+- ~~**Google Play**: 本人確認（審査中）/ Android 実機での Play Console ログイン~~ → **iOS 優先のため保留**
 - **App Store Connect の操作代行**: Claude in Chrome 拡張は接続できるが、拡張が入っている Chrome プロファイルが Apple 未ログイン。一度ログインしてもらえれば以降の操作を代行可能（パスワード・2FA 入力は必ずユーザー本人が行う）
 
 ## 環境・成果物の場所
