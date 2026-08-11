@@ -2,12 +2,25 @@
 appId: com.goshuin.app
 ---
 - launchApp
-# 初回起動時のみオンボーディングをスキップ
+# 初回起動時のみオンボーディングを通過する。
+# スキップは最終スライドへ飛ぶだけで、抜けるには「続ける」を押す必要がある
+# （権限リクエストを回避させないため。App Store Guideline 5.1.1(iv)）
 - runFlow:
     when:
       visible: "スキップ"
     commands:
       - tapOn: "スキップ"
+- runFlow:
+    when:
+      visible: "続ける"
+    commands:
+      - tapOn: "続ける"
+      # OS の位置情報ダイアログ
+      - runFlow:
+          when:
+            visible: "Allow While Using App"
+          commands:
+            - tapOn: "Allow While Using App"
 # メインタブの表示確認
 - assertVisible: "地図"
 - assertVisible: "御朱印帳"

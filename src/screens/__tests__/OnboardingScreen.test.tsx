@@ -88,6 +88,15 @@ describe('OnboardingScreen', () => {
     expect(getByText('スキップ')).toBeTruthy();
   });
 
+  it('hides skip button on last slide so the only way out is the permission request', () => {
+    const { getByTestId, queryByTestId } = render(
+      <OnboardingScreen navigation={mockNavigation as never} route={mockRoute} />
+    );
+    goToLastSlide(getByTestId);
+
+    expect(queryByTestId('skip-button')).toBeNull();
+  });
+
   it('displays page indicator', () => {
     const { getByTestId } = render(
       <OnboardingScreen navigation={mockNavigation as never} route={mockRoute} />
@@ -102,15 +111,14 @@ describe('OnboardingScreen', () => {
     expect(getByText('次へ')).toBeTruthy();
   });
 
-  it('navigates to MainTabs when skip is pressed', () => {
+  it('does not leave onboarding when skip is pressed', () => {
     const { getByTestId } = render(
       <OnboardingScreen navigation={mockNavigation as never} route={mockRoute} />
     );
     fireEvent.press(getByTestId('skip-button'));
-    expect(mockNavigation.navigate).toHaveBeenCalledWith('MainTabs', {
-      screen: 'MapTab',
-      params: { screen: 'Map' },
-    });
+
+    expect(mockNavigation.navigate).not.toHaveBeenCalled();
+    expect(mockCompleteOnboarding).not.toHaveBeenCalled();
   });
 
   it('renders onboarding slides', () => {
@@ -129,35 +137,27 @@ describe('OnboardingScreen', () => {
     expect(icons.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('calls completeOnboarding when skip is pressed', () => {
-    const { getByTestId } = render(
-      <OnboardingScreen navigation={mockNavigation as never} route={mockRoute} />
-    );
-    fireEvent.press(getByTestId('skip-button'));
-    expect(mockCompleteOnboarding).toHaveBeenCalled();
-  });
-
-  it('requests location permission when "位置情報を許可して始める" is pressed on last slide', async () => {
+  it('requests location permission when "続ける" is pressed on last slide', async () => {
     const { getByTestId, getByText } = render(
       <OnboardingScreen navigation={mockNavigation as never} route={mockRoute} />
     );
     goToLastSlide(getByTestId);
 
     await act(async () => {
-      fireEvent.press(getByText('位置情報を許可して始める'));
+      fireEvent.press(getByText('続ける'));
     });
 
     expect(Location.requestForegroundPermissionsAsync).toHaveBeenCalled();
   });
 
-  it('calls completeOnboarding and navigates when "位置情報を許可して始める" is pressed', async () => {
+  it('calls completeOnboarding and navigates when "続ける" is pressed', async () => {
     const { getByTestId, getByText } = render(
       <OnboardingScreen navigation={mockNavigation as never} route={mockRoute} />
     );
     goToLastSlide(getByTestId);
 
     await act(async () => {
-      fireEvent.press(getByText('位置情報を許可して始める'));
+      fireEvent.press(getByText('続ける'));
     });
 
     expect(mockCompleteOnboarding).toHaveBeenCalled();
@@ -181,7 +181,7 @@ describe('OnboardingScreen', () => {
     goToLastSlide(getByTestId);
 
     await act(async () => {
-      fireEvent.press(getByText('位置情報を許可して始める'));
+      fireEvent.press(getByText('続ける'));
     });
 
     expect(mockCompleteOnboarding).toHaveBeenCalled();
@@ -200,7 +200,7 @@ describe('OnboardingScreen', () => {
     goToLastSlide(getByTestId);
 
     await act(async () => {
-      fireEvent.press(getByText('位置情報を許可して始める'));
+      fireEvent.press(getByText('続ける'));
     });
 
     expect(mockCompleteOnboarding).toHaveBeenCalled();
@@ -210,19 +210,13 @@ describe('OnboardingScreen', () => {
     });
   });
 
-  it('calls completeOnboarding without location request when "あとで設定する" is pressed', async () => {
-    const { getByTestId, getByText } = render(
+  it('offers no way to skip the permission request on the last slide', () => {
+    const { getByTestId, queryByText } = render(
       <OnboardingScreen navigation={mockNavigation as never} route={mockRoute} />
     );
     goToLastSlide(getByTestId);
 
-    fireEvent.press(getByText('あとで設定する'));
-
-    expect(Location.requestForegroundPermissionsAsync).not.toHaveBeenCalled();
-    expect(mockCompleteOnboarding).toHaveBeenCalled();
-    expect(mockNavigation.navigate).toHaveBeenCalledWith('MainTabs', {
-      screen: 'MapTab',
-      params: { screen: 'Map' },
-    });
+    expect(queryByText('あとで設定する')).toBeNull();
+    expect(queryByText('スキップ')).toBeNull();
   });
 });
