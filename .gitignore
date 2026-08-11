@@ -57,3 +57,6 @@ coverage/
 
 # Supabase CLI の一時ファイル
 supabase/.temp/
+
+# deno test の実行で生成される（リポジトリでは管理しない）
+deno.lock
