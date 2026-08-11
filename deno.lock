@@ -1,0 +1,80 @@
+{
+  "version": "5",
+  "specifiers": {
+    "jsr:@std/assert@1": "1.0.19",
+    "jsr:@std/internal@^1.0.12": "1.0.14"
+  },
+  "jsr": {
+    "@std/assert@1.0.19": {
+      "integrity": "eaada96ee120cb980bc47e040f82814d786fe8162ecc53c91d8df60b8755991e",
+      "dependencies": [
+        "jsr:@std/internal"
+      ]
+    },
+    "@std/internal@1.0.14": {
+      "integrity": "291516b3d4c35024d6ffbc0a9df5bf4c64116e05b50012cf846710152d2ffdf7"
+    }
+  },
+  "redirects": {
+    "https://esm.sh/@supabase/supabase-js@2": "https://esm.sh/@supabase/supabase-js@2.111.0"
+  },
+  "remote": {
+    "https://esm.sh/@supabase/supabase-js@2.111.0": "276104e20b7318fac2be1c67eb9be93f4280f5ec9f2fc5ac7b32e1f0ed6f31ba"
+  },
+  "workspace": {
+    "packageJson": {
+      "dependencies": [
+        "npm:@babel/core@^7.25.0",
+        "npm:@expo/ngrok@^4.1.3",
+        "npm:@react-native-async-storage/async-storage@2.2.0",
+        "npm:@react-native-community/datetimepicker@^8.6.0",
+        "npm:@react-native-google-signin/google-signin@^16.1.2",
+        "npm:@react-navigation/bottom-tabs@^7.12.0",
+        "npm:@react-navigation/native-stack@^7.12.0",
+        "npm:@react-navigation/native@^7.1.28",
+        "npm:@supabase/supabase-js@^2.95.3",
+        "npm:@testing-library/react-native@^12.4.0",
+        "npm:@types/jest@^29.5.12",
+        "npm:@types/react@~19.1.10",
+        "npm:@types/supercluster@^7.1.3",
+        "npm:@typescript-eslint/eslint-plugin@7",
+        "npm:@typescript-eslint/parser@7",
+        "npm:eslint-config-expo@10.0",
+        "npm:eslint-config-prettier@^9.1.0",
+        "npm:eslint-import-resolver-typescript@^3.10.1",
+        "npm:eslint-plugin-prettier@^5.1.0",
+        "npm:eslint@^8.57.0",
+        "npm:expo-apple-authentication@~8.0.8",
+        "npm:expo-asset@~12.0.12",
+        "npm:expo-build-properties@~1.0.10",
+        "npm:expo-camera@~17.0.10",
+        "npm:expo-constants@~18.0.13",
+        "npm:expo-dev-client@~6.0.20",
+        "npm:expo-file-system@~19.0.21",
+        "npm:expo-image-picker@~17.0.10",
+        "npm:expo-linear-gradient@~15.0.8",
+        "npm:expo-location@~19.0.8",
+        "npm:expo-mcp@~0.2.1",
+        "npm:expo-sqlite@~16.0.10",
+        "npm:expo-status-bar@~3.0.9",
+        "npm:expo@^54.0.33",
+        "npm:husky@9",
+        "npm:jest-expo@~54.0.17",
+        "npm:jest@^29.7.0",
+        "npm:lint-staged@^15.2.0",
+        "npm:prettier@^3.2.0",
+        "npm:react-dom@19.1.0",
+        "npm:react-native-maps@1.20.1",
+        "npm:react-native-safe-area-context@5.6",
+        "npm:react-native-screens@4.16",
+        "npm:react-native-url-polyfill@3",
+        "npm:react-native-web@0.21",
+        "npm:react-native@0.81.5",
+        "npm:react-test-renderer@19.1.0",
+        "npm:react@19.1.0",
+        "npm:supercluster@^8.0.1",
+        "npm:typescript@~5.9.2"
+      ]
+    }
+  }
+}

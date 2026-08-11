@@ -80,9 +80,10 @@ export function OnboardingScreen({ navigation }: Props) {
     }
   };
 
-  const handleSkip = () => {
-    completeOnboarding();
-    navigation.navigate('MainTabs', { screen: 'MapTab', params: { screen: 'Map' } });
+  // スキップは最終スライドへ飛ばすだけ。オンボーディングを抜ける道は
+  // 「続ける」= 権限リクエストの1本に絞る（App Store Guideline 5.1.1(iv)）
+  const handleSkipToLastSlide = () => {
+    flatListRef.current?.scrollToIndex({ index: slides.length - 1 });
   };
 
   const handleComplete = async () => {
@@ -108,9 +109,11 @@ export function OnboardingScreen({ navigation }: Props) {
   return (
     <SafeAreaView style={styles.container} testID="onboarding-screen">
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleSkip} testID="skip-button">
-          <Text style={styles.skipText}>スキップ</Text>
-        </TouchableOpacity>
+        {!isLastSlide && (
+          <TouchableOpacity onPress={handleSkipToLastSlide} testID="skip-button">
+            <Text style={styles.skipText}>スキップ</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <FlatList
@@ -123,6 +126,12 @@ export function OnboardingScreen({ navigation }: Props) {
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
         keyExtractor={(_, index) => String(index)}
+        // 全スライドが画面幅ちょうど。離れたページへ直接飛ぶには getItemLayout が要る
+        getItemLayout={(_, index) => ({
+          length: SCREEN_WIDTH,
+          offset: SCREEN_WIDTH * index,
+          index,
+        })}
         testID="onboarding-flatlist"
       />
 
@@ -131,15 +140,12 @@ export function OnboardingScreen({ navigation }: Props) {
 
         <View style={styles.buttons}>
           {isLastSlide ? (
-            <>
-              <Button
-                title="位置情報を許可して始める"
-                onPress={handleComplete}
-                variant="primary"
-                style={styles.primaryButton}
-              />
-              <Button title="あとで設定する" onPress={handleSkip} variant="ghost" />
-            </>
+            <Button
+              title="続ける"
+              onPress={handleComplete}
+              variant="primary"
+              style={styles.primaryButton}
+            />
           ) : (
             <Button
               title="次へ"
