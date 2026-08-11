@@ -8,6 +8,7 @@ import { RecordScreen } from '@screens/RecordScreen';
 import { RecordCompleteScreen } from '@screens/RecordCompleteScreen';
 import { TermsOfServiceScreen } from '@screens/TermsOfServiceScreen';
 import { PrivacyPolicyScreen } from '@screens/PrivacyPolicyScreen';
+import { AccountDeletionScreen } from '@screens/AccountDeletionScreen';
 import { ErrorScreen } from '@screens/ErrorScreen';
 import { useOnboarding } from '@hooks/useOnboarding';
 import type { RootStackParamList } from '@/navigation/types';
@@ -36,6 +37,7 @@ export function RootNavigator() {
       <Stack.Screen name="Login" component={LoginScreen} options={{ presentation: 'modal' }} />
       <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
       <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
+      <Stack.Screen name="AccountDeletion" component={AccountDeletionScreen} />
       <Stack.Screen name="Error" component={ErrorScreen} />
     </Stack.Navigator>
   );

@@ -57,3 +57,9 @@ coverage/
 
 # Supabase CLI の一時ファイル
 supabase/.temp/
+
+# deno test の実行で生成される（リポジトリでは管理しない）
+deno.lock
+
+# Playwright/検証で生成されるスクショ（証跡は .claude/harness/evidence/ に置く）
+/onboarding-last-slide.png

@@ -3,6 +3,13 @@
   "phase": "Phase 1: 記録体験の磨き込み（docs/product/direction.md 参照）",
   "features": [
     {
+      "id": "P0-01",
+      "title": "App Store 審査対応（3回目の却下: アカウント削除 / カメラ / 位置情報プロンプト）",
+      "note": "2026-08-10 却下（v1.0 (12) / Submission 761a38c9-2eb8-4341-8603-252b161be183 / iPhone 17 Pro Max + iPad Air M3）。①5.1.1(v) アカウント削除が無い → Issue #134 で実装（契約書 docs/issues/issue-134-account-deletion.md・ブランチ feature/issue-134-account-deletion・未 push）。②2.1(a) カメラ無反応 → PR #121 で修正済み（build 12 に入っていなかっただけ）。③5.1.1(iv) 位置情報の事前プロンプト → ブランチ fix/onboarding-permission-prompt（未 push）。3件すべてを build 13 に載せて1回で再提出する。⚠️ 残タスク: (a) Edge Function `delete-account` の本番デプロイ、(b) migration 20260811000000 の SQL Editor 適用、(c) 実機での削除フロー確認、(d) **Apple が要求する実機の画面収録**を App Review Information の Notes に添付、(e) build 13 のビルドと submit。buildNumber は eas.json が appVersionSource: remote + autoIncrement のため手動バンプ不要。",
+      "issue": 134,
+      "passes": false
+    },
+    {
       "id": "P1-01",
       "title": "Maestro E2E の実戦検証（スモークフローを実機/シミュレータで通す）",
       "note": "Maestro 2.8.0 を導入し、ストアスクショ撮影フロー(e2e/flows/store-screenshots.yaml)をシミュレータで実走させた(2026-08-02)。残りは smoke.yaml のセレクタ確定と CI 組み込み",
