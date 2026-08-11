@@ -1,4 +1,5 @@
 import React from 'react';
+import { StyleSheet } from 'react-native';
 import { render } from '@testing-library/react-native';
 import { SpotInfoSection } from '../SpotInfoSection';
 import type { ParsedSpotInfo } from '@hooks/useSpotInfo';
@@ -81,5 +82,41 @@ describe('SpotInfoSection', () => {
     };
     const { queryByTestId } = render(<SpotInfoSection spotInfo={spotInfo} />);
     expect(queryByTestId('spot-info-section')).toBeNull();
+  });
+
+  // 長い注記を1行に切り詰めると、切れた先を見る手段が無いまま情報が消える
+  // （横スクロールも詳細表示も無い）。行数を制限せず折り返す
+  describe('長い情報の折り返し', () => {
+    const longNotes: ParsedSpotInfo = {
+      receptionHours: {
+        notes:
+          '最終受付 4-9月16:30／10・3月16:00／11・2月15:30／12-1月15:00・2026年8月時点／公式サイト',
+      },
+    };
+
+    it('テキストの行数を制限しないこと', () => {
+      const { getByText } = render(<SpotInfoSection spotInfo={longNotes} />);
+      const node = getByText(/最終受付/);
+      expect(node.props.numberOfLines).toBeUndefined();
+    });
+
+    it('注記を末尾まで省略せずに保持すること', () => {
+      const { getByText } = render(<SpotInfoSection spotInfo={longNotes} />);
+      expect(getByText(/公式サイト）$/)).toBeTruthy();
+    });
+
+    // row の中の Text は flexShrink を持たないと折り返さずにはみ出す（RN の既定は 0）
+    it('テキストが縮んで折り返せること', () => {
+      const { getByText } = render(<SpotInfoSection spotInfo={longNotes} />);
+      const style = StyleSheet.flatten(getByText(/最終受付/).props.style);
+      expect(style.flexShrink).toBe(1);
+    });
+
+    // 複数行になったときにアイコンが中央に浮かないこと
+    it('チップの中身を上端で揃えること', () => {
+      const { getByTestId } = render(<SpotInfoSection spotInfo={longNotes} />);
+      const style = StyleSheet.flatten(getByTestId('spot-info-item-0').props.style);
+      expect(style.alignItems).toBe('flex-start');
+    });
   });
 });
