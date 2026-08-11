@@ -197,6 +197,22 @@ export type DeleteAccountResult =
 
 ## 既知の制約（PR #136 の auto-review より）
 
-1. **A 群（401 経路）は機械検証されていない**。`Deno.serve` が import 時に走るため `index.ts` の `getUser` 分岐をユニットテストにできなかった。**`getUser` も `DeleteAccountDeps` に注入する形にすれば固定できた**（次回の改善候補）。当面はデプロイ後に `curl -X POST <fn-url>`（ヘッダ無し／でたらめな Bearer）で 401 を2回確認して代替する。
+1. **A 群（401 経路）は CI では検証されない**。`Deno.serve` が import 時に走るため `index.ts` の `getUser` 分岐をユニットテストにできなかった。**`getUser` も `DeleteAccountDeps` に注入する形にすれば固定できた**（次回の改善候補）。
+
+   → **2026-08-11 のデプロイ後に本番で実証済み**。4パターンすべて `HTTP 401` / `{"success":false,"error":"ログインが必要です"}` を返すことを確認した:
+
+   | ケース | 結果 |
+   | --- | --- |
+   | `Authorization` ヘッダ無し（A-1） | 401 |
+   | でたらめな Bearer（A-2） | 401 |
+   | ボディに他人の `user_id` を入れてヘッダ無し（A-4） | 401 |
+   | anon キーを Bearer に載せる（未ログインのクライアント相当） | 401 |
+
+   ```
+   curl -s -w "HTTP %{http_code}\n" -X POST \
+     https://tvnozkpxncmnehyomoff.supabase.co/functions/v1/delete-account
+   ```
+
+   関数を再デプロイしたら同じ確認をすること（`verify_jwt = false` なので、この 401 がアプリ外からの削除に対する唯一の防衛線）。
 2. **削除は成功したがレスポンスがクライアントに届かなかった場合**、ユーザーはエラー画面のまま再送し、2回目は `getUser` の時点で 401 になって「ログインが必要です」と出るだけで詰まる。本来は「セッションが切れています。再ログインしてください」と案内してサインアウトさせたい。**いまは `functions.invoke` のエラーから 401 と他の失敗を区別できない**ため、推測でハンドリングを足さず記録に留めた。頻度は低い（削除は1ユーザーにつき一度きりの操作）。
 3. `console.log('[delete-account] done:', userId)` で UUID をログに残している。内部識別子なので PII ではないが、ログの保持期間・アクセス制御によっては「誰がいつ退会したか」の相関が残る。
