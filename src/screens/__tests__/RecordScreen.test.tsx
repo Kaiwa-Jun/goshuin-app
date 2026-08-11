@@ -358,7 +358,15 @@ describe('RecordScreen', () => {
 
   it('メモ欄の下にガイドテキストが表示されること', () => {
     const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
-    expect(getByText(/駐車場の有無、受付時間、アクセス情報などを書くと/)).toBeTruthy();
+    expect(getByText(/駐車場の有無、アクセス情報などを書くと/)).toBeTruthy();
+  });
+
+  // D-6（案A）: 受付時間は公式サイトから seed するようにしたので、
+  // メモに書いてもらう対象から外す。駐車場とアクセス情報はメモが唯一の
+  // 供給源なので残す（本番でそれぞれ 3件 / 1件しかない）
+  it('ガイドテキストが受付時間を書くよう促していないこと', () => {
+    const { queryByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    expect(queryByText(/受付時間/)).toBeNull();
   });
 
   it('navigates to Error screen when submit fails', async () => {

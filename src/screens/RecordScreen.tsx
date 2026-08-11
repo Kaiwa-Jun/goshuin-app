@@ -270,7 +270,7 @@ export function RecordScreen({ navigation, route }: Props) {
           </View>
 
           <Text style={styles.memoGuide}>
-            駐車場の有無、受付時間、アクセス情報などを書くと、{'\n'}
+            駐車場の有無、アクセス情報などを書くと、{'\n'}
             スポット情報として自動的に反映されます
           </Text>
 
