@@ -13,14 +13,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Badge } from '@components/common/Badge';
+import { Button } from '@components/common/Button';
 import { Card } from '@components/common/Card';
-import { WishlistButton } from '@components/animated/WishlistButton';
 import { useAuth } from '@hooks/useAuth';
 import { useCollectionStats } from '@hooks/useCollectionStats';
-import { useWishlistSpots } from '@hooks/useWishlistSpots';
 import { getAllBadges } from '@services/badges';
-import { removeFromWishlist } from '@services/wishlist';
 import { colors } from '@theme/colors';
 import { borderRadius, spacing } from '@theme/spacing';
 import { typography } from '@theme/typography';
@@ -34,8 +31,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 type Props = CollectionStackScreenProps<'CollectionList'>;
 
 export function CollectionScreen({ navigation }: Props) {
-  const { user } = useAuth();
-  const { spots: wishlistSpots, refetch: refetchWishlist } = useWishlistSpots();
+  const { isAuthenticated } = useAuth();
   const { spotCount, stampCount, regionStats, pilgrimageProgress, isLoading } =
     useCollectionStats();
 
@@ -55,12 +51,6 @@ export function CollectionScreen({ navigation }: Props) {
       }
       return next;
     });
-  };
-
-  const handleRemoveFromWishlist = async (spotId: string) => {
-    if (!user) return;
-    await removeFromWishlist(user.id, spotId);
-    refetchWishlist();
   };
 
   const handlePilgrimageDetail = (pilgrimageId: string, pilgrimageName: string) => {
@@ -93,7 +83,7 @@ export function CollectionScreen({ navigation }: Props) {
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerText}>コレクション</Text>
+        <Text style={styles.headerText}>あつめる</Text>
       </View>
 
       <ScrollView
@@ -101,6 +91,26 @@ export function CollectionScreen({ navigation }: Props) {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
+        {/* Guest Card（未ログイン時のみ） */}
+        {!isAuthenticated && (
+          <View testID="collection-guest-empty-state">
+            <Card style={styles.guestCard}>
+              <MaterialIcons name="emoji-events" size={40} color={colors.primary[500]} />
+              <Text style={styles.guestCardTitle}>記録するとここに集計されます</Text>
+              <Text style={styles.guestCardDescription}>
+                訪れた寺社の数・都道府県の埋まり方・巡礼の進捗・獲得バッジが自動でたまります
+              </Text>
+              <Button
+                title="ログインして始める"
+                variant="primary"
+                testID="collection-login-cta"
+                onPress={() => navigation.navigate('Login')}
+                style={styles.guestCardCta}
+              />
+            </Card>
+          </View>
+        )}
+
         {/* Achievement Summary Card */}
         <View style={styles.summaryCardOuter}>
           {/* 右上の装飾アイコン */}
@@ -193,7 +203,11 @@ export function CollectionScreen({ navigation }: Props) {
 
             {otherPilgrimages.length > 0 && (
               <TouchableOpacity
-                onPress={() => setShowAllPilgrimages(!showAllPilgrimages)}
+                onPress={() => {
+                  // 地域別ブロックの開閉と同じ作法に揃える（監査 A-11）
+                  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                  setShowAllPilgrimages(!showAllPilgrimages);
+                }}
                 style={styles.toggleButton}
               >
                 <Text style={styles.toggleText}>
@@ -291,44 +305,6 @@ export function CollectionScreen({ navigation }: Props) {
             );
           })
         )}
-
-        {/* Wishlist Section */}
-        <Text style={styles.sectionTitle}>行きたいリスト</Text>
-        {wishlistSpots.length === 0 ? (
-          <Card style={styles.wishlistEmptyCard}>
-            <MaterialIcons name="outlined-flag" size={40} color={colors.gray[300]} />
-            <Text style={styles.wishlistEmptyText}>行きたいスポットをマップで保存しましょう</Text>
-          </Card>
-        ) : (
-          wishlistSpots.map(item => (
-            <View key={item.id} testID={`wishlist-item-${item.spot_id}`}>
-              <Card style={styles.wishlistCard}>
-                <View style={styles.wishlistRow}>
-                  <View style={styles.wishlistInfo}>
-                    <View style={styles.wishlistNameRow}>
-                      <Text style={styles.wishlistSpotName} numberOfLines={1}>
-                        {item.spots.name}
-                      </Text>
-                      <Badge type={item.spots.type === 'shrine' ? 'shrine' : 'temple'} />
-                    </View>
-                    {item.spots.address && (
-                      <View style={styles.wishlistAddressRow}>
-                        <MaterialIcons name="place" size={14} color={colors.gray[400]} />
-                        <Text style={styles.wishlistAddress} numberOfLines={1}>
-                          {item.spots.address}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                  <WishlistButton
-                    isWishlisted={true}
-                    onPress={() => handleRemoveFromWishlist(item.spot_id)}
-                  />
-                </View>
-              </Card>
-            </View>
-          ))
-        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -354,6 +330,26 @@ const styles = StyleSheet.create({
   content: {
     padding: spacing.lg,
     paddingBottom: spacing['4xl'],
+  },
+  guestCard: {
+    alignItems: 'center',
+    marginBottom: spacing.xl,
+  },
+  guestCardTitle: {
+    ...typography.h3,
+    color: colors.gray[800],
+    marginTop: spacing.md,
+    textAlign: 'center',
+  },
+  guestCardDescription: {
+    ...typography.bodySmall,
+    color: colors.gray[500],
+    marginTop: spacing.sm,
+    textAlign: 'center',
+  },
+  guestCardCta: {
+    marginTop: spacing.lg,
+    alignSelf: 'stretch',
   },
   summaryCardOuter: {
     backgroundColor: colors.primary[500],
@@ -597,47 +593,5 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.gray[400],
     textAlign: 'center',
-  },
-  wishlistEmptyCard: {
-    alignItems: 'center',
-    paddingVertical: spacing.xl,
-    marginBottom: spacing.xl,
-    gap: spacing.sm,
-  },
-  wishlistEmptyText: {
-    ...typography.bodySmall,
-    color: colors.gray[400],
-    textAlign: 'center',
-  },
-  wishlistCard: {
-    marginBottom: spacing.md,
-  },
-  wishlistRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  wishlistInfo: {
-    flex: 1,
-  },
-  wishlistNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.xs,
-  },
-  wishlistSpotName: {
-    ...typography.body,
-    color: colors.gray[800],
-    flexShrink: 1,
-  },
-  wishlistAddressRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  wishlistAddress: {
-    ...typography.bodySmall,
-    color: colors.gray[500],
-    flex: 1,
   },
 });

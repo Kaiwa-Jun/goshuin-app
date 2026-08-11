@@ -261,23 +261,39 @@ describe('stamps service', () => {
   });
 
   describe('deleteStamp', () => {
-    it('deletes image then DB record', async () => {
+    // 画像を先に消すと、DB 行の削除に失敗したときに
+    // 「画像の出ない御朱印」がギャラリーに残る。行を先に消せば
+    // 失敗時に残るのは孤児画像だけで、ユーザーから見た表示は壊れない（E-1）
+    it('deletes DB record before the image', async () => {
+      const callOrder: string[] = [];
+
       mockStorageFrom.mockReturnValue({ remove: mockRemove });
-      mockRemove.mockReturnValue({ error: null });
+      mockRemove.mockImplementation(() => {
+        callOrder.push('image');
+        return { error: null };
+      });
       mockFrom.mockReturnValue({ delete: mockDelete });
       mockDelete.mockReturnValue({ eq: mockEq });
-      mockEq.mockReturnValue({ error: null });
+      mockEq.mockImplementation(() => {
+        callOrder.push('db');
+        return { error: null };
+      });
 
       await deleteStamp('stamp-1', 'img/1.jpg');
-      expect(mockRemove).toHaveBeenCalledWith(['img/1.jpg']);
+
+      expect(callOrder).toEqual(['db', 'image']);
       expect(mockFrom).toHaveBeenCalledWith('stamps');
       expect(mockDelete).toHaveBeenCalled();
       expect(mockEq).toHaveBeenCalledWith('id', 'stamp-1');
+      expect(mockRemove).toHaveBeenCalledWith(['img/1.jpg']);
     });
 
     it('throws if image deletion fails', async () => {
       mockStorageFrom.mockReturnValue({ remove: mockRemove });
       mockRemove.mockReturnValue({ error: { message: 'image delete error' } });
+      mockFrom.mockReturnValue({ delete: mockDelete });
+      mockDelete.mockReturnValue({ eq: mockEq });
+      mockEq.mockReturnValue({ error: null });
 
       await expect(deleteStamp('stamp-1', 'img/1.jpg')).rejects.toThrow('image delete error');
     });
@@ -290,6 +306,18 @@ describe('stamps service', () => {
       mockEq.mockReturnValue({ error: { message: 'db delete error' } });
 
       await expect(deleteStamp('stamp-1', 'img/1.jpg')).rejects.toThrow('db delete error');
+    });
+
+    // 行が消せていないのに画像だけ消えるのが最悪のケース（E-2）
+    it('does not delete the image when the DB deletion fails', async () => {
+      mockStorageFrom.mockReturnValue({ remove: mockRemove });
+      mockRemove.mockReturnValue({ error: null });
+      mockFrom.mockReturnValue({ delete: mockDelete });
+      mockDelete.mockReturnValue({ eq: mockEq });
+      mockEq.mockReturnValue({ error: { message: 'db delete error' } });
+
+      await expect(deleteStamp('stamp-1', 'img/1.jpg')).rejects.toThrow('db delete error');
+      expect(mockRemove).not.toHaveBeenCalled();
     });
   });
 });

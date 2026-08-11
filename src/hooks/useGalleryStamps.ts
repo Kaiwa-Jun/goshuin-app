@@ -67,9 +67,12 @@ export function useGalleryStamps(sortOrder: SortOrder): UseGalleryStampsReturn {
     const sorted = [...allStamps];
     if (sortOrder === 'spot') {
       sorted.sort((a, b) => a.spots.name.localeCompare(b.spots.name, 'ja'));
+      return sorted;
     }
-    // date order is already sorted from API (visited_at DESC)
-    return sorted;
+    // 御朱印帳は古い順に綴じていくもの。グリッドも左上が最も古く、右へ・下へ
+    // 進むほど新しくなるようにする（めくり表示の 1ページ目 = 最も古い と揃う）。
+    // API は visited_at DESC で返すので反転する
+    return sorted.reverse();
   }, [allStamps, sortOrder]);
 
   return {

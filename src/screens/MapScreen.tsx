@@ -103,6 +103,9 @@ export function MapScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
 
   const searchRowTop = insets.top + spacing.xs;
+  // 検索行の直下。位置情報バナーはさらにこの下へずらす
+  const wishlistEntryTop = searchRowTop + 52;
+  const locationBannerTop = wishlistEntryTop + 44;
 
   // 設定画面から戻った際に位置情報を再取得し、地図を現在地に移動する
   const appStateRef = useRef(AppState.currentState);
@@ -335,6 +338,20 @@ export function MapScreen({ navigation, route }: Props) {
         )}
       </View>
 
+      <TouchableOpacity
+        style={[styles.wishlistEntry, { top: wishlistEntryTop }]}
+        onPress={() => navigation.navigate('Wishlist')}
+        activeOpacity={0.7}
+        testID="wishlist-entry"
+      >
+        <MaterialIcons name="bookmark" size={18} color={colors.pin.wishlisted} />
+        <Text style={styles.wishlistEntryText}>
+          {/* ピン着色用に既に取っている ID の Set を使う。
+              件数表示のために詳細付きの JOIN クエリを再取得しない */}
+          {wishlistSpotIds.size > 0 ? `行きたい (${wishlistSpotIds.size})` : '行きたい'}
+        </Text>
+      </TouchableOpacity>
+
       {showFilter && (
         <Pressable
           style={styles.filterOverlay}
@@ -425,7 +442,7 @@ export function MapScreen({ navigation, route }: Props) {
 
       {permissionStatus === PermissionStatus.DENIED && (
         <TouchableOpacity
-          style={[styles.locationOffBanner, { top: searchRowTop + 52 }]}
+          style={[styles.locationOffBanner, { top: locationBannerTop }]}
           onPress={() => navigation.navigate('Error', { type: 'location' })}
           activeOpacity={0.8}
           testID="location-off-banner"
@@ -545,9 +562,27 @@ const styles = StyleSheet.create({
     color: colors.primary[600],
     fontSize: 13,
   },
+  wishlistEntry: {
+    position: 'absolute',
+    left: spacing.lg,
+    zIndex: 9,
+    minHeight: 36,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.lg,
+    backgroundColor: colors.white,
+    ...shadows.sm,
+  },
+  wishlistEntryText: {
+    ...typography.bodySmall,
+    color: colors.gray[700],
+  },
   fabContainer: {
     position: 'absolute',
     bottom: 20,
-    alignSelf: 'center',
+    right: 20,
   },
 });

@@ -16,12 +16,12 @@ describe('PhotoSection', () => {
     jest.clearAllMocks();
   });
 
-  it('未選択時に「写真を追加」テキスト表示', () => {
+  it('未選択時に「タップして撮影」テキスト表示', () => {
     const { getByText } = render(
       <PhotoSection imageUri={null} onPress={mockOnPress} error={null} />
     );
 
-    expect(getByText('写真を追加')).toBeTruthy();
+    expect(getByText('タップして撮影')).toBeTruthy();
   });
 
   it('選択済み時に Image コンポーネント表示', () => {

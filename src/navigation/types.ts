@@ -14,12 +14,24 @@ export type RootStackParamList = {
         spotName?: string;
         visitCount?: number;
         badge?: { name: string; description: string } | null;
+        // 記録の取り消し用。deleteStamp が ID と画像パスの両方を要求する
+        stampId?: string;
+        imagePath?: string;
       }
     | undefined;
   Login: undefined;
   TermsOfService: undefined;
   PrivacyPolicy: undefined;
-  Error: { type: 'network' | 'location' | 'upload'; origin?: 'record' };
+  // Settings はスタックを持たないタブ画面なので、そこから開く画面は RootStack に置く
+  AccountDeletion: undefined;
+  Error: {
+    type: 'network' | 'location' | 'upload';
+    origin?: 'record';
+    /** 失敗した処理。'upload' と 'create' で画面の見出しが変わる */
+    stage?: 'upload' | 'create';
+    /** 例外の原文。切り分けのため画面にそのまま出す */
+    message?: string;
+  };
 };
 
 export type CollectionStackParamList = {
@@ -38,6 +50,7 @@ export type MapStackParamList = {
   Map: { focusSpotId?: string; focusPrefecture?: string } | undefined;
   SpotDetail: { spotId: string };
   Search: undefined;
+  Wishlist: undefined;
 };
 
 export type GalleryStackParamList = {

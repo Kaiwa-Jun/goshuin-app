@@ -73,8 +73,9 @@ describe('useGalleryStamps', () => {
     expect(mockFetchAllStamps).toHaveBeenCalledWith('user-1');
   });
 
-  it('日付順: API のソート順のまま返る', async () => {
+  it('日付順: 古い順（昇順）で返る', async () => {
     mockUser = { id: 'user-1' };
+    // API は visited_at DESC で返す
     const stamps = [
       makeStampWithSpot({ id: 'stamp-1', visited_at: '2024-06-01' }),
       makeStampWithSpot({ id: 'stamp-2', visited_at: '2024-01-15' }),
@@ -87,8 +88,9 @@ describe('useGalleryStamps', () => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    expect(result.current.stamps[0].id).toBe('stamp-1');
-    expect(result.current.stamps[1].id).toBe('stamp-2');
+    // 御朱印帳は古い順に綴じていくもの。グリッドの左上が最も古くなる
+    expect(result.current.stamps[0].id).toBe('stamp-2');
+    expect(result.current.stamps[1].id).toBe('stamp-1');
   });
 
   it('スポット順: localeCompare("ja") でソートされる', async () => {

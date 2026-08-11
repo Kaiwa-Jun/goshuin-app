@@ -1,19 +1,33 @@
 # スモークテスト: 起動 → オンボーディング通過 → 4タブが表示される
-# NOTE: ドラフト（P1-01 で実機検証するまでセレクタは未確定）
 appId: com.goshuin.app
 ---
-- launchApp
-# 初回起動時のみオンボーディングをスキップ
+# 位置情報は launchApp で許可しておく。OS ダイアログを tapOn で捌くと
+# 文言がロケール依存（英語 "Allow While Using App" / 日本語「Appの使用中は許可」）になり、
+# 一致しない環境では runFlow の when が false になって**静かにスキップされ、
+# テストは緑のまま権限フローが未検証になる**
+- launchApp:
+    permissions:
+      location: allow
+# 初回起動時のみオンボーディングを通過する。
+# スキップは最終スライドへ飛ぶだけで、抜けるには「続ける」を押す必要がある
+# （権限リクエストを回避させないため。App Store Guideline 5.1.1(iv)）
 - runFlow:
     when:
       visible: "スキップ"
     commands:
       - tapOn: "スキップ"
+      # 最終スライドの脱出口は「続ける」の1つだけ。ここは条件付きにしない
+      - assertVisible: "続ける"
+      - assertNotVisible: "あとで設定する"
+      - tapOn: "続ける"
 # メインタブの表示確認
 - assertVisible: "地図"
-- assertVisible: "ギャラリー"
-- assertVisible: "コレクション"
-- assertVisible: "設定"
-# タブ遷移の確認（未ログイン時はギャラリーがログインモーダルに遷移するため地図系のみ）
-- tapOn: "コレクション"
+- assertVisible: "御朱印帳"
+- assertVisible: "あつめる"
+- assertVisible: "自分"
+# 未ログインでも御朱印帳/あつめるタブに入れる（Issue #102）
+- tapOn: "御朱印帳"
+- assertVisible: "あなたの御朱印帳"
+- tapOn: "あつめる"
+- assertVisible: "記録するとここに集計されます"
 - tapOn: "地図"

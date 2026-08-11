@@ -143,6 +143,21 @@ jest.mock('expo-apple-authentication', () => ({
   AppleAuthenticationButton: 'AppleAuthenticationButton',
 }));
 
+// expo-file-system mock（画像アップロードでファイルをバイト列として読む）
+jest.mock('expo-file-system', () => {
+  class File {
+    constructor(...uris) {
+      this.uri = uris.join('/');
+    }
+
+    async bytes() {
+      return new Uint8Array([0xff, 0xd8, 0xff, 0xe0]);
+    }
+  }
+
+  return { File };
+});
+
 // expo-location mock
 jest.mock('expo-location', () => ({
   getForegroundPermissionsAsync: jest.fn(() => Promise.resolve({ status: 'granted' })),

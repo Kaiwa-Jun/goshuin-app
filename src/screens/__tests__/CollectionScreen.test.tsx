@@ -14,11 +14,13 @@ jest.mock('react-native-safe-area-context', () => {
   };
 });
 
+let mockAuth: { user: { id: string } | null; isAuthenticated: boolean } = {
+  user: { id: 'user-1' },
+  isAuthenticated: true,
+};
+
 jest.mock('@hooks/useAuth', () => ({
-  useAuth: () => ({
-    user: { id: 'user-1' },
-    isAuthenticated: true,
-  }),
+  useAuth: () => mockAuth,
 }));
 
 const mockRefetch = jest.fn();
@@ -127,6 +129,7 @@ const mockRoute = {
 describe('CollectionScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockAuth = { user: { id: 'user-1' }, isAuthenticated: true };
     mockWishlistSpots = [];
     mockCollectionStats = {
       spotCount: 10,
@@ -167,7 +170,7 @@ describe('CollectionScreen', () => {
     const { getByText } = render(
       <CollectionScreen navigation={mockNavigation} route={mockRoute} />
     );
-    expect(getByText('コレクション')).toBeTruthy();
+    expect(getByText('あつめる')).toBeTruthy();
   });
 
   it('統計サマリーに spotCount/stampCount が表示される', () => {
@@ -287,23 +290,15 @@ describe('CollectionScreen', () => {
     });
   });
 
-  describe('Wishlist section', () => {
-    it('renders wishlist section title', () => {
-      const { getByText } = render(
+  describe('行きたいリストの移設（Issue #123）', () => {
+    it('行きたいリストの見出しが無い', () => {
+      const { queryByText } = render(
         <CollectionScreen navigation={mockNavigation} route={mockRoute} />
       );
-      expect(getByText('行きたいリスト')).toBeTruthy();
+      expect(queryByText('行きたいリスト')).toBeNull();
     });
 
-    it('renders empty state when no wishlist spots', () => {
-      mockWishlistSpots = [];
-      const { getByText } = render(
-        <CollectionScreen navigation={mockNavigation} route={mockRoute} />
-      );
-      expect(getByText('行きたいスポットをマップで保存しましょう')).toBeTruthy();
-    });
-
-    it('renders wishlist items', () => {
+    it('行きたいのカードが描画されない', () => {
       mockWishlistSpots = [
         {
           id: 'wl-1',
@@ -313,34 +308,74 @@ describe('CollectionScreen', () => {
           spots: { name: '伊勢神宮', type: 'shrine', address: '三重県伊勢市宇治館町1' },
         },
       ];
-      const { getByText, getByTestId } = render(
+      const { queryByText, queryByTestId } = render(
         <CollectionScreen navigation={mockNavigation} route={mockRoute} />
       );
-      expect(getByText('伊勢神宮')).toBeTruthy();
-      expect(getByTestId('wishlist-item-spot-1')).toBeTruthy();
+      expect(queryByTestId('wishlist-item-spot-1')).toBeNull();
+      expect(queryByText('伊勢神宮')).toBeNull();
     });
 
-    it('calls removeFromWishlist and refetch when wishlist button is pressed', async () => {
-      mockWishlistSpots = [
-        {
-          id: 'wl-1',
-          user_id: 'user-1',
-          spot_id: 'spot-1',
-          created_at: '2026-01-01T00:00:00Z',
-          spots: { name: '伊勢神宮', type: 'shrine', address: '三重県伊勢市宇治館町1' },
-        },
-      ];
+    it('獲得バッジ・巡礼チャレンジ・地域別の3セクションは残る', () => {
+      const { getByText } = render(
+        <CollectionScreen navigation={mockNavigation} route={mockRoute} />
+      );
+      expect(getByText('獲得バッジ')).toBeTruthy();
+      expect(getByText('巡礼チャレンジ')).toBeTruthy();
+      expect(getByText('地域別')).toBeTruthy();
+    });
+  });
+
+  describe('未ログイン時のゲストカード', () => {
+    beforeEach(() => {
+      mockAuth = { user: null, isAuthenticated: false };
+    });
+
+    it('ゲストカードとタイトル・説明を表示する', () => {
+      const { getByTestId, getByText } = render(
+        <CollectionScreen navigation={mockNavigation} route={mockRoute} />
+      );
+      expect(getByTestId('collection-guest-empty-state')).toBeTruthy();
+      expect(getByText('記録するとここに集計されます')).toBeTruthy();
+      expect(
+        getByText('訪れた寺社の数・都道府県の埋まり方・巡礼の進捗・獲得バッジが自動でたまります')
+      ).toBeTruthy();
+    });
+
+    it('CTA を押すと Login へ navigate する', () => {
       const { getByTestId } = render(
         <CollectionScreen navigation={mockNavigation} route={mockRoute} />
       );
-
-      fireEvent.press(getByTestId('wishlist-button'));
-
-      // Wait for async operation
-      await new Promise(resolve => setTimeout(resolve, 0));
-
-      expect(mockRemoveFromWishlist).toHaveBeenCalledWith('user-1', 'spot-1');
-      expect(mockRefetch).toHaveBeenCalled();
+      fireEvent.press(getByTestId('collection-login-cta'));
+      expect(mockNavigate).toHaveBeenCalledTimes(1);
+      expect(mockNavigate).toHaveBeenCalledWith('Login');
     });
+
+    it('データ0件でも既存セクションがプレビューとして残る', () => {
+      mockCollectionStats = {
+        spotCount: 0,
+        stampCount: 0,
+        regionStats: [],
+        pilgrimageProgress: [],
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+      };
+      mockWishlistSpots = [];
+
+      const { getByText } = render(
+        <CollectionScreen navigation={mockNavigation} route={mockRoute} />
+      );
+      expect(getByText('これまでの達成')).toBeTruthy();
+      expect(getByText('獲得バッジ')).toBeTruthy();
+      expect(getByText('巡礼チャレンジに挑戦してみましょう')).toBeTruthy();
+      expect(getByText('御朱印を記録すると地域別の統計が表示されます')).toBeTruthy();
+    });
+  });
+
+  it('ログイン済みのときゲストカードを表示しない', () => {
+    const { queryByTestId } = render(
+      <CollectionScreen navigation={mockNavigation} route={mockRoute} />
+    );
+    expect(queryByTestId('collection-guest-empty-state')).toBeNull();
   });
 });

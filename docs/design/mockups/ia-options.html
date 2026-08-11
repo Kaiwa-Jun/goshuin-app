@@ -1,0 +1,1445 @@
+<title>御朱印さんぽ — 画面構成の3案</title>
+
+<style>
+  :root {
+    --paper: #FAFAF9;
+    --panel: #FFFFFF;
+    --ink: #1C1917;
+    --ink-soft: #57534E;
+    --ink-faint: #A8A29E;
+    --rule: #E7E5E4;
+    --shu: #C1272D;
+    --accent: #f27f0d;
+    --shrine: #EF4444;
+    --temple: #A855F7;
+    --bezel: #292524;
+    --screen: #FFFFFF;
+    --screen-sub: #F5F5F4;
+
+    --sans: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic Medium",
+            "Noto Sans JP", system-ui, sans-serif;
+    --mincho: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "Noto Serif JP", serif;
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #1C1917;
+      --panel: #262322;
+      --ink: #FAFAF9;
+      --ink-soft: #D6D3D1;
+      --ink-faint: #78716C;
+      --rule: #3A3532;
+      --shu: #E8695F;
+      --accent: #FB923C;
+      --bezel: #0C0A09;
+      --screen: #201D1C;
+      --screen-sub: #2B2726;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper: #1C1917;
+    --panel: #262322;
+    --ink: #FAFAF9;
+    --ink-soft: #D6D3D1;
+    --ink-faint: #78716C;
+    --rule: #3A3532;
+    --shu: #E8695F;
+    --accent: #FB923C;
+    --bezel: #0C0A09;
+    --screen: #201D1C;
+    --screen-sub: #2B2726;
+  }
+
+  :root[data-theme="light"] {
+    --paper: #FAFAF9;
+    --panel: #FFFFFF;
+    --ink: #1C1917;
+    --ink-soft: #57534E;
+    --ink-faint: #A8A29E;
+    --rule: #E7E5E4;
+    --shu: #C1272D;
+    --accent: #f27f0d;
+    --bezel: #292524;
+    --screen: #FFFFFF;
+    --screen-sub: #F5F5F4;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: clamp(2rem, 5vw, 4.5rem) clamp(1.1rem, 4vw, 3rem) 6rem;
+  }
+
+  .col {
+    max-width: 62ch;
+  }
+
+  /* ---------- type ---------- */
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--shu);
+    margin: 0 0 0.9rem;
+  }
+
+  h1 {
+    font-family: var(--mincho);
+    font-size: clamp(1.9rem, 4.6vw, 3rem);
+    line-height: 1.25;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    text-wrap: balance;
+    margin: 0 0 1rem;
+  }
+
+  h2 {
+    font-family: var(--mincho);
+    font-size: clamp(1.4rem, 3vw, 1.95rem);
+    line-height: 1.35;
+    font-weight: 600;
+    text-wrap: balance;
+    margin: 0 0 0.6rem;
+  }
+
+  h3 {
+    font-size: 1.02rem;
+    font-weight: 700;
+    line-height: 1.5;
+    margin: 0 0 0.4rem;
+  }
+
+  p { margin: 0 0 1.05rem; }
+
+  .lede {
+    font-size: 1.08rem;
+    color: var(--ink-soft);
+  }
+
+  strong { font-weight: 700; }
+
+  .note {
+    font-size: 0.88rem;
+    color: var(--ink-soft);
+    line-height: 1.7;
+  }
+
+  code {
+    font-family: var(--mono);
+    font-size: 0.86em;
+    background: var(--screen-sub);
+    padding: 0.1em 0.38em;
+    border-radius: 3px;
+  }
+
+  /* ---------- section rhythm ---------- */
+
+  section { margin-top: clamp(3.4rem, 7vw, 5.5rem); }
+
+  .rule-head {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    border-top: 1px solid var(--rule);
+    padding-top: 1.4rem;
+    margin-bottom: 1.6rem;
+  }
+
+  .rule-head .num {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    color: var(--shu);
+    flex: none;
+    padding-top: 0.45rem;
+  }
+
+  /* ---------- callout ---------- */
+
+  .callout {
+    border-left: 3px solid var(--accent);
+    background: var(--panel);
+    padding: 1.15rem 1.3rem;
+    border-radius: 0 8px 8px 0;
+    margin: 1.6rem 0;
+  }
+  .callout p:last-child { margin-bottom: 0; }
+
+  /* ---------- option cards (tab bar comparison) ---------- */
+
+  .options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(255px, 1fr));
+    gap: 1.1rem;
+    margin-top: 1.8rem;
+  }
+
+  .opt {
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    padding: 1.25rem 1.25rem 1.4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+  }
+
+  .opt.is-focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+
+  .opt-label {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+  .opt.is-focus .opt-label { color: var(--accent); }
+
+  .opt h3 { margin: 0; }
+
+  .opt ul {
+    margin: 0;
+    padding-left: 1.05rem;
+    font-size: 0.87rem;
+    line-height: 1.65;
+    color: var(--ink-soft);
+  }
+  .opt li { margin-bottom: 0.2rem; }
+  .opt li::marker { color: var(--ink-faint); }
+
+  /* ---------- mini tab bar ---------- */
+
+  .tabbar {
+    display: flex;
+    background: var(--screen-sub);
+    border: 1px solid var(--rule);
+    border-radius: 7px;
+    padding: 0.45rem 0.2rem 0.35rem;
+    gap: 0.1rem;
+  }
+
+  .tab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    font-size: 0.6rem;
+    color: var(--ink-faint);
+    line-height: 1.3;
+    text-align: center;
+  }
+  .tab svg { width: 17px; height: 17px; }
+  .tab.on { color: var(--accent); }
+
+  .tab.fab-slot svg { width: 25px; height: 25px; }
+  .tab.fab-slot { color: var(--accent); }
+
+  /* ---------- phone frames ---------- */
+
+  .screens {
+    display: flex;
+    flex-wrap: wrap;
+    gap: clamp(1.2rem, 3vw, 2.4rem);
+    margin-top: 2rem;
+    align-items: flex-start;
+  }
+
+  .shot {
+    flex: 0 1 auto;
+    width: 292px;
+    max-width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .phone {
+    width: 292px;
+    max-width: 100%;
+    height: 590px;
+    background: var(--bezel);
+    border-radius: 34px;
+    padding: 9px;
+    box-shadow: 0 14px 34px rgba(28, 25, 23, 0.19);
+  }
+
+  .screen {
+    height: 100%;
+    background: var(--screen);
+    border-radius: 26px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  .caption h3 { margin-bottom: 0.15rem; }
+  .caption p { margin: 0; font-size: 0.85rem; color: var(--ink-soft); line-height: 1.65; }
+
+  /* ---------- in-screen chrome ---------- */
+
+  .s-nav {
+    padding: 1.55rem 1rem 0.65rem;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+    flex: none;
+  }
+
+  .s-title {
+    font-family: var(--mincho);
+    font-size: 1.02rem;
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .s-meta {
+    font-family: var(--mono);
+    font-size: 0.62rem;
+    color: var(--ink-faint);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .s-body {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .s-tabs {
+    flex: none;
+    display: flex;
+    border-top: 1px solid var(--rule);
+    background: var(--screen);
+    padding: 0.42rem 0.15rem 0.6rem;
+  }
+
+  .s-tab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+    font-size: 0.56rem;
+    color: var(--ink-faint);
+  }
+  .s-tab svg { width: 19px; height: 19px; }
+  .s-tab.on { color: var(--accent); }
+
+  /* ---------- goshuincho spread ---------- */
+
+  /* one page large, neighbours peeking at both edges — the 蛇腹 seen head-on */
+  .reader {
+    height: 100%;
+    display: flex;
+    align-items: stretch;
+    padding: 0.5rem 0 1.15rem;
+    background: var(--screen-sub);
+    position: relative;
+  }
+
+  .peek {
+    width: 17px;
+    flex: none;
+    border: 1px solid var(--rule);
+    position: relative;
+    overflow: hidden;
+  }
+  /* the fold: paper turning away from the eye */
+  .peek.left {
+    border-right: none;
+    border-radius: 3px 0 0 3px;
+    background: linear-gradient(to right, var(--screen-sub) 0%, var(--panel) 82%);
+  }
+  .peek.right {
+    border-left: none;
+    border-radius: 0 3px 3px 0;
+    background: linear-gradient(to left, var(--screen-sub) 0%, var(--panel) 82%);
+  }
+  /* sliver of the neighbouring 御朱印 */
+  .peek .stroke { opacity: 0.3; }
+  .peek .seal { opacity: 0.34; }
+
+  .page-main {
+    flex: 1;
+    min-width: 0;
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    box-shadow: 0 3px 14px rgba(28, 25, 23, 0.13);
+    display: flex;
+    flex-direction: column;
+    padding: 0.7rem 0.62rem 0.55rem;
+    gap: 0.55rem;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ---------- view toggle (見開き ⇄ グリッド) ---------- */
+
+  .viewtoggle {
+    display: flex;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    overflow: hidden;
+    flex: none;
+  }
+  .vt {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 27px;
+    height: 22px;
+    color: var(--ink-faint);
+  }
+  .vt svg { width: 14px; height: 14px; }
+  .vt.on { background: var(--accent); color: #fff; }
+
+  .goshuin {
+    flex: 1;
+    background: var(--screen);
+    border: 1px solid var(--rule);
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  /* abstract sumi strokes */
+  .stroke {
+    position: absolute;
+    background: var(--ink);
+    opacity: 0.78;
+    border-radius: 1px;
+  }
+
+  /* the vermilion seal */
+  .seal {
+    position: absolute;
+    border: 2.5px solid var(--shu);
+    border-radius: 2px;
+    opacity: 0.88;
+  }
+  .seal::after {
+    content: "";
+    position: absolute;
+    inset: 3px;
+    border: 1px solid var(--shu);
+    border-radius: 1px;
+    opacity: 0.6;
+  }
+
+  .leaf-foot {
+    flex: none;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.4rem;
+  }
+
+  .leaf-name {
+    font-family: var(--mincho);
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .leaf-date {
+    font-size: 0.66rem;
+    color: var(--ink-faint);
+    font-variant-numeric: tabular-nums;
+    flex: none;
+  }
+
+  /* blank next page = record CTA */
+  .page-main.blank {
+    background: var(--screen-sub);
+    box-shadow: none;
+  }
+
+  .blank-slot {
+    flex: 1;
+    border: 1.5px dashed var(--accent);
+    border-radius: 3px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    color: var(--accent);
+    text-align: center;
+    padding: 0.8rem;
+  }
+  .blank-slot svg { width: 38px; height: 38px; }
+  .blank-slot span { font-size: 0.78rem; line-height: 1.45; font-weight: 700; }
+
+  .pagedots {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0.28rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+  }
+  .pagedots i {
+    width: 4px; height: 4px; border-radius: 50%;
+    background: var(--ink-faint); opacity: 0.4;
+  }
+  .pagedots i.on { background: var(--accent); opacity: 1; width: 12px; border-radius: 2px; }
+  .pagenum {
+    margin-left: 0.5rem;
+    font-family: var(--mono);
+    font-size: 0.56rem;
+    color: var(--ink-faint);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---------- grid view (the toggle's other half) ---------- */
+
+  .gridview {
+    height: 100%;
+    padding: 0.6rem 0.7rem;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.4rem;
+    align-content: start;
+  }
+  .gcell {
+    aspect-ratio: 3 / 4;
+    background: var(--screen);
+    border: 1px solid var(--rule);
+    position: relative;
+    overflow: hidden;
+  }
+  .gcell.empty { background: var(--screen-sub); border-style: dashed; }
+
+  /* ---------- shelf (御朱印帳一覧) ---------- */
+
+  .shelf {
+    padding: 0.7rem 0.85rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    align-content: start;
+    height: 100%;
+  }
+
+  .book {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .cover {
+    aspect-ratio: 3 / 4;
+    border-radius: 2px 5px 5px 2px;
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 1.1rem;
+    box-shadow: 0 3px 9px rgba(28,25,23,0.16);
+    overflow: hidden;
+  }
+  /* spine */
+  .cover::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 7px;
+    background: rgba(0,0,0,0.16);
+  }
+
+  .cover-a { background: linear-gradient(150deg, #3F3B58, #262238); }
+  .cover-b { background: linear-gradient(150deg, #6B2C33, #47191F); }
+  .cover-new {
+    background: var(--screen-sub);
+    border: 1.5px dashed var(--ink-faint);
+    box-shadow: none;
+    align-items: center;
+    justify-content: center;
+    padding-top: 0;
+    color: var(--ink-faint);
+  }
+  .cover-new svg { width: 22px; height: 22px; }
+
+  .cover-title {
+    font-family: var(--mincho);
+    font-size: 0.62rem;
+    color: rgba(255,255,255,0.94);
+    writing-mode: vertical-rl;
+    letter-spacing: 0.14em;
+    background: rgba(255,255,255,0.09);
+    border: 1px solid rgba(255,255,255,0.22);
+    padding: 0.35rem 0.16rem;
+  }
+
+  .book-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.3rem;
+  }
+  .book-name { font-size: 0.66rem; color: var(--ink); font-weight: 600; }
+  .book-count {
+    font-size: 0.58rem; color: var(--ink-faint);
+    font-family: var(--mono); font-variant-numeric: tabular-nums;
+  }
+
+  /* ---------- map screen ---------- */
+
+  .map {
+    height: 100%;
+    position: relative;
+    background: var(--screen-sub);
+    overflow: hidden;
+  }
+
+  .map-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--rule) 1px, transparent 1px),
+      linear-gradient(90deg, var(--rule) 1px, transparent 1px);
+    background-size: 46px 46px;
+    opacity: 0.55;
+  }
+
+  .map-road {
+    position: absolute;
+    background: var(--rule);
+    opacity: 0.9;
+  }
+
+  .searchbar {
+    position: absolute;
+    left: 0.7rem; right: 0.7rem; top: 0.7rem;
+    background: var(--screen);
+    border: 1px solid var(--rule);
+    border-radius: 20px;
+    padding: 0.45rem 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.68rem;
+    color: var(--ink-faint);
+    box-shadow: 0 2px 7px rgba(28,25,23,0.10);
+  }
+  .searchbar svg { width: 13px; height: 13px; flex: none; }
+
+  .pin {
+    position: absolute;
+    width: 13px; height: 13px;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  }
+  .pin.visited-shrine { background: var(--shrine); }
+  .pin.visited-temple { background: var(--temple); }
+  .pin.want { background: #F59E0B; }
+  .pin.plain { background: #9CA3AF; width: 10px; height: 10px; }
+  .pin.soft { background: #FDBA74; width: 10px; height: 10px; }
+
+  .fab {
+    position: absolute;
+    right: 0.85rem;
+    bottom: 0.85rem;
+    width: 46px; height: 46px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(242,127,13,0.42);
+  }
+  .fab svg { width: 21px; height: 21px; }
+
+  .fab.centered { left: 50%; right: auto; transform: translateX(-50%); }
+
+  /* wishlist strip on map */
+  .want-strip {
+    position: absolute;
+    left: 0.6rem; right: 0.6rem; bottom: 0.6rem;
+    background: var(--screen);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    padding: 0.5rem 0.6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    box-shadow: 0 3px 12px rgba(28,25,23,0.13);
+  }
+  .want-head {
+    display: flex; align-items: center; gap: 0.3rem;
+    font-size: 0.62rem; font-weight: 700; color: var(--ink);
+  }
+  .want-head svg { width: 12px; height: 12px; color: #F59E0B; }
+  .want-row {
+    display: flex; align-items: center; gap: 0.35rem;
+    font-size: 0.62rem; color: var(--ink-soft);
+  }
+  .want-row .dot { width: 5px; height: 5px; border-radius: 50%; background: #F59E0B; flex: none; }
+
+  /* ---------- bottom sheet mock ---------- */
+
+  .sheet {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    background: var(--screen);
+    border-radius: 14px 14px 0 0;
+    box-shadow: 0 -3px 16px rgba(28,25,23,0.16);
+    padding: 0.45rem 0.75rem 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .grip { width: 32px; height: 3px; border-radius: 2px; background: var(--rule); align-self: center; }
+
+  .sheet-line1 {
+    display: flex; align-items: center; gap: 0.35rem;
+  }
+  .sheet-name {
+    font-family: var(--mincho);
+    font-size: 0.86rem; font-weight: 600; color: var(--ink);
+    flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .chip {
+    font-size: 0.53rem; padding: 0.08rem 0.32rem; border-radius: 3px;
+    font-weight: 700; flex: none;
+  }
+  .chip.shrine { background: #FEE2E2; color: #DC2626; }
+  .chip.temple { background: #F3E8FF; color: #9333EA; }
+
+  .sheet-sub {
+    display: flex; align-items: center; gap: 0.25rem;
+    font-size: 0.62rem; color: var(--ink-faint);
+  }
+  .sheet-sub svg { width: 11px; height: 11px; flex: none; }
+
+  .thumbs { display: flex; gap: 0.3rem; }
+  .thumb {
+    flex: 1; aspect-ratio: 1; background: var(--screen-sub);
+    border: 1px solid var(--rule); border-radius: 3px;
+    position: relative; overflow: hidden;
+  }
+
+  .sheet-actions { display: flex; gap: 0.4rem; }
+
+  .btn {
+    flex: 1;
+    display: flex; align-items: center; justify-content: center; gap: 0.28rem;
+    padding: 0.48rem 0.4rem;
+    border-radius: 7px;
+    font-size: 0.68rem; font-weight: 700;
+  }
+  .btn svg { width: 13px; height: 13px; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-ghost {
+    background: transparent; color: #B45309;
+    border: 1px solid #FCD34D;
+  }
+  @media (prefers-color-scheme: dark) {
+    .btn-ghost { color: #FCD34D; border-color: #78716C; }
+    .chip.shrine { background: #4A1D1D; color: #FCA5A5; }
+    .chip.temple { background: #3B2154; color: #D8B4FE; }
+  }
+  :root[data-theme="dark"] .btn-ghost { color: #FCD34D; border-color: #78716C; }
+  :root[data-theme="dark"] .chip.shrine { background: #4A1D1D; color: #FCA5A5; }
+  :root[data-theme="dark"] .chip.temple { background: #3B2154; color: #D8B4FE; }
+
+  /* ---------- compare table ---------- */
+
+  .table-wrap { overflow-x: auto; margin-top: 1.5rem; }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 560px;
+    font-size: 0.88rem;
+  }
+  th, td {
+    text-align: left;
+    padding: 0.7rem 0.9rem;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+    line-height: 1.6;
+  }
+  th {
+    font-size: 0.68rem;
+    font-family: var(--mono);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    font-weight: 500;
+    border-bottom-color: var(--ink-faint);
+  }
+  td:first-child { font-weight: 700; white-space: nowrap; }
+
+  .yes { color: #15803D; font-weight: 700; }
+  .no  { color: var(--shu); font-weight: 700; }
+  @media (prefers-color-scheme: dark) { .yes { color: #4ADE80; } }
+  :root[data-theme="dark"] .yes { color: #4ADE80; }
+
+  /* ---------- ask list ---------- */
+
+  .asks { display: flex; flex-direction: column; gap: 0.9rem; margin-top: 1.5rem; }
+  .ask {
+    display: flex; gap: 0.85rem; align-items: flex-start;
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-radius: 9px;
+    padding: 0.95rem 1.1rem;
+  }
+  .ask .q {
+    font-family: var(--mono); font-size: 0.72rem; color: var(--shu);
+    flex: none; padding-top: 0.28rem;
+  }
+  .ask p { margin: 0; font-size: 0.92rem; line-height: 1.65; }
+  .ask p + p { margin-top: 0.3rem; color: var(--ink-soft); font-size: 0.85rem; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<svg style="display:none" aria-hidden="true">
+  <symbol id="i-map" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+          stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2.1 5-5 2.1 2.1-5z"/>
+  </symbol>
+  <symbol id="i-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+          stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 6.5C10.4 5.2 8.2 4.6 5 4.6v13c3.2 0 5.4.6 7 1.9 1.6-1.3 3.8-1.9 7-1.9v-13c-3.2 0-5.4.6-7 1.9z"/>
+    <path d="M12 6.5v12.8"/>
+  </symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+          stroke-linecap="round" stroke-linejoin="round">
+    <rect x="4" y="4" width="6.5" height="6.5" rx="1"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1"/>
+    <rect x="4" y="13.5" width="6.5" height="6.5" rx="1"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1"/>
+  </symbol>
+  <symbol id="i-trophy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+          stroke-linecap="round" stroke-linejoin="round">
+    <path d="M7 4h10v5a5 5 0 01-10 0z"/><path d="M7 6H4.5v1.5A3 3 0 007 10.4M17 6h2.5v1.5A3 3 0 0117 10.4"/>
+    <path d="M12 14v3M8.5 20h7M10 17h4l.6 3h-5.2z"/>
+  </symbol>
+  <symbol id="i-person" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+          stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="8.5" r="3.6"/><path d="M4.8 20a7.2 7.2 0 0114.4 0"/>
+  </symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+          stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="3.2"/>
+    <path d="M12 3v2.4M12 18.6V21M21 12h-2.4M5.4 12H3M18.4 5.6l-1.7 1.7M7.3 16.7l-1.7 1.7M18.4 18.4l-1.7-1.7M7.3 7.3L5.6 5.6"/>
+  </symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+          stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3.5 8.5h3.2l1.4-2.2h7.8l1.4 2.2h3.2v10H3.5z"/><circle cx="12" cy="13.2" r="3.4"/>
+  </symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+          stroke-linecap="round"><path d="M12 5.5v13M5.5 12h13"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round"><circle cx="10.8" cy="10.8" r="6.3"/><path d="M15.4 15.4L20 20"/></symbol>
+  <symbol id="i-place" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+          stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 21s6.5-6.1 6.5-10.5a6.5 6.5 0 10-13 0C5.5 14.9 12 21 12 21z"/><circle cx="12" cy="10.4" r="2.4"/>
+  </symbol>
+  <symbol id="i-bookmark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+          stroke-linecap="round" stroke-linejoin="round">
+    <path d="M6.5 4h11v16l-5.5-4-5.5 4z"/>
+  </symbol>
+</svg>
+
+<div class="page">
+
+  <header class="col">
+    <p class="eyebrow">御朱印さんぽ ／ 情報設計の検討</p>
+    <h1>画面構成の3案</h1>
+    <p class="lede">
+      現行は <strong>地図 / 御朱印 / コレクション / 設定</strong> の4タブ。
+      「御朱印」と「コレクション」がどちらも“自分の記録”で境界が曖昧なこと、
+      記録という中心の動作にタブが無いことが、監査で挙がった構造上の課題でした。
+    </p>
+    <div class="callout">
+      <p class="note">
+        <strong>2026-08-09 更新。</strong>
+        方針は<strong>案3（御朱印帳を主役に）で決定</strong>。
+        めくりの画面は「1枚を大きく、左右に隣が覗く」形に作り直し、グリッドとの切り替えを足しました。
+        FAB の右下移動は<strong>実装済み</strong>（<code>MapScreen.tsx</code>）。
+      </p>
+    </div>
+  </header>
+
+  <section>
+    <div class="rule-head">
+      <span class="num">先に</span>
+      <h2>FAB の位置は、タブ構成とは別に決められる</h2>
+    </div>
+    <div class="col">
+      <p>
+        案2に惹かれた理由が「地図の下中央にある＋ボタンが微妙」だとすると、
+        <strong>そこはタブ構成を変えなくても解決します</strong>。
+        右下は Material の標準位置で、親指の可動域にも素直です。案1でも案3でも同じように直せます。
+      </p>
+      <div class="callout">
+        <p class="note">
+          つまり <strong>「FAB をどこに置くか」と「タブをどう分けるか」は独立した2つの判断</strong>です。
+          FAB の違和感を理由に案2を選ぶ必要はありません。
+        </p>
+      </div>
+    </div>
+
+    <div class="screens">
+      <div class="shot">
+        <div class="phone"><div class="screen">
+          <div class="s-body"><div class="map">
+            <div class="map-grid"></div>
+            <div class="map-road" style="left:0;right:0;top:38%;height:7px;"></div>
+            <div class="map-road" style="top:0;bottom:0;left:58%;width:7px;"></div>
+            <div class="searchbar"><svg><use href="#i-search"/></svg>神社・お寺を検索</div>
+            <div class="pin visited-shrine" style="left:22%;top:30%"></div>
+            <div class="pin visited-temple" style="left:64%;top:48%"></div>
+            <div class="pin want" style="left:38%;top:60%"></div>
+            <div class="pin plain" style="left:75%;top:24%"></div>
+            <div class="pin plain" style="left:30%;top:74%"></div>
+            <div class="pin plain" style="left:52%;top:18%"></div>
+            <div class="fab centered"><svg><use href="#i-plus"/></svg></div>
+          </div></div>
+          <div class="s-tabs">
+            <div class="s-tab on"><svg><use href="#i-map"/></svg>地図</div>
+            <div class="s-tab"><svg><use href="#i-grid"/></svg>御朱印</div>
+            <div class="s-tab"><svg><use href="#i-trophy"/></svg>コレクション</div>
+            <div class="s-tab"><svg><use href="#i-gear"/></svg>設定</div>
+          </div>
+        </div></div>
+        <div class="caption">
+          <h3>現状</h3>
+          <p>＋が下中央。タブバーの真上に重なり、指も画面中央を覆う。</p>
+        </div>
+      </div>
+
+      <div class="shot">
+        <div class="phone"><div class="screen">
+          <div class="s-body"><div class="map">
+            <div class="map-grid"></div>
+            <div class="map-road" style="left:0;right:0;top:38%;height:7px;"></div>
+            <div class="map-road" style="top:0;bottom:0;left:58%;width:7px;"></div>
+            <div class="searchbar"><svg><use href="#i-search"/></svg>神社・お寺を検索</div>
+            <div class="pin visited-shrine" style="left:22%;top:30%"></div>
+            <div class="pin visited-temple" style="left:64%;top:48%"></div>
+            <div class="pin want" style="left:38%;top:60%"></div>
+            <div class="pin soft" style="left:75%;top:24%"></div>
+            <div class="pin soft" style="left:30%;top:74%"></div>
+            <div class="pin soft" style="left:52%;top:18%"></div>
+            <div class="fab"><svg><use href="#i-plus"/></svg></div>
+          </div></div>
+          <div class="s-tabs">
+            <div class="s-tab on"><svg><use href="#i-map"/></svg>地図</div>
+            <div class="s-tab"><svg><use href="#i-grid"/></svg>御朱印</div>
+            <div class="s-tab"><svg><use href="#i-trophy"/></svg>コレクション</div>
+            <div class="s-tab"><svg><use href="#i-gear"/></svg>設定</div>
+          </div>
+        </div></div>
+        <div class="caption">
+          <h3>＋を右下に寄せただけ</h3>
+          <p>タブ構成は現状のまま。ついでに未訪問ピンも淡い橙にした例（監査 A-9）。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="rule-head">
+      <span class="num">3案</span>
+      <h2>タブの分け方</h2>
+    </div>
+
+    <div class="options">
+      <div class="opt">
+        <span class="opt-label">案 1</span>
+        <h3>現状維持 ＋ 整理</h3>
+        <div class="tabbar">
+          <div class="tab on"><svg><use href="#i-map"/></svg>地図</div>
+          <div class="tab"><svg><use href="#i-grid"/></svg>御朱印</div>
+          <div class="tab"><svg><use href="#i-trophy"/></svg>コレクション</div>
+          <div class="tab"><svg><use href="#i-gear"/></svg>設定</div>
+        </div>
+        <ul>
+          <li>行きたいリストを地図側へ移す</li>
+          <li>御朱印タブに記録導線を足す</li>
+          <li>変更が小さく、手戻りが出にくい</li>
+          <li>「御朱印」と「コレクション」の境界の曖昧さは残る</li>
+        </ul>
+      </div>
+
+      <div class="opt">
+        <span class="opt-label">案 2</span>
+        <h3>3タブ ＋ 中央に記録</h3>
+        <div class="tabbar">
+          <div class="tab on"><svg><use href="#i-map"/></svg>地図</div>
+          <div class="tab fab-slot"><svg><use href="#i-plus"/></svg>記録</div>
+          <div class="tab"><svg><use href="#i-person"/></svg>自分</div>
+        </div>
+        <ul>
+          <li>記録がタブバー中央に昇格</li>
+          <li>設定は「自分」の中へ</li>
+          <li>「自分」の情報量が増え、内部の整理が別途必要</li>
+          <li>FAB の違和感だけが動機なら、案1でも解決する</li>
+        </ul>
+      </div>
+
+      <div class="opt is-focus">
+        <span class="opt-label">案 3 ／ 以下で詳述</span>
+        <h3>御朱印帳を主役に</h3>
+        <div class="tabbar">
+          <div class="tab"><svg><use href="#i-map"/></svg>地図</div>
+          <div class="tab on"><svg><use href="#i-book"/></svg>御朱印帳</div>
+          <div class="tab"><svg><use href="#i-trophy"/></svg>あつめる</div>
+          <div class="tab"><svg><use href="#i-person"/></svg>自分</div>
+        </div>
+        <ul>
+          <li>グリッドを見開きの御朱印帳に置き換える</li>
+          <li>行きたいリストは地図へ、実績は「あつめる」へ</li>
+          <li>設定は「自分」に統合</li>
+          <li>P1-03 の完成が前提になる</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="rule-head">
+      <span class="num">案 3</span>
+      <h2>御朱印帳を主役にすると、こうなる</h2>
+    </div>
+    <div class="col">
+      <p>
+        考え方は「<strong>4つのタブに、それぞれ1つの役目だけを持たせる</strong>」です。
+        地図＝これから行く場所、御朱印帳＝集めたもの、あつめる＝どこまで進んだか、自分＝アカウントと設定。
+        いま曖昧なのは、御朱印帳とあつめるが同じタブに混ざっていることでした。
+      </p>
+      <p class="note">
+        ※ <code>goshuincho</code> テーブル（帳面名・表紙画像・使い始め日）は既に DB にあり、
+        サインアップ時にデフォルトの1冊まで作られています。UI が無いだけです。
+      </p>
+    </div>
+
+    <div class="screens">
+
+      <div class="shot">
+        <div class="phone"><div class="screen">
+          <div class="s-nav">
+            <span class="s-title">御朱印帳</span>
+            <span class="s-meta">2冊 ／ 34体</span>
+          </div>
+          <div class="s-body"><div class="shelf">
+            <div class="book">
+              <div class="cover cover-a"><span class="cover-title">一冊目</span></div>
+              <div class="book-meta"><span class="book-name">一冊目</span><span class="book-count">22</span></div>
+            </div>
+            <div class="book">
+              <div class="cover cover-b"><span class="cover-title">坂東三十三</span></div>
+              <div class="book-meta"><span class="book-name">坂東三十三</span><span class="book-count">12</span></div>
+            </div>
+            <div class="book">
+              <div class="cover cover-new"><svg><use href="#i-plus"/></svg></div>
+              <div class="book-meta"><span class="book-name">帳面を追加</span><span class="book-count"></span></div>
+            </div>
+          </div></div>
+          <div class="s-tabs">
+            <div class="s-tab"><svg><use href="#i-map"/></svg>地図</div>
+            <div class="s-tab on"><svg><use href="#i-book"/></svg>御朱印帳</div>
+            <div class="s-tab"><svg><use href="#i-trophy"/></svg>あつめる</div>
+            <div class="s-tab"><svg><use href="#i-person"/></svg>自分</div>
+          </div>
+        </div></div>
+        <div class="caption">
+          <h3>① 帳面が並ぶ</h3>
+          <p>実物と同じく複数冊を持てる。巡礼専用の帳面を分ける、という実際の使われ方に合う。</p>
+        </div>
+      </div>
+
+      <div class="shot">
+        <div class="phone"><div class="screen">
+          <div class="s-nav">
+            <span class="s-title">一冊目</span>
+            <div class="viewtoggle">
+              <span class="vt on"><svg><use href="#i-book"/></svg></span>
+              <span class="vt"><svg><use href="#i-grid"/></svg></span>
+            </div>
+          </div>
+          <div class="s-body"><div class="reader">
+            <div class="peek left">
+              <div class="stroke" style="width:3px;height:110px;right:3px;top:22%"></div>
+              <div class="seal" style="width:44px;height:44px;right:-26px;bottom:16%"></div>
+            </div>
+            <div class="page-main">
+              <div class="goshuin">
+                <div class="stroke" style="width:4px;height:132px;left:36%;top:14%"></div>
+                <div class="stroke" style="width:4px;height:96px;left:54%;top:24%"></div>
+                <div class="stroke" style="width:62px;height:4px;left:26%;top:70%"></div>
+                <div class="stroke" style="width:40px;height:3px;left:33%;top:78%"></div>
+                <div class="seal" style="width:52px;height:52px;right:10%;bottom:9%"></div>
+                <div class="seal" style="width:32px;height:32px;left:10%;top:8%"></div>
+              </div>
+              <div class="leaf-foot">
+                <span class="leaf-name">浅草寺</span>
+                <span class="leaf-date">令和8年5月3日</span>
+              </div>
+            </div>
+            <div class="peek right">
+              <div class="stroke" style="width:3px;height:96px;left:4px;top:26%"></div>
+              <div class="seal" style="width:40px;height:40px;left:-24px;bottom:14%"></div>
+            </div>
+            <div class="pagedots">
+              <i></i><i></i><i></i><i class="on"></i><i></i><i></i>
+              <span class="pagenum">12 ／ 22</span>
+            </div>
+          </div></div>
+          <div class="s-tabs">
+            <div class="s-tab"><svg><use href="#i-map"/></svg>地図</div>
+            <div class="s-tab on"><svg><use href="#i-book"/></svg>御朱印帳</div>
+            <div class="s-tab"><svg><use href="#i-trophy"/></svg>あつめる</div>
+            <div class="s-tab"><svg><use href="#i-person"/></svg>自分</div>
+          </div>
+        </div></div>
+        <div class="caption">
+          <h3>② 1枚を大きく、左右に次と前が覗く</h3>
+          <p>覗いている両端が蛇腹の折り。横スワイプで隣のページへ送る。日付は和暦（監査 A-2）。右上でグリッドに切り替えられる。</p>
+        </div>
+      </div>
+
+      <div class="shot">
+        <div class="phone"><div class="screen">
+          <div class="s-nav">
+            <span class="s-title">一冊目</span>
+            <div class="viewtoggle">
+              <span class="vt on"><svg><use href="#i-book"/></svg></span>
+              <span class="vt"><svg><use href="#i-grid"/></svg></span>
+            </div>
+          </div>
+          <div class="s-body"><div class="reader">
+            <div class="peek left">
+              <div class="stroke" style="width:3px;height:104px;right:3px;top:24%"></div>
+              <div class="seal" style="width:42px;height:42px;right:-25px;bottom:15%"></div>
+            </div>
+            <div class="page-main blank">
+              <div class="blank-slot">
+                <svg><use href="#i-camera"/></svg>
+                <span>ここに御朱印を追加する</span>
+              </div>
+            </div>
+            <div class="peek right"></div>
+            <div class="pagedots">
+              <i></i><i></i><i></i><i></i><i></i><i class="on"></i>
+              <span class="pagenum">23枚目</span>
+            </div>
+          </div></div>
+          <div class="s-tabs">
+            <div class="s-tab"><svg><use href="#i-map"/></svg>地図</div>
+            <div class="s-tab on"><svg><use href="#i-book"/></svg>御朱印帳</div>
+            <div class="s-tab"><svg><use href="#i-trophy"/></svg>あつめる</div>
+            <div class="s-tab"><svg><use href="#i-person"/></svg>自分</div>
+          </div>
+        </div></div>
+        <div class="caption">
+          <h3>③ 次の白紙が、記録ボタンになる</h3>
+          <p>実物の御朱印帳と同じ理屈。監査 B-2（記録の入口が地図しかない）が、説明なしで解決する。</p>
+        </div>
+      </div>
+
+      <div class="shot">
+        <div class="phone"><div class="screen">
+          <div class="s-nav">
+            <span class="s-title">一冊目</span>
+            <div class="viewtoggle">
+              <span class="vt"><svg><use href="#i-book"/></svg></span>
+              <span class="vt on"><svg><use href="#i-grid"/></svg></span>
+            </div>
+          </div>
+          <div class="s-body"><div class="gridview">
+            <div class="gcell">
+              <div class="stroke" style="width:2px;height:30px;left:38%;top:16%"></div>
+              <div class="seal" style="width:15px;height:15px;right:10%;bottom:10%"></div>
+            </div>
+            <div class="gcell">
+              <div class="stroke" style="width:2px;height:24px;left:42%;top:22%"></div>
+              <div class="seal" style="width:13px;height:13px;right:12%;bottom:12%"></div>
+            </div>
+            <div class="gcell">
+              <div class="stroke" style="width:2px;height:32px;left:34%;top:14%"></div>
+              <div class="seal" style="width:16px;height:16px;right:9%;bottom:9%"></div>
+            </div>
+            <div class="gcell">
+              <div class="stroke" style="width:2px;height:26px;left:46%;top:20%"></div>
+              <div class="seal" style="width:14px;height:14px;right:11%;bottom:11%"></div>
+            </div>
+            <div class="gcell">
+              <div class="stroke" style="width:2px;height:29px;left:36%;top:18%"></div>
+              <div class="seal" style="width:15px;height:15px;right:10%;bottom:13%"></div>
+            </div>
+            <div class="gcell">
+              <div class="stroke" style="width:2px;height:22px;left:44%;top:24%"></div>
+              <div class="seal" style="width:13px;height:13px;right:13%;bottom:10%"></div>
+            </div>
+            <div class="gcell">
+              <div class="stroke" style="width:2px;height:31px;left:40%;top:15%"></div>
+              <div class="seal" style="width:16px;height:16px;right:10%;bottom:12%"></div>
+            </div>
+            <div class="gcell">
+              <div class="stroke" style="width:2px;height:27px;left:35%;top:19%"></div>
+              <div class="seal" style="width:14px;height:14px;right:12%;bottom:9%"></div>
+            </div>
+            <div class="gcell empty"></div>
+          </div></div>
+          <div class="s-tabs">
+            <div class="s-tab"><svg><use href="#i-map"/></svg>地図</div>
+            <div class="s-tab on"><svg><use href="#i-book"/></svg>御朱印帳</div>
+            <div class="s-tab"><svg><use href="#i-trophy"/></svg>あつめる</div>
+            <div class="s-tab"><svg><use href="#i-person"/></svg>自分</div>
+          </div>
+        </div></div>
+        <div class="caption">
+          <h3>④ グリッドにも切り替えられる</h3>
+          <p>数が増えたとき探しやすいのはこちら。選んだ表示はアプリを閉じても覚えている（保存ボタンは無し）。</p>
+        </div>
+      </div>
+
+      <div class="shot">
+        <div class="phone"><div class="screen">
+          <div class="s-body"><div class="map">
+            <div class="map-grid"></div>
+            <div class="map-road" style="left:0;right:0;top:34%;height:7px;"></div>
+            <div class="map-road" style="top:0;bottom:0;left:56%;width:7px;"></div>
+            <div class="searchbar"><svg><use href="#i-search"/></svg>神社・お寺を検索</div>
+            <div class="pin visited-shrine" style="left:20%;top:26%"></div>
+            <div class="pin visited-temple" style="left:62%;top:44%"></div>
+            <div class="pin want" style="left:36%;top:52%"></div>
+            <div class="pin want" style="left:70%;top:30%"></div>
+            <div class="pin soft" style="left:28%;top:64%"></div>
+            <div class="pin soft" style="left:48%;top:20%"></div>
+            <div class="want-strip">
+              <div class="want-head"><svg><use href="#i-bookmark"/></svg>行きたい（4）</div>
+              <div class="want-row"><span class="dot"></span>大崎八幡宮 ／ 仙台市青葉区</div>
+              <div class="want-row"><span class="dot"></span>神田明神 ／ 千代田区外神田</div>
+            </div>
+            <div class="fab"><svg><use href="#i-plus"/></svg></div>
+          </div></div>
+          <div class="s-tabs">
+            <div class="s-tab on"><svg><use href="#i-map"/></svg>地図</div>
+            <div class="s-tab"><svg><use href="#i-book"/></svg>御朱印帳</div>
+            <div class="s-tab"><svg><use href="#i-trophy"/></svg>あつめる</div>
+            <div class="s-tab"><svg><use href="#i-person"/></svg>自分</div>
+          </div>
+        </div></div>
+        <div class="caption">
+          <h3>⑤ 行きたいリストは地図へ</h3>
+          <p>「これから行く場所」は地図の話。実績（過去）と混ざっていた状態を解消する（監査 B-6）。</p>
+        </div>
+      </div>
+
+      <div class="shot">
+        <div class="phone"><div class="screen">
+          <div class="s-body"><div class="map">
+            <div class="map-grid"></div>
+            <div class="map-road" style="left:0;right:0;top:30%;height:7px;"></div>
+            <div class="map-road" style="top:0;bottom:0;left:54%;width:7px;"></div>
+            <div class="searchbar"><svg><use href="#i-search"/></svg>湯島天満宮</div>
+            <div class="pin want" style="left:46%;top:34%"></div>
+            <div class="pin soft" style="left:24%;top:22%"></div>
+            <div class="pin soft" style="left:72%;top:26%"></div>
+            <div class="sheet">
+              <div class="grip"></div>
+              <div class="sheet-line1">
+                <span class="sheet-name">湯島天満宮</span>
+                <span class="chip shrine">神社</span>
+                <svg style="width:16px;height:16px;color:#F59E0B;flex:none"><use href="#i-bookmark"/></svg>
+              </div>
+              <div class="sheet-sub"><svg><use href="#i-place"/></svg>東京都文京区湯島3-30-1</div>
+              <div class="sheet-sub" style="color:var(--shu);font-weight:700">限定御朱印 3件</div>
+              <div class="thumbs">
+                <div class="thumb"><div class="seal" style="width:14px;height:14px;right:14%;bottom:14%"></div></div>
+                <div class="thumb"><div class="seal" style="width:14px;height:14px;right:14%;bottom:14%"></div></div>
+                <div class="thumb"><div class="seal" style="width:14px;height:14px;right:14%;bottom:14%"></div></div>
+              </div>
+              <div class="sheet-actions">
+                <div class="btn btn-ghost"><svg><use href="#i-bookmark"/></svg>行きたい</div>
+                <div class="btn btn-primary"><svg><use href="#i-camera"/></svg>記録する</div>
+              </div>
+            </div>
+          </div></div>
+          <div class="s-tabs">
+            <div class="s-tab on"><svg><use href="#i-map"/></svg>地図</div>
+            <div class="s-tab"><svg><use href="#i-book"/></svg>御朱印帳</div>
+            <div class="s-tab"><svg><use href="#i-trophy"/></svg>あつめる</div>
+            <div class="s-tab"><svg><use href="#i-person"/></svg>自分</div>
+          </div>
+        </div></div>
+        <div class="caption">
+          <h3>⑥ ボトムシート（案1〜3で共通）</h3>
+          <p>名前・種別・旗を1行に（A-6）。サムネイル（A-8）。「行きたい」と「記録する」を並べて、未来と過去を対比させる（A-7 / A-12）。</p>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="col">
+      <h3 style="margin-top:2.4rem">表示の切り替えと、その記憶</h3>
+      <p>
+        めくる表示は一覧性でグリッドに負けます。34体から1つ探すなら3列グリッドのほうが速い。
+        「めくる楽しさ」と「探しやすさ」は素直にトレードオフなので、④のように<strong>両方を持って切り替える</strong>のが妥当です。
+      </p>
+      <p>
+        選んだ表示は<strong>裏側で覚えておきます</strong>。保存ボタンは出しません。
+        グリッドにした人が次にアプリを開いたらめくり表示に戻っていた、というのは確かに嫌なので。
+        実装上は <code>AsyncStorage</code>（RN 版の localStorage）で、
+        このアプリでは既に <code>useOnboarding</code> と <code>useSearchHistory</code> が同じやり方をしています。
+        <strong>踏襲するだけで済みます</strong>。
+      </p>
+
+      <h3 style="margin-top:2rem">残る弱点は、順序</h3>
+      <p>
+        案3は P1-03（めくり UI）が出来ていることが前提なので、
+        <strong>先に P1-03 を作り、その完成をもってタブを入れ替える</strong>という段取りになります。
+        今すぐタブだけ差し替えることはできません。
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <div class="rule-head">
+      <span class="num">比較</span>
+      <h2>監査で挙がった課題が、どの案で解けるか</h2>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>課題</th><th>案1</th><th>案2</th><th>案3</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>FAB の位置</td>
+            <td><span class="yes">解ける</span><br><span class="note">右下に移すだけ</span></td>
+            <td><span class="yes">解ける</span></td>
+            <td><span class="yes">解ける</span></td>
+          </tr>
+          <tr>
+            <td>記録の入口が地図だけ</td>
+            <td><span class="yes">解ける</span><br><span class="note">導線を足す</span></td>
+            <td><span class="yes">解ける</span><br><span class="note">タブに昇格</span></td>
+            <td><span class="yes">解ける</span><br><span class="note">白紙のページが入口</span></td>
+          </tr>
+          <tr>
+            <td>御朱印とコレクションの境界</td>
+            <td><span class="no">残る</span></td>
+            <td><span class="yes">解ける</span><br><span class="note">統合する</span></td>
+            <td><span class="yes">解ける</span><br><span class="note">役目を分ける</span></td>
+          </tr>
+          <tr>
+            <td>行きたい（未来）と実績（過去）の混在</td>
+            <td><span class="yes">解ける</span></td>
+            <td><span class="yes">解ける</span></td>
+            <td><span class="yes">解ける</span></td>
+          </tr>
+          <tr>
+            <td>設定が1枠を占有</td>
+            <td><span class="no">残る</span></td>
+            <td><span class="yes">解ける</span></td>
+            <td><span class="yes">解ける</span></td>
+          </tr>
+          <tr>
+            <td>差別化（静かな御朱印帳）が front and center か</td>
+            <td><span class="no">ならない</span></td>
+            <td><span class="no">ならない</span></td>
+            <td><span class="yes">なる</span></td>
+          </tr>
+          <tr>
+            <td>着手コスト</td>
+            <td>小</td>
+            <td>中</td>
+            <td>大（P1-03 が前提）</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="rule-head">
+      <span class="num">次に</span>
+      <h2>決めたいこと</h2>
+    </div>
+    <div class="asks">
+      <div class="ask">
+        <span class="q">1</span>
+        <div>
+          <p>②③のページの見え方は、今度は合っていますか。</p>
+          <p>覗いている幅（今は17px相当）や、1枚に取っている余白の量は、まだいくらでも動かせます。</p>
+        </div>
+      </div>
+      <div class="ask">
+        <span class="q">2</span>
+        <div>
+          <p>記録した御朱印は、どの帳面に入りますか。</p>
+          <p>帳面が複数あるとき、この割り当てを決めないと記録フローが設計できません。
+             「いま開いている帳面に入る」「記録画面で選ぶ」「既定の1冊に入れて後から移す」あたりが候補です。</p>
+        </div>
+      </div>
+      <div class="ask">
+        <span class="q">3</span>
+        <div>
+          <p>次は P1-03 の契約書に進みますか。それとも先に⑥のボトムシートを片付けますか。</p>
+          <p>⑥は案1〜3のどれでも共通なので手戻りが出ません。P1-03 はタブ入れ替えの前提なので、
+             早く始めるほど案3の到着が早まります。</p>
+        </div>
+      </div>
+      <div class="ask">
+        <span class="q">4</span>
+        <div>
+          <p>「あつめる」と「自分」の中身は、今の並びのままでよいですか。</p>
+          <p>あつめる＝バッジ・巡礼チャレンジ・地域別、自分＝アカウント・公開設定・位置情報・アプリ情報、を想定しています。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="col" style="margin-top:4rem;padding-top:1.4rem;border-top:1px solid var(--rule)">
+    <p class="note">
+      画面はすべて HTML/CSS のモックで、実装ではありません。
+      色は <code>src/theme/colors.ts</code> の実トークン（primary <code>#f27f0d</code>／神社 <code>#EF4444</code>／寺院 <code>#A855F7</code>）に合わせています。
+      詳細な指摘の一覧は <code>docs/design/ux-audit-2026-08.md</code>。
+    </p>
+  </footer>
+
+</div>

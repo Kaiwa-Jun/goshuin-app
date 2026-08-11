@@ -111,3 +111,50 @@ describe('SpotDetailContent - みんなの御朱印', () => {
     expect(getByTestId('gallery-image')).toBeTruthy();
   });
 });
+
+describe('SpotDetailContent - 限定御朱印', () => {
+  const limitedGoshuin = {
+    items: [
+      {
+        name: '夏詣限定御朱印',
+        period: '7月1日〜8月31日',
+        period_start: null,
+        period_end: null,
+        description: null,
+        source_url: 'https://example.jp/goshuin',
+        fetched_at: '2026-08-01T00:00:00Z',
+      },
+    ],
+    fetched_at: '2026-08-01T00:00:00Z',
+  };
+
+  it('limitedGoshuin があるとき限定御朱印セクションが表示される', () => {
+    const { getByTestId } = render(
+      <SpotDetailContent {...defaultProps} spotInfo={{ limitedGoshuin }} />
+    );
+    expect(getByTestId('limited-goshuin-section')).toBeTruthy();
+  });
+
+  it('snsLinks があるとき SNS リンクが表示される', () => {
+    const { getByTestId } = render(
+      <SpotDetailContent
+        {...defaultProps}
+        spotInfo={{ snsLinks: [{ id: 'src-1', url: 'https://x.com/example' }] }}
+      />
+    );
+    expect(getByTestId('limited-goshuin-sns-0')).toBeTruthy();
+  });
+
+  it('spotInfo が無いとき限定御朱印セクションを表示しない', () => {
+    const { queryByTestId } = render(<SpotDetailContent {...defaultProps} />);
+    expect(queryByTestId('limited-goshuin-section')).toBeNull();
+  });
+
+  it('駐車場情報のみのとき spot-info-section は出るが限定御朱印セクションは出ない', () => {
+    const { getByTestId, queryByTestId } = render(
+      <SpotDetailContent {...defaultProps} spotInfo={{ parking: { available: true } }} />
+    );
+    expect(getByTestId('spot-info-section')).toBeTruthy();
+    expect(queryByTestId('limited-goshuin-section')).toBeNull();
+  });
+});

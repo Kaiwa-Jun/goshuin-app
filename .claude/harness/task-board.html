@@ -1,0 +1,1046 @@
+<title>御朱印さんぽ 残タスクボード</title>
+<style>
+  :root {
+    --ink: #1c1a17;
+    --ink-soft: #4a443c;
+    --muted: #7d766c;
+    --faint: #a9a298;
+    --ground: #fbfaf8;
+    --panel: #ffffff;
+    --line: #e6e1d9;
+    --line-soft: #f0ece5;
+    --accent: #c2410c;
+    --accent-soft: #fdf1e7;
+    --bug: #b91c1c;
+    --improve: #c2410c;
+    --design: #7e22ce;
+    --release: #b45309;
+    --user: #1d4ed8;
+    --done: #4b7f52;
+    --shadow: 0 1px 2px rgba(28, 26, 23, 0.05), 0 8px 24px -16px rgba(28, 26, 23, 0.3);
+    --mincho: "Hiragino Mincho ProN", "Yu Mincho", YuMincho, "Songti SC", serif;
+    --gothic: "Hiragino Sans", "Yu Gothic", YuGothic, "Noto Sans JP", system-ui, sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ink: #f2ede4;
+      --ink-soft: #cdc5b8;
+      --muted: #9a9186;
+      --faint: #6f675d;
+      --ground: #141310;
+      --panel: #1d1b17;
+      --line: #322e28;
+      --line-soft: #262320;
+      --accent: #f0904a;
+      --accent-soft: #2a1d14;
+      --bug: #f07a7a;
+      --improve: #f0904a;
+      --design: #c48ef5;
+      --release: #e0a54a;
+      --user: #7ba4f5;
+      --done: #7fb787;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -16px rgba(0, 0, 0, 0.8);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ink: #f2ede4;
+    --ink-soft: #cdc5b8;
+    --muted: #9a9186;
+    --faint: #6f675d;
+    --ground: #141310;
+    --panel: #1d1b17;
+    --line: #322e28;
+    --line-soft: #262320;
+    --accent: #f0904a;
+    --accent-soft: #2a1d14;
+    --bug: #f07a7a;
+    --improve: #f0904a;
+    --design: #c48ef5;
+    --release: #e0a54a;
+    --user: #7ba4f5;
+    --done: #7fb787;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -16px rgba(0, 0, 0, 0.8);
+  }
+
+  :root[data-theme="light"] {
+    --ink: #1c1a17;
+    --ink-soft: #4a443c;
+    --muted: #7d766c;
+    --faint: #a9a298;
+    --ground: #fbfaf8;
+    --panel: #ffffff;
+    --line: #e6e1d9;
+    --line-soft: #f0ece5;
+    --accent: #c2410c;
+    --accent-soft: #fdf1e7;
+    --bug: #b91c1c;
+    --improve: #c2410c;
+    --design: #7e22ce;
+    --release: #b45309;
+    --user: #1d4ed8;
+    --done: #4b7f52;
+    --shadow: 0 1px 2px rgba(28, 26, 23, 0.05), 0 8px 24px -16px rgba(28, 26, 23, 0.3);
+  }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--gothic);
+    font-size: 15px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 40px 24px 96px;
+  }
+
+  /* ---------- masthead ---------- */
+
+  .masthead {
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 20px;
+    margin-bottom: 28px;
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 10px;
+  }
+
+  h1 {
+    font-family: var(--mincho);
+    font-size: clamp(30px, 5vw, 44px);
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: 0.02em;
+    margin: 0 0 12px;
+    text-wrap: balance;
+  }
+
+  .standfirst {
+    max-width: 62ch;
+    color: var(--ink-soft);
+    margin: 0 0 18px;
+  }
+
+  .stamped {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .stamped b {
+    color: var(--ink-soft);
+    font-weight: 600;
+  }
+
+  /* ---------- layout ---------- */
+
+  .grid {
+    display: grid;
+    grid-template-columns: 268px minmax(0, 1fr);
+    gap: 44px;
+    align-items: start;
+  }
+
+  @media (max-width: 900px) {
+    .grid { grid-template-columns: minmax(0, 1fr); gap: 32px; }
+    .rail { position: static !important; }
+  }
+
+  .rail {
+    position: sticky;
+    top: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 26px;
+  }
+
+  .rail-block h2 {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+    margin: 0 0 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  /* ---------- progress ---------- */
+
+  .tally {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-family: var(--mono);
+    margin-bottom: 14px;
+  }
+
+  .tally .big {
+    font-size: 30px;
+    font-weight: 600;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .tally .of { font-size: 14px; color: var(--muted); }
+
+  .bars { display: flex; flex-direction: column; gap: 9px; }
+
+  .bar-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    align-items: center;
+    font-size: 12px;
+  }
+
+  .bar-label { display: flex; align-items: center; gap: 7px; color: var(--ink-soft); }
+
+  .dot { width: 8px; height: 8px; border-radius: 2px; flex: none; }
+
+  .bar-count {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .track {
+    grid-column: 1 / -1;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--line-soft);
+    overflow: hidden;
+  }
+
+  .track span { display: block; height: 100%; border-radius: 2px; }
+
+  /* ---------- deadlines ---------- */
+
+  .due { display: flex; flex-direction: column; gap: 10px; }
+
+  .due-item {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 10px;
+    align-items: baseline;
+  }
+
+  .due-when {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--release);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .due-what { font-size: 12.5px; color: var(--ink-soft); line-height: 1.45; }
+
+  /* ---------- order ---------- */
+
+  .order { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 11px; counter-reset: step; }
+
+  .order li {
+    display: grid;
+    grid-template-columns: 20px minmax(0, 1fr);
+    gap: 9px;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    line-height: 1.45;
+    counter-increment: step;
+  }
+
+  .order li::before {
+    content: counter(step);
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    display: grid;
+    place-items: center;
+    margin-top: 1px;
+  }
+
+  .order li.done-step { color: var(--faint); text-decoration: line-through; text-decoration-thickness: 1px; }
+  .order li.done-step::before { border-color: var(--done); color: var(--done); text-decoration: none; }
+  .order li.now { color: var(--ink); font-weight: 600; }
+  .order li.now::before { background: var(--accent); color: var(--panel); }
+
+  /* ---------- sections ---------- */
+
+  main { display: flex; flex-direction: column; gap: 34px; }
+
+  .section { --hue: var(--accent); }
+
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 4px;
+  }
+
+  .section-head h2 {
+    font-family: var(--mincho);
+    font-size: 21px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    margin: 0;
+    color: var(--ink);
+  }
+
+  .section-head .rule { flex: 1; }
+
+  .section-head .count {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .section-note {
+    font-size: 12.5px;
+    color: var(--muted);
+    margin: 10px 0 0;
+    max-width: 68ch;
+  }
+
+  .items { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+
+  .item {
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr) auto;
+    gap: 12px;
+    padding: 13px 14px 13px 12px;
+    background: var(--panel);
+    border: 1px solid var(--line-soft);
+    border-left: 3px solid var(--hue);
+    border-radius: 3px;
+    align-items: start;
+  }
+
+  /* the checkbox reads as a seal impression when stamped */
+  .box {
+    width: 18px;
+    height: 18px;
+    margin-top: 2px;
+    border: 1.5px solid var(--faint);
+    border-radius: 3px;
+    display: grid;
+    place-items: center;
+    flex: none;
+  }
+
+  .box::after {
+    content: "";
+    width: 9px;
+    height: 5px;
+    border-left: 2px solid var(--panel);
+    border-bottom: 2px solid var(--panel);
+    transform: rotate(-45deg) translate(1px, -1px);
+    opacity: 0;
+  }
+
+  .item.done { background: transparent; border-color: transparent; border-left-color: var(--line); }
+  .item.done .box { background: var(--done); border-color: var(--done); }
+  .item.done .box::after { opacity: 1; }
+  .item.done .name { text-decoration: line-through; text-decoration-thickness: 1px; color: var(--muted); }
+  .item.done .ev, .item.done .blocker { color: var(--faint); }
+  .item.done .id { color: var(--faint); border-color: var(--line); }
+
+  .item.active { border-color: var(--accent); box-shadow: var(--shadow); }
+
+  .line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+  .id {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--hue);
+    border: 1px solid var(--hue);
+    border-radius: 2px;
+    padding: 1px 5px;
+    white-space: nowrap;
+  }
+
+  .name { font-weight: 600; color: var(--ink); line-height: 1.4; }
+
+  .pill {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    padding: 2px 7px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+
+  .pill-active { background: var(--accent); color: var(--panel); }
+  .pill-wait { background: var(--line-soft); color: var(--muted); }
+  .pill-done { background: var(--done); color: var(--panel); }
+
+  .ev { margin: 5px 0 0; font-size: 12.5px; color: var(--ink-soft); line-height: 1.5; }
+
+  .ev code, .mono {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    background: var(--line-soft);
+    padding: 1px 4px;
+    border-radius: 2px;
+    color: var(--ink-soft);
+  }
+
+  .blocker {
+    margin: 6px 0 0;
+    font-size: 12px;
+    color: var(--muted);
+    padding-left: 14px;
+    position: relative;
+    line-height: 1.45;
+  }
+
+  .blocker::before {
+    content: "";
+    position: absolute;
+    left: 3px;
+    top: 8px;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--release);
+  }
+
+  .blocker.fixed::before { background: var(--done); }
+
+  .size {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    min-width: 24px;
+    text-align: center;
+    padding: 1px 5px;
+    margin-top: 2px;
+    white-space: nowrap;
+  }
+
+  .size.l { color: var(--release); border-color: var(--release); }
+
+  /* ---------- dependency block ---------- */
+
+  .deps {
+    margin-top: 14px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 16px 18px;
+    overflow-x: auto;
+  }
+
+  .deps pre {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.75;
+    color: var(--ink-soft);
+    white-space: pre;
+  }
+
+  .deps b { color: var(--accent); font-weight: 600; }
+
+  /* ---------- footer ---------- */
+
+  .colophon {
+    margin-top: 48px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+    font-size: 12.5px;
+    color: var(--muted);
+    max-width: 72ch;
+  }
+
+  a { color: var(--accent); }
+  a:focus-visible, .item:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+
+<div class="wrap">
+  <header class="masthead">
+    <p class="eyebrow">Goshuin Sampo &nbsp;/&nbsp; Task Board</p>
+    <h1>残タスクの棚卸しと優先順位</h1>
+    <p class="standfirst">
+      2026-08-09 時点で「対応すべきこと」を全部出したもの。性質で束ね、規模（S / M / L）と依存関係を添えている。
+      チェックは Claude が更新する。完了を伝えてもらえれば、この板に反映して同じ URL に再デプロイする。
+    </p>
+    <div class="stamped">
+      <span>最終更新 <b>2026-08-09</b></span>
+      <span>ブランチ <b>develop</b>（クリーン・push 済み）</span>
+      <span>ソース <b>.claude/harness/task-board.html</b></span>
+    </div>
+  </header>
+
+  <div class="grid">
+    <aside class="rail">
+      <div class="rail-block">
+        <h2>進捗</h2>
+        <div class="tally">
+          <span class="big">14</span>
+          <span class="of">/ 33 完了</span>
+        </div>
+        <div class="bars">
+          <div class="bar-row">
+            <span class="bar-label"><span class="dot" style="background:var(--bug)"></span>バグ</span>
+            <span class="bar-count">4 / 5</span>
+            <span class="track"><span style="width:80%;background:var(--bug)"></span></span>
+          </div>
+          <div class="bar-row">
+            <span class="bar-label"><span class="dot" style="background:var(--improve)"></span>小さい改善</span>
+            <span class="bar-count">6 / 6</span>
+            <span class="track"><span style="width:100%;background:var(--improve)"></span></span>
+          </div>
+          <div class="bar-row">
+            <span class="bar-label"><span class="dot" style="background:var(--design)"></span>設計判断</span>
+            <span class="bar-count">4 / 8</span>
+            <span class="track"><span style="width:50%;background:var(--design)"></span></span>
+          </div>
+          <div class="bar-row">
+            <span class="bar-label"><span class="dot" style="background:var(--muted)"></span>バックログ</span>
+            <span class="bar-count">1 / 8</span>
+            <span class="track"><span style="width:13%;background:var(--muted)"></span></span>
+          </div>
+          <div class="bar-row">
+            <span class="bar-label"><span class="dot" style="background:var(--release)"></span>リリース・期日</span>
+            <span class="bar-count">0 / 6</span>
+            <span class="track"><span style="width:0%;background:var(--release)"></span></span>
+          </div>
+          <div class="bar-row">
+            <span class="bar-label"><span class="dot" style="background:var(--user)"></span>あなたの作業</span>
+            <span class="bar-count">1 / 7</span>
+            <span class="track"><span style="width:14%;background:var(--user)"></span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="rail-block">
+        <h2>期日</h2>
+        <div class="due">
+          <div class="due-item">
+            <span class="due-when">8/11 火</span>
+            <span class="due-what">cron 2ジョブの実行確認（次回発火は 8/11 02:00 JST）</span>
+          </div>
+          <div class="due-item">
+            <span class="due-when">随時</span>
+            <span class="due-what">App Store 審査結果 → 通過なら手動リリース</span>
+          </div>
+          <div class="due-item">
+            <span class="due-when">10/02</span>
+            <span class="due-what">Meta アクセストークン更新（切れると Instagram クロールが全滅）</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="rail-block">
+        <h2>着手順（提案）</h2>
+        <ol class="order">
+          <li class="done-step">CI-1 を直して PR の赤を消す（完了）</li>
+          <li class="done-step">#116 の実機 N群8項目（完了）</li>
+          <li class="done-step">小さい改善を1 PR に束ねる（完了）</li>
+          <li class="done-step">案3 タブ入れ替えの契約書 → 実装（完了）</li>
+          <li class="done-step">D-3 を決めて P1-02 を実装（完了・実機確認待ち）</li>
+          <li class="now">P1-02 の実機確認 → マージ</li>
+          <li>残る設計判断 D-5 / D-6（D-3 / D-4 は決定済み）</li>
+          <li>期日ものは上と並行</li>
+        </ol>
+      </div>
+    </aside>
+
+    <main>
+      <!-- ============ バグ ============ -->
+      <section class="section" style="--hue: var(--bug)">
+        <div class="section-head">
+          <h2>バグ</h2>
+          <span class="rule"></span>
+          <span class="count">4 / 5</span>
+        </div>
+
+        <ul class="items">
+          <li class="item done">
+            <span class="box" role="img" aria-label="完了"></span>
+            <div>
+              <div class="line">
+                <span class="id">A-1</span>
+                <span class="name">カメラで撮影が起動しない</span>
+                <span class="pill pill-done">完了 8/9</span>
+              </div>
+              <p class="ev">原因は <code>launchCameraAsync</code> を権限リクエストなしで直呼びしていたこと。権限リクエスト ＋ 未許可時は「設定を開く」導線 ＋ 例外の原文表示に修正。<b>PR #121 マージ済み・実機確認済み</b>。テスト +5（全1025件パス）、lint / typecheck クリーン。</p>
+            </div>
+            <span class="size">S</span>
+          </li>
+
+          <li class="item done">
+            <span class="box" role="img" aria-label="完了"></span>
+            <div>
+              <div class="line">
+                <span class="id">CI-1</span>
+                <span class="name">PR のたびに CI が赤くなる</span>
+                <span class="pill pill-done">完了 8/9</span>
+              </div>
+              <p class="ev">原因は action にモデルを渡しておらず、既定のリタイア済みモデル <code>claude-sonnet-4-20250514</code> が使われていたこと。<code>auto-review</code> と <code>mention-response</code> に <code>model: claude-sonnet-5</code> を追加。<b>PR #122 マージ済み・auto-review が pass し実際にレビューが投稿されることまで確認</b>。</p>
+            </div>
+            <span class="size">S</span>
+          </li>
+
+          <li class="item done">
+            <span class="box" role="img" aria-label="完了"></span>
+            <div>
+              <div class="line"><span class="id">#128</span><span class="name">日付ピッカーで年月を変えると日を選ばずに閉じる</span><span class="pill pill-done">完了 8/9</span></div>
+              <p class="ev">実機で発見。<code>display="inline"</code> は「カレンダー ⇄ 年月ホイール」の2モードを持つが<b>どちらのモードかを知る手段が無い</b>ため、完了ボタン側では直せなかった。<code>spinner</code>（年・月・日の3列）にしてモード切替自体を無くした。<code>EditStampModal</code> も同じパターンだったので同時に修正。<b>PR #129・実機確認済み</b>。</p>
+            </div>
+            <span class="size">S</span>
+          </li>
+
+          <li class="item done">
+            <span class="box" role="img" aria-label="完了"></span>
+            <div>
+              <div class="line"><span class="id">#125</span><span class="name">行きたいの削除が地図に即時反映されない</span><span class="pill pill-done">完了 8/9</span></div>
+              <p class="ev">実機で発見。<code>useWishlist</code> が <code>useEffect</code> でしか取得せずフォーカス復帰で取り直していなかった。<code>useFocusEffect</code> に変更し、件数とピンの色を1つの軽いクエリで同時に解決。<b>PR #126・実機確認済み</b>。⚠️ 件数のずれは PR #124 の auto-review 対応で入れた退行。</p>
+            </div>
+            <span class="size">S</span>
+          </li>
+
+          <li class="item">
+            <span class="box" role="img" aria-label="未完了"></span>
+            <div>
+              <div class="line">
+                <span class="id">BUG-2</span>
+                <span class="name">ImageGalleryModal がレンダー中に setValue を呼ぶ</span>
+              </div>
+              <p class="ev"><code>ImageGalleryModal.tsx:82-88</code> に現存。「ちらつき回避のため意図的」のコメント付き。#116 が原因ではなく、Web から到達できるようになって表面化しただけ。</p>
+              <p class="blocker fixed">まず issue 起票だけでもよい</p>
+            </div>
+            <span class="size">S</span>
+          </li>
+        </ul>
+      </section>
+
+      <!-- ============ 小さい改善 ============ -->
+      <section class="section" style="--hue: var(--improve)">
+        <div class="section-head">
+          <h2>小さい改善</h2>
+          <span class="rule"></span>
+          <span class="count">6 / 6 ✓</span>
+        </div>
+        <p class="section-note">
+          設計判断なしで着手でき、1 PR に束ねられる。監査 E の束から <b>A-6 は除外</b>（#114 で解決済み）。
+          <b>A-10 と A-13 は案3のタブ入れ替えで動く画面</b>なので、多少の手戻りは織り込みが要る。
+        </p>
+
+        <ul class="items">
+          <li class="item done">
+            <span class="box" role="img" aria-label="完了"></span>
+            <div>
+              <div class="line"><span class="id">A-2</span><span class="name">記録画面の訪問日が西暦のみ</span><span class="pill pill-done">完了 8/9</span></div>
+              <p class="ev"><b>PR #127 で解決</b>。⚠️ 監査の書き方（表示が西暦のみ）とは違い、実際の困りごとは<b>入力側</b>だった — 紙の御朱印は和暦なのにピッカーが西暦で照合できない。表示を和暦に変えるのではなく、選択中の日付に追随する和暦ラベルを日付の行に併記した。</p>
+            </div>
+            <span class="size">S</span>
+          </li>
+
+          <li class="item done">
+            <span class="box" role="img" aria-label="完了"></span>
+            <div>
+              <div class="line"><span class="id">A-3</span><span class="name">日付ピッカーが画面外に出る</span><span class="pill pill-done">完了 8/9</span></div>
+              <p class="ev"><b>PR #127 で解決</b>。メモ欄が既に使っていた <code>onLayout</code> + <code>scrollTo</code> のパターンを踏襲。</p>
+            </div>
+            <span class="size">S</span>
+          </li>
+
+          <li class="item done">
+            <span class="box" role="img" aria-label="完了"></span>
+            <div>
+              <div class="line"><span class="id">A-10</span><span class="name">0件の空状態に CTA ボタンが無い</span><span class="pill pill-done">完了 8/9</span></div>
+              <p class="ev"><b>PR #127 で解決</b>。グリッド表示の0件に「御朱印を記録する」を追加（めくり表示は白紙ページが入口なので元から不要）。</p>
+            </div>
+            <span class="size">S</span>
+          </li>
+
+          <li class="item done">
+            <span class="box" role="img" aria-label="完了"></span>
+            <div>
+              <div class="line"><span class="id">A-11</span><span class="name">「他の巡礼を見る」の展開がふわっとしない</span><span class="pill pill-done">完了 8/9</span></div>
+              <p class="ev"><b>PR #127 で解決</b>。同じ画面の地域別ブロックと同じ <code>LayoutAnimation.Presets.easeInEaseOut</code> に揃えた。</p>
+            </div>
+            <span class="size">XS</span>
+          </li>
+
+          <li class="item done">
+            <span class="box" role="img" aria-label="完了"></span>
+            <div>
+              <div class="line"><span class="id">A-13</span><span class="name">行きたいリストのカードがタップできない</span><span class="pill pill-done">完了 8/9</span></div>
+              <p class="ev"><b>PR #124（案3）で解決</b>。移設先の <code>WishlistScreen</code> でカード全体をタップ可能にし、地図の該当スポットへ戻すようにした。</p>
+            </div>
+            <span class="size">S</span>
+          </li>
+
+          <li class="item done">
+            <span class="box" role="img" aria-label="完了"></span>
+            <div>
+              <div class="line"><span class="id">A-14</span><span class="name">位置情報の設定を設定画面から</span><span class="pill pill-done">完了 8/9</span></div>
+              <p class="ev"><b>PR #124（案3）で解決</b>。自分タブに「現在地の利用」の行を追加し、許諾状態の表示と <code>Linking.openSettings()</code> での OS 設定への遷移を実装。</p>
+            </div>
+            <span class="size">S</span>
+          </li>
+        </ul>
+      </section>
+
+      <!-- ============ 設計判断 ============ -->
+      <section class="section" style="--hue: var(--design)">
+        <div class="section-head">
+          <h2>設計判断が要るもの</h2>
+          <span class="rule"></span>
+          <span class="count">4 / 8</span>
+        </div>
+
+        <ul class="items">
+          <li class="item done">
+            <span class="box" role="img" aria-label="完了"></span>
+            <div>
+              <div class="line"><span class="id">IA-3</span><span class="name">タブ入れ替え（地図 / 御朱印帳 / あつめる / 自分）</span><span class="pill pill-done">完了 8/9</span></div>
+              <p class="ev">#123 / <b>PR #124 マージ済み</b>。行きたいリストを <code>WishlistScreen</code> として地図タブへ移設し、A-13 / A-14 も同時に解決。B-6 も副次解消。テスト1045件・Expo Web で実操作確認済み。<b>実機 N 群6項目も確認済みで <code>passes: true</code></b>。実機確認で見つかった「削除しても地図の件数とピンの色が即時に変わらない」バグは Issue #125 / PR #126 で修正済み。</p>
+            </div>
+            <span class="size l">L</span>
+          </li>
+
+          <li class="item done">
+            <span class="box" role="img" aria-label="完了"></span>
+            <div>
+              <div class="line"><span class="id">D-3</span><span class="name">記録の確認モーダルを残すか</span></div>
+              <p class="ev">決定（2026-08-09）: <strong>廃止し、記録完了画面に取り消し導線を出す</strong>。モーダルが出していたのはスポット名と訪問日だけで、どちらも直前のフォーム上に見えており、一番間違えやすい写真は確認していなかった。</p>
+              <p class="blocker">Issue #130 / PR 準備中で反映済み</p>
+            </div>
+            <span class="size">M</span>
+          </li>
+
+          <li class="item done">
+            <span class="box" role="img" aria-label="完了"></span>
+            <div>
+              <div class="line"><span class="id">D-4</span><span class="name">和暦をどこまで出すか</span><span class="pill pill-done">決定 8/9</span></div>
+              <p class="ev"><b>「御朱印帳の中だけ」で決定</b>。めくりページは和暦、それ以外の表示は西暦のまま。⚠️ ただし議論の中で<b>本当の困りごとは表示ではなく入力</b>（紙が和暦でピッカーが西暦）と判明し、A-2 は日付選択への和暦併記として実装した。</p>
+            </div>
+            <span class="size">XS</span>
+          </li>
+
+          <li class="item">
+            <span class="box" role="img" aria-label="未完了"></span>
+            <div>
+              <div class="line"><span class="id">D-5</span><span class="name">未訪問ピンの色を変えるか（監査 A-9）</span></div>
+              <p class="ev">v6 仕様の変更になる。</p>
+              <p class="blocker">着手前に <code>docs/issues/issue-099-map-clustering.md</code> 追補1〜4 を必読（マーカー churn クラッシュ）</p>
+            </div>
+            <span class="size">M</span>
+          </li>
+
+          <li class="item">
+            <span class="box" role="img" aria-label="未完了"></span>
+            <div>
+              <div class="line"><span class="id">D-6</span><span class="name">受付時間のデータを取りに行くか（監査 B-7）</span></div>
+              <p class="ev">UI は完成済み（<code>SpotInfoSection</code>）。<b>全1,109スポット中データがあるのは2件だけ</b>。供給源の選択（メモ抽出 / クローラ拡張 / 手動整備）。</p>
+            </div>
+            <span class="size">M</span>
+          </li>
+
+          <li class="item done">
+            <span class="box" role="img" aria-label="完了"></span>
+            <div>
+              <div class="line"><span class="id">B-4</span><span class="name">ui-design v6 が撤回済み方針のまま</span><span class="pill pill-done">完了 8/9</span></div>
+              <p class="ev"><b>PR #127 で解決</b>。「無料版は直近20件」の撤回、タブ構成の案3への更新、御朱印帳タブの現況を追記。冒頭に「direction.md と実装が優先」と明記した。</p>
+            </div>
+            <span class="size">S</span>
+          </li>
+
+          <li class="item">
+            <span class="box" role="img" aria-label="未完了"></span>
+            <div>
+              <div class="line"><span class="id">B-6</span><span class="name">コレクションタブの中身が混在している</span></div>
+              <p class="ev">実績（過去）と行きたいリスト（未来）の同居。<b>案3 で自然に解消する</b>ので単独では動かさなくてよい。</p>
+            </div>
+            <span class="size">—</span>
+          </li>
+
+          <li class="item">
+            <span class="box" role="img" aria-label="未完了"></span>
+            <div>
+              <div class="line"><span class="id">B-3</span><span class="name">エラー握り潰しが全体の作法になっている</span></div>
+              <p class="ev">一覧系で通信失敗と「0件」が画面上で区別できない。コア導線（記録・アップロード）は #118 で改善済み。</p>
+            </div>
+            <span class="size">M</span>
+          </li>
+        </ul>
+
+        <div class="deps">
+          <pre>P1-03 ──▶ <b>IA-3 タブ入れ替え</b> ──▶ A-13 / A-14 も解決（8/9 完了）
+
+D-3 確認モーダル判断 ──▶ P1-02 記録フロー最短化
+D-4 和暦スコープ    ──▶ A-2      ← いま残っている唯一のブロッカー
+D-5（要 #099 追補）  ──▶ A-9 ピン色</pre>
+        </div>
+      </section>
+
+      <!-- ============ バックログ ============ -->
+      <section class="section" style="--hue: var(--muted)">
+        <div class="section-head">
+          <h2>バックログ</h2>
+          <span class="rule"></span>
+          <span class="count">1 / 8</span>
+        </div>
+        <p class="section-note">feature-list で <code>passes: false</code> のものと、GitHub の open issue。規模は見積もり（未検証）。</p>
+
+        <ul class="items">
+          <li class="item done">
+            <span class="box" role="img" aria-label="完了"></span>
+            <div>
+              <div class="line"><span class="id">P1-03</span><span class="name">御朱印帳らしいめくり UI</span><span class="pill pill-done">完了 8/9</span></div>
+              <p class="ev">#116 / PR #117。実機 N 群8項目をユーザーが2回に分けて全消化（グリッドの並び → PR #120 で修正、残り5項目は OK）。<b><code>passes: true</code> に更新済み。これで IA-3 のブロッカーが外れた</b>。</p>
+            </div>
+            <span class="size">S</span>
+          </li>
+
+          <li class="item">
+            <span class="box" role="img" aria-label="未完了"></span>
+            <div>
+              <div class="line"><span class="id">P1-01</span><span class="name">Maestro E2E の実戦検証</span></div>
+              <p class="ev"><code>smoke.yaml</code> のセレクタ確定と CI 組み込み。</p>
+            </div>
+            <span class="size">M</span>
+          </li>
+
+          <li class="item">
+            <span class="box" role="img" aria-label="未完了"></span>
+            <div>
+              <div class="line"><span class="id">P1-02</span><span class="name">記録フローの最短化</span></div>
+              <p class="ev">実装完了・機械検証通過（Issue #130・テスト1084件）。<strong>着手時の実測は監査 B-1 の5〜6ではなく地図 FAB 経路で7タップ</strong>（監査は未実装の自動選択を前提にしていた）。レバー3本＝モーダル廃止／カメラ直起動／最寄りスポットの既定選択で、記録画面内は2タップ（既定選択あり）・4タップ（なし）。</p>
+              <p class="blocker">実機確認待ち: カメラ直起動・位置情報の既定選択・タップ数（Web はログインできず記録画面に到達不可）</p>
+            </div>
+            <span class="size">M</span>
+          </li>
+
+          <li class="item">
+            <span class="box" role="img" aria-label="未完了"></span>
+            <div>
+              <div class="line"><span class="id">P1-04</span><span class="name">パーソナル年報</span></div>
+              <p class="ev">統計の拡張。無料 / 有料の線引きは契約書で決める。</p>
+            </div>
+            <span class="size l">L</span>
+          </li>
+
+          <li class="item">
+            <span class="box" role="img" aria-label="未完了"></span>
+            <div>
+              <div class="line"><span class="id">P1-07</span><span class="name">地図の全国スケール表示の恒久解禁</span></div>
+              <p class="ev"><code>minZoomLevel=8</code> の封じ込め解除。.ips 取得 → メモリ死の確定 → Instruments でネイティブ計測。</p>
+            </div>
+            <span class="size l">L</span>
+          </li>
+
+          <li class="item">
+            <span class="box" role="img" aria-label="未完了"></span>
+            <div>
+              <div class="line"><span class="id">#67</span><span class="name">マスタデータ追加（全国 rank3 スポット）</span></div>
+              <p class="ev">priority: medium / database。</p>
+            </div>
+            <span class="size">M</span>
+          </li>
+
+          <li class="item">
+            <span class="box" role="img" aria-label="未完了"></span>
+            <div>
+              <div class="line"><span class="id">#47</span><span class="name">訪問ルートの記録・共有機能</span></div>
+              <p class="ev">Phase 3（巡礼・ルート計画）と接続する。</p>
+            </div>
+            <span class="size l">L</span>
+          </li>
+
+          <li class="item">
+            <span class="box" role="img" aria-label="未完了"></span>
+            <div>
+              <div class="line"><span class="id">#82</span><span class="name">買い切り型プレミアムプランの設計・実装</span></div>
+              <p class="ev">priority: low。コア体験は永久無料の原則を維持する前提。</p>
+            </div>
+            <span class="size l">L</span>
+          </li>
+        </ul>
+      </section>
+
+      <!-- ============ リリース・期日 ============ -->
+      <section class="section" style="--hue: var(--release)">
+        <div class="section-head">
+          <h2>リリース作業・期日もの</h2>
+          <span class="rule"></span>
+          <span class="count">0 / 6</span>
+        </div>
+
+        <ul class="items">
+          <li class="item">
+            <span class="box" role="img" aria-label="未完了"></span>
+            <div>
+              <div class="line"><span class="id">REL-1</span><span class="name">App Store 審査結果 → 通過なら手動リリース</span><span class="pill pill-wait">待ち</span></div>
+              <p class="ev">8/9 時点で結果メールは未着（Apple からのメールを全件確認）。build 12 の ASC アップロードは <code>eas submit:list</code> で <code>FINISHED / 8-08 09:33 JST</code>。<b>build 11 は提出 8/2 → 却下 8/6 で約4日</b>かかっているので、いま音沙汰なしでも異常ではない。</p>
+              <p class="blocker">8/8 の「審査へ提出」が ASC 上で審査待ちになっているかは未確認（要 Apple ログイン）</p>
+            </div>
+            <span class="size">S</span>
+          </li>
+
+          <li class="item">
+            <span class="box" role="img" aria-label="未完了"></span>
+            <div>
+              <div class="line"><span class="id">REL-2</span><span class="name">cron 2ジョブの実行確認</span><span class="pill pill-wait">8/11</span></div>
+              <p class="ev">まだ期限前。<code>0 17 * * 1,4</code> の次回発火は 8/10 17:00 UTC ＝ <b>8/11 02:00 JST</b>。<code>crawl-spot-sources-biweekly</code> と <code>-instagram</code> が succeeded か。</p>
+            </div>
+            <span class="size">S</span>
+          </li>
+
+          <li class="item">
+            <span class="box" role="img" aria-label="未完了"></span>
+            <div>
+              <div class="line"><span class="id">REL-3</span><span class="name">実機スクショ3枚 → ASC 差し替え</span></div>
+              <p class="ev">コレクション / 御朱印ギャラリー / 記録画面。direction.md の Phase 0 で唯一残っている実作業。<b>記録できるようになったので今日から撮れる</b>。1284×2778 への変換はこちら。</p>
+            </div>
+            <span class="size">S</span>
+          </li>
+
+          <li class="item">
+            <span class="box" role="img" aria-label="未完了"></span>
+            <div>
+              <div class="line"><span class="id">REL-4</span><span class="name">ストア掲載画像の作り替え</span></div>
+              <p class="ev">生スクショ → 文言・装飾を載せた紹介用画像へ。UI 実装と独立した並行トラック。リリース後でも可。</p>
+            </div>
+            <span class="size">M</span>
+          </li>
+
+          <li class="item">
+            <span class="box" role="img" aria-label="未完了"></span>
+            <div>
+              <div class="line"><span class="id">REL-5</span><span class="name">Meta アクセストークン更新</span><span class="pill pill-wait">10/02</span></div>
+              <p class="ev">切れると Instagram クロールが全滅する。手順は handoff に記載済み（デバッガーで延長 → <code>supabase secrets set</code>）。</p>
+            </div>
+            <span class="size">S</span>
+          </li>
+
+          <li class="item">
+            <span class="box" role="img" aria-label="未完了"></span>
+            <div>
+              <div class="line"><span class="id">REL-6</span><span class="name">Google Play リリース</span></div>
+              <p class="ev">.aab（v1.0.0 / versionCode 2）はビルド済みで待機中。</p>
+              <p class="blocker">本人確認が審査中 ＋ 個人アカウントは12人×14日のクローズドテスト要件</p>
+            </div>
+            <span class="size l">L</span>
+          </li>
+        </ul>
+      </section>
+
+      <!-- ============ ユーザー作業 ============ -->
+      <section class="section" style="--hue: var(--user)">
+        <div class="section-head">
+          <h2>あなたがやる必要がある作業</h2>
+          <span class="rule"></span>
+          <span class="count">1 / 7</span>
+        </div>
+        <p class="section-note">上の各束と一部重なる横断ビュー。進捗カウントは別枠にしてある。</p>
+
+        <ul class="items">
+          <li class="item done">
+            <span class="box" role="img" aria-label="完了"></span>
+            <div>
+              <div class="line"><span class="id">U-1</span><span class="name">実機セッション（#116 N群8項目）</span><span class="pill pill-done">完了 8/9</span></div>
+              <p class="ev">実機を触るのはあなた。項目提示と修正はこちらで駆動する。dev サーバーは生存確認済み（<code>localhost:8081</code> = 200 / <code>https://agenda-insider-hop-oem.trycloudflare.com</code>）。</p>
+            </div>
+            <span class="size">M</span>
+          </li>
+
+          <li class="item">
+            <span class="box" role="img" aria-label="未完了"></span>
+            <div>
+              <div class="line"><span class="id">U-2</span><span class="name">実機スクショ3枚の撮影 → AirDrop</span></div>
+              <p class="ev">変換と ASC への差し替えはこちら。</p>
+            </div>
+            <span class="size">S</span>
+          </li>
+
+          <li class="item">
+            <span class="box" role="img" aria-label="未完了"></span>
+            <div>
+              <div class="line"><span class="id">U-3</span><span class="name">ASC で 8/8 の再提出ステータスを確認</span></div>
+              <p class="ev">「審査待ち / 審査中」になっているか。今回の棚卸しで唯一、事実にできなかった点。</p>
+            </div>
+            <span class="size">XS</span>
+          </li>
+
+          <li class="item">
+            <span class="box" role="img" aria-label="未完了"></span>
+            <div>
+              <div class="line"><span class="id">U-4</span><span class="name">拡張の Chrome で Apple にログイン</span></div>
+              <p class="ev">任意。一度ログインしてもらえれば以降の ASC 操作を代行できる（パスワード・2FA は必ず本人操作）。</p>
+            </div>
+            <span class="size">XS</span>
+          </li>
+
+          <li class="item">
+            <span class="box" role="img" aria-label="未完了"></span>
+            <div>
+              <div class="line"><span class="id">U-5</span><span class="name">8/11 の cron 確認 SQL</span></div>
+              <p class="ev"><code>select jobname, status, start_time from cron.job_run_details order by start_time desc limit 10;</code> を SQL Editor で。anon キーの REST でクロール結果のタイムスタンプから間接確認する手もあるが、該当カラムが REST に露出しているかは当日見ないと分からない。</p>
+            </div>
+            <span class="size">XS</span>
+          </li>
+
+          <li class="item">
+            <span class="box" role="img" aria-label="未完了"></span>
+            <div>
+              <div class="line"><span class="id">U-6</span><span class="name">Google Play 本人確認 ＋ Android 実機で Play Console ログイン</span></div>
+              <p class="ev">本人確認は審査中。完了まで「アプリを作成」がロックされる。</p>
+            </div>
+            <span class="size">S</span>
+          </li>
+
+          <li class="item">
+            <span class="box" role="img" aria-label="未完了"></span>
+            <div>
+              <div class="line"><span class="id">U-7</span><span class="name">10月初旬に Meta トークンを延長</span></div>
+              <p class="ev">アクセストークンデバッガーで延長 → secrets に再登録。</p>
+            </div>
+            <span class="size">XS</span>
+          </li>
+        </ul>
+      </section>
+    </main>
+  </div>
+
+  <p class="colophon">
+    ソースは <span class="mono">.claude/harness/task-board.html</span>。Claude が編集して同じ URL に再デプロイするので、
+    リンクはそのまま使える。完了・追加・優先順位の変更があれば言ってもらえれば反映する。
+  </p>
+</div>

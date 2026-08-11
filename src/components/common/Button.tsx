@@ -1,5 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { borderRadius, spacing } from '@theme/spacing';
@@ -13,6 +14,8 @@ interface ButtonProps {
   disabled?: boolean;
   style?: ViewStyle;
   textStyle?: TextStyle;
+  testID?: string;
+  icon?: keyof typeof MaterialIcons.glyphMap;
 }
 
 export const Button: React.FC<ButtonProps> = ({
@@ -22,15 +25,30 @@ export const Button: React.FC<ButtonProps> = ({
   disabled = false,
   style,
   textStyle,
+  testID,
+  icon,
 }) => {
+  // アイコンと文言の色は必ず一致させる（textStyle での上書きを優先）
+  const resolvedColor =
+    (textStyle?.color as string) ?? (variantTextStyles[variant].color as string);
+
   return (
     <TouchableOpacity
-      style={[styles.base, variantStyles[variant], disabled && styles.disabled, style]}
+      style={[
+        styles.base,
+        icon != null && styles.withIcon,
+        variantStyles[variant],
+        disabled && styles.disabled,
+        style,
+      ]}
       onPress={onPress}
       disabled={disabled}
       activeOpacity={0.7}
-      testID={`button-${variant}`}
+      testID={testID ?? `button-${variant}`}
     >
+      {icon != null && (
+        <MaterialIcons name={icon} size={18} color={resolvedColor} testID="button-icon" />
+      )}
       <Text
         style={[
           styles.text,
@@ -52,6 +70,10 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  withIcon: {
+    flexDirection: 'row',
+    gap: spacing.xs,
   },
   text: {
     ...typography.button,

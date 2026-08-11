@@ -16,6 +16,7 @@
 
 ※ 宮城県は `seed_miyagi_spots_and_pilgrimages.sql`（親ディレクトリ）で投入済み（2026-08 に本番 DB からエクスポートした rank 付き90件）
 ※ 巡礼コース6件と札所の紐付け75件は `seed_pilgrimages_and_spots.sql`（親ディレクトリ、名前ベースの INSERT ... SELECT）。スポット投入後に実行する
+※ 限定御朱印ウォッチャーの情報ソースは `seed_spot_info_sources_phase1.sql`（東京・宮城・京都の rank5 全29スポット、名前ベースの INSERT ... SELECT）。migration `20260802000000_create_spot_info_sources.sql` の適用後に実行する
 
 ## 投入手順
 

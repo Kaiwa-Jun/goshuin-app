@@ -3,25 +3,32 @@
   "phase": "Phase 1: 記録体験の磨き込み（docs/product/direction.md 参照）",
   "features": [
     {
+      "id": "P0-01",
+      "title": "App Store 審査対応（3回目の却下: アカウント削除 / カメラ / 位置情報プロンプト）",
+      "note": "2026-08-10 却下（v1.0 (12) / Submission 761a38c9-2eb8-4341-8603-252b161be183 / iPhone 17 Pro Max + iPad Air M3）。①5.1.1(v) アカウント削除が無い → Issue #134 で実装（契約書 docs/issues/issue-134-account-deletion.md・**PR #136 マージ済み**）。②2.1(a)「カメラで撮影」が無反応 → PR #121 で修正済み（build 12 に入っていなかっただけ・コード作業不要）。③5.1.1(iv) 位置情報の事前プロンプト → **PR #135 マージ済み**。3件すべてを build 13 に載せて1回で再提出する。✅ (a) Edge Function `delete-account` を本番デプロイ済み（2026-08-11）+ 401 を4パターンで実証済み（ヘッダ無し/でたらめな Bearer/ボディに他人の user_id/anon キー）。✅ (b) migration 20260811000000 を本番適用済み（2026-08-11・db query -f で流し、confdeltype が a→n になったことを確認。migration repair で履歴にも記録）。⚠️ 残タスク（この順序で）: (c) 実機で G-1〜G-4、(d) **Apple が要求する削除フローの実機画面収録**を App Review Information の Notes に添付（G-5）、(e) develop → main のリリースマージ → build 13 をビルド・submit、(f) ASC で3件まとめて返信。buildNumber は eas.json が appVersionSource: remote + autoIncrement のため手動バンプ不要。**Edge Function のデプロイはビルドより先**（アプリだけ先に出ると削除が 404/500 になる）。",
+      "issue": 134,
+      "passes": false
+    },
+    {
       "id": "P1-01",
       "title": "Maestro E2E の実戦検証（スモークフローを実機/シミュレータで通す）",
-      "note": "e2e/flows/smoke.yaml はドラフト。development-simulator ビルドで動作確認し、タブ遷移まで検証できたら passes",
+      "note": "Maestro 2.8.0 を導入し、ストアスクショ撮影フロー(e2e/flows/store-screenshots.yaml)をシミュレータで実走させた(2026-08-02)。残りは smoke.yaml のセレクタ確定と CI 組み込み",
       "issue": null,
       "passes": false
     },
     {
       "id": "P1-02",
       "title": "記録フローの最短化（起動→記録完了のタップ数削減）",
-      "note": "現状の動線を計測してから契約書を作る。目標「10秒以内に登録完了」の再検証を含む",
-      "issue": null,
-      "passes": false
+      "note": "完了(Issue #130 / 契約書 docs/issues/issue-130-record-flow-shortening.md)。確認モーダル廃止(D-3) + 完了画面の取り消し + カメラ直起動 + 最寄りスポットの既定選択。着手時の実測は地図FAB経路で7タップ(監査B-1の5〜6は未実装の自動選択を前提にした誤り)。記録画面内を2タップ(自動選択あり)/4タップ(なし)にした。テスト1087件。実機確認は6項目中4項目OK。⚠️ 位置情報依存の2項目(自動選択の発火・未許可時のガード)は自宅から検証できず未確認のまま(500m以内に候補が無く、ガードで出ないのか遠くて出ないのかを区別できない)。次に参拝したときに確認する。失敗しても手動選択に落ちるだけで誤選択側には倒れないためマージ判断。",
+      "issue": 130,
+      "passes": true
     },
     {
       "id": "P1-03",
       "title": "御朱印帳らしい質感の閲覧UI（見開き・めくり体験）",
-      "note": "ギャラリーの別ビューとして。requirements.md の将来拡張「御朱印帳ページUI再現」に対応",
-      "issue": null,
-      "passes": false
+      "note": "完了(Issue #116 / PR #117 マージ済み・**実機確認済み 2026-08-09**)。契約書 docs/issues/issue-116-goshuincho-flip-ui.md(受入基準95項目)。御朱印タブに右綴じ+蛇腹の折りのめくり表示、白紙ページ=記録入口、グリッド切替(AsyncStorage 永続化)、めくりページの和暦表示を追加。実装は横 FlatList + snapToInterval + RN 標準 Animated のみ(新規ライブラリなし)。実機 N群8項目はユーザーが2回に分けて確認: グリッドの並び関連3項目(→ PR #120 で古い順に修正)と、残り5項目(スワイプの手触り/スナップ・小型端末での収まり・再起動をまたぐ表示モード永続化・白紙ページから記録画面・1件入った状態のページ番号と和暦)を全て OK と確認。Evaluator の 80PASS/1FAIL/8SKIP は右綴じ・蛇腹を入れる前の版に対する結果だが、当該2機能は実機確認で代替した。帳面(goshuincho)一覧はスコープ外(既存 stamps が全件 goshuincho_id=null で記録フロー改修+backfill migration が別途要る)。残件は ImageGalleryModal のレンダー中 setValue(既存実装・別 issue 予定)。**これで案3のタブ入れ替えのブロッカーが外れた**",
+      "issue": 116,
+      "passes": true
     },
     {
       "id": "P1-04",
@@ -48,6 +55,52 @@
       "id": "P1-07",
       "title": "地図の全国スケール表示の恒久解禁（ネイティブメモリ調査）",
       "note": "P1-06 で封じ込めた minZoomLevel=8 の制限解除。実機クラッシュログ(.ips)の取得(USB + libimobiledevice) → メモリ死の確定 → Xcode 導入後に Instruments でネイティブ計測 → タイルメモリ対策 or Google Maps provider 検証。着手前に契約書を作ること",
+      "issue": null,
+      "passes": false
+    },
+    {
+      "id": "P1-08",
+      "title": "初回体験の改善（未ログイン時の空状態とログイン導線）",
+      "note": "完了(Issue #102 / PR #103 マージ済み・Evaluator PASS 47/47・実機確認済み 2026-08-02)。タブ遷移ブロック撤廃 + 御朱印/コレクションのゲスト空状態 + 検索の近隣/人気スポット提案。Evaluator 所見: useStampDetail が空文字 ID で Supabase に 400 を飛ばす既存パターンあり(スコープ外・未対応)",
+      "issue": 102,
+      "passes": true
+    },
+    {
+      "id": "P1-09",
+      "title": "スポット詳細ボトムシートの情報設計の改善",
+      "note": "完了(Issue #114 / PR #115 マージ済み・Evaluator 82/94 PASS・実機確認済み 2026-08-09)。共通ヘッダー + 段階的追加の構造へ再設計し SpotSheetHeader/SpotThumbnailStrip/SpotSheetActions を新設、SpotCompactCard を削除。監査 A-5/A-6/A-7 を解決、A-8/A-12 は部分的に解決。Evaluator が W-3 で本物のバグを検出: シートの位置を window 高基準で計算していたため compact のアクション行がタブバーの裏に潜り込んでいた(旧実装からの潜在バグ)。BottomTabBarHeightContext 基準に変更して解消。残る FAIL は Q-6 のみで、FAB 右下移動(766feb9)とドキュメントの相乗りによる意図的な逸脱(ユーザー承認済み)",
+      "issue": 114,
+      "passes": true
+    },
+    {
+      "id": "P1-10",
+      "title": "画面構成の入れ替え（案3: 地図 / 御朱印帳 / あつめる / 自分）",
+      "note": "実装完了・develop マージ済み(Issue #123 / PR #124・2026-08-09)。契約書 docs/issues/issue-123-ia-tab-restructure.md(受入基準51項目)。タブを 地図/御朱印帳/あつめる/自分 に変更し、行きたいリストを CollectionScreen から MapStack の新設 WishlistScreen へ移設(カードタップで地図の該当スポットへ = 監査 A-13)。自分タブに位置情報の行を追加(監査 A-14)。監査 B-6 も副次的に解消。内部ルート名は据え置き(改名の波及が大きく得るものが可読性だけのため)。表示名依存だった e2e/flows/smoke.yaml と RecordCompleteScreen のボタン文言も追随。契約書からの逸脱2件を記録(GalleryScreen のヘッダー1行変更 / UI-1 の基準見直し)。auto-review の指摘で MapScreen の行きたい二重取得(useWishlist と useWishlistSpots の併用)を解消。テスト1045件・lint/typecheck クリーン・Expo Web で実操作確認済み。**実機 N群6項目も確認済み(2026-08-09)**。1回目の実機確認で「行きたいから削除しても地図の件数とピンの色が即時に変わらない」バグを検出 → Issue #125 / PR #126 で修正(useWishlist が useEffect でしかフェッチせずフォーカス復帰で取り直していなかった。件数のずれは PR #124 の auto-review 対応で入れた退行、ピンの色のずれは案3より前からある既存問題)。再確認で解消を確認し passes: true。Maestro E2E は未実行(smoke.yaml のタブ名は更新済み)",
+      "issue": 123,
+      "passes": true
+    },
+    {
+      "id": "P2-01",
+      "title": "限定御朱印ウォッチャー MVP（情報ソース登録 + 巡回 + 表示）",
+      "note": "完了(Issue #104 / PR #105-109・Evaluator PASS 93/93・実機確認済み 2026-08-02)。運用投入済み: seed 29スポット79ソース・cron 週2回(火金02:00 JST)・Vault は sb_secret 使用。実クロール 39/40成功(平安神宮のみ先方SSL不備で失敗)・差分検知動作。品質対応: 授与品混入→isLikelyGoshuin ガード(PR #108)、過去告知の混入→日付注入プロンプト(PR #109)。精度の根本改善は P2-02 へ",
+      "issue": 104,
+      "passes": true
+    },
+    {
+      "id": "P2-02",
+      "title": "限定御朱印ウォッチャー v2（Instagram 取得 + 記事単位クロール）",
+      "note": [
+        "2026-08-02 ユーザー合意: 2本柱で「アイテム単位の出典 URL + 日付による機械的な鮮度判定」を実現する。**優先①: Instagram Business Discovery API** — Meta 公式 API(無料・規約クリーン)で他の Business/Creator アカウントの公開投稿(caption/permalink/timestamp)を取得し既存の Haiku 抽出に流す。permalink=投稿単位の出典、timestamp=鮮度判定。seed の SNS リンク39件中23件が Instagram。榴岡天満宮のように公式サイトが放置(最終2022年)で Instagram で発信する神社を拾えるようになる。前提: ユーザー側の Meta セットアップ(IG ビジネスアカウント+FB ページ+Meta developer アプリ+トークン、無料)。対象神社が個人アカウントの場合は取得不可→現行のリンク表示のまま。**②: 公式サイトの記事単位クロール** — 一覧ページから記事リンクを検知→新規記事の個別ページを fetch→記事単位で抽出、source_url を記事 URL に。X(旧Twitter)は API が月200ドル級のため収益化後に判断。着手前に契約書を作ること",
+        "2026-08-03 深夜: ①Instagram を Issue #111 として実装完了・Evaluator PASS 75/75(I群24件/N群6件はゲート後)。Meta セットアップ完了(トークン期限 2026-10-02)。push/PR 未実施でゲート停止中。②記事単位クロールは未着手(別 issue 予定)",
+        "2026-08-08: ①Instagram(Issue #111 / PR #112)本番投入完了。根本原因だったMeta Business Portfolio未リンク(OAuthException code 200 API access blocked)を解決し、実クロール成功(23アカウント中19件でClaude抽出成功・2件は個人アカウント判定でスキップ・failed 0)。榴岡天満宮(公式サイト更新停止スポット)にInstagram由来アイテムが入ることを実機・DB両方で確認。cron 2ジョブ化(web/instagram)はユーザーがSQL Editorで再登録予定。passes: true に更新可"
+      ],
+      "issue": 111,
+      "passes": true
+    },
+    {
+      "id": "P1-11",
+      "title": "オンボーディングの見た目を作り込む",
+      "note": "2026-08-11 ユーザー指摘。初回起動の4スライドが丸背景のアイコン + タイトル + 一文だけで、「集めるたび、地図があなたの旅になる。」というコンセプトが伝わらない。詳細は docs/design/ux-audit-2026-08.md の B-10。スライドの背景色が src/theme/colors のトークンを通さず直値（#FB923C 等）で書かれている規約違反も同時に解消したい。候補: 実画面のモック（地図にピンが増える / 御朱印帳のめくり）を見せる、和のモチーフ・質感、Rive で動きをつける（ui-design v6 の 7 章）。⚠️ **着手前に必読**: 2026-08-11 の Guideline 5.1.1(iv) 対応（PR #135）で最終スライドの脱出口を「続ける」1つに絞り、権限リクエストを回避できる導線を置けなくなっている。見た目を作り直すときにこの制約を壊すと再び却下される。優先度は未決定",
       "issue": null,
       "passes": false
     }

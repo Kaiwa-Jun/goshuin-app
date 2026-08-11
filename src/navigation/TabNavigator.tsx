@@ -1,24 +1,16 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { MapStack } from '@/navigation/MapStack';
 import { GalleryStack } from '@/navigation/GalleryStack';
 import { CollectionStack } from '@/navigation/CollectionStack';
 import { SettingsScreen } from '@screens/SettingsScreen';
-import { useAuth } from '@hooks/useAuth';
 import { colors } from '@theme/colors';
-import type { MainTabParamList, RootStackParamList } from '@/navigation/types';
+import type { MainTabParamList } from '@/navigation/types';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
-type RootNavigation = NativeStackNavigationProp<RootStackParamList>;
-
 export function TabNavigator() {
-  const { isAuthenticated } = useAuth();
-  const rootNavigation = useNavigation<RootNavigation>();
-
   return (
     <Tab.Navigator
       screenOptions={{
@@ -38,41 +30,25 @@ export function TabNavigator() {
         name="GalleryTab"
         component={GalleryStack}
         options={{
-          title: '御朱印',
-          tabBarIcon: ({ color }) => <MaterialIcons name="photo-library" size={24} color={color} />,
+          title: '御朱印帳',
+          tabBarIcon: ({ color }) => <MaterialIcons name="menu-book" size={24} color={color} />,
         }}
-        listeners={() => ({
-          tabPress: e => {
-            if (!isAuthenticated) {
-              e.preventDefault();
-              rootNavigation.navigate('Login');
-            }
-          },
-        })}
       />
       <Tab.Screen
         name="CollectionTab"
         component={CollectionStack}
         options={{
-          title: 'コレクション',
+          title: 'あつめる',
           headerShown: false,
           tabBarIcon: ({ color }) => <MaterialIcons name="emoji-events" size={24} color={color} />,
         }}
-        listeners={() => ({
-          tabPress: e => {
-            if (!isAuthenticated) {
-              e.preventDefault();
-              rootNavigation.navigate('Login');
-            }
-          },
-        })}
       />
       <Tab.Screen
         name="Settings"
         component={SettingsScreen}
         options={{
-          title: '設定',
-          tabBarIcon: ({ color }) => <MaterialIcons name="settings" size={24} color={color} />,
+          title: '自分',
+          tabBarIcon: ({ color }) => <MaterialIcons name="person" size={24} color={color} />,
         }}
       />
     </Tab.Navigator>
