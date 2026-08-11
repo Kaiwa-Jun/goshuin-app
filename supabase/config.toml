@@ -10,3 +10,9 @@ verify_jwt = false
 
 [functions.extract-spot-info]
 verify_jwt = false
+
+# delete-account だけは呼び出し元が「ログイン中の本人」であり service role ではない。
+# それでも verify_jwt = false にしているのは上と同じゲートウェイの都合で、
+# 本人確認は関数内の getUser() で行う（index.ts の冒頭コメント参照）。
+[functions.delete-account]
+verify_jwt = false
