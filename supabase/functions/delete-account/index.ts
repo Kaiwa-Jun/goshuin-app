@@ -58,9 +58,20 @@ Deno.serve(async req => {
 
     const deps: DeleteAccountDeps = {
       listImages: async id => {
-        const { data: files, error } = await admin.storage.from(BUCKET).list(id, { limit: 1000 });
-        if (error) return { names: [], error: error.message };
-        return { names: (files ?? []).map(f => f.name), error: null };
+        // list() は1回あたり最大 1000 件しか返さない。消し残しが出ないよう
+        // 返ってきた件数がページサイズに達している間は offset を進めて読み切る
+        const names: string[] = [];
+        const pageSize = 1000;
+        for (let offset = 0; ; offset += pageSize) {
+          const { data: files, error } = await admin.storage
+            .from(BUCKET)
+            .list(id, { limit: pageSize, offset });
+          if (error) return { names: [], error: error.message };
+          const page = files ?? [];
+          names.push(...page.map(f => f.name));
+          if (page.length < pageSize) break;
+        }
+        return { names, error: null };
       },
       removeImages: async paths => {
         const { error } = await admin.storage.from(BUCKET).remove(paths);
