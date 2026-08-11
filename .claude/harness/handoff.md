@@ -352,6 +352,32 @@ Issue #111 / PR #112 マージ済み・本番投入完了（passes: true）。Me
 - **抽出品質の防衛線**: ①isLikelyGoshuin ガード（name+description に朱印/集印必須、朱印帳/挟み紙除外）②プロンプトに今日の日付を注入して過去告知を除外、頒布中(開始のみ記載・通年)は含める。プロンプト変更時は必ず「八坂神社(授与品一覧)」「榴岡(古い告知)」「護國神社(通年切り絵)」で回帰確認する
 - **cron 実行履歴**: `select * from cron.job_run_details order by start_time desc limit 5;`（SQL Editor）
 
+## ⚠️ `supabase db push` を使ってはいけない（2026-08-11 発見）
+
+`npx supabase@latest migration list --linked` を取ったところ、**ローカルの `supabase/migrations/` と本番の migration 履歴が大きく乖離**していた。
+
+- **ローカルにあるが本番に未記録**: `20260331000000`（wishlists）/ `20260401000000` / `20260402000000` / `20260402000001` / `20260402100000` / `20260402110000` / `20260403000000` / `20260802000000`（spot_info_sources）/ `20260809000000`（goshuin-images バケット）
+- **本番にあるがローカルに無い**: `20260331151025` / `20260401014636` / `20260401044605` / `20260401065345` / `20260401065354` / `20260402063657` / `20260402071325` / `20260402175907`
+
+原因は、これらのスキーマ変更が**ダッシュボードの SQL Editor で直接適用され、あとから migrations ファイルとして写経された**ため（`20260809000000_create_goshuin_images_bucket.sql` の冒頭コメントにその経緯が書かれている）。
+
+**したがって `supabase db push` を打つと、既に適用済みの migration 9本を流し直そうとする。** テーブルの CREATE が衝突して落ちるか、最悪の場合は意図しない変更が入る。**個別の migration を流すときは `db query` を使うこと**:
+
+```
+npx supabase@latest link --project-ref tvnozkpxncmnehyomoff --yes   # 未リンクなら先に
+npx supabase@latest db query --linked -f supabase/migrations/<file>.sql
+```
+
+読み取りだけなら `db query --linked "<SQL>"` がそのまま使える（Management API 経由なので DB パスワード不要）。**ただし書き込み系は Claude Code の権限レイヤーに止められる**ので、ユーザーの承認か SQL Editor での実行が要る。
+
+流したあとは `migration repair` で履歴にも記録すること（やらないと「保留中」に見えて乖離を1本増やす）:
+
+```
+npx supabase@latest migration repair --status applied <version> --linked
+```
+
+既存の乖離分をまとめて揃えるのも同じコマンドでできるが、**未着手**。やるなら1本ずつ実体を確認してから。
+
 ## 参照ファイル
 
 - 方針・Phase 0 チェックリスト: `docs/product/direction.md`
