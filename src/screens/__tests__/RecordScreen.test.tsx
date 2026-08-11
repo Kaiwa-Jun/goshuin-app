@@ -1091,20 +1091,21 @@ describe('訪問済みスポットの取得に失敗したとき（Issue #133）
     });
   });
 
-  // B-9: catch 漏れがあると記録画面が redbox になる
-  it('unhandled rejection を出さない', async () => {
-    const unhandled = jest.fn();
-    process.on('unhandledRejection', unhandled);
+  // B-9: catch 漏れがあると記録画面が redbox になる。
+  // ⚠️ 検出しているのは jest-circus 自身で、テスト実行中に unhandled rejection が
+  // 起きればこのテストは落ちる。handleSavePress は save() の Promise を誰にも
+  // 渡さないため、こちらで掴んで assert する手段が無い。
+  // 自前で process.on('unhandledRejection') を張っても、その時点で jest が先に
+  // テストを落とすのでアサーションまで到達せず、守っているように見えるだけになる
+  it('reject を持ち越さず最後まで流れ切る', async () => {
     mockSubmit.mockResolvedValue({ success: true, stamp: fakeStamp });
 
     pressSave();
     await waitFor(() => {
       expect(mockNavigation.navigate).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
     });
+    // 取りこぼした rejection がマイクロタスクの後に浮上してくる猶予を与える
     await new Promise(resolve => setImmediate(resolve));
-
-    process.off('unhandledRejection', unhandled);
-    expect(unhandled).not.toHaveBeenCalled();
   });
 
   // B-10: isSavingRef が張り付くと以降まったく記録できなくなる（issue-130 A-12/A-13 と同趣旨）
