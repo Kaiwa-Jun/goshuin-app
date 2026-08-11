@@ -3,6 +3,7 @@ import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { Alert, StyleSheet, Text } from 'react-native';
 import { RecordCompleteScreen } from '@screens/RecordCompleteScreen';
 import { colors } from '@theme/colors';
+import { typography } from '@theme/typography';
 
 const mockDeleteStamp = jest.fn();
 
@@ -422,5 +423,105 @@ describe('記録の取り消し（Issue #130 / D-3）', () => {
     const style = StyleSheet.flatten(label.props.style);
 
     expect(style.color).toBe(colors.white);
+  });
+});
+
+// 訪問済みスポットの取得に失敗すると件数もバッジも算出できない。
+// 誤った数字を祝うより出さないほうがよいが、黙って消すと壊れていることに気づけないので
+// 理由だけを1行添える（Issue #133 / D-3）
+describe('記録数を算出できなかったときの注記（Issue #133）', () => {
+  const routeCountUnavailable = {
+    key: 'test',
+    name: 'RecordComplete' as const,
+    params: {
+      stampImageUrl: 'https://example.com/stamps/user-1/12345.jpg',
+      spotName: '大崎八幡宮',
+      countUnavailable: true,
+    },
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  // C-2
+  it('countUnavailable が true なら理由の注記を出す', () => {
+    const { getByTestId } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={routeCountUnavailable} />
+    );
+
+    expect(getByTestId('visit-count-unavailable').props.children).toBe(
+      '通信エラーのため記録数を表示できません'
+    );
+  });
+
+  // C-3: 通常の記録では出さない
+  it('countUnavailable が未指定なら注記を出さない', () => {
+    const { queryByTestId } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={mockRouteWithParams} />
+    );
+
+    expect(queryByTestId('visit-count-unavailable')).toBeNull();
+  });
+
+  // C-4
+  it('countUnavailable が false なら注記を出さない', () => {
+    const route = {
+      ...routeCountUnavailable,
+      params: { ...routeCountUnavailable.params, countUnavailable: false },
+    };
+    const { queryByTestId } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={route} />
+    );
+
+    expect(queryByTestId('visit-count-unavailable')).toBeNull();
+  });
+
+  // C-5: 件数を出せない代わりに、記録できたことは既存のフォールバック文言が伝える
+  it('visitCount が無ければ既存のフォールバック文言を出す', () => {
+    const { getByTestId } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={routeCountUnavailable} />
+    );
+
+    expect(getByTestId('visit-count').props.children).toBe('御朱印を記録しました！');
+  });
+
+  // C-6: 判定材料が無い以上、獲得済みバッジを再発火させない
+  it('badge が無ければバッジアニメーションを出さない', () => {
+    const { queryByTestId } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={routeCountUnavailable} />
+    );
+
+    expect(queryByTestId('badge-animation')).toBeNull();
+  });
+
+  // C-7: 直値の色・文字サイズを書かない（CLAUDE.md のトークン規約）
+  it('注記のスタイルがテーマトークン由来である', () => {
+    const { getByTestId } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={routeCountUnavailable} />
+    );
+    const style = StyleSheet.flatten(getByTestId('visit-count-unavailable').props.style);
+
+    expect(style.color).toBe(colors.white);
+    expect(style.fontSize).toBe(typography.caption.fontSize);
+  });
+
+  // C-8: 何の件数が出ていないのかが分かるよう、件数テキストの直下に置く
+  it('注記は件数テキストの直後に描画される', () => {
+    const { toJSON } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={routeCountUnavailable} />
+    );
+
+    const tracked = ['spot-name', 'visit-count', 'visit-count-unavailable'];
+    const order: string[] = [];
+    const walk = (node: any) => {
+      if (!node || typeof node !== 'object') return;
+      const id = node.props?.testID;
+      if (id && tracked.includes(id)) order.push(id);
+      (node.children ?? []).forEach(walk);
+    };
+    walk(toJSON());
+
+    expect(order).toEqual(tracked);
   });
 });

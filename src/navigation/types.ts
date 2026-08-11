@@ -17,6 +17,8 @@ export type RootStackParamList = {
         // 記録の取り消し用。deleteStamp が ID と画像パスの両方を要求する
         stampId?: string;
         imagePath?: string;
+        /** 訪問済みスポットの取得に失敗し、件数とバッジを算出できなかった（Issue #133） */
+        countUnavailable?: boolean;
       }
     | undefined;
   Login: undefined;
