@@ -68,6 +68,13 @@ export function SettingsScreen({ navigation }: Props) {
     }
   };
 
+  const handleDeleteAccount = () => {
+    const parent = navigation.getParent();
+    if (parent) {
+      parent.navigate('AccountDeletion');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
@@ -90,10 +97,28 @@ export function SettingsScreen({ navigation }: Props) {
           </View>
           <View style={styles.divider} />
           {isAuthenticated ? (
-            <TouchableOpacity style={styles.row} accessibilityRole="button" onPress={handleLogout}>
-              <MaterialIcons name="logout" size={24} color={colors.error} />
-              <Text style={styles.logoutText}>ログアウト</Text>
-            </TouchableOpacity>
+            <>
+              <TouchableOpacity
+                style={styles.row}
+                accessibilityRole="button"
+                onPress={handleLogout}
+              >
+                <MaterialIcons name="logout" size={24} color={colors.error} />
+                <Text style={styles.logoutText}>ログアウト</Text>
+              </TouchableOpacity>
+              {/* App Store Guideline 5.1.1(v): アカウント作成があるアプリは
+                  アプリ内から削除を開始できなければならない（Issue #134） */}
+              <TouchableOpacity
+                style={styles.row}
+                accessibilityRole="button"
+                onPress={handleDeleteAccount}
+                testID="delete-account-row"
+              >
+                <MaterialIcons name="delete-forever" size={24} color={colors.error} />
+                <Text style={styles.logoutText}>アカウントを削除</Text>
+                <MaterialIcons name="chevron-right" size={24} color={colors.gray[400]} />
+              </TouchableOpacity>
+            </>
           ) : (
             <TouchableOpacity style={styles.row} accessibilityRole="button" onPress={handleLogin}>
               <MaterialIcons name="login" size={24} color={colors.primary[500]} />

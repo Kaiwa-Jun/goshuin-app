@@ -185,6 +185,41 @@ describe('SettingsScreen', () => {
         expect(Alert.alert).toHaveBeenCalledWith('エラー', 'Failed');
       });
     });
+
+    // Issue #134 / E 群: アカウント削除の導線（App Store Guideline 5.1.1(v)）
+    it('アカウント削除の行が表示される', () => {
+      const { getByTestId, getByText } = render(
+        <SettingsScreen navigation={mockNavigation} route={mockRoute} />
+      );
+      expect(getByTestId('delete-account-row')).toBeTruthy();
+      expect(getByText('アカウントを削除')).toBeTruthy();
+    });
+
+    it('アカウント削除の行をタップすると AccountDeletion へ遷移する', () => {
+      const parentNavigate = jest.fn();
+      const nav = {
+        ...mockNavigation,
+        getParent: jest.fn(() => ({ navigate: parentNavigate })),
+      } as unknown as MainTabScreenProps<'Settings'>['navigation'];
+
+      const { getByTestId } = render(<SettingsScreen navigation={nav} route={mockRoute} />);
+      fireEvent.press(getByTestId('delete-account-row'));
+
+      expect(parentNavigate).toHaveBeenCalledWith('AccountDeletion');
+    });
+  });
+
+  describe('アカウント削除の導線（Issue #134）', () => {
+    it('未ログイン時は表示されない', () => {
+      mockUseAuthReturn = { ...mockUseAuthReturn, isAuthenticated: false, user: null };
+
+      const { queryByTestId, queryByText } = render(
+        <SettingsScreen navigation={mockNavigation} route={mockRoute} />
+      );
+
+      expect(queryByTestId('delete-account-row')).toBeNull();
+      expect(queryByText('アカウントを削除')).toBeNull();
+    });
   });
 
   describe('公開設定セクション', () => {
