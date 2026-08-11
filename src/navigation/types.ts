@@ -22,6 +22,8 @@ export type RootStackParamList = {
   Login: undefined;
   TermsOfService: undefined;
   PrivacyPolicy: undefined;
+  // Settings はスタックを持たないタブ画面なので、そこから開く画面は RootStack に置く
+  AccountDeletion: undefined;
   Error: {
     type: 'network' | 'location' | 'upload';
     origin?: 'record';
