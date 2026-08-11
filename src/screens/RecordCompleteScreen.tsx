@@ -21,6 +21,7 @@ export function RecordCompleteScreen({ navigation, route }: Props) {
   const badge = route.params?.badge;
   const stampId = route.params?.stampId;
   const imagePath = route.params?.imagePath;
+  const countUnavailable = route.params?.countUnavailable;
   const [imageError, setImageError] = useState(false);
   const [isUndoing, setIsUndoing] = useState(false);
 
@@ -108,6 +109,14 @@ export function RecordCompleteScreen({ navigation, route }: Props) {
             {visitCount ? `${visitCount}箇所目の御朱印！` : '御朱印を記録しました！'}
           </Text>
 
+          {/* 記録は保存できている。黙って件数を消すと壊れていることに気づけないので
+              理由だけを控えめに添える（Issue #133 / D-3） */}
+          {countUnavailable && (
+            <Text style={styles.countUnavailableText} testID="visit-count-unavailable">
+              通信エラーのため記録数を表示できません
+            </Text>
+          )}
+
           {badge && <BadgeAnimation badge={badge} />}
         </View>
 
@@ -193,6 +202,13 @@ const styles = StyleSheet.create({
   countText: {
     ...typography.h3,
     color: colors.white,
+  },
+  // お祝いの場なのでエラー画面には飛ばさず、注記として控えめに置く
+  countUnavailableText: {
+    ...typography.caption,
+    color: colors.white,
+    opacity: 0.7,
+    textAlign: 'center',
   },
   actions: {
     paddingHorizontal: spacing['2xl'],

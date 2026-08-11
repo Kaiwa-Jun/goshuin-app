@@ -14,9 +14,10 @@ const STAMP_IMAGE_CONTENT_TYPE = 'image/jpeg';
 export async function fetchVisitedSpotIds(): Promise<Set<string>> {
   const { data, error } = await supabase.from('stamps').select('spot_id');
 
+  // 空 Set を返すと呼び出し元が「まだ0件」と区別できない。
+  // 記録完了画面はこの件数でバッジを判定するため、握り潰すと嘘の数字を祝うことになる（Issue #133）
   if (error) {
-    console.warn('fetchVisitedSpotIds error:', error.message);
-    return new Set();
+    throw new Error(describeSupabaseError(error, '訪問済みスポットの取得に失敗しました'));
   }
 
   return new Set((data as { spot_id: string }[]).map(row => row.spot_id));
