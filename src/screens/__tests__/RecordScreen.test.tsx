@@ -342,20 +342,6 @@ describe('RecordScreen', () => {
     });
   });
 
-  it('公開トグルが表示されること', () => {
-    const { getByText, getByTestId } = render(
-      <RecordScreen navigation={mockNavigation} route={mockRoute} />
-    );
-    expect(getByText('この御朱印を公開する')).toBeTruthy();
-    expect(getByTestId('public-toggle')).toBeTruthy();
-  });
-
-  it('トグル操作で setIsPublic が呼ばれること', () => {
-    const { getByTestId } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
-    fireEvent(getByTestId('public-toggle'), 'valueChange', true);
-    expect(mockSetIsPublic).toHaveBeenCalledWith(true);
-  });
-
   it('メモ欄の下にガイドテキストが表示されること', () => {
     const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
     expect(getByText(/駐車場の有無、アクセス情報などを書くと/)).toBeTruthy();
@@ -364,6 +350,17 @@ describe('RecordScreen', () => {
   // D-6（案A）: 受付時間は公式サイトから seed するようにしたので、
   // メモに書いてもらう対象から外す。駐車場とアクセス情報はメモが唯一の
   // 供給源なので残す（本番でそれぞれ 3件 / 1件しかない）
+  // Guideline 1.2: 他ユーザーに見えるコンテンツを作らせない（Issue #147）。
+  // トグルを外すと createStamp の `is_public: params.isPublic ?? false` により
+  // 新規記録は必ず非公開になる
+  it('公開トグルが表示されないこと', () => {
+    const { queryByTestId, queryByText } = render(
+      <RecordScreen navigation={mockNavigation} route={mockRoute} />
+    );
+    expect(queryByTestId('public-toggle')).toBeNull();
+    expect(queryByText(/公開/)).toBeNull();
+  });
+
   it('ガイドテキストが受付時間を書くよう促していないこと', () => {
     const { queryByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
     expect(queryByText(/受付時間/)).toBeNull();

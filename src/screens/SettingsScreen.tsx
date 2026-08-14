@@ -2,21 +2,11 @@ import { MaterialIcons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import * as Location from 'expo-location';
 import { useEffect, useState } from 'react';
-import {
-  Alert,
-  Linking,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Alert, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Card } from '@components/common/Card';
 import { useAuth } from '@hooks/useAuth';
-import { useDefaultPublicSetting } from '@hooks/useDefaultPublicSetting';
 import { colors } from '@theme/colors';
 import { spacing } from '@theme/spacing';
 import { typography } from '@theme/typography';
@@ -26,7 +16,6 @@ type Props = MainTabScreenProps<'Settings'>;
 
 export function SettingsScreen({ navigation }: Props) {
   const { user, isAuthenticated, signOut } = useAuth();
-  const { defaultPublic, updateDefaultPublic } = useDefaultPublicSetting();
   const appVersion = Constants.expoConfig?.version ?? '不明';
   // OS の権限はアプリから直接トグルできないため、状態の表示と設定アプリへの導線だけ持つ
   const [locationGranted, setLocationGranted] = useState<boolean | null>(null);
@@ -127,29 +116,8 @@ export function SettingsScreen({ navigation }: Props) {
           )}
         </Card>
 
-        {/* Public Settings Section - only for authenticated users */}
-        {isAuthenticated && (
-          <>
-            <Text style={styles.sectionTitle}>公開設定</Text>
-            <Card style={styles.sectionCard}>
-              <View style={styles.publicRow}>
-                <View style={styles.publicLabelContainer}>
-                  <Text style={styles.rowLabel}>御朱印のデフォルト公開設定</Text>
-                  <Text style={styles.publicDescription}>
-                    新しく記録する御朱印を自動的に公開します
-                  </Text>
-                </View>
-                <Switch
-                  value={defaultPublic}
-                  onValueChange={updateDefaultPublic}
-                  trackColor={{ false: colors.gray[300], true: colors.primary[200] }}
-                  thumbColor={defaultPublic ? colors.primary[500] : colors.gray[100]}
-                  testID="default-public-toggle"
-                />
-              </View>
-            </Card>
-          </>
-        )}
+        {/* Guideline 1.2（UGC）対応で「公開設定」セクションを外した（Issue #147）。
+            v1.1 で通報・ブロック・EULA を実装したらここに戻す */}
 
         {/* App Info Section */}
         <Text style={styles.sectionTitle}>位置情報</Text>
