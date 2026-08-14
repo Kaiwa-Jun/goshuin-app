@@ -222,52 +222,6 @@ describe('SettingsScreen', () => {
     });
   });
 
-  describe('公開設定セクション', () => {
-    it('ログイン時に公開設定セクションが表示されること', () => {
-      mockUseAuthReturn = {
-        ...mockUseAuthReturn,
-        isAuthenticated: true,
-        user: {
-          id: 'user-123',
-          email: 'test@example.com',
-          user_metadata: { full_name: 'テストユーザー' },
-        },
-      };
-
-      const { getByText } = render(
-        <SettingsScreen navigation={mockNavigation} route={mockRoute} />
-      );
-      expect(getByText('公開設定')).toBeTruthy();
-      expect(getByText('御朱印のデフォルト公開設定')).toBeTruthy();
-      expect(getByText('新しく記録する御朱印を自動的に公開します')).toBeTruthy();
-    });
-
-    it('未ログイン時は公開設定セクションが非表示であること', () => {
-      const { queryByText } = render(
-        <SettingsScreen navigation={mockNavigation} route={mockRoute} />
-      );
-      expect(queryByText('公開設定')).toBeNull();
-    });
-
-    it('トグル操作で updateDefaultPublic が呼ばれること', () => {
-      mockUseAuthReturn = {
-        ...mockUseAuthReturn,
-        isAuthenticated: true,
-        user: {
-          id: 'user-123',
-          email: 'test@example.com',
-          user_metadata: { full_name: 'テストユーザー' },
-        },
-      };
-
-      const { getByTestId } = render(
-        <SettingsScreen navigation={mockNavigation} route={mockRoute} />
-      );
-      fireEvent(getByTestId('default-public-toggle'), 'valueChange', true);
-      expect(mockUpdateDefaultPublic).toHaveBeenCalledWith(true);
-    });
-  });
-
   it('renders app info section', () => {
     const { getByText } = render(<SettingsScreen navigation={mockNavigation} route={mockRoute} />);
     expect(getByText('アプリ情報')).toBeTruthy();
@@ -382,5 +336,17 @@ describe('SettingsScreen 位置情報の行（Issue #123 / 監査 A-14）', () =
     expect(queryByText('未許可')).toBeNull();
 
     warnSpy.mockRestore();
+  });
+
+  // Guideline 1.2: 公開機能そのものを v1.0 から外す（Issue #147）
+  describe('公開設定セクションの削除（Guideline 1.2）', () => {
+    it('公開設定セクションが表示されないこと', () => {
+      const { queryByText, queryByTestId } = render(
+        <SettingsScreen navigation={mockNavigation} route={mockRoute} />
+      );
+      expect(queryByText('公開設定')).toBeNull();
+      expect(queryByText(/御朱印のデフォルト公開設定/)).toBeNull();
+      expect(queryByTestId('default-public-toggle')).toBeNull();
+    });
   });
 });

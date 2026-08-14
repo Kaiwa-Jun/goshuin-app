@@ -1,7 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import {
   StyleSheet,
-  Switch,
   Text,
   View,
   ScrollView,
@@ -274,23 +273,10 @@ export function RecordScreen({ navigation, route }: Props) {
             スポット情報として自動的に反映されます
           </Text>
 
-          <View style={styles.publicToggleSection}>
-            <View style={styles.publicToggleRow}>
-              <MaterialIcons
-                name={form.isPublic ? 'public' : 'lock'}
-                size={20}
-                color={form.isPublic ? colors.primary[500] : colors.gray[500]}
-              />
-              <Text style={styles.publicToggleLabel}>この御朱印を公開する</Text>
-              <Switch
-                value={form.isPublic}
-                onValueChange={form.setIsPublic}
-                trackColor={{ false: colors.gray[300], true: colors.primary[200] }}
-                thumbColor={form.isPublic ? colors.primary[500] : colors.gray[100]}
-                testID="public-toggle"
-              />
-            </View>
-          </View>
+          {/* Guideline 1.2（UGC）対応で公開トグルを外した（Issue #147）。
+              createStamp の `is_public: params.isPublic ?? false` により、
+              トグルが無ければ新規記録は必ず非公開になる。
+              v1.1 で通報・ブロック・EULA を実装したらここに戻す */}
         </ScrollView>
       </KeyboardAvoidingView>
 
