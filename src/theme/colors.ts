@@ -47,7 +47,9 @@ export const colors = {
     shrineVisited: '#EF4444',
     templeVisited: '#A855F7',
     wishlisted: '#F59E0B',
-    unvisited: '#9CA3AF',
+    // 未訪問は淡いブランド色1色 (= primary[200])。神社/寺の区別はつけない。
+    // primary[300] は wishlisted (#F59E0B) と色相も明度も近く地図上で判別できない
+    unvisited: '#FED7AA',
     currentLocation: '#3B82F6',
   },
 

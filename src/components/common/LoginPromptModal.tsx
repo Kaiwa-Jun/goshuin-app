@@ -1,9 +1,11 @@
 import React from 'react';
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import * as AppleAuthentication from 'expo-apple-authentication';
 
 import { Modal } from '@components/common/Modal';
 import { useAuth } from '@hooks/useAuth';
+import type { AuthResult } from '@services/auth';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { spacing, borderRadius } from '@theme/spacing';
@@ -16,11 +18,9 @@ interface LoginPromptModalProps {
 }
 
 export function LoginPromptModal({ visible, onClose, onLoginSuccess }: LoginPromptModalProps) {
-  const { signInWithGoogle } = useAuth();
+  const { signInWithGoogle, signInWithApple } = useAuth();
 
-  const handleGoogleLogin = async () => {
-    const result = await signInWithGoogle();
-
+  const handleResult = (result: AuthResult) => {
     if (result.success) {
       onLoginSuccess();
       return;
@@ -29,6 +29,14 @@ export function LoginPromptModal({ visible, onClose, onLoginSuccess }: LoginProm
     if (result.error.code !== 'CANCELLED') {
       Alert.alert('ログインエラー', result.error.message);
     }
+  };
+
+  const handleGoogleLogin = async () => {
+    handleResult(await signInWithGoogle());
+  };
+
+  const handleAppleLogin = async () => {
+    handleResult(await signInWithApple());
   };
 
   return (
@@ -40,6 +48,19 @@ export function LoginPromptModal({ visible, onClose, onLoginSuccess }: LoginProm
 
         <Text style={styles.title}>ログインが必要です</Text>
         <Text style={styles.description}>御朱印を記録するにはログインしてください</Text>
+
+        {/* Guideline 4.8: 第三者ログインと同等の選択肢を必ず併置する。
+            Google より上に置くこと（下や折りたたみだと「同等」に見えない） */}
+        {Platform.OS === 'ios' && (
+          <AppleAuthentication.AppleAuthenticationButton
+            buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+            buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+            cornerRadius={borderRadius.lg}
+            style={styles.appleButton}
+            onPress={handleAppleLogin}
+            testID="modal-apple-login-button"
+          />
+        )}
 
         <TouchableOpacity
           style={styles.googleButton}
@@ -82,6 +103,11 @@ const styles = StyleSheet.create({
     color: colors.gray[500],
     textAlign: 'center',
     marginBottom: spacing.xl,
+  },
+  appleButton: {
+    width: '100%',
+    height: 48,
+    marginBottom: spacing.md,
   },
   googleButton: {
     flexDirection: 'row',

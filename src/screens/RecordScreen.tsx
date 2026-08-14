@@ -1,7 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import {
   StyleSheet,
-  Switch,
   Text,
   View,
   ScrollView,
@@ -85,24 +84,43 @@ export function RecordScreen({ navigation, route }: Props) {
   };
 
   const save = async () => {
-    const visitedSpotIds = await fetchVisitedSpotIds();
-    const previousCount = visitedSpotIds.size;
+    // 失敗しているのは表示用の前取得であって記録ではない。ここで中断すると
+    // 「写真は撮れたのに保存されない」になるので、取得の成否によらず submit する（Issue #133 / D-2）
+    let visitedSpotIds: Set<string> | null = null;
+    try {
+      visitedSpotIds = await fetchVisitedSpotIds();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`[record] fetchVisitedSpotIds failed: ${message}`);
+    }
 
     const result = await form.submit();
 
     if (result.success && result.stamp) {
+      const completeParams = {
+        stampImageUrl: getStampImageUrl(result.stamp.image_path),
+        spotName: form.selectedSpot?.name,
+        // 取り消し（deleteStamp）に ID と画像パスの両方が要る
+        stampId: result.stamp.id,
+        imagePath: result.stamp.image_path,
+      };
+
+      // previousCount が無い以上バッジは判定できない。0 を代入して評価すると
+      // 「100箇所目なのに1箇所目」と祝い、獲得済みバッジが再発火する（Issue #133）
+      if (visitedSpotIds === null) {
+        navigation.navigate('RecordComplete', { ...completeParams, countUnavailable: true });
+        return;
+      }
+
+      const previousCount = visitedSpotIds.size;
       const isNewSpot = form.selectedSpot ? !visitedSpotIds.has(form.selectedSpot.id) : false;
       const currentCount = isNewSpot ? previousCount + 1 : previousCount;
       const badge = evaluateNewBadge(previousCount, currentCount);
 
       navigation.navigate('RecordComplete', {
-        stampImageUrl: getStampImageUrl(result.stamp.image_path),
-        spotName: form.selectedSpot?.name,
+        ...completeParams,
         visitCount: currentCount,
         badge,
-        // 取り消し（deleteStamp）に ID と画像パスの両方が要る
-        stampId: result.stamp.id,
-        imagePath: result.stamp.image_path,
       });
     } else if (!result.success) {
       const errorType = isNetworkError(result.error) ? 'network' : 'upload';
@@ -251,27 +269,14 @@ export function RecordScreen({ navigation, route }: Props) {
           </View>
 
           <Text style={styles.memoGuide}>
-            駐車場の有無、受付時間、アクセス情報などを書くと、{'\n'}
+            駐車場の有無、アクセス情報などを書くと、{'\n'}
             スポット情報として自動的に反映されます
           </Text>
 
-          <View style={styles.publicToggleSection}>
-            <View style={styles.publicToggleRow}>
-              <MaterialIcons
-                name={form.isPublic ? 'public' : 'lock'}
-                size={20}
-                color={form.isPublic ? colors.primary[500] : colors.gray[500]}
-              />
-              <Text style={styles.publicToggleLabel}>この御朱印を公開する</Text>
-              <Switch
-                value={form.isPublic}
-                onValueChange={form.setIsPublic}
-                trackColor={{ false: colors.gray[300], true: colors.primary[200] }}
-                thumbColor={form.isPublic ? colors.primary[500] : colors.gray[100]}
-                testID="public-toggle"
-              />
-            </View>
-          </View>
+          {/* Guideline 1.2（UGC）対応で公開トグルを外した（Issue #147）。
+              createStamp の `is_public: params.isPublic ?? false` により、
+              トグルが無ければ新規記録は必ず非公開になる。
+              v1.1 で通報・ブロック・EULA を実装したらここに戻す */}
         </ScrollView>
       </KeyboardAvoidingView>
 

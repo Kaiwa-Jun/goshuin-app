@@ -50,13 +50,26 @@ describe('stamps service', () => {
       expect(result.has('spot-2')).toBe(true);
     });
 
-    it('returns empty Set on error', async () => {
+    // A-1 / A-2: 空 Set を返すと呼び出し元が「0件」と区別できず、
+    // 記録完了画面が嘘の件数とバッジを祝ってしまう（Issue #133）
+    it('throws on error instead of returning an empty Set', async () => {
       mockFrom.mockReturnValue({ select: mockSelect });
-      mockSelect.mockReturnValue({ data: null, error: { message: 'error' } });
+      mockSelect.mockReturnValue({
+        data: null,
+        error: { message: 'network down', code: 'PGRST301' },
+      });
 
-      const result = await fetchVisitedSpotIds();
-      expect(result).toBeInstanceOf(Set);
-      expect(result.size).toBe(0);
+      await expect(fetchVisitedSpotIds()).rejects.toThrow('network down (code=PGRST301)');
+    });
+
+    // A-3: 素性の分からないエラーでも読める文言に落とす
+    it('falls back to a readable message when the error carries nothing', async () => {
+      mockFrom.mockReturnValue({ select: mockSelect });
+      mockSelect.mockReturnValue({ data: null, error: {} });
+
+      await expect(fetchVisitedSpotIds()).rejects.toThrow(
+        new Error('訪問済みスポットの取得に失敗しました')
+      );
     });
   });
 

@@ -43,10 +43,13 @@ export function SpotInfoSection({ spotInfo }: SpotInfoSectionProps) {
     <View style={styles.container} testID="spot-info-section">
       {items.map((item, index) => (
         <View style={styles.infoItem} key={index} testID={`spot-info-item-${index}`}>
-          <MaterialIcons name={item.icon} size={14} color={colors.primary[500]} />
-          <Text style={styles.infoText} numberOfLines={1}>
-            {item.text}
-          </Text>
+          <MaterialIcons
+            name={item.icon}
+            size={14}
+            color={colors.primary[500]}
+            style={styles.icon}
+          />
+          <Text style={styles.infoText}>{item.text}</Text>
         </View>
       ))}
     </View>
@@ -62,15 +65,23 @@ const styles = StyleSheet.create({
   },
   infoItem: {
     flexDirection: 'row',
-    alignItems: 'center',
+    // 複数行になったときにアイコンが中央へ浮かないよう上端で揃える
+    alignItems: 'flex-start',
     gap: spacing.xs,
     backgroundColor: colors.gray[50],
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.sm,
   },
+  icon: {
+    // caption の行の中心にアイコンの中心を合わせる（上端揃えにした分の補正）
+    marginTop: 1,
+  },
   infoText: {
     ...typography.caption,
     color: colors.gray[600],
+    // row の中の Text は flexShrink が既定 0 のため、これが無いと
+    // 折り返さずにチップからはみ出す
+    flexShrink: 1,
   },
 });
