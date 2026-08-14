@@ -48,6 +48,35 @@ Submission ID: `761a38c9-2eb8-4341-8603-252b161be183` / 審査環境: iPhone 17 
 
 `services` の関数・各コンポーネントの props・DB・migration・RLS は**意図的に無変更**。v1.1 の復帰は hook 1つの revert で済む。
 
+### 🔧 作業中: ストア掲載画像の撮り直し（2026-08-15 深夜）
+
+**⚠️ `src/screens/MapScreen.tsx` を撮影用に改変したまま中断している可能性がある。**
+`LATITUDE_DELTA` / `LONGITUDE_DELTA` を **0.015 → 0.066** に変更（未コミット）。
+バックアップ: `scratchpad/MapScreen.tsx.orig`。**撮影が終わったら必ず戻すこと**（`git checkout src/screens/MapScreen.tsx`）。
+
+- 構成モック（ユーザー承認済み）: https://claude.ai/code/artifact/fc1b6b3d-87f6-4a30-a818-577457d681e2
+- 6枚: ①地図 ②記録 ③御朱印帳のめくり ④限定御朱印 ⑤あつめる ⑥広域地図
+- **撮影地点 `35.6786, 139.7442` / latitudeDelta `0.066`** — 皇居南西。12ピン・rank5 5件（靖國・東京大神宮・日枝・烏森・増上寺）が入る
+- 訪問済みピン（赤/紫）は入れない（ユーザー判断）。パノラマ構成も不採用（検索結果は3枚で切れるため）
+
+**⚠️ 撮影で判明した制約**:
+
+1. **`latitudeDelta 0.075` 以上はクラスタのバブルになる**（`getZoomFromRegion` が 13 を返し `CLUSTER_MAX_ZOOM=13` に該当）。個別ピンを保てる上限が **0.066**
+2. **`LABEL_VISIBLE_DELTA = 0.2`** なのでこの範囲ならピンに神社名ラベルが出る（絵として重要）。ただし衝突回避が無いので枚数が増えると重なる
+3. **`MAX_VISIBLE_SPOTS = 80`** なので12件は全部描画される
+4. ⚠️ **development build では撮影できない** — `clearState: true` が dev client の保存済み Metro URL を消してランチャー画面に落ち、さらに開発者メニューのシートが繰り返し出る。**`preview-simulator`（埋め込みバンドル）を使うこと**。元の `store-screenshots.yaml` のヘッダに同じ前提が書いてあった
+5. ⚠️ **6枚中3枚（記録・御朱印帳・あつめる）はログインが必要**。シミュレータでの Google/Apple サインインが通るか未検証。通らなければ Web プレビュー（`?preview=goshuincho`・860×1864）の流用か構成の見直しが要る
+
+**フロー**: `e2e/flows/store-shots-public.yaml`（ログイン不要の3枚）。撮影前に:
+
+```bash
+xcrun simctl privacy <udid> grant location com.goshuin.app
+xcrun simctl location <udid> set 35.6786,139.7442
+xcrun simctl status_bar <udid> override --time "9:41" --cellularBars 4 --batteryLevel 100 --wifiBars 3
+```
+
+**⚠️ アップロードは審査結果が出てから**（いま `WAITING_FOR_REVIEW` で、差し替えると審査キューから外れる可能性がある）。
+
 ### ⚠️ ストアのスクショ6枚が古い（2.3.3 のリスク・未対応）
 
 `goshuin-app-artifacts/screenshots-ios-6.7/` の6枚は **8/2 頃の見た目**で、いまの実装と食い違う:
