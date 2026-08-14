@@ -79,7 +79,9 @@ appId: com.goshuin.app
 # --- 4枚目: 限定御朱印（靖國神社のスポット詳細） ---
 # 検索から開く。ピンの座標タップはズームや端末幅で壊れやすい。
 # ⚠️ 地図の SearchBar は editable={false} で、タップすると検索画面へ遷移する
-- tapOn: '神社・寺院を検索'
+# placeholder はテキスト照合で拾えないので座標で押す（検索バーは画面上部10%付近）
+- tapOn:
+    point: '50%,10%'
 - waitForAnimationToEnd:
     timeout: 3000
 - inputText: '靖國'
