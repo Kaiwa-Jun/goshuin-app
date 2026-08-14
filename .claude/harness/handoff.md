@@ -14,14 +14,13 @@ Submission ID: `761a38c9-2eb8-4341-8603-252b161be183` / 審査環境: iPhone 17 
 
 ### 次にやること（順番どおりに）
 
-1. **⚠️ 実機で Apple サインインを確認する（最優先・これが返信文の前提）**
-   - 地図の FAB（未ログイン）→ モーダルに Apple ボタンが出て**実際にサインインできる**か
-   - ⚠️ **NG なら 4.8 は追加対応が要る**ので、返信文をそのまま送ってはいけない
-   - dev サーバーは落ちているので `/dev` で起動 → トンネル URL が変わるため Dev Client を入れ直す
-2. **PR #148 / #149 をマージ**（実機確認が済んでから）
-3. **`app.json` の buildNumber を 14 に上げて release PR**（develop → main。前回は PR #137 が同じ形）
-4. **build 14 をビルド・submit** — 手順は下記「App Store 審査対応の履歴」の submit の節
-5. **App Review へ返信** — ドラフトは **`~/Downloads/asc-reply-build14.txt`**（送信前チェックリスト付き）。⚠️ ASC の画面操作は Claude に代行させない
+1. ~~実機で Apple サインインと公開機能の撤去を確認~~ → **2026-08-15 に確認して OK**
+2. ~~PR #148 / #149 をマージ~~ → **マージ済み**
+3. **release PR（develop → main）** ← いまここ。前回は PR #137 が同じ形
+4. **production ビルド → submit** — 手順は下記「App Store 審査対応の履歴」の submit の節。
+   ⚠️ **`buildNumber` を手で上げる必要は無い**。`eas.json` が `appVersionSource: "remote"` +
+   production の `autoIncrement: true` なので **EAS が自動で 14 を採番する**（`app.json` に buildNumber の記述は無い）
+5. **App Review へ返信** — ドラフトは **`~/Downloads/asc-reply-build14.txt`**（実機確認の結果まで反映済み）。⚠️ ASC の画面操作は Claude に代行させない
 
 ### ⚠️ 4.8 の原因は「実装漏れ」ではなく「導線漏れ」だった
 
