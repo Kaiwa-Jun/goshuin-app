@@ -1,0 +1,108 @@
+# App Store 掲載画像の素材撮影 — ログイン不要の3枚
+#
+# 撮る画面: 1) 地図  4) 限定御朱印（靖國神社）  6) 広域地図
+# ログインが要る 2) 記録 3) 御朱印帳 5) あつめる は別フロー
+#
+# 前提:
+#   - development-simulator ビルドをインストール済みで、Metro が動いていること
+#   - ⚠️ 撮影中だけ MapScreen.tsx の LATITUDE_DELTA / LONGITUDE_DELTA を 0.066 にすること
+#     （既定の 0.015 では画面にピンが4件しか入らない。撮影後は必ず戻す）
+#   - 位置と権限を先に設定すること:
+#       xcrun simctl privacy <udid> grant location com.goshuin.app
+#       xcrun simctl location <udid> set 35.6786,139.7442
+#       xcrun simctl status_bar <udid> override --time "9:41" --cellularBars 4 --batteryLevel 100 --wifiBars 3
+#
+# ⚠️ development build では `clearState: true` を使わないこと。
+#    dev client が保存している Metro の URL まで消えてランチャー画面に落ちる
+#    （元の store-screenshots.yaml が preview-simulator 前提だったのはこのため）。
+#    代わりに、どの状態から始まっても地図へ辿り着けるよう runFlow で分岐している。
+#
+# 実行: maestro test e2e/flows/store-shots-public.yaml
+appId: com.goshuin.app
+---
+- launchApp
+- waitForAnimationToEnd:
+    timeout: 8000
+
+# dev client のランチャーに落ちていたら Metro に繋ぎ直す
+- runFlow:
+    when:
+      visible: 'http://localhost:8081'
+    commands:
+      - tapOn: 'http://localhost:8081'
+      - waitForAnimationToEnd:
+          timeout: 20000
+
+# development build は初回起動で開発者メニューを出す。ストア画像に写せない
+- runFlow:
+    when:
+      visible: 'Continue'
+    commands:
+      - tapOn: 'Continue'
+      - waitForAnimationToEnd:
+          timeout: 2500
+
+# オンボーディングが出ていたら抜ける。
+# Guideline 5.1.1(iv) 対応（PR #135）で脱出口は「続ける」1本なので、同じ位置を4回押す
+- runFlow:
+    when:
+      visible: 'スキップ'
+    commands:
+      - repeat:
+          times: 4
+          commands:
+            - tapOn:
+                point: '50%,91%'
+            - waitForAnimationToEnd:
+                timeout: 2500
+
+# 位置情報の許可ダイアログ（simctl で事前付与していれば出ない）
+- runFlow:
+    when:
+      visible: 'Allow While Using App'
+    commands:
+      - tapOn: 'Allow While Using App'
+- runFlow:
+    when:
+      visible: 'Appの使用中は許可'
+    commands:
+      - tapOn: 'Appの使用中は許可'
+
+- assertVisible:
+    id: 'map-view'
+- waitForAnimationToEnd:
+    timeout: 12000
+
+# --- 1枚目: 地図（皇居南西。rank5 が5件入る） ---
+- takeScreenshot: screenshots/store/01-map
+
+# --- 4枚目: 限定御朱印（靖國神社のスポット詳細） ---
+# 検索から開く。ピンの座標タップはズームや端末幅で壊れやすい。
+# ⚠️ 地図の SearchBar は editable={false} で、タップすると検索画面へ遷移する
+- tapOn: '神社・寺院を検索'
+- waitForAnimationToEnd:
+    timeout: 3000
+- inputText: '靖國'
+- waitForAnimationToEnd:
+    timeout: 4000
+- tapOn:
+    id: 'search-result-card'
+- waitForAnimationToEnd:
+    timeout: 6000
+- takeScreenshot: screenshots/store/04-limited-goshuin
+
+# --- 6枚目: 広域地図（全国の網羅性）---
+# ⚠️ zoom<=13 でクラスタのバブルになる（CLUSTER_MAX_ZOOM）。
+#    「1,000スポット以上」を示すには、むしろ数字のバブルが出ているほうが説得力がある
+- back
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible:
+    id: 'map-view'
+- swipe:
+    start: '50%,50%'
+    end: '22%,22%'
+    duration: 900
+- waitForAnimationToEnd:
+    timeout: 6000
+- takeScreenshot: screenshots/store/06-wide
