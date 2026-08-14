@@ -16,8 +16,8 @@ Submission ID: `761a38c9-2eb8-4341-8603-252b161be183` / 審査環境: iPhone 17 
 
 1. ~~実機で Apple サインインと公開機能の撤去を確認~~ → **2026-08-15 に確認して OK**
 2. ~~PR #148 / #149 をマージ~~ → **マージ済み**
-3. **release PR（develop → main）** ← いまここ。前回は PR #137 が同じ形
-4. **production ビルド → submit** — 手順は下記「App Store 審査対応の履歴」の submit の節。
+3. ~~release PR（develop → main）~~ → **PR #150 マージ済み**（2026-08-15・main は `b49f6ed`）
+4. **production ビルド → submit** ← いまここ — 手順は下記「App Store 審査対応の履歴」の submit の節。
    ⚠️ **`buildNumber` を手で上げる必要は無い**。`eas.json` が `appVersionSource: "remote"` +
    production の `autoIncrement: true` なので **EAS が自動で 14 を採番する**（`app.json` に buildNumber の記述は無い）
 5. **App Review へ返信** — ドラフトは **`~/Downloads/asc-reply-build14.txt`**（実機確認の結果まで反映済み）。⚠️ ASC の画面操作は Claude に代行させない
@@ -421,7 +421,7 @@ Issue #111 / PR #112 マージ済み・本番投入完了（passes: true）。Me
   - ASC API Key は **`~/.appstoreconnect/AuthKey_D9CP6Y4YA3.p8`**（権限 600 / フォルダ 700。同フォルダの `README.md` に Key ID・Issuer ID・submit 手順あり）。**Apple から再ダウンロードできない**ので、失うとキーを失効させて作り直すことになる。`~/Downloads` にも同じものが残っているが、そちらは掃除で消える前提で扱う
   - `eas.json` の submit プロファイルに ascAppId / appleTeamId 設定済み。`ascApiKeyPath` 等は個人パスのためコミットしていない（submit 時に一時的に足す。手順は上記「App Store 審査対応」参照）
 - **Android: 未着手・優先度を下げた（2026-08-11 ユーザー判断）**。まず iOS のリリースを通すことに集中する。Google Play の本人確認が審査中 + Android 実機での Play Console ログインが未完了
-- **main ブランチ**: develop をマージ済み（**最新は PR #137 / 2026-08-11**。それ以前は #101）。GitHub Pages の法務ページも「御朱印さんぽ」に更新済み
+- **main ブランチ**: develop をマージ済み（**最新は PR #150 / 2026-08-15 = build 14 の中身**。それ以前は #137 / #101）。GitHub Pages の法務ページも「御朱印さんぽ」に更新済み
 
 ## これまでの経緯（2026-08-02、時系列）
 
