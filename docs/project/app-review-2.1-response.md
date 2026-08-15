@@ -110,6 +110,15 @@ node scripts/asc-review.mjs testflight
 - 尺は **2〜4分**。長すぎると見てもらえない
 - ⚠️ **通しで1本。** 途中で止めて繋ぐと「起動から始まる1本」に見えなくなる
 - ファイルを **`~/Downloads/`** に置いて次節へ
+- ⚠️ **サイズに注意。** iPhone の画面収録は 1080p で3分 ≒ 100MB を超え、そのままでは
+  添付できない。`attach` が 45MB で止めて圧縮コマンドを出す（ffmpeg は導入済み）:
+
+  ```bash
+  ffmpeg -i 録画.mov -vcodec libx264 -crf 30 -preset veryfast -vf "scale=-2:960" \
+    -acodec aac -b:a 64k 録画-small.mp4
+  ```
+
+  画質より「操作が追えること」が優先。960p で十分
 
 ---
 

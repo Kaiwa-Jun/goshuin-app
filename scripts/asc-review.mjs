@@ -314,7 +314,20 @@ async function cmdAttach(file) {
   }
   const bytes = fs.readFileSync(file);
   const fileName = path.basename(file);
-  console.log(`${fileName}  ${(bytes.length / 1024 / 1024).toFixed(1)} MB`);
+  const mb = bytes.length / 1024 / 1024;
+  console.log(`${fileName}  ${mb.toFixed(1)} MB`);
+
+  // ⚠️ iPhone の画面収録は 1080p で 3分 ≒ 100MB を超える。ASC の添付は
+  //    それを通さないので、大きいときは先に H.264 で潰す
+  if (mb > 45) {
+    console.error(`\n⚠️ ${mb.toFixed(0)} MB は添付に大きすぎる。先に圧縮する:\n`);
+    console.error(
+      `  ffmpeg -i "${file}" -vcodec libx264 -crf 30 -preset veryfast -vf "scale=-2:960" \\\n` +
+        `    -acodec aac -b:a 64k "${file.replace(/\.[^.]+$/, '')}-small.mp4"\n`
+    );
+    console.error('画質より「操作が追える」ことが優先。960p でも審査には十分。');
+    process.exit(1);
+  }
 
   const version = await currentVersion();
   const detail = await reviewDetail(version.id);
@@ -336,16 +349,25 @@ async function cmdAttach(file) {
   const ops = created.data.attributes.uploadOperations ?? [];
   console.log(`予約: ${id}（${ops.length} チャンク）`);
 
-  for (const [n, op] of ops.entries()) {
-    const headers = Object.fromEntries((op.requestHeaders ?? []).map(h => [h.name, h.value]));
-    const res = await fetch(op.url, {
-      method: op.method,
-      headers,
-      body: bytes.subarray(op.offset, op.offset + op.length),
+  // ⚠️ 予約だけ残ると ASC 側に中身の無い添付が居座る。途中で失敗したら消す
+  try {
+    for (const [n, op] of ops.entries()) {
+      const headers = Object.fromEntries((op.requestHeaders ?? []).map(h => [h.name, h.value]));
+      const res = await fetch(op.url, {
+        method: op.method,
+        headers,
+        body: bytes.subarray(op.offset, op.offset + op.length),
+      });
+      if (!res.ok)
+        throw new Error(`chunk ${n + 1}/${ops.length} -> ${res.status} ${await res.text()}`);
+      console.log(`  ${n + 1}/${ops.length} 送信`);
+    }
+  } catch (e) {
+    console.error(`アップロードに失敗したので予約 ${id} を取り消す`);
+    await api(`/v1/appStoreReviewAttachments/${id}`, { method: 'DELETE' }).catch(() => {
+      console.error(`⚠️ 取り消しにも失敗した。ASC で ${id} を手で消すこと`);
     });
-    if (!res.ok)
-      throw new Error(`chunk ${n + 1}/${ops.length} -> ${res.status} ${await res.text()}`);
-    console.log(`  ${n + 1}/${ops.length} 送信`);
+    throw e;
   }
 
   // ⚠️ commit しないと ASC 側は「予約だけして中身が無い」状態のまま残る
