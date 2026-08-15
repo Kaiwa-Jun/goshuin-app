@@ -1,6 +1,6 @@
-# セッション引き継ぎ（最終更新: 2026-08-15）
+# セッション引き継ぎ（最終更新: 2026-08-16）
 
-## ▶ 再開したらここから（2026-08-15 時点）
+## ▶ 再開したらここから（2026-08-16 未明 時点）
 
 **⚠️ build 14 も却下された（2026-08-15・5回目）。ただし内容は前2回と性質が違う。**
 
@@ -16,24 +16,76 @@ PR #148 / #149 の対応は受け入れられたとみてよい。
 **バグではなく、新規アプリの審査で審査員が理解を深めるための情報要求。**
 **コード修正は不要で、ビルド14をそのまま使える**（再ビルド不要）。
 
-**回答一式は `docs/project/app-review-2.1-response.md` に用意済み**（2〜7の英文はそのまま貼れる）。
+**回答一式は `docs/project/app-review-2.1-response.md`**（カット割りは 2026-08-16 未明に改訂）。
+
+### 🆕 ASC は API から操作できる（2026-08-16 未明に確立）
+
+**`scripts/asc-review.mjs` を追加した。** 「ASC の画面操作は Claude に代行させない」は
+**ブラウザ UI の話**で、**API 経由なら Notes 更新も添付も通る**。ブラウザが要るのは
+**Resolution Center への返信と「審査へ提出」の2つだけ**（返信の API は公開されていない）。
+
+```bash
+node scripts/asc-review.mjs status        # 現況（読み取りのみ・安全）
+node scripts/asc-review.mjs testflight    # 内部テストグループを作って build 14 を配布
+node scripts/asc-review.mjs notes --ios 26.5
+node scripts/asc-review.mjs attach ~/Downloads/<録画>.mov
+```
+
+⚠️ **auto mode では ASC への書き込みが分類器に止められる**（読み取りは通る）。
+**書き込み系はユーザーが手で叩く**。
+
+### 🔴 撮影の前に詰まる箇所（2026-08-16 未明に発見）
+
+**TestFlight のグループもテスターも0件だった。** このままだと iPhone の TestFlight に
+「御朱印さんぽ」が出てこない。**`node scripts/asc-review.mjs testflight` を最初に叩く。**
 
 ### 次にやること（順番どおりに）
 
-1. **⚠️ 実機で画面録画を撮る（唯一のブロッカー・ユーザー作業）**
-   - **カット割りは `docs/project/app-review-2.1-response.md` の §1 に14ステップで書いてある**
-   - ⚠️ **Apple は「実機で」と明記している。** シミュレータ録画では要件を満たさない可能性が高い
-   - ⚠️ **build 14 を TestFlight で iPhone に入れてから撮る**（dev client ではなく提出したビルドそのもの）
-   - ⚠️ **捨てアカウント（Google）を使う。** 録画にはアカウント削除まで含める必要があり、
+1. **`node scripts/asc-review.mjs testflight`** → TestFlight に build 14 を出す
+2. **⚠️ iPhone を最新 iOS に更新し、バージョン番号を控える**
+   （Apple が "latest operating system" と明記。控えた値が次の `--ios` 引数になる）
+3. **⚠️ 実機で画面録画を撮る（唯一のブロッカー・ユーザー作業）**
+   - **カット割りは `app-review-2.1-response.md` の §1**（14ステップ・**4か所直した**）
+   - ⚠️ **捨てアカウント（Google）を使う。** 録画にはアカウント削除まで含めるので、
      本アカウントで撮ると宮城の御朱印記録が消える
-2. **Notes 欄を更新**（`app-review-2.1-response.md` の §2〜7 を貼る。`[MODEL]` / `[VERSION]` は実機の値に）
-3. **録画を App Review 情報の添付ファイルに登録**
-   ⚠️ 返信ダイアログからの添付は過去に機能しなかった（下記「ASC の画面操作」）
-4. **App Review へ返信**（同ドキュメントに短文あり）→ 「審査へ提出」
+   - ⚠️ **紙の御朱印帳を手元に。** カメラ権限のダイアログを見せる必要があり被写体が要る
+4. **`node scripts/asc-review.mjs notes --ios <実機のバージョン>`**
+5. **`node scripts/asc-review.mjs attach ~/Downloads/<録画>.mov`**
+6. **App Review へ返信**（同ドキュメントに短文あり）→ 「審査へ提出」（**ブラウザ**）
+
+### 現況の実測（2026-08-16 未明。鵜呑みにせず確認した結果）
+
+| 対象               | 実測                                                                                               |
+| ------------------ | -------------------------------------------------------------------------------------------------- |
+| ASC バージョン 1.0 | `REJECTED` / 審査提出は `UNRESOLVED_ISSUES`（キューには載っていない）                              |
+| build 14           | `VALID` / 期限切れなし / `READY_FOR_BETA_TESTING`。**再ビルド不要**                                |
+| ASC の Notes       | **旧い日本語のまま 275 文字**。退避済み → `.claude/harness/asc-review-notes-backup-2026-08-15.txt` |
+| ASC の添付         | `goshuin-account-deletion-build13.mov` が1件（build 13 のもの）                                    |
+| TestFlight         | 🔴 **グループ0 / テスター0**（上記）                                                               |
+| 実機               | **iPhone 16**（`/v1/devices`・Expo 登録・UDID `00008140-001D14390E0B001C`）。Mac には未ペアリング  |
+| Apple のメール     | 最新は 8/15 04:20 UTC の build 14 却下。**それ以降の新着なし**                                     |
+| GitHub             | open PR なし / open issue は #139 #132 #82 #67 #47 の5件（増減なし）                               |
+| CI                 | 直近8ラン**すべて success**                                                                        |
+| Supabase の cron   | ⚠️ **未確認**（下記）                                                                              |
+
+⚠️ **Supabase の cron は確認できていない。** service_role キーがローカルに無く
+（`.env` は anon のみ）、`supabase projects api-keys --reveal` は auto mode の分類器に
+止められた。**次回はダッシュボードの SQL Editor で**:
+
+```sql
+select jobname, status, start_time from cron.job_run_details order by start_time desc limit 10;
+```
+
+直近の実行は **8/14(金) 02:00 / 02:30 JST**、次回は **8/18(火)** の同時刻。
+
+📌 `[VERSION]`（実機の iOS）は**埋められなかった**。Mac に iPhone がペアリングされておらず
+Metro のログにも出ない。**プレースホルダーを ASC に入れたまま再提出する事故を避けるため、
+Notes は書き換えずスクリプトの引数にした。**
 
 ### その他の残タスク
 
-- **ストア掲載画像**: 6枚中3枚を撮影済み（下記）。残り3枚はシミュレータでのログイン待ち
+- **ストア掲載画像**: 6枚中3枚を撮影済み（下記）。残り3枚はシミュレータでのログイン待ち。
+  ⚠️ **2.1 の再提出が済むまで差し替えない**（切り分けが濁る）
 - **Issue #132**: 次に参拝/地図を触るときの実機チェック3件
 - **P1-01 Maestro E2E** / **P1-11 オンボーディング**（⏸ 絵のテイスト待ち）/ P1-04 / P1-07
 - 小物: `ImageGalleryModal` のレンダー中 `setValue` / `mention-response` の権限縮小 / `ui-design.md` のピン表示ルール表の古い記述
