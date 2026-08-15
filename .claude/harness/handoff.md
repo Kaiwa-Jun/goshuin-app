@@ -50,32 +50,68 @@ Submission ID: `761a38c9-2eb8-4341-8603-252b161be183` / 審査環境: iPhone 17 
 
 ### 🔧 作業中: ストア掲載画像の撮り直し（2026-08-15 深夜）
 
-**⚠️ `src/screens/MapScreen.tsx` を撮影用に改変したまま中断している可能性がある。**
-`LATITUDE_DELTA` / `LONGITUDE_DELTA` を **0.015 → 0.066** に変更（未コミット）。
-バックアップ: `scratchpad/MapScreen.tsx.orig`。**撮影が終わったら必ず戻すこと**（`git checkout src/screens/MapScreen.tsx`）。
+**素材3枚を撮影済み。** 保存先: `goshuin-app-artifacts/store-shots-2026-08/`（1290×2796）
 
-- 構成モック（ユーザー承認済み）: https://claude.ai/code/artifact/fc1b6b3d-87f6-4a30-a818-577457d681e2
-- 6枚: ①地図 ②記録 ③御朱印帳のめくり ④限定御朱印 ⑤あつめる ⑥広域地図
-- **撮影地点 `35.6786, 139.7442` / latitudeDelta `0.066`** — 皇居南西。12ピン・rank5 5件（靖國・東京大神宮・日枝・烏森・増上寺）が入る
-- 訪問済みピン（赤/紫）は入れない（ユーザー判断）。パノラマ構成も不採用（検索結果は3枚で切れるため）
+| #   | 見出し                       | 素材                     | 状態                                               |
+| --- | ---------------------------- | ------------------------ | -------------------------------------------------- |
+| ①   | 集めるたび、地図が旅になる   | `01-map.png`             | ✅ **15ピン + 神社名ラベル + 皇居**。狙いどおり    |
+| ②   | 写真を撮るだけで、記録できる | —                        | ⏸ **ログインが必要**                               |
+| ③   | 御朱印帳を、めくる           | —                        | ⏸ **ログインが必要**                               |
+| ④   | 限定御朱印を、見逃さない     | `04-limited-goshuin.png` | ✅ 靖國神社の本番データ3件（期間・出典リンク付き） |
+| ⑤   | 集めた証が、バッジになる     | —                        | ⏸ **ログインが必要**                               |
+| ⑥   | 全国1,000スポット以上        | `06-wide-clusters.png`   | ✅ クラスタのバブルが網羅性を語る                  |
 
-**⚠️ 撮影で判明した制約**:
+**構成モック（ユーザー承認済み）**: https://claude.ai/code/artifact/fc1b6b3d-87f6-4a30-a818-577457d681e2
 
-1. **`latitudeDelta 0.075` 以上はクラスタのバブルになる**（`getZoomFromRegion` が 13 を返し `CLUSTER_MAX_ZOOM=13` に該当）。個別ピンを保てる上限が **0.066**
-2. **`LABEL_VISIBLE_DELTA = 0.2`** なのでこの範囲ならピンに神社名ラベルが出る（絵として重要）。ただし衝突回避が無いので枚数が増えると重なる
-3. **`MAX_VISIBLE_SPOTS = 80`** なので12件は全部描画される
-4. ⚠️ **development build では撮影できない** — `clearState: true` が dev client の保存済み Metro URL を消してランチャー画面に落ち、さらに開発者メニューのシートが繰り返し出る。**`preview-simulator`（埋め込みバンドル）を使うこと**。元の `store-screenshots.yaml` のヘッダに同じ前提が書いてあった
-5. ⚠️ **6枚中3枚（記録・御朱印帳・あつめる）はログインが必要**。シミュレータでの Google/Apple サインインが通るか未検証。通らなければ Web プレビュー（`?preview=goshuincho`・860×1864）の流用か構成の見直しが要る
+### 次にやること（ストア画像）
 
-**フロー**: `e2e/flows/store-shots-public.yaml`（ログイン不要の3枚）。撮影前に:
+1. **⚠️ シミュレータでログインする**（ユーザー作業）。②③⑤ はログイン後でないと中身が出ない。
+   Google / Apple サインインがシミュレータで通るかは**未検証**。通らなければ Web プレビュー
+   （`http://localhost:8081/?preview=goshuincho`・860×1864）の流用か構成の見直し
+2. 残り3枚を撮る（フローは未作成）
+3. HTML テンプレートに見出しを乗せて 1290×2796 で書き出し
+4. **⚠️ アップロードは審査結果が出てから**（いま `WAITING_FOR_REVIEW`。差し替えると審査キューから外れる可能性）
+
+### ⚠️ 撮影の手順と、はまった点（次回のため）
+
+**必ず `preview-simulator` を使う。** development build では撮れない — `clearState: true` が
+dev client の保存済み Metro URL を消してランチャー画面に落ち、さらに開発者メニューのシートが
+繰り返し出る（元の `store-screenshots.yaml` のヘッダに同じ前提が書いてあった）。
 
 ```bash
+# 1. ⚠️ 撮影用パッチ（コミットしないこと。pre-push のテストが検出して止めてくれる）
+#    src/screens/MapScreen.tsx:
+#      LATITUDE_DELTA  = 0.06
+#      LONGITUDE_DELTA = 0.02768
+# 2. ビルド（パッチを焼き込む）
+npx eas-cli@latest build --profile preview-simulator --platform ios --non-interactive --no-wait
+# 3. インストールと環境設定
+xcrun simctl install <udid> <app.app>
 xcrun simctl privacy <udid> grant location com.goshuin.app
 xcrun simctl location <udid> set 35.6786,139.7442
 xcrun simctl status_bar <udid> override --time "9:41" --cellularBars 4 --batteryLevel 100 --wifiBars 3
+# 4. 撮影
+~/.maestro/bin/maestro test e2e/flows/store-shots-public.yaml
+~/.maestro/bin/maestro test e2e/flows/store-shot-limited.yaml
+# 5. ⚠️ パッチを戻す
+git checkout src/screens/MapScreen.tsx
 ```
 
-**⚠️ アップロードは審査結果が出てから**（いま `WAITING_FOR_REVIEW` で、差し替えると審査キューから外れる可能性がある）。
+**⚠️ ズームの決めごと（ここでいちばん時間を使った）**:
+
+1. **経度デルタは緯度デルタと同じ値にしてはいけない。** 縦長画面（1290×2796）では
+   `longitudeDelta` が広いと緯度方向が `lng / 0.461` まで引き伸ばされる。0.066 を両方に入れたら
+   緯度が 0.14 相当まで広がり、zoom 12 に落ちて**個別ピンがクラスタのバブルになった**
+2. **`lngDelta < 0.0311` が個別ピンの境界**（`getZoomFromRegion` が 14 を返す条件。
+   `CLUSTER_MAX_ZOOM = 13`）。採用値 0.02768 は余裕11%
+3. `LABEL_VISIBLE_DELTA = 0.2` なのでこの範囲ならピンに神社名ラベルが出る（絵として重要）
+4. `MAX_VISIBLE_SPOTS = 80` なので15件は全部描画される
+
+**⚠️ Maestro の細かい点**:
+
+- 検索バーの placeholder「神社・寺院を検索」は**テキスト照合で拾えない**。座標 `50%,10%` で押す
+- 限定御朱印は compact のシートでは中身が見えない。**ハンドル（画面の 73% 付近）をタップ**して展開する。
+  スワイプだと地図のパンになる
 
 ### ⚠️ ストアのスクショ6枚が古い（2.3.3 のリスク・未対応）
 
