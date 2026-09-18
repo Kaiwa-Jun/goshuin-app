@@ -27,6 +27,13 @@ const PATCHED = `    // goshuin patch (scripts/patch-airmap.mjs): interop が範
                              atIndex:MIN((NSUInteger) atIndex, _reactSubviews.count)];
     }`;
 
+// react-native-maps を入れていない環境（依存を外した／install 前）では何もしない。
+// 入っているのに当てられない場合だけ落とす（黙って通すとクラッシュするビルドが出るため）。
+if (!fs.existsSync('node_modules/react-native-maps')) {
+  console.log('patch-airmap: react-native-maps が無いのでスキップ');
+  process.exit(0);
+}
+
 if (!fs.existsSync(FILE)) {
   console.error(`patch-airmap: ${FILE} が無い。react-native-maps の構成が変わった可能性がある`);
   process.exit(1);
