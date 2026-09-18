@@ -65,10 +65,33 @@ TestFlight のグループもテスターも0件だったが、**`node scripts/a
 | 0:52〜0:54 | ユーザーが再起動（アイコン → スプラッシュ）                              |
 | 0:55〜0:57 | TestFlight のクラッシュ報告ダイアログ                                    |
 
-**次の一手は `.ips` の回収**: iPhone の 設定 → プライバシーとセキュリティ → 解析と改善 →
-解析データ → `御朱印さんぽ-2026-09-19-0225xx.ips` を Mac に AirDrop する。
-ここが判るまで原因は未確定（地図のクラスタ再計算まわりが第一容疑 = `MapScreen.tsx` の
-`handleRegionChangeComplete` → `useSpotClusters`、ただし証拠はまだ無い）。
+### 原因は特定済み（`~/Downloads/app-2026-09-19-022606.ips`）
+
+```
+NSRangeException *** -[__NSArrayM insertObject:atIndex:]: index 3 beyond bounds [0 .. 1]
+  -[RCTLegacyViewManagerInteropComponentView finalizeUpdates:]
+  → AIRMap insertReactSubview (AIRMap.m:138)  → SIGABRT
+端末 iPhone17,3 (iPhone 16) / iPhone OS 26.6.2 (23G90) / build 14
+```
+
+**react-native-maps 1.20.1 は iOS 側が全部 legacy view manager（`codegenConfig` を持たない）ため、
+New Architecture では `RCTLegacyViewManagerInteropComponentView` 経由でマウントされる。**
+この interop は insert を `finalizeUpdates` まで遅延させるので、**1トランザクションに
+「マーカーの削除 + 挿入」がまとまって入ると `atIndex` が現在の要素数を超えて渡ってくる**。
+クラスタ再計算（`onRegionChangeComplete` → `useSpotClusters`）がまさにその形。
+upstream 未修正（**1.29.2 でも同じ行のまま**）: react-native-maps#5345 / #5080 / expo#34614
+
+⚠️ **`.ips` の OS は 26.6.2。ユーザー申告の「iOS 26.7」と食い違う。**
+ASC の Notes には 26.7 で入れてあるので、**撮り直しの前にもう一度実機で確認する**。
+
+### 対処（コミット済み・ブランチ `fix/map-marker-interop-crash`）
+
+`scripts/patch-airmap.mjs` を postinstall に登録し、`AIRMap.m:138` を範囲丸め + nil ガードに書き換える。
+react-native-maps は **Expo SDK 54 のピンのまま 1.20.1**（1.29.2 への更新も試したが、同じ行が
+未修正なうえ Expo のピンから9マイナー離れるので採らなかった）。`npm ci` で postinstall が走ることを実測確認済み
+＝ EAS ビルドでも適用される。機械検証: lint 0 errors / typecheck clean / **92 suite 1137 件パス**。
+
+⚠️ **手元の Dev Client（2026-04 ビルド）にはこのネイティブ修正は入っていない。検証には新しいビルドが要る。**
 
 ### その後の段取り（クラッシュが直ってから）
 
