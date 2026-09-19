@@ -538,6 +538,140 @@ describe('最寄りスポットの既定選択（Issue #130 / S-4）', () => {
     expect(result.current.selectedSpot).toBeNull();
     expect(result.current.isSpotAutoSelected).toBe(false);
   });
+  // 覆いの中の点を染めるための数。1枚ずつ順に上げているので進捗は既に分かる（Issue #190）
+  describe('保存できた枚数（savedCount）', () => {
+    beforeEach(() => {
+      mockTriggerExtraction.mockResolvedValue(undefined);
+    });
+
+    it('最初は 0', () => {
+      const { result } = renderHook(() => useRecordForm());
+
+      expect(result.current.savedCount).toBe(0);
+    });
+
+    it('1枚保存できるたびに増える（全部終わるのを待たずに読める）', async () => {
+      let releaseSecond!: () => void;
+      const second = new Promise<void>(resolve => {
+        releaseSecond = resolve;
+      });
+      mockUploadStampImage.mockImplementation(async (_userId: string, uri: string) => {
+        if (uri.endsWith('b.jpg')) await second;
+        return 'user-1/x.jpg';
+      });
+      mockCreateStamp.mockResolvedValue(fakeStamp);
+
+      const { result } = renderHook(() => useRecordForm());
+
+      act(() => {
+        result.current.selectSpot(fakeSpot);
+        result.current.addImages(['file:///a.jpg', 'file:///b.jpg']);
+      });
+
+      let submitted!: Promise<RecordSubmitResult>;
+      await act(async () => {
+        submitted = result.current.submit();
+      });
+
+      // 2枚目のアップロードで止まっている。この時点で1枚目は数えられている
+      await waitFor(() => expect(result.current.savedCount).toBe(1));
+
+      await act(async () => {
+        releaseSecond();
+        await submitted;
+      });
+
+      expect(result.current.savedCount).toBe(2);
+    });
+
+    it('失敗した写真は数に入らない', async () => {
+      mockUploadStampImage
+        .mockResolvedValueOnce('user-1/a.jpg')
+        .mockRejectedValueOnce(new Error('アップロードに失敗しました'))
+        .mockResolvedValueOnce('user-1/c.jpg');
+      mockCreateStamp.mockResolvedValue(fakeStamp);
+
+      const { result } = renderHook(() => useRecordForm());
+
+      act(() => {
+        result.current.selectSpot(fakeSpot);
+        result.current.addImages(['file:///a.jpg', 'file:///b.jpg', 'file:///c.jpg']);
+      });
+
+      await act(async () => {
+        await result.current.submit();
+      });
+
+      expect(result.current.savedCount).toBe(2);
+    });
+
+    // 一部だけ失敗したあとのやり直しでは、残った写真の枚数しか出ない。
+    // 数え直さないと「4 / 1枚」のような表示になる
+    it('やり直すと 0 から数え直す', async () => {
+      mockUploadStampImage.mockResolvedValue('user-1/x.jpg');
+      mockCreateStamp.mockResolvedValue(fakeStamp);
+
+      const { result } = renderHook(() => useRecordForm());
+
+      act(() => {
+        result.current.selectSpot(fakeSpot);
+        result.current.addImages(['file:///a.jpg', 'file:///b.jpg']);
+      });
+
+      await act(async () => {
+        await result.current.submit();
+      });
+      expect(result.current.savedCount).toBe(2);
+
+      let releaseFirst!: () => void;
+      const first = new Promise<void>(resolve => {
+        releaseFirst = resolve;
+      });
+      mockUploadStampImage.mockImplementation(async () => {
+        await first;
+        return 'user-1/x.jpg';
+      });
+
+      act(() => {
+        result.current.addImages(['file:///d.jpg']);
+      });
+
+      let submitted!: Promise<RecordSubmitResult>;
+      await act(async () => {
+        submitted = result.current.submit();
+      });
+
+      expect(result.current.savedCount).toBe(0);
+
+      await act(async () => {
+        releaseFirst();
+        await submitted;
+      });
+    });
+
+    it('reset で 0 に戻る', async () => {
+      mockUploadStampImage.mockResolvedValue('user-1/x.jpg');
+      mockCreateStamp.mockResolvedValue(fakeStamp);
+
+      const { result } = renderHook(() => useRecordForm());
+
+      act(() => {
+        result.current.selectSpot(fakeSpot);
+        result.current.addImages(['file:///a.jpg']);
+      });
+      await act(async () => {
+        await result.current.submit();
+      });
+      expect(result.current.savedCount).toBe(1);
+
+      act(() => {
+        result.current.reset();
+      });
+
+      expect(result.current.savedCount).toBe(0);
+    });
+  });
+
   describe('複数枚をまとめて登録する（Issue #180）', () => {
     const stampFor = (id: string): Stamp => ({ ...fakeStamp, id, image_path: `user-1/${id}.jpg` });
 
