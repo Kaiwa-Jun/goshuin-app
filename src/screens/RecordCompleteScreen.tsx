@@ -142,7 +142,7 @@ export function RecordCompleteScreen({ navigation, route }: Props) {
             onPress={handleViewCollection}
             testID="button-view-collection"
           >
-            <Text style={styles.buttonViewCollectionText}>あつめるを見る</Text>
+            <Text style={styles.buttonViewCollectionText}>あゆみを見る</Text>
           </TouchableOpacity>
 
           {canUndo && (

@@ -71,7 +71,7 @@ export function SettingsScreen({ navigation }: Props) {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.header}>自分</Text>
+        <Text style={styles.header}>設定</Text>
 
         {/* Account Section */}
         <Text style={styles.sectionTitle}>アカウント</Text>
