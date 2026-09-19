@@ -86,44 +86,12 @@ jest.mock('react-native-safe-area-context', () => {
   };
 });
 
-// react-native-maps mock
-jest.mock('react-native-maps', () => {
-  const React = require('react');
-  const { View } = require('react-native');
-  // imperative handle はモックファクトリスコープの安定オブジェクトにする。
-  // 毎レンダー新しい jest.fn() を作るとテストから呼び出しを検証できない
-  const mapViewMocks = {
-    animateToRegion: jest.fn(),
-    animateCamera: jest.fn(),
-    fitToCoordinates: jest.fn(),
-  };
-  const MockMapView = React.forwardRef((props, ref) => {
-    React.useImperativeHandle(ref, () => mapViewMocks);
-    return React.createElement(
-      View,
-      { ...props, testID: props.testID || 'map-view' },
-      props.children
-    );
-  });
-  MockMapView.displayName = 'MapView';
-  const MockMarker = props =>
-    React.createElement(View, { ...props, testID: props.testID || 'marker' }, props.children);
-  MockMarker.displayName = 'Marker';
-  return {
-    __esModule: true,
-    default: MockMapView,
-    Marker: MockMarker,
-    PROVIDER_GOOGLE: 'google',
-    __mapViewMocks: mapViewMocks,
-  };
-});
-
 // @maplibre/maplibre-react-native mock
 jest.mock('@maplibre/maplibre-react-native', () => {
   const React = require('react');
   const { View } = require('react-native');
-  // imperative handle はモックファクトリスコープの安定オブジェクトにする
-  // （react-native-maps モックと同じ理由）
+  // imperative handle はモックファクトリスコープの安定オブジェクトにする。
+  // 毎レンダー新しい jest.fn() を作るとテストから呼び出しを検証できない
   const cameraMocks = {
     setStop: jest.fn(),
     jumpTo: jest.fn(),

@@ -50,7 +50,7 @@ export const colors = {
     templeVisited: '#9333EA',
     wishlisted: '#D97706',
     // 未訪問はブランド色1色。神社/寺の区別はつけない。
-    // 明度で3段（未訪問 > 行きたい > 訪問済み）に分けて見分けさせる
+    // 「行きたい」とは色相が近いので、未訪問を明らかに明るくして見分けさせる
     unvisited: '#FB923C',
     currentLocation: '#3B82F6',
   },

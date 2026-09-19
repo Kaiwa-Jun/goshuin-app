@@ -5,7 +5,6 @@ const config = getDefaultConfig(__dirname);
 
 // Provide web stubs for native-only modules
 const WEB_STUBS = {
-  'react-native-maps': 'src/utils/react-native-maps.web.ts',
   '@maplibre/maplibre-react-native': 'src/utils/maplibre.web.ts',
 };
 
