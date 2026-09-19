@@ -59,6 +59,9 @@ export function MapScreen({ navigation, route }: Props) {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showFilter, setShowFilter] = useState(false);
   const [selectedSpotId, setSelectedSpotId] = useState<string | null>(null);
+  // 検索バーに出す名前。検索・履歴から飛んできたときとピンをタップしたときに入る。
+  // selectedSpotId とは別に持つ。シートを閉じても消さず、× で消す
+  const [searchLabel, setSearchLabel] = useState<string | null>(null);
 
   const cameraRef = useRef<CameraRef>(null);
   const insets = useSafeAreaInsets();
@@ -126,6 +129,7 @@ export function MapScreen({ navigation, route }: Props) {
     });
 
     setSelectedSpotId(focusSpotId);
+    setSearchLabel(spot.name);
   }, [route.params?.focusSpotId, displaySpots]);
 
   useEffect(() => {
@@ -175,6 +179,7 @@ export function MapScreen({ navigation, route }: Props) {
 
       const spot = displaySpots.find(s => s.id === spotId);
       if (spot) {
+        setSearchLabel(spot.name);
         cameraRef.current?.easeTo({ center: [spot.lng, spot.lat], duration: 300 });
       }
     },
@@ -197,6 +202,11 @@ export function MapScreen({ navigation, route }: Props) {
   );
 
   const handleBottomSheetDismiss = useCallback(() => {
+    setSelectedSpotId(null);
+  }, []);
+
+  const handleSearchClear = useCallback(() => {
+    setSearchLabel(null);
     setSelectedSpotId(null);
   }, []);
 
@@ -235,7 +245,13 @@ export function MapScreen({ navigation, route }: Props) {
     <View style={styles.container} testID="map-screen">
       <View style={[styles.searchRow, { top: searchRowTop }]}>
         <View style={styles.searchBarWrapper}>
-          <SearchBar editable={false} onPress={() => navigation.navigate('Search')} />
+          <SearchBar
+            editable={false}
+            value={searchLabel ?? undefined}
+            showClearButton={searchLabel !== null}
+            onClear={handleSearchClear}
+            onPress={() => navigation.navigate('Search')}
+          />
         </View>
         {isAuthenticated && (
           <TouchableOpacity

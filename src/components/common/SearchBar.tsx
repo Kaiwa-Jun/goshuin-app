@@ -20,6 +20,9 @@ interface SearchBarProps {
   onLeftIconPress?: () => void;
 }
 
+/** 入力欄の高さ。body の lineHeight と同じにして、検索バー全体の高さを変えない */
+const INPUT_HEIGHT = typography.body.lineHeight;
+
 export const SearchBar: React.FC<SearchBarProps> = ({
   placeholder = '神社・寺院を検索',
   value,
@@ -96,7 +99,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   input: {
-    ...typography.body,
+    fontSize: typography.body.fontSize,
+    fontWeight: typography.body.fontWeight,
+    // typography.body を丸ごと広げない。lineHeight を TextInput に当てると
+    // iOS は NSParagraphStyle として解釈し、余った行間が文字の上に入って
+    // 文字が下にずれる。しかもプレースホルダは UITextField 側が描くので
+    // この影響を受けず、入力の有無で文字の高さが変わってしまう。
+    // 高さだけ明示して、縦の中央寄せは UITextField に任せる
+    height: INPUT_HEIGHT,
     color: colors.gray[800],
     padding: 0,
   },
