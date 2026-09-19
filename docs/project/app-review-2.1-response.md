@@ -23,27 +23,32 @@ PR #148 / #149 の対応が受け入れられたとみてよい。
 | 審査提出       | `UNRESOLVED_ISSUES`                                    |
 | Notes          | **旧い日本語のまま**（275文字）。置き換えが要る        |
 | 添付           | `goshuin-account-deletion-build13.mov` が1件残っている |
-| TestFlight     | ⚠️ **グループもテスターも0件**（下記 §0）              |
+| TestFlight     | ✅ `Internal` に build 14 配布済み（2026-09-19・§0）   |
 
 ---
 
-## 0. ⚠️ 撮影の前に: TestFlight に build 14 が降りてこない
+## 0. ✅ 撮影の前提: TestFlight への配布（2026-09-19 完了）
 
-**内部テストグループが1つも無い。** このままだと iPhone の TestFlight アプリに
-「御朱印さんぽ」が出てこないので、**撮影の段取り以前に詰まる**。
+`node scripts/asc-review.mjs testflight` を実行済み。内部グループ `Internal`
+（`8d83cc22-a73c-4d1c-bfd8-e2219df06dc6`）に build 14 を配布し、アカウント所有者
+（`kj.11235813213455@gmail.com`）をテスターに追加した。`status` で `testflight Internal` を確認済み。
 
-```bash
-node scripts/asc-review.mjs testflight
-```
+**iPhone の TestFlight アプリに「御朱印さんぽ」が出るので、そこから build 14 を入れて撮る。**
+⚠️ **入れたら開かずにそのまま録画を始める**（下記「一発勝負」）。
 
-グループ `Internal` を作り、build 14 を配布対象に入れ、アカウント所有者
-（`kj.11235813213455@gmail.com`）をテスターに追加する。数分で TestFlight に出る。
+### 🔴 入れる前に Dev Client を削除する
 
-⚠️ **このサブコマンドは未実行のまま置いてある**（auto mode では ASC への書き込みが
-分類器に止められるため検証できなかった）。**叩いたら `status` でグループとテスターの
-両方が出ることを確認する。** 403 やスキップが出たら **ASC のブラウザ → TestFlight →
-内部テスト**で手で作る。⚠️ **ここは 8/11 に溶かした画面ではない**（あれは App Review 情報の
-添付と Notes のフォーム）。TestFlight の画面は普通に使える。
+**Dev Client と build 14 は同じ bundle ID（`com.goshuin.app`）。** TestFlight から入れると
+Dev Client を上書きする形になり、**アップデート扱いでオンボーディング済みフラグ・位置情報・
+カメラの許可が引き継がれる**。そうなるとカット割りの **2 / 3 / 9（オンボーディング・位置情報・
+カメラの許可ダイアログ）が一切出ず**、Apple が名指しで要求している権限プロンプトが映らない。
+
+**撮影前に iPhone から「御朱印さんぽ」を削除してから TestFlight で入れる。**
+
+📌 撮影が終わったら Dev Client は入れ直せる（最新の development ビルドは 2026-04-10・
+証明書は約1年有効）:
+`npx eas build:list --platform ios --profile development --limit 1` のビルドページから再インストール、
+切れていたら `eas build --profile development --platform ios`。
 
 📌 **なぜ dev client ではだめか**: 開発メニューや Expo のランチャーが映り込むうえ、
 審査に出したビルドそのものではない。5回却下されている状況で余計な疑問を足さない。
@@ -62,7 +67,7 @@ node scripts/asc-review.mjs testflight
 1. **iPhone を最新 iOS に更新する**（設定 → 一般 → ソフトウェア・アップデート）。
    Apple が "running the latest operating system" と書いているので、ここは合わせておく。
    ⚠️ **更新後のバージョン番号を控える**（設定 → 一般 → 情報）。Notes 更新の引数になる
-2. `node scripts/asc-review.mjs testflight` → TestFlight で **build 14** を入れる
+2. iPhone の TestFlight から **build 14** を入れる（配布は §0 で設定済み）
 3. **捨てアカウント（Google）を用意し、iPhone に追加しておく**。
    録画には**アカウント削除**まで含めるので、本アカウントで撮ると宮城の御朱印記録が消える。
    事前に端末へ足しておくとサインインのシートで選ぶだけになり、パスワード入力が映らない
@@ -123,6 +128,22 @@ node scripts/asc-review.mjs testflight
    ⚠️ カメラ権限は一度拒否すると OS が二度と聞かないので、**捨てアカウント用に
    アプリを入れ直した直後の状態で撮る**
 
+### 🔴 実測でわかったこと: 権限ダイアログは録画に写らない（2026-09-19）
+
+**iOS の画面収録は、位置情報・カメラの許可アラートを記録しない。** 別プロセス（SpringBoard）が
+描画しているため、録画には**背景が暗転したコマだけが残る**。2026-09-19 の録画で実測（0:09 付近の
+2.5秒間、暗転のみでダイアログは1フレームも写っていない）。
+
+📌 **上のカット割りの ⚠️「機微データへの許可プロンプト」（ステップ3・9）は、録画では満たせない。**
+代わりに「暗転 → 許可後の状態（地図の現在地ドット／設定の『許可済み』表示）」で示し、
+**返信本文でその旨を明記する**（下記の本文に反映済み）。
+
+同じ理由でステップ9を「カメラ一択」にする意味も無い（どちらでもダイアログは写らない）。
+ギャラリー経路でも記録機能の説明としては成立する。
+
+⚠️ ただし**アプリ内で出るダイアログ（Google サインインの "accounts.google.com を使用しようとしています"）は
+普通に写る**。写らないのは OS の権限アラートだけ。
+
 ### 撮り終えたら
 
 - 尺は **2〜4分**。長すぎると見てもらえない
@@ -159,35 +180,62 @@ node scripts/asc-review.mjs notes --ios 26.5   # ← 実機の実際のバージ
 
 ## 返信の段取り
 
-| #   | やること                      | どうやる                                                                         |
-| --- | ----------------------------- | -------------------------------------------------------------------------------- |
-| 1   | TestFlight に build 14 を出す | `node scripts/asc-review.mjs testflight`                                         |
-| 2   | 実機で録画                    | 上記のカット割り（**ユーザー作業**）                                             |
-| 3   | Notes を更新                  | `node scripts/asc-review.mjs notes --ios <実機>`                                 |
-| 4   | 録画を添付                    | `node scripts/asc-review.mjs attach ~/Downloads/<file>.mov`                      |
-| 5   | 古い添付を消す（任意）        | `node scripts/asc-review.mjs rm-attachment 816a98f8-9d11-46e6-9b99-bad9bbe220a5` |
-| 6   | App Review へ返信             | **ASC のブラウザ**（API に返信のエンドポイントは無い）                           |
-| 7   | 「審査へ提出」                | **ASC のブラウザ**                                                               |
+| #   | やること                          | どうやる                                                                         |
+| --- | --------------------------------- | -------------------------------------------------------------------------------- |
+| 1   | ~~TestFlight に build 14 を出す~~ | **完了（2026-09-19）**。iPhone の TestFlight から入れる                          |
+| 2   | 実機で録画                        | 上記のカット割り（**ユーザー作業**）                                             |
+| 3   | Notes を更新                      | `node scripts/asc-review.mjs notes --ios <実機>`                                 |
+| 4   | 録画を添付                        | `node scripts/asc-review.mjs attach ~/Downloads/<file>.mov`                      |
+| 5   | 古い添付を消す（任意）            | `node scripts/asc-review.mjs rm-attachment 816a98f8-9d11-46e6-9b99-bad9bbe220a5` |
+| 6   | App Review へ返信                 | **ASC のブラウザ**（API に返信のエンドポイントは無い）                           |
+| 7   | 「審査へ提出」                    | **ASC のブラウザ**                                                               |
 
 ⚠️ **1・3・4・5 は API でやる。** ブラウザの添付ダイアログは 2026-08-11 に機能せず
 半日溶かした（handoff の「ASC の画面操作」）。**ブラウザが要るのは 6 と 7 だけ。**
 
 ⚠️ **順番を守る。** 添付と Notes が入る前に「審査へ提出」すると、また同じ 2.1 が返る。
 
-### 返信本文（短くてよい）
+### 返信本文（2026-09-19 の録画に合わせて更新）
+
+⚠️ **動画の中身と食い違うことを書かない。** 今回の録画は写真を**ギャラリーから**追加しており、
+カメラは使っていない。旧版の本文にあった "the camera permission prompt" は削除した。
 
 ```
 Hello,
 
 Thank you for the review. We have provided all of the requested information.
 
-- A screen recording captured on a physical iPhone running the latest iOS is
-  attached in the App Review Information section. It starts from launching the
-  app and covers the location permission prompt, the map, limited-edition
-  goshuin information, sign-in, the camera permission prompt, recording a
-  goshuin, the goshuin book, the collection screen, and account deletion.
-- Items 2 through 7 are answered in full in the Notes field of the App Review
-  Information section.
+A screen recording captured on a physical iPhone is attached in the App Review
+Information section. It is a single take that starts from launching the app and
+covers every core feature:
+
+  0:00  App launch (cold start, first launch after install)
+  0:03  Onboarding (4 screens)
+  0:09  Location permission request (see the note below)
+  0:13  Map of nearby shrines and temples
+  0:55  Search
+  1:20  Spot detail sheet
+  1:48  Sign-in sheet (Sign in with Apple / Google)
+  1:57  Signing in with Google
+  2:00  Recording a goshuin (photo, spot, visit date, memo)
+  3:40  Completion screen and first badge
+  4:00  Recording a second goshuin
+  5:00  Collection screen (badges, pilgrimage progress, progress by region)
+  5:20  Digital goshuin book
+  5:36  "Me" tab
+  5:42  Account deletion, including the confirmation dialog
+  5:51  Deletion completes and the user is signed out
+
+Note on the permission prompts: iOS does not include system permission alerts in
+screen recordings, because they are drawn by a separate system process. At 0:09
+the screen dims while the location alert is displayed and the user taps Allow;
+the granted state is then visible on the map (the blue location dot from 0:13)
+and in the app's settings screen ("位置情報 / 現在地の利用 — 許可済み") at 5:36.
+In this recording the goshuin photo was added from the photo library rather than
+the camera, so no camera alert appears.
+
+Items 2 through 7 are answered in full in the Notes field of the App Review
+Information section.
 
 Two points that may help the review:
 

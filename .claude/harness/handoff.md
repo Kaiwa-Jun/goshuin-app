@@ -34,53 +34,87 @@ node scripts/asc-review.mjs attach ~/Downloads/<録画>.mov
 ⚠️ **auto mode では ASC への書き込みが分類器に止められる**（読み取りは通る）。
 **書き込み系はユーザーが手で叩く**。
 
-### 🔴 撮影の前に詰まる箇所（2026-08-16 未明に発見）
+### ✅ 撮影の前に詰まる箇所 → 解消済み（2026-09-19）
 
-**TestFlight のグループもテスターも0件だった。** このままだと iPhone の TestFlight に
-「御朱印さんぽ」が出てこない。**`node scripts/asc-review.mjs testflight` を最初に叩く。**
+TestFlight のグループもテスターも0件だったが、**`node scripts/asc-review.mjs testflight` を実行して解消**。
+内部グループ `Internal`（`8d83cc22-a73c-4d1c-bfd8-e2219df06dc6`）を作成し、build 14 を配布対象に追加、
+`kj.11235813213455@gmail.com` をテスターに登録済み（`status` で `testflight Internal` を確認）。
 
 ### 次にやること（順番どおりに）
 
-1. **`node scripts/asc-review.mjs testflight`** → TestFlight に build 14 を出す
-2. **⚠️ iPhone を最新 iOS に更新し、バージョン番号を控える**
-   （Apple が "latest operating system" と明記。控えた値が次の `--ios` 引数になる）
-3. **⚠️ 実機で画面録画を撮る（唯一のブロッカー・ユーザー作業）**
-   - **カット割りは `app-review-2.1-response.md` の §1**（14ステップ・**4か所直した**）
-   - ⚠️ **捨てアカウント（Google）を使う。** 録画にはアカウント削除まで含めるので、
-     本アカウントで撮ると宮城の御朱印記録が消える
-   - ⚠️ **紙の御朱印帳を手元に。** カメラ権限のダイアログを見せる必要があり被写体が要る
-4. **`node scripts/asc-review.mjs notes --ios <実機のバージョン>`**
-5. **`node scripts/asc-review.mjs attach ~/Downloads/<録画>.mov`**
-6. **App Review へ返信**（同ドキュメントに短文あり）→ 「審査へ提出」（**ブラウザ**）
+**2026-09-19 の進捗**: TestFlight 配布 ✅ / 実機録画 ✅ / Notes 更新 ✅（実機 **iPhone 16 / iOS 26.7**）。
 
-### 現況の実測（2026-08-16 未明。鵜呑みにせず確認した結果）
+## 🔴🔴 提出はストップ。録画の 0:49 で build 14 がクラッシュしている
 
-| 対象               | 実測                                                                                               |
-| ------------------ | -------------------------------------------------------------------------------------------------- |
-| ASC バージョン 1.0 | `REJECTED` / 審査提出は `UNRESOLVED_ISSUES`（キューには載っていない）                              |
-| build 14           | `VALID` / 期限切れなし / `READY_FOR_BETA_TESTING`。**再ビルド不要**                                |
-| ASC の Notes       | **旧い日本語のまま 275 文字**。退避済み → `.claude/harness/asc-review-notes-backup-2026-08-15.txt` |
-| ASC の添付         | `goshuin-account-deletion-build13.mov` が1件（build 13 のもの）                                    |
-| TestFlight         | 🔴 **グループ0 / テスター0**（上記）                                                               |
-| 実機               | **iPhone 16**（`/v1/devices`・Expo 登録・UDID `00008140-001D14390E0B001C`）。Mac には未ペアリング  |
-| Apple のメール     | 最新は 8/15 04:20 UTC の build 14 却下。**それ以降の新着なし**                                     |
-| GitHub             | open PR なし / open issue は #139 #132 #82 #67 #47 の5件（増減なし）                               |
-| CI                 | 直近8ラン**すべて success**                                                                        |
-| Supabase の cron   | ⚠️ **未確認**（下記）                                                                              |
+2026-09-19 の録画を全編検証したところ、**地図をパン／ピンチしている最中（0:49）にアプリが落ち、
+ホーム画面に戻り、再起動後に TestFlight の「"御朱印さんぽ" がクラッシュしました」ダイアログが
+0:55〜0:57 に映っている**。
 
-⚠️ **Supabase の cron は確認できていない。** service_role キーがローカルに無く
-（`.env` は anon のみ）、`supabase projects api-keys --reveal` は auto mode の分類器に
-止められた。**次回はダッシュボードの SQL Editor で**:
+- **この動画は提出できない**（審査員がクラッシュを目撃する = 2.1 の再却下がほぼ確実）
+- **添付は ASC から削除済み**（`7822019a-…` を削除。手元の `~/Downloads/goshuin-build14-demo.mp4` は残っている）
+- **Notes（3806文字）は正しい内容なのでそのまま置いてある**
+- 動画の他の部分に問題は無い（起動・オンボーディング・地図・検索・ログイン・記録・御朱印帳・
+  あつめる・アカウント削除まで全部映っている）
 
-```sql
-select jobname, status, start_time from cron.job_run_details order by start_time desc limit 10;
+### クラッシュの状況（録画から読み取れる範囲）
+
+| 時刻       | 何が起きたか                                                             |
+| ---------- | ------------------------------------------------------------------------ |
+| 0:40〜0:49 | 地図をパン／ピンチ（調布〜三鷹あたり。ピンとクラスタが再計算される動き） |
+| 0:49       | **落ちてホーム画面**                                                     |
+| 0:52〜0:54 | ユーザーが再起動（アイコン → スプラッシュ）                              |
+| 0:55〜0:57 | TestFlight のクラッシュ報告ダイアログ                                    |
+
+### 原因は特定済み（`~/Downloads/app-2026-09-19-022606.ips`）
+
+```
+NSRangeException *** -[__NSArrayM insertObject:atIndex:]: index 3 beyond bounds [0 .. 1]
+  -[RCTLegacyViewManagerInteropComponentView finalizeUpdates:]
+  → AIRMap insertReactSubview (AIRMap.m:138)  → SIGABRT
+端末 iPhone17,3 (iPhone 16) / iPhone OS 26.6.2 (23G90) / build 14
 ```
 
-直近の実行は **8/14(金) 02:00 / 02:30 JST**、次回は **8/18(火)** の同時刻。
+**react-native-maps 1.20.1 は iOS 側が全部 legacy view manager（`codegenConfig` を持たない）ため、
+New Architecture では `RCTLegacyViewManagerInteropComponentView` 経由でマウントされる。**
+この interop は insert を `finalizeUpdates` まで遅延させるので、**1トランザクションに
+「マーカーの削除 + 挿入」がまとまって入ると `atIndex` が現在の要素数を超えて渡ってくる**。
+クラスタ再計算（`onRegionChangeComplete` → `useSpotClusters`）がまさにその形。
+upstream 未修正（**1.29.2 でも同じ行のまま**）: react-native-maps#5345 / #5080 / expo#34614
 
-📌 `[VERSION]`（実機の iOS）は**埋められなかった**。Mac に iPhone がペアリングされておらず
-Metro のログにも出ない。**プレースホルダーを ASC に入れたまま再提出する事故を避けるため、
-Notes は書き換えずスクリプトの引数にした。**
+⚠️ **`.ips` の OS は 26.6.2。ユーザー申告の「iOS 26.7」と食い違う。**
+ASC の Notes には 26.7 で入れてあるので、**撮り直しの前にもう一度実機で確認する**。
+
+### 対処（コミット済み・ブランチ `fix/map-marker-interop-crash`）
+
+`scripts/patch-airmap.mjs` を postinstall に登録し、`AIRMap.m:138` を範囲丸め + nil ガードに書き換える。
+react-native-maps は **Expo SDK 54 のピンのまま 1.20.1**（1.29.2 への更新も試したが、同じ行が
+未修正なうえ Expo のピンから9マイナー離れるので採らなかった）。`npm ci` で postinstall が走ることを実測確認済み
+＝ EAS ビルドでも適用される。機械検証: lint 0 errors / typecheck clean / **92 suite 1137 件パス**。
+
+⚠️ **手元の Dev Client（2026-04 ビルド）にはこのネイティブ修正は入っていない。検証には新しいビルドが要る。**
+
+### その後の段取り（クラッシュが直ってから）
+
+1. 原因特定 → 修正 → build 15 を出す
+2. TestFlight で build 15 を入れる（**入れる前にアプリを削除**）
+3. **撮り直し**（カット割りは下記のまま使える。⚠️ 検索は「靖國」ではヒットしない。旧字体の問題。
+   録画では `見つかりませんでした` が2回映っている。**新字体「靖国」で引くか、別スポットにする**）
+4. 添付 → 返信 → 審査へ提出
+
+- 録画: `~/Downloads/ScreenRecording_09-19-2026 02-25-12_1.MP4`（5:57 / 436MB / HEVC 1180x2556）
+  圧縮済みの提出版が `~/Downloads/goshuin-build14-demo.mp4`（17.4MB / H.264 1280p / 無音）
+- ASC の添付は `goshuin-build14-demo.mp4`（`7822019a-de7a-4cf0-a94c-047ea7fc8784`）に差し替え済み。
+  build 13 の `goshuin-account-deletion-build13.mov` は削除した（添付は1件しか持てない）
+- ⚠️ **録画は本アカウント `kj.11235813213455@gmail.com` でログインし、最後に削除まで実行している。**
+  録画時点で記録0件（完了画面が「1箇所目」）だったので失うものは無かったが、**撮り直すなら別アカウントで**
+- 🔴 **iOS の画面収録は位置情報・カメラの権限アラートを記録しない**（別プロセス描画）。暗転しか残らない。
+  返信本文でその旨を明記する方針に変更済み（`app-review-2.1-response.md` の該当節）
+
+1. ~~Notes を置き換える~~ → **完了（3806 文字 / iPhone 16 / iOS 26.7）**。
+   旧 Notes は `~/asc-notes-backup-2026-09-18174235.txt` に退避済み
+2. **ASC のブラウザで App Review へ返信** → 本文は `app-review-2.1-response.md` の「返信本文」
+   （タイムスタンプ索引つき。**動画はギャラリー経路なのでカメラの話を書かない**）
+3. **ASC のブラウザで「審査へ提出」**
 
 ### その他の残タスク
 
@@ -368,15 +402,26 @@ PR #124 の auto-review が「`MapScreen` が `useWishlist`（ID の Set）と `
 
 ### 実機の動かし方
 
-dev サーバーは tmux `goshuin-dev` で動いている。**まず生きているか確認してから**。
+**2026-09-19 から tmux は使っていない。** cloudflared と Expo は Claude Code のセッション配下の
+バックグラウンドプロセスで動かす（`scripts/dev.sh` / `/dev` は tmux 前提のままなので未使用）。
+**セッションを閉じると両方落ちる。**
 
 ```bash
 curl -s -o /dev/null -w "%{http_code}\n" --max-time 10 http://localhost:8081/status
 cat .dev-tunnel/url.txt
 ```
 
+立ち上げ直す手順（この2本をバックグラウンドで）:
+
+```bash
+cloudflared tunnel --url http://127.0.0.1:8081 > .dev-tunnel/cloudflared.log 2>&1   # ログから URL を拾って .dev-tunnel/url.txt へ
+EXPO_PACKAGER_PROXY_URL="$(cat .dev-tunnel/url.txt)" npx expo start --dev-client --port 8081 > .dev-tunnel/expo.log 2>&1
+```
+
+- ⚠️ **`CI=1` を付けない**（watch mode が切れてリロードしなくなる）
 - 200 が返れば Dev Client を Reload するだけでよい
-- ⚠️ **つながらない場合だけ `/dev` を叩き直す**。trycloudflare の quick tunnel は無保証で切れる。叩き直すと URL が変わるので `./scripts/dev.sh qr` で QR を出して読み直すこと
+- trycloudflare の quick tunnel は無保証で切れる。**立ち上げ直すと URL が変わる**ので、
+  Dev Client の "Enter URL manually" に新しい URL を入れ直すこと
 
 ### 記録が失敗したときの拾い方（#118 で入れた仕込み）
 
