@@ -217,11 +217,11 @@ describe('TabNavigator', () => {
       expect(getByText('地図')).toBeTruthy();
       expect(getByText('御朱印帳')).toBeTruthy();
       expect(getByText('あつめる')).toBeTruthy();
-      expect(getByText('自分')).toBeTruthy();
+      expect(getByText('設定')).toBeTruthy();
     });
   });
 
-  it('タブが 地図 → 御朱印帳 → あつめる → 自分 の順に並ぶ', async () => {
+  it('タブが 地図 → 御朱印帳 → あつめる → 設定 の順に並ぶ', async () => {
     mockUseAuth.mockReturnValue({
       user: null,
       session: null,
@@ -250,7 +250,7 @@ describe('TabNavigator', () => {
       })
       .flat();
 
-    const tabOrder = ['地図', '御朱印帳', 'あつめる', '自分'].map(label => labels.indexOf(label));
+    const tabOrder = ['地図', '御朱印帳', 'あつめる', '設定'].map(label => labels.indexOf(label));
 
     expect(tabOrder.every(i => i >= 0)).toBe(true);
     expect(tabOrder).toEqual([...tabOrder].sort((a, b) => a - b));
@@ -271,7 +271,7 @@ describe('TabNavigator', () => {
     });
   });
 
-  it('御朱印帳は menu-book、自分は person のアイコンを使う', async () => {
+  it('御朱印帳は menu-book、設定は settings のアイコンを使う', async () => {
     mockUseAuth.mockReturnValue({
       user: null,
       session: null,
@@ -284,7 +284,7 @@ describe('TabNavigator', () => {
     await waitFor(() => {
       // @expo/vector-icons のモックはアイコン名をテキストとして描画する
       expect(getAllByText('menu-book').length).toBeGreaterThan(0);
-      expect(getAllByText('person').length).toBeGreaterThan(0);
+      expect(getAllByText('settings').length).toBeGreaterThan(0);
       // 地図とあつめるのアイコンは据え置き
       expect(getAllByText('explore').length).toBeGreaterThan(0);
       expect(getAllByText('emoji-events').length).toBeGreaterThan(0);

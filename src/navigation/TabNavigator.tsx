@@ -26,7 +26,13 @@ export function TabNavigator() {
         options={{
           title: '地図',
           tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name="explore" color={color} focused={focused} />
+            <TabBarIcon
+              name="explore"
+              routeName="MapTab"
+              motion="spin"
+              color={color}
+              focused={focused}
+            />
           ),
         }}
       />
@@ -35,7 +41,15 @@ export function TabNavigator() {
         component={GalleryStack}
         options={{
           title: '御朱印帳',
-          tabBarIcon: ({ color }) => <MaterialIcons name="menu-book" size={24} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon
+              name="menu-book"
+              routeName="GalleryTab"
+              motion="open-book"
+              color={color}
+              focused={focused}
+            />
+          ),
         }}
       />
       <Tab.Screen
@@ -51,8 +65,16 @@ export function TabNavigator() {
         name="Settings"
         component={SettingsScreen}
         options={{
-          title: '自分',
-          tabBarIcon: ({ color }) => <MaterialIcons name="person" size={24} color={color} />,
+          title: '設定',
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon
+              name="settings"
+              routeName="Settings"
+              motion="gear"
+              color={color}
+              focused={focused}
+            />
+          ),
         }}
       />
     </Tab.Navigator>

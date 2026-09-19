@@ -24,7 +24,7 @@ appId: com.goshuin.app
 - assertVisible: "地図"
 - assertVisible: "御朱印帳"
 - assertVisible: "あつめる"
-- assertVisible: "自分"
+- assertVisible: "設定"
 # 未ログインでも御朱印帳/あつめるタブに入れる（Issue #102）
 - tapOn: "御朱印帳"
 - assertVisible: "あなたの御朱印帳"

@@ -2,13 +2,22 @@ import React from 'react';
 import { AccessibilityInfo, Animated } from 'react-native';
 import { render } from '@testing-library/react-native';
 
-import { TabBarIcon } from '@components/animated/TabBarIcon';
+import { TabBarIcon, resetTabBarIconMotion } from '@components/animated/TabBarIcon';
+
+// 実際の選択状態はナビゲーションの state から取るので、そこを差し替える
+let mockActiveRoute = 'MapTab';
+jest.mock('@react-navigation/native', () => ({
+  useNavigationState: (selector: (state: unknown) => unknown) =>
+    selector({ index: 0, routes: [{ name: mockActiveRoute }] }),
+}));
 
 describe('TabBarIcon', () => {
   let timing: jest.SpyInstance;
 
   beforeEach(() => {
     jest.clearAllMocks();
+    resetTabBarIconMotion();
+    mockActiveRoute = 'MapTab';
     jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false);
     jest
       .spyOn(AccessibilityInfo, 'addEventListener')
@@ -20,40 +29,82 @@ describe('TabBarIcon', () => {
     timing.mockRestore();
   });
 
-  const renderIcon = (focused: boolean) =>
-    render(<TabBarIcon name="explore" color="#f27f0d" focused={focused} />);
+  const compass = (props: { focused?: boolean } = {}) => (
+    <TabBarIcon
+      name="explore"
+      routeName="MapTab"
+      motion="spin"
+      color="#f27f0d"
+      focused={props.focused ?? true}
+    />
+  );
 
   it('アイコンを描画する', () => {
-    const { getByTestId } = renderIcon(false);
+    const { getByTestId } = render(compass());
     expect(getByTestId('tab-icon-explore')).toBeTruthy();
   });
 
-  it('最初から選択されている場合は回さない（起動時に勝手に動かない）', () => {
-    renderIcon(true);
+  it('最初から選択されている場合は動かさない（起動時に勝手に動かない）', () => {
+    render(compass());
     expect(timing).not.toHaveBeenCalled();
   });
 
-  it('未選択から選択に変わったときだけ回す', async () => {
-    const { rerender } = renderIcon(false);
-    expect(timing).not.toHaveBeenCalled();
-
-    rerender(<TabBarIcon name="explore" color="#f27f0d" focused />);
-    expect(timing).toHaveBeenCalledTimes(1);
-    expect(timing.mock.calls[0][1]).toMatchObject({ toValue: 1, useNativeDriver: true });
-  });
-
-  it('選択が外れるときは回さない', () => {
-    const { rerender } = renderIcon(true);
-    rerender(<TabBarIcon name="explore" color="#f27f0d" focused={false} />);
-    expect(timing).not.toHaveBeenCalled();
-  });
-
-  it('視差効果を減らす設定がオンなら回さない', async () => {
-    jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
-    const { rerender, findByTestId } = renderIcon(false);
+  it('選択が外れたあと、選び直されたときに動かす', async () => {
+    const { rerender, findByTestId } = render(compass());
     await findByTestId('tab-icon-explore');
 
-    rerender(<TabBarIcon name="explore" color="#f27f0d" focused />);
+    mockActiveRoute = 'Settings';
+    rerender(compass());
     expect(timing).not.toHaveBeenCalled();
+
+    mockActiveRoute = 'MapTab';
+    rerender(compass());
+    expect(timing).toHaveBeenCalledTimes(1);
+    expect(timing.mock.calls[0][1]).toMatchObject({ useNativeDriver: true });
+  });
+
+  it('重なっている非アクティブ側の複製では動かさない', async () => {
+    const { rerender, findByTestId } = render(compass({ focused: false }));
+    await findByTestId('tab-icon-explore');
+
+    mockActiveRoute = 'Settings';
+    rerender(compass({ focused: false }));
+    mockActiveRoute = 'MapTab';
+    rerender(compass({ focused: false }));
+
+    expect(timing).not.toHaveBeenCalled();
+  });
+
+  it('視差効果を減らす設定がオンなら動かさない', async () => {
+    jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
+    const { rerender, findByTestId } = render(compass());
+    await findByTestId('tab-icon-explore');
+
+    mockActiveRoute = 'Settings';
+    rerender(compass());
+    mockActiveRoute = 'MapTab';
+    rerender(compass());
+
+    expect(timing).not.toHaveBeenCalled();
+  });
+
+  it('歯車は戻さず、押すたびに1歯ぶん進む', async () => {
+    const gear = () => (
+      <TabBarIcon name="settings" routeName="Settings" motion="gear" color="#f27f0d" focused />
+    );
+    const { rerender, findByTestId } = render(gear());
+    await findByTestId('tab-icon-settings');
+
+    mockActiveRoute = 'Settings';
+    rerender(gear());
+    mockActiveRoute = 'MapTab';
+    rerender(gear());
+    mockActiveRoute = 'Settings';
+    rerender(gear());
+
+    expect(timing).toHaveBeenCalledTimes(2);
+    // 戻さずに積み上がる
+    expect(timing.mock.calls[0][1]).toMatchObject({ toValue: 1 });
+    expect(timing.mock.calls[1][1]).toMatchObject({ toValue: 2 });
   });
 });
