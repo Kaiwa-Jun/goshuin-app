@@ -4,6 +4,8 @@ import type { GestureResponderEvent, PressableProps, StyleProp, ViewStyle } from
 
 import { useReduceMotion } from '@hooks/useReduceMotion';
 
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
 /** 押し込んだときの縮み具合 */
 const PRESSED_SCALE = 0.92;
 /** 押し込みは速く。指が触れた瞬間に反応してほしい */
@@ -25,6 +27,9 @@ interface PressableScaleProps extends Omit<PressableProps, 'style'> {
  *
  * 「視差効果を減らす」がオンなら縮まない。押せることは色や配置で伝わるので、
  * 動き以外の情報は落とさない。
+ *
+ * style は Pressable 自体に当たるので、タップ領域と見た目がズレない
+ * （内側の View に当てると flex や position を渡したときに食い違う）。
  */
 export function PressableScale({
   children,
@@ -68,8 +73,13 @@ export function PressableScale({
   );
 
   return (
-    <Pressable onPressIn={handlePressIn} onPressOut={handlePressOut} {...rest}>
-      <Animated.View style={[style, { transform: [{ scale }] }]}>{children}</Animated.View>
-    </Pressable>
+    <AnimatedPressable
+      style={[style, { transform: [{ scale }] }]}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      {...rest}
+    >
+      {children}
+    </AnimatedPressable>
   );
 }

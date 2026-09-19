@@ -4,13 +4,14 @@ import { MaterialIcons } from '@expo/vector-icons';
 
 import { PressableScale } from '@components/common/PressableScale';
 import { colors } from '@theme/colors';
+import { shadows } from '@theme/shadows';
 
 /**
  * 地図に重ねる記録ボタン。
  *
  * 角丸スクエアなのは Material 3 の FAB に合わせたもの。完全な円は一世代前の形。
- * 影は「大きくぼかす」より「小さく濃く」した方が、ぼやけた染みではなく
- * 浮いた物体に見えるので、shadows.lg ではなく専用の値を持っている。
+ * 影は shadows.floating。「大きくぼかす」より「小さく濃く」した方が、
+ * ぼやけた染みではなく浮いた物体に見える。
  */
 /** Material の標準に合わせる。64pt は標準(56)と大型(96)の中間で、地図の上では過剰 */
 const SIZE = 56;
@@ -49,10 +50,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary[500],
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.22,
-    shadowRadius: 6,
-    elevation: 6,
+    ...shadows.floating,
   },
 });
