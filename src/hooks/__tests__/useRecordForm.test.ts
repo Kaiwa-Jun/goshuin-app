@@ -662,10 +662,25 @@ describe('最寄りスポットの既定選択（Issue #130 / S-4）', () => {
         result.current.addImages(['file:///a.jpg', 'file:///b.jpg']);
       });
       act(() => {
-        result.current.removeImage('file:///a.jpg');
+        result.current.removeImage(0);
       });
 
       expect(result.current.imageUris).toEqual(['file:///b.jpg']);
+    });
+
+    // 並びの中での写真の同一性は URI ではなく位置。URI で外すと、
+    // 同じ写真が2枚入っていたときに押していない方まで消える
+    it('同じ写真が2枚入っていても、押した1枚だけを外す', () => {
+      const { result } = renderHook(() => useRecordForm());
+
+      act(() => {
+        result.current.addImages(['file:///a.jpg', 'file:///a.jpg', 'file:///b.jpg']);
+      });
+      act(() => {
+        result.current.removeImage(1);
+      });
+
+      expect(result.current.imageUris).toEqual(['file:///a.jpg', 'file:///b.jpg']);
     });
 
     it('上限を超える分は受け取らない', () => {

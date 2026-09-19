@@ -10,7 +10,7 @@ interface PhotoSectionProps {
   imageUris: string[];
   /** カメラを起動する */
   onAddPress: () => void;
-  onRemove: (uri: string) => void;
+  onRemove: (index: number) => void;
   error: string | null;
 }
 
@@ -47,6 +47,8 @@ function PhotoTile({ uri, index, full, onRemove }: PhotoTileProps) {
           onPress={onRemove}
           // 小さなアイコンなので、指で押せる範囲を広げる
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel="写真を削除"
           testID={`photo-remove-${index}`}
         >
           <MaterialIcons name="close" size={16} color={colors.white} />
@@ -90,15 +92,21 @@ export function PhotoSection({ imageUris, onAddPress, onRemove, error }: PhotoSe
       <View style={styles.grid}>
         {imageUris.map((uri, index) => (
           <PhotoTile
-            key={uri}
+            key={`${index}-${uri}`}
             uri={uri}
             index={index}
             full={isSingle}
-            onRemove={() => onRemove(uri)}
+            onRemove={() => onRemove(index)}
           />
         ))}
         {imageUris.length < MAX_PHOTOS_PER_RECORD && (
-          <TouchableOpacity style={styles.tile} onPress={onAddPress} testID="photo-add">
+          <TouchableOpacity
+            style={styles.tile}
+            onPress={onAddPress}
+            accessibilityRole="button"
+            accessibilityLabel="写真を撮影して追加"
+            testID="photo-add"
+          >
             <View style={[styles.tileInner, styles.addTile]}>
               <MaterialIcons name="photo-camera" size={24} color={colors.gray[400]} />
             </View>

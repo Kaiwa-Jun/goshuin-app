@@ -51,7 +51,7 @@ interface UseRecordFormReturn {
   submitError: string | null;
   selectSpot: (spot: Spot) => void;
   addImages: (uris: string[]) => void;
-  removeImage: (uri: string) => void;
+  removeImage: (index: number) => void;
   setVisitedAt: (date: Date) => void;
   setMemo: (text: string) => void;
   setIsPublic: (value: boolean) => void;
@@ -122,8 +122,10 @@ export function useRecordForm(params?: UseRecordFormParams): UseRecordFormReturn
     setImageError(null);
   }, []);
 
-  const removeImage = useCallback((uri: string) => {
-    setImageUris(prev => prev.filter(u => u !== uri));
+  // 並びの中での写真の同一性は URI ではなく位置。URI で外すと、同じ写真が
+  // 2枚入っていたときに押していない方まで消える
+  const removeImage = useCallback((index: number) => {
+    setImageUris(prev => prev.filter((_, i) => i !== index));
   }, []);
 
   const validate = useCallback((): boolean => {

@@ -72,7 +72,17 @@ describe('PhotoSection', () => {
 
       fireEvent.press(getByTestId('photo-remove-1'));
 
-      expect(mockOnRemove).toHaveBeenCalledWith('file://b.jpg');
+      // 位置で渡す。URI だと同じ写真が2枚あったとき両方消える
+      expect(mockOnRemove).toHaveBeenCalledWith(1);
+    });
+
+    // 破壊的な操作なので、アイコンだけだと読み上げで何のボタンか分からない
+    it('削除ボタンに読み上げ用のラベルが付く', () => {
+      const { getByTestId } = render(
+        <PhotoSection {...defaultProps} imageUris={['file://a.jpg']} />
+      );
+
+      expect(getByTestId('photo-remove-0').props.accessibilityLabel).toBe('写真を削除');
     });
 
     // 撮影の導線は写真が入ったあとも残す。2枚目に気づいたとき詰まないように
