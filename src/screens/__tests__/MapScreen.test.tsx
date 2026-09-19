@@ -138,12 +138,28 @@ const mockSpots = [
 let mockSpotsOverride: typeof mockSpots | null = null;
 
 jest.mock('@hooks/useSpots', () => ({
-  useSpots: () => ({
-    spots: mockSpotsOverride ?? mockSpots,
-    allSpots: mockSpotsOverride ?? mockSpots,
-    isLoading: false,
-    error: null,
-  }),
+  // 絞り込みは実装と同じ形で再現する。素通しにすると
+  // MapScreen がフィルタを渡しているかをテストで見られない
+  useSpots: (
+    _location: unknown,
+    filterMode: string = 'all',
+    visitedSpotIds?: Set<string>,
+    wishlistSpotIds?: Set<string>
+  ) => {
+    const allSpots = mockSpotsOverride ?? mockSpots;
+    const ids =
+      filterMode === 'visited'
+        ? visitedSpotIds
+        : filterMode === 'wishlist'
+          ? wishlistSpotIds
+          : undefined;
+    return {
+      spots: ids ? allSpots.filter(s => ids.has(s.id)) : allSpots,
+      allSpots,
+      isLoading: false,
+      error: null,
+    };
+  },
 }));
 
 const mockVisitedSpotIds = new Set(['spot-1']);
@@ -463,7 +479,7 @@ describe('MapScreen', () => {
   });
 
   // 地図に重ねる白い要素は同じ強さで浮かせる。1つだけ強くすると不揃いに見える
-  it.each(['search-bar', 'filter-button', 'wishlist-entry'])('%s は地図から浮いている', testID => {
+  it.each(['search-bar', 'filter-button'])('%s は地図から浮いている', testID => {
     // フィルタボタンはログイン時のみ出る
     mockUseAuthReturn = { ...mockUseAuthReturn, isAuthenticated: true };
     const { getByTestId } = render(
@@ -473,6 +489,143 @@ describe('MapScreen', () => {
 
     expect(style.backgroundColor).toBe(colors.white);
     expect(style.shadowOpacity).toBe(shadows.md.shadowOpacity);
+  });
+
+  describe('行きたいフィルタ', () => {
+    const openFilter = (r: ReturnType<typeof render>) => {
+      fireEvent.press(r.getByTestId('filter-button'));
+      return r;
+    };
+
+    beforeEach(() => {
+      mockUseAuthReturn = { ...mockUseAuthReturn, isAuthenticated: true };
+    });
+
+    it('フィルタに「行きたい」が件数付きで並ぶ', () => {
+      mockWishlistSpotIds = new Set(['spot-2']);
+      const r = openFilter(
+        render(<MapScreen navigation={mockNavigation as never} route={mockRoute} />)
+      );
+
+      expect(r.getByTestId('filter-option-wishlist')).toBeTruthy();
+      expect(r.getByText('行きたい (1)')).toBeTruthy();
+    });
+
+    it('選ぶと地図のピンが行きたいだけになる', () => {
+      mockWishlistSpotIds = new Set(['spot-2']);
+      const r = openFilter(
+        render(<MapScreen navigation={mockNavigation as never} route={mockRoute} />)
+      );
+
+      fireEvent.press(r.getByTestId('filter-option-wishlist'));
+
+      const pinned = r.getByTestId('goshuin-pinned').props.data;
+      const clustered = r.getByTestId('goshuin-spots').props.data;
+      expect(
+        pinned.features.map((f: { properties: { spotId: string } }) => f.properties.spotId)
+      ).toEqual(['spot-2']);
+      expect(clustered.features).toHaveLength(0);
+    });
+
+    it('選ぶと残ったピンが見える位置までカメラが寄る', () => {
+      // 寄せないと、保存したスポットが今いる場所から遠いとき
+      // 「絞ったら何も出てこなくなった」ように見える
+      mockWishlistSpotIds = new Set(['spot-1', 'spot-2']);
+      const r = openFilter(
+        render(<MapScreen navigation={mockNavigation as never} route={mockRoute} />)
+      );
+      cameraMocks.fitBounds.mockClear();
+
+      fireEvent.press(r.getByTestId('filter-option-wishlist'));
+
+      expect(cameraMocks.fitBounds).toHaveBeenCalledWith(
+        [140.87, 38.27, 140.872, 38.272],
+        expect.objectContaining({ duration: expect.any(Number) })
+      );
+    });
+
+    it('絞り込みで消えたスポットのシートは閉じる', () => {
+      // 開いたままだと、地図に無いスポットの詳細が出続ける。
+      // 空表示とも重なる（旧チップと同じ位置にあるため）
+      mockWishlistSpotIds = new Set(['spot-2']);
+      const r = render(<MapScreen navigation={mockNavigation as never} route={mockRoute} />);
+      fireEvent(r.getByTestId('goshuin-spots'), 'onPress', {
+        nativeEvent: { lngLat: [140.87, 38.27], features: [{ properties: { spotId: 'spot-1' } }] },
+      });
+      expect(r.getByTestId('bottom-sheet')).toBeTruthy();
+
+      fireEvent.press(r.getByTestId('filter-button'));
+      fireEvent.press(r.getByTestId('filter-option-wishlist'));
+
+      expect(r.queryByTestId('bottom-sheet')).toBeNull();
+    });
+
+    it('絞り込んでも残るスポットのシートは開いたまま', () => {
+      mockWishlistSpotIds = new Set(['spot-1']);
+      const r = render(<MapScreen navigation={mockNavigation as never} route={mockRoute} />);
+      fireEvent(r.getByTestId('goshuin-pinned'), 'onPress', {
+        nativeEvent: { lngLat: [140.87, 38.27], features: [{ properties: { spotId: 'spot-1' } }] },
+      });
+
+      fireEvent.press(r.getByTestId('filter-button'));
+      fireEvent.press(r.getByTestId('filter-option-wishlist'));
+
+      expect(r.getByTestId('bottom-sheet')).toBeTruthy();
+    });
+
+    it('地域別から飛んできた分もフィルタを通す', async () => {
+      // prefectureSpots は useSpots を通らないので、素通しにすると
+      // 絞っているのにフィルタ対象外のピンが混ざる（あゆみの地域別から遷移する経路）
+      mockWishlistSpotIds = new Set(['spot-1']);
+      mockFetchSpotsByPrefecture.mockResolvedValue([
+        { ...mockSpots[1], id: 'pref-1', name: '県内スポット', lat: 35.0, lng: 135.0 },
+      ]);
+      const route = { ...mockRoute, params: { focusPrefecture: '京都府' } };
+      const r = render(<MapScreen navigation={mockNavigation as never} route={route as never} />);
+      await waitFor(() => expect(mockFetchSpotsByPrefecture).toHaveBeenCalled());
+
+      fireEvent.press(r.getByTestId('filter-button'));
+      fireEvent.press(r.getByTestId('filter-option-wishlist'));
+
+      const ids = [
+        ...r.getByTestId('goshuin-pinned').props.data.features,
+        ...r.getByTestId('goshuin-spots').props.data.features,
+      ].map((f: { properties: { spotId: string } }) => f.properties.spotId);
+      expect(ids).toEqual(['spot-1']);
+    });
+
+    it('0件なら空表示を出す。真っ白な地図にしない', () => {
+      mockWishlistSpotIds = new Set();
+      const r = openFilter(
+        render(<MapScreen navigation={mockNavigation as never} route={mockRoute} />)
+      );
+
+      fireEvent.press(r.getByTestId('filter-option-wishlist'));
+
+      expect(r.getByTestId('map-filter-empty')).toBeTruthy();
+    });
+
+    it('すべて表示に戻すと空表示は消える', () => {
+      mockWishlistSpotIds = new Set();
+      const r = openFilter(
+        render(<MapScreen navigation={mockNavigation as never} route={mockRoute} />)
+      );
+      fireEvent.press(r.getByTestId('filter-option-wishlist'));
+
+      fireEvent.press(r.getByTestId('filter-button'));
+      fireEvent.press(r.getByTestId('filter-option-all'));
+
+      expect(r.queryByTestId('map-filter-empty')).toBeNull();
+    });
+  });
+
+  it('行きたい一覧へのチップは無い。フィルタに統合した', () => {
+    const { queryByTestId } = render(
+      <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+    );
+
+    expect(queryByTestId('wishlist-entry')).toBeNull();
+    expect(mockNavigation.navigate).not.toHaveBeenCalledWith('Wishlist');
   });
 
   describe('検索バーに選んだスポット名を残す', () => {
@@ -714,54 +867,5 @@ describe('MapScreen', () => {
         expect(spotIds(r, 'goshuin-spots')).not.toContain('pref-1');
       });
     });
-  });
-});
-
-describe('MapScreen 行きたいリストへの導線（Issue #123）', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    mockFetchSpotsByPrefecture.mockResolvedValue([]);
-    mockPermissionStatus = 'granted';
-  });
-
-  it('行きたいが0件でもエントリポイントが表示される', () => {
-    const { getByTestId } = render(
-      <MapScreen navigation={mockNavigation as never} route={mockRoute} />
-    );
-    expect(getByTestId('wishlist-entry')).toBeTruthy();
-  });
-
-  it('エントリポイントをタップすると行きたいリストへ遷移する', () => {
-    const { getByTestId } = render(
-      <MapScreen navigation={mockNavigation as never} route={mockRoute} />
-    );
-    fireEvent.press(getByTestId('wishlist-entry'));
-    expect(mockNavigation.navigate).toHaveBeenCalledWith('Wishlist');
-  });
-
-  it('行きたいが1件以上のとき件数が出る', () => {
-    mockWishlistSpotIds = new Set(['spot-2']);
-    const { getByText } = render(
-      <MapScreen navigation={mockNavigation as never} route={mockRoute} />
-    );
-    expect(getByText('行きたい (1)')).toBeTruthy();
-  });
-
-  it('0件のときは件数を出さない', () => {
-    const { getByText } = render(
-      <MapScreen navigation={mockNavigation as never} route={mockRoute} />
-    );
-    expect(getByText('行きたい')).toBeTruthy();
-  });
-
-  it('エントリポイントは検索行の直下に置かれ、位置情報バナーはその下にずれる', () => {
-    mockPermissionStatus = 'denied';
-    const { getByTestId } = render(
-      <MapScreen navigation={mockNavigation as never} route={mockRoute} />
-    );
-    const entryTop = StyleSheet.flatten(getByTestId('wishlist-entry').props.style).top;
-    const bannerTop = StyleSheet.flatten(getByTestId('location-off-banner').props.style).top;
-
-    expect(bannerTop).toBeGreaterThan(entryTop);
   });
 });

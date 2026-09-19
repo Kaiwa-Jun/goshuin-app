@@ -76,15 +76,6 @@ jest.mock('@hooks/useWishlist', () => ({
   }),
 }));
 
-jest.mock('@hooks/useWishlistSpots', () => ({
-  useWishlistSpots: () => ({
-    spots: [],
-    isLoading: false,
-    error: null,
-    refetch: jest.fn(),
-  }),
-}));
-
 jest.mock('@services/wishlist', () => ({
   removeFromWishlist: jest.fn(),
 }));

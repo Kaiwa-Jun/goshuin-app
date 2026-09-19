@@ -1,5 +1,10 @@
 import type { Spot } from '@/types/supabase';
-import { buildSpotSources, getSpotPinState, pointCollection } from '@utils/spotGeoJson';
+import {
+  buildSpotSources,
+  getSpotPinState,
+  pointCollection,
+  spotFilterIds,
+} from '@utils/spotGeoJson';
 
 function makeSpot(overrides: Partial<Spot> & Pick<Spot, 'id'>): Spot {
   return {
@@ -120,5 +125,24 @@ describe('pointCollection', () => {
 
   it('現在地が無ければ空', () => {
     expect(pointCollection(null).features).toHaveLength(0);
+  });
+});
+
+describe('spotFilterIds', () => {
+  const visited = new Set(['v1']);
+  const wishlist = new Set(['w1']);
+
+  it("'all' は絞り込まない", () => {
+    expect(spotFilterIds('all', visited, wishlist)).toBeNull();
+  });
+
+  it('モードに対応する Set だけを返す', () => {
+    expect(spotFilterIds('visited', visited, wishlist)).toBe(visited);
+    expect(spotFilterIds('wishlist', visited, wishlist)).toBe(wishlist);
+  });
+
+  it('Set が無ければ絞り込まない（読み込み前に全部消さない）', () => {
+    expect(spotFilterIds('wishlist', visited, undefined)).toBeNull();
+    expect(spotFilterIds('visited', undefined, wishlist)).toBeNull();
   });
 });
