@@ -3,6 +3,7 @@ import { AccessibilityInfo, Animated, Easing, StyleSheet } from 'react-native';
 import { useNavigationState } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
 
+import type { MainTabParamList } from '@/navigation/types';
 import { colors } from '@theme/colors';
 
 type IconName = React.ComponentProps<typeof MaterialIcons>['name'];
@@ -45,7 +46,7 @@ export type TabIconMotion = 'spin' | 'open-book' | 'gear' | 'draw';
 interface TabBarIconProps {
   name: IconName;
   /** このアイコンが属するタブの route 名。選択の変化を拾うのに使う */
-  routeName: string;
+  routeName: keyof MainTabParamList;
   color: string;
   focused: boolean;
   motion: TabIconMotion;
@@ -60,6 +61,10 @@ interface TabBarIconProps {
  * させている**ため（`BottomTabItem` → `TabBarIcon`）。各インスタンスの
  * `focused` は固定値で、タブを切り替えても変化しない。
  * 実際の選択状態はナビゲーションの state から取る。
+ *
+ * ⚠️ これは公開 API ではなく内部実装への依存。`@react-navigation/bottom-tabs`
+ * 7.12.0 で確認。上げるときは `views/TabBarIcon.tsx` の2枚重ねが残っているか
+ * 見ること。変わっていると発火しなくなるが、テストでは気づけない可能性がある。
  *
  * 一過性のアニメーションだけを持ち、常時動き続けるものは置かない
  * （#99 追補3: 無限ループのアニメがネイティブメモリを食い潰した）。
@@ -82,9 +87,12 @@ export function TabBarIcon({
   // 「視差効果を減らす」がオンなら動かさない（色の切り替えだけにする）
   useEffect(() => {
     let cancelled = false;
-    AccessibilityInfo.isReduceMotionEnabled().then(enabled => {
-      if (!cancelled) setReduceMotion(enabled);
-    });
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then(enabled => {
+        if (!cancelled) setReduceMotion(enabled);
+      })
+      // 取れなければ動かす側に倒す（初期値 false のまま）
+      .catch(() => {});
     const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
     return () => {
       cancelled = true;
