@@ -47,13 +47,22 @@ export function RecordCompleteScreen({ navigation, route }: Props) {
   const origin = route.params?.origin;
   const exit = EXITS[origin ?? 'map'];
 
+  /*
+   * navigate ではなく replace / popTo を使う。
+   *
+   * React Navigation v7 の navigate は、同じ名前の画面が履歴にあっても戻らず
+   * push する（StackRouter の NAVIGATE は payload.pop のときだけ戻る）。
+   * navigate のままだと「もう1枚」で記録画面が完了画面の上に積まれ、記録画面の
+   * ✕ がここへ帰ってきてしまう。出口の方も MainTabs を積み増していた（Issue #188）
+   */
+
   // 「もう1枚」を挟んでも入口を忘れない。渡さないと2周目が地図に戻る
   const handleRecordAnother = () => {
-    navigation.navigate('Record', { origin });
+    navigation.replace('Record', { origin });
   };
 
   const handleExit = () => {
-    navigation.navigate('MainTabs', exit.target);
+    navigation.popTo('MainTabs', exit.target);
   };
 
   return (
