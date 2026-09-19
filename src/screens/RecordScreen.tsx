@@ -16,11 +16,9 @@ import { Button } from '@components/common/Button';
 import { Header } from '@components/common/Header';
 import { SpotSelector } from '@components/record/SpotSelector';
 import { PhotoSection } from '@components/record/PhotoSection';
-import { SpotAddModal } from '@components/record/SpotAddModal';
 import { usePhotoPicker } from '@hooks/usePhotoPicker';
 import { useRecordForm } from '@hooks/useRecordForm';
 import { useNearbySpots } from '@hooks/useNearbySpots';
-import { useAuth } from '@hooks/useAuth';
 import { useLocation } from '@hooks/useLocation';
 import { formatJapaneseEraDate } from '@utils/japaneseEra';
 import { pickAutoSelectableSpot } from '@utils/autoSelectSpot';
@@ -38,8 +36,7 @@ type Props = RootStackScreenProps<'Record'>;
 
 export function RecordScreen({ navigation, route }: Props) {
   const initialSpotId = route.params?.spotId;
-  const { user } = useAuth();
-  const { location, permissionStatus } = useLocation();
+  const { permissionStatus } = useLocation();
   const { nearbySpots, filteredSpots, searchQuery, setSearchQuery } = useNearbySpots();
   const { takePhoto, pickFromLibrary } = usePhotoPicker();
 
@@ -58,7 +55,6 @@ export function RecordScreen({ navigation, route }: Props) {
   const scrollOffset = useRef(0);
   const isSavingRef = useRef(false);
 
-  const [showSpotAdd, setShowSpotAdd] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   /** 一部だけ保存できたときの知らせ。全部成功なら完了画面へ行くので出番はない */
   const [partialNotice, setPartialNotice] = useState<string | null>(null);
@@ -221,7 +217,6 @@ export function RecordScreen({ navigation, route }: Props) {
             searchQuery={searchQuery}
             onSearchQueryChange={setSearchQuery}
             onSelectSpot={form.selectSpot}
-            onAddSpotPress={() => setShowSpotAdd(true)}
             error={form.spotError}
             isAutoSelected={form.isSpotAutoSelected}
           />
@@ -333,19 +328,6 @@ export function RecordScreen({ navigation, route }: Props) {
           disabled={form.isSubmitting}
         />
       </View>
-
-      {user && (
-        <SpotAddModal
-          visible={showSpotAdd}
-          onClose={() => setShowSpotAdd(false)}
-          onSpotCreated={spot => {
-            form.selectSpot(spot);
-            setShowSpotAdd(false);
-          }}
-          userLocation={location}
-          userId={user.id}
-        />
-      )}
     </SafeAreaView>
   );
 }

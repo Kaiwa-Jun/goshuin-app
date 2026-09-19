@@ -29,15 +29,12 @@ const nearbySpots = [
 describe('SpotSelector', () => {
   const mockOnSelectSpot = jest.fn();
   const mockOnSearchQueryChange = jest.fn();
-  const mockOnAddSpotPress = jest.fn();
-
   const defaultProps = {
     selectedSpot: null,
     nearbySpots,
     searchQuery: '',
     onSearchQueryChange: mockOnSearchQueryChange,
     onSelectSpot: mockOnSelectSpot,
-    onAddSpotPress: mockOnAddSpotPress,
     error: null,
   };
 
@@ -75,13 +72,25 @@ describe('SpotSelector', () => {
     expect(mockOnSelectSpot).toHaveBeenCalledWith(nearbySpots[0].spot);
   });
 
-  it('「追加」リンクタップで onAddSpotPress 呼出', () => {
-    const { getByPlaceholderText, getByText } = render(<SpotSelector {...defaultProps} />);
+  // 追加すると status: 'pending' で入り、RLS の SELECT は active しか返さないので
+  // 作った本人にも二度と出てこない。設計をやり直すまで動線を出さない（Issue #184）
+  it('スポットを追加する導線を出さない', () => {
+    const { getByPlaceholderText, queryByText } = render(<SpotSelector {...defaultProps} />);
 
     fireEvent(getByPlaceholderText('スポット名で検索'), 'focus');
-    fireEvent.press(getByText('スポットが見つからない場合は追加'));
 
-    expect(mockOnAddSpotPress).toHaveBeenCalled();
+    expect(queryByText('スポットが見つからない場合は追加')).toBeNull();
+  });
+
+  it('候補が無いときは「候補が見つかりません」だけを出す', () => {
+    const { getByPlaceholderText, getByText, queryByText } = render(
+      <SpotSelector {...defaultProps} nearbySpots={[]} />
+    );
+
+    fireEvent(getByPlaceholderText('スポット名で検索'), 'focus');
+
+    expect(getByText('候補が見つかりません')).toBeTruthy();
+    expect(queryByText('スポットが見つからない場合は追加')).toBeNull();
   });
 });
 
@@ -94,7 +103,6 @@ describe('都道府県の表示', () => {
     searchQuery: '',
     onSearchQueryChange: jest.fn(),
     onSelectSpot: jest.fn(),
-    onAddSpotPress: jest.fn(),
     error: null,
   };
 
