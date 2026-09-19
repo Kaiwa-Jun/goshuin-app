@@ -1,6 +1,6 @@
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import { Alert, StyleSheet, Text } from 'react-native';
+import { StyleSheet } from 'react-native';
+import { render, fireEvent } from '@testing-library/react-native';
 import { RecordCompleteScreen } from '@screens/RecordCompleteScreen';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
@@ -113,13 +113,12 @@ describe('RecordCompleteScreen', () => {
     expect(getByText('初めての御朱印')).toBeTruthy();
   });
 
-  it('renders three action buttons', () => {
+  it('renders two action buttons', () => {
     const { getByText } = render(
       <RecordCompleteScreen navigation={mockNavigation} route={mockRouteNoParams} />
     );
     expect(getByText('もう1枚記録する')).toBeTruthy();
-    expect(getByText('地図を見る')).toBeTruthy();
-    expect(getByText('あゆみを見る')).toBeTruthy();
+    expect(getByText('地図に戻る')).toBeTruthy();
   });
 
   it('navigates to Record on "record another" press', () => {
@@ -130,7 +129,7 @@ describe('RecordCompleteScreen', () => {
     expect(mockNavigation.navigate).toHaveBeenCalledWith('Record');
   });
 
-  it('navigates to MainTabs on "view map" press', () => {
+  it('既定（地図から来た）では地図に戻る', () => {
     const { getByTestId } = render(
       <RecordCompleteScreen navigation={mockNavigation} route={mockRouteNoParams} />
     );
@@ -138,17 +137,6 @@ describe('RecordCompleteScreen', () => {
     expect(mockNavigation.navigate).toHaveBeenCalledWith('MainTabs', {
       screen: 'MapTab',
       params: { screen: 'Map' },
-    });
-  });
-
-  it('navigates to Collection on "view collection" press', () => {
-    const { getByTestId } = render(
-      <RecordCompleteScreen navigation={mockNavigation} route={mockRouteNoParams} />
-    );
-    fireEvent.press(getByTestId('button-view-collection'));
-    expect(mockNavigation.navigate).toHaveBeenCalledWith('MainTabs', {
-      screen: 'CollectionTab',
-      params: { screen: 'CollectionList' },
     });
   });
 
@@ -254,7 +242,7 @@ describe('RecordCompleteScreen', () => {
       expect(mockNavigation.navigate).toHaveBeenCalledWith('Record');
     });
 
-    it('navigates to Map when "view map" is pressed with badge', () => {
+    it('バッジがあっても地図に戻る', () => {
       const { getByTestId } = render(
         <RecordCompleteScreen navigation={mockNavigation} route={mockRouteWithBadge} />
       );
@@ -265,17 +253,6 @@ describe('RecordCompleteScreen', () => {
       });
     });
 
-    it('navigates to Collection when "view collection" is pressed with badge', () => {
-      const { getByTestId } = render(
-        <RecordCompleteScreen navigation={mockNavigation} route={mockRouteWithBadge} />
-      );
-      fireEvent.press(getByTestId('button-view-collection'));
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('MainTabs', {
-        screen: 'CollectionTab',
-        params: { screen: 'CollectionList' },
-      });
-    });
-
     it('renders both badge animation and visit count when both are provided', () => {
       const { getByTestId, getByText } = render(
         <RecordCompleteScreen navigation={mockNavigation} route={mockRouteWithBadge} />
@@ -283,146 +260,6 @@ describe('RecordCompleteScreen', () => {
       expect(getByText('1箇所目の御朱印！')).toBeTruthy();
       expect(getByTestId('badge-animation')).toBeTruthy();
     });
-  });
-});
-
-describe('記録の取り消し（Issue #130 / D-3）', () => {
-  const routeWithUndo = {
-    key: 'test',
-    name: 'RecordComplete' as const,
-    params: {
-      stampImageUrl: 'https://example.com/stamps/user-1/12345.jpg',
-      spotName: '大崎八幡宮',
-      visitCount: 5,
-      stampId: 'stamp-1',
-      imagePath: 'user-1/12345.jpg',
-    },
-  };
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  // B-3
-  it('stampId と imagePath が揃っていれば取り消しボタンを出す', () => {
-    const { getByTestId } = render(
-      <RecordCompleteScreen navigation={mockNavigation} route={routeWithUndo} />
-    );
-    expect(getByTestId('button-undo-record')).toBeTruthy();
-  });
-
-  // B-4: 旧来の遷移や params 欠落で押せる取り消しを出さない
-  it('stampId が無ければ取り消しボタンを出さない', () => {
-    const { queryByTestId } = render(
-      <RecordCompleteScreen navigation={mockNavigation} route={mockRouteWithParams} />
-    );
-    expect(queryByTestId('button-undo-record')).toBeNull();
-  });
-
-  it('imagePath が無ければ取り消しボタンを出さない', () => {
-    const route = {
-      ...routeWithUndo,
-      params: { ...routeWithUndo.params, imagePath: undefined },
-    };
-    const { queryByTestId } = render(
-      <RecordCompleteScreen navigation={mockNavigation} route={route} />
-    );
-    expect(queryByTestId('button-undo-record')).toBeNull();
-  });
-
-  // B-5: 取り消しは非可逆なので、確認を挟むまで消さない
-  it('タップした時点では削除せず確認 Alert を出す', () => {
-    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
-
-    const { getByTestId } = render(
-      <RecordCompleteScreen navigation={mockNavigation} route={routeWithUndo} />
-    );
-    fireEvent.press(getByTestId('button-undo-record'));
-
-    expect(alertSpy).toHaveBeenCalled();
-    expect(mockDeleteStamp).not.toHaveBeenCalled();
-  });
-
-  // B-6 / B-7
-  it('確認すると deleteStamp を呼び、成功したら地図へ戻る', async () => {
-    mockDeleteStamp.mockResolvedValue(undefined);
-    jest.spyOn(Alert, 'alert').mockImplementation((_t, _m, buttons) => {
-      const destructive = buttons?.find(b => b.style === 'destructive');
-      destructive?.onPress?.();
-    });
-
-    const { getByTestId } = render(
-      <RecordCompleteScreen navigation={mockNavigation} route={routeWithUndo} />
-    );
-    fireEvent.press(getByTestId('button-undo-record'));
-
-    await waitFor(() => {
-      expect(mockDeleteStamp).toHaveBeenCalledWith('stamp-1', 'user-1/12345.jpg');
-    });
-    await waitFor(() => {
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('MainTabs', {
-        screen: 'MapTab',
-        params: { screen: 'Map' },
-      });
-    });
-  });
-
-  // B-8: 消せていないのに消えた顔をしない
-  it('削除に失敗したらエラー原文を出し、画面に留まる', async () => {
-    mockDeleteStamp.mockRejectedValue(new Error('delete failed (code=42501)'));
-    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_t, _m, buttons) => {
-      const destructive = buttons?.find(b => b.style === 'destructive');
-      destructive?.onPress?.();
-    });
-
-    const { getByTestId } = render(
-      <RecordCompleteScreen navigation={mockNavigation} route={routeWithUndo} />
-    );
-    fireEvent.press(getByTestId('button-undo-record'));
-
-    await waitFor(() => {
-      const messages = alertSpy.mock.calls.map(c => `${c[0]} ${c[1]}`).join('\n');
-      expect(messages).toContain('delete failed (code=42501)');
-    });
-    expect(mockNavigation.navigate).not.toHaveBeenCalled();
-  });
-
-  // B-9: 誤タップを避けるため主導線の後ろに置く
-  it('取り消しボタンは既存3ボタンより後に描画される', () => {
-    const { toJSON } = render(
-      <RecordCompleteScreen navigation={mockNavigation} route={routeWithUndo} />
-    );
-
-    const tracked = [
-      'button-record-another',
-      'button-view-map',
-      'button-view-collection',
-      'button-undo-record',
-    ];
-
-    // 描画ツリーを深さ優先で辿り、testID の出現順を取る
-    const order: string[] = [];
-    const walk = (node: any) => {
-      if (!node || typeof node !== 'object') return;
-      const id = node.props?.testID;
-      if (id && tracked.includes(id)) order.push(id);
-      (node.children ?? []).forEach(walk);
-    };
-    walk(toJSON());
-
-    expect(order).toEqual(tracked);
-  });
-
-  // B-10: 直値の色を書かない（CLAUDE.md のトークン規約）
-  it('取り消しボタンの文字色がテーマトークン由来である', () => {
-    const { getByTestId } = render(
-      <RecordCompleteScreen navigation={mockNavigation} route={routeWithUndo} />
-    );
-    const undo = getByTestId('button-undo-record');
-    const label = undo.findByType(Text);
-    const style = StyleSheet.flatten(label.props.style);
-
-    expect(style.color).toBe(colors.white);
   });
 });
 
@@ -523,5 +360,111 @@ describe('記録数を算出できなかったときの注記（Issue #133）', 
     walk(toJSON());
 
     expect(order).toEqual(tracked);
+  });
+});
+
+describe('来た場所に戻す（origin）', () => {
+  const routeWith = (origin?: 'map' | 'gallery') =>
+    ({ key: 'RecordComplete', name: 'RecordComplete', params: origin ? { origin } : {} }) as never;
+
+  it('御朱印帳から来たら「御朱印帳に戻る」と出す', () => {
+    const { getByText, queryByText } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={routeWith('gallery')} />
+    );
+
+    expect(getByText('御朱印帳に戻る')).toBeTruthy();
+    expect(queryByText('地図に戻る')).toBeNull();
+  });
+
+  it('御朱印帳から来たら御朱印帳へ戻る', () => {
+    const { getByTestId } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={routeWith('gallery')} />
+    );
+
+    fireEvent.press(getByTestId('button-view-map'));
+
+    expect(mockNavigation.navigate).toHaveBeenCalledWith('MainTabs', {
+      screen: 'GalleryTab',
+      params: { screen: 'Gallery' },
+    });
+  });
+
+  it('地図から来たら地図へ戻る', () => {
+    const { getByText, getByTestId } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={routeWith('map')} />
+    );
+    expect(getByText('地図に戻る')).toBeTruthy();
+
+    fireEvent.press(getByTestId('button-view-map'));
+
+    expect(mockNavigation.navigate).toHaveBeenCalledWith('MainTabs', {
+      screen: 'MapTab',
+      params: { screen: 'Map' },
+    });
+  });
+
+  // 既存の記録から遷移してくる経路が増えても、地図に戻れば迷子にはならない
+  it('origin が無ければ地図に戻る', () => {
+    const { getByText } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={routeWith(undefined)} />
+    );
+
+    expect(getByText('地図に戻る')).toBeTruthy();
+  });
+});
+
+describe('お祝いの場に置かないもの', () => {
+  it('記録を取り消す導線を出さない', () => {
+    // 消す手段は御朱印帳にある。登録を祝う画面で破棄を勧めない
+    const { queryByTestId, queryByText } = render(
+      <RecordCompleteScreen
+        navigation={mockNavigation}
+        route={
+          {
+            key: 'RecordComplete',
+            name: 'RecordComplete',
+            params: { stampId: 'stamp-1', imagePath: 'path/to.jpg' },
+          } as never
+        }
+      />
+    );
+
+    expect(queryByTestId('button-undo-record')).toBeNull();
+    expect(queryByText('記録を取り消す')).toBeNull();
+  });
+
+  it('あゆみを見る導線を出さない', () => {
+    // この画面が既にあゆみの要約（枚数・スポット名・バッジ）になっている
+    const { queryByTestId, queryByText } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={mockRouteNoParams} />
+    );
+
+    expect(queryByTestId('button-view-collection')).toBeNull();
+    expect(queryByText('あゆみを見る')).toBeNull();
+  });
+});
+
+describe('行き先をアイコンで示す', () => {
+  it('2つのボタンがタブバーと同じアイコンを使う', () => {
+    const { getByTestId } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={mockRouteNoParams} />
+    );
+
+    expect(getByTestId('button-record-another').findByProps({ name: 'add-a-photo' })).toBeTruthy();
+    // 地図タブと同じ explore
+    expect(getByTestId('button-view-map').findByProps({ name: 'explore' })).toBeTruthy();
+  });
+
+  it('御朱印帳に戻るときは御朱印帳タブと同じアイコンを使う', () => {
+    const { getByTestId } = render(
+      <RecordCompleteScreen
+        navigation={mockNavigation}
+        route={
+          { key: 'RecordComplete', name: 'RecordComplete', params: { origin: 'gallery' } } as never
+        }
+      />
+    );
+
+    expect(getByTestId('button-view-map').findByProps({ name: 'menu-book' })).toBeTruthy();
   });
 });

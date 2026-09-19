@@ -235,7 +235,7 @@ export function MapScreen({ navigation, route }: Props) {
   const navigateToRecord = (spotId?: string) => {
     const parent = navigation.getParent();
     if (parent) {
-      parent.navigate('Record', spotId ? { spotId } : undefined);
+      parent.navigate('Record', { spotId, origin: 'map' });
     }
   };
 

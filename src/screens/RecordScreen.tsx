@@ -100,9 +100,8 @@ export function RecordScreen({ navigation, route }: Props) {
       const completeParams = {
         stampImageUrl: getStampImageUrl(result.stamp.image_path),
         spotName: form.selectedSpot?.name,
-        // 取り消し（deleteStamp）に ID と画像パスの両方が要る
-        stampId: result.stamp.id,
-        imagePath: result.stamp.image_path,
+        // 完了画面は来た場所に返す
+        origin: route.params?.origin,
       };
 
       // previousCount が無い以上バッジは判定できない。0 を代入して評価すると

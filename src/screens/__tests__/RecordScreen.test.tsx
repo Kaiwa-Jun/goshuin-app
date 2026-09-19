@@ -509,23 +509,21 @@ describe('確認モーダルの廃止（Issue #130 / D-3）', () => {
     expect(queryByText('登録する')).toBeNull();
   });
 
-  // B-2: 取り消しに要る stampId / imagePath を完了画面へ渡す
-  it('完了画面へ stampId と imagePath を渡す', async () => {
+  // 完了画面は来た場所に返すので、入口の origin を引き継ぐ
+  it('完了画面へ origin を渡す', async () => {
     mockFormState.selectedSpot = fakeSpot;
     mockFormState.imageUri = 'file:///photo.jpg';
     mockSubmit.mockResolvedValue({ success: true, stamp: fakeStamp });
     mockFetchVisitedSpotIds.mockResolvedValue(new Set());
 
-    const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    const route = { ...mockRoute, params: { origin: 'gallery' } } as never;
+    const { getByText } = render(<RecordScreen navigation={mockNavigation} route={route} />);
     fireEvent.press(getByText('この内容で記録する'));
 
     await waitFor(() => {
       expect(mockNavigation.navigate).toHaveBeenCalledWith(
         'RecordComplete',
-        expect.objectContaining({
-          stampId: 'stamp-1',
-          imagePath: 'user-1/12345.jpg',
-        })
+        expect.objectContaining({ origin: 'gallery' })
       );
     });
   });
@@ -1057,8 +1055,8 @@ describe('訪問済みスポットの取得に失敗したとき（Issue #133）
     expect(evaluateNewBadge as jest.Mock).not.toHaveBeenCalled();
   });
 
-  // B-7: 取り消し導線（Issue #130）を巻き添えにしない
-  it('取り消しと表示に要る params は従来どおり渡す', async () => {
+  // 表示に要る params を巻き添えにしない
+  it('表示に要る params は従来どおり渡す', async () => {
     mockSubmit.mockResolvedValue({ success: true, stamp: fakeStamp });
     pressSave();
 
@@ -1071,8 +1069,6 @@ describe('訪問済みスポットの取得に失敗したとき（Issue #133）
     )![1];
 
     expect(params.spotName).toBe(fakeSpot.name);
-    expect(params.stampId).toBe('stamp-1');
-    expect(params.imagePath).toBe('user-1/12345.jpg');
     expect(params.stampImageUrl).toBeDefined();
   });
 

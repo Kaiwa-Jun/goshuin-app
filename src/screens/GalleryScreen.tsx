@@ -196,7 +196,7 @@ export function GalleryScreen({ navigation }: Props) {
             stamps={displayStamps}
             resolveImageUrl={isPreview ? previewImageUrl : undefined}
             onPressStamp={setSelectedImageIndex}
-            onPressBlank={() => navigation.navigate('Record')}
+            onPressBlank={() => navigation.navigate('Record', { origin: 'gallery' })}
           />
         ) : displayStamps.length === 0 ? (
           <View style={styles.centerContainer} testID="empty-state">
@@ -208,7 +208,7 @@ export function GalleryScreen({ navigation }: Props) {
               title="御朱印を記録する"
               variant="primary"
               testID="gallery-record-cta"
-              onPress={() => navigation.navigate('Record')}
+              onPress={() => navigation.navigate('Record', { origin: 'gallery' })}
               style={styles.emptyCta}
             />
           </View>

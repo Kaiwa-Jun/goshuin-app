@@ -304,7 +304,7 @@ describe('GalleryScreen', () => {
       withStamps([]);
       const { getByTestId } = renderGalleryScreen();
       fireEvent.press(getByTestId('flip-blank-page'));
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('Record');
+      expect(mockNavigation.navigate).toHaveBeenCalledWith('Record', { origin: 'gallery' });
     });
 
     it('めくり表示で中央のページをタップするとギャラリーモーダルが開く', () => {
@@ -440,6 +440,6 @@ describe('グリッド0件時の CTA（監査 A-10）', () => {
 
     fireEvent.press(getByTestId('gallery-record-cta'));
 
-    expect(mockNavigation.navigate).toHaveBeenCalledWith('Record');
+    expect(mockNavigation.navigate).toHaveBeenCalledWith('Record', { origin: 'gallery' });
   });
 });
