@@ -52,13 +52,26 @@ export function RecordScreen({ navigation, route }: Props) {
   const form = useRecordForm(initialSpotId ? { initialSpotId } : { autoSelectableSpot });
 
   const scrollViewRef = useRef<ScrollView>(null);
-  const memoLayoutY = useRef(0);
+  const memoRect = useRef({ y: 0, height: 0 });
   const viewportHeight = useRef(0);
   const scrollOffset = useRef(0);
   const isSavingRef = useRef(false);
 
   const [showSpotAdd, setShowSpotAdd] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+
+  /** 要素の下端が画面に入る分だけ動かす。最上部に持ち上げると上のものが消える */
+  const reveal = (rect: { y: number; height: number }) => {
+    const target = scrollTargetToReveal({
+      blockY: rect.y,
+      blockHeight: rect.height,
+      viewportHeight: viewportHeight.current,
+      currentOffset: scrollOffset.current,
+      margin: spacing.lg,
+    });
+    if (target !== null) scrollViewRef.current?.scrollTo({ y: target, animated: true });
+  };
+  const revealMemo = () => reveal(memoRect.current);
 
   const formattedDate = `${form.visitedAt.getFullYear()}年${form.visitedAt.getMonth() + 1}月${form.visitedAt.getDate()}日`;
   // 紙の御朱印は和暦で書かれている。ピッカーは西暦なので、照合できるよう併記する（監査 A-2）
@@ -220,21 +233,9 @@ export function RecordScreen({ navigation, route }: Props) {
           </TouchableOpacity>
           {showDatePicker && (
             <View
-              onLayout={e => {
-                // 高さが確定してから動かす。行を最上部に持ち上げると、上にある
-                // 御朱印の写真が画面外に出て、日付を見ながら決められない
-                const { y, height } = e.nativeEvent.layout;
-                const target = scrollTargetToReveal({
-                  blockY: y,
-                  blockHeight: height,
-                  viewportHeight: viewportHeight.current,
-                  currentOffset: scrollOffset.current,
-                  margin: spacing.lg,
-                });
-                if (target !== null) {
-                  scrollViewRef.current?.scrollTo({ y: target, animated: true });
-                }
-              }}
+              // 高さが確定してから動かす。行を最上部に持ち上げると、上にある
+              // 御朱印の写真が画面外に出て、日付を見ながら決められない
+              onLayout={e => reveal(e.nativeEvent.layout)}
               testID="date-picker-block"
             >
               <DateTimePicker
@@ -262,8 +263,9 @@ export function RecordScreen({ navigation, route }: Props) {
           <Text style={styles.sectionLabel}>メモ（任意）</Text>
           <View
             onLayout={e => {
-              memoLayoutY.current = e.nativeEvent.layout.y;
+              memoRect.current = e.nativeEvent.layout;
             }}
+            testID="memo-block"
           >
             <TextInput
               style={styles.memoInput}
@@ -272,14 +274,8 @@ export function RecordScreen({ navigation, route }: Props) {
               multiline
               value={form.memo}
               onChangeText={form.setMemo}
-              onFocus={() => {
-                setTimeout(() => {
-                  scrollViewRef.current?.scrollTo({
-                    y: memoLayoutY.current,
-                    animated: true,
-                  });
-                }, 300);
-              }}
+              // キーボードが出てから測りたいので、ここは待つ必要がある
+              onFocus={() => setTimeout(() => revealMemo(), 300)}
               testID="memo-input"
             />
           </View>
