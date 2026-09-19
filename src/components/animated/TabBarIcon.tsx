@@ -3,6 +3,8 @@ import { AccessibilityInfo, Animated, Easing, StyleSheet } from 'react-native';
 import { useNavigationState } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
 
+import { colors } from '@theme/colors';
+
 type IconName = React.ComponentProps<typeof MaterialIcons>['name'];
 
 /** コンパスが1周して、行き過ぎてから落ち着くまで */
@@ -14,6 +16,8 @@ const GEAR_DURATION_MS = 320;
 /** 1タップで進む角度。settings の歯車は6歯なので 60° = ちょうど1歯分。
  * 回る前と後で見た目が完全に一致するため、傾いたまま残らない */
 const GEAR_DETENT_DEG = 60;
+/** 道が引かれきるまで */
+const DRAW_DURATION_MS = 620;
 
 /** 24px のアイコン枠に対する、組み立てた本のページ1枚の寸法（book グリフに寄せる） */
 const PAGE_WIDTH_RATIO = 0.46;
@@ -33,7 +37,7 @@ export function resetTabBarIconMotion() {
   lastActive.clear();
 }
 
-export type TabIconMotion = 'spin' | 'open-book' | 'gear';
+export type TabIconMotion = 'spin' | 'open-book' | 'gear' | 'draw';
 
 interface TabBarIconProps {
   name: IconName;
@@ -112,9 +116,20 @@ export function TabBarIcon({
     progress.setValue(0);
     Animated.timing(progress, {
       toValue: 1,
-      duration: motion === 'spin' ? SPIN_DURATION_MS : OPEN_DURATION_MS,
-      // 回転は行き過ぎて戻す（方位磁針が揺れて落ち着く）。本は素直に開く
-      easing: motion === 'spin' ? Easing.out(Easing.back(2)) : Easing.inOut(Easing.cubic),
+      duration:
+        motion === 'spin'
+          ? SPIN_DURATION_MS
+          : motion === 'draw'
+            ? DRAW_DURATION_MS
+            : OPEN_DURATION_MS,
+      // 回転は行き過ぎて戻す（方位磁針が揺れて落ち着く）。
+      // 本は素直に開き、道は書き終わりで筆を止めるように減速する
+      easing:
+        motion === 'spin'
+          ? Easing.out(Easing.back(2))
+          : motion === 'draw'
+            ? Easing.out(Easing.cubic)
+            : Easing.inOut(Easing.cubic),
       useNativeDriver: true,
     }).start();
   }, [focused, isActive, motion, reduceMotion, routeName, progress]);
@@ -129,6 +144,35 @@ export function TabBarIcon({
     return (
       <Animated.View style={{ transform: [{ rotate }] }} testID={`tab-icon-${name}`}>
         <MaterialIcons name={name} size={size} color={color} />
+      </Animated.View>
+    );
+  }
+
+  if (motion === 'draw') {
+    // 道が左から引かれていく。グリフの一部だけを動かすことはできないので、
+    // 背景色の板でアイコンを覆っておき、それを右へ滑らせて出していく。
+    // width を動かすとネイティブドライバが使えないため translateX にしている。
+    // アプリは userInterfaceStyle: 'light' 固定なので、覆う色は白で足りる
+    const revealX = progress.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, size + 2],
+    });
+    return (
+      <Animated.View
+        style={[styles.drawWrapper, { width: size, height: size }]}
+        testID={`tab-icon-${name}`}
+      >
+        <MaterialIcons name={name} size={size} color={color} />
+        <Animated.View
+          style={[
+            styles.drawCover,
+            {
+              width: size + 2,
+              backgroundColor: colors.white,
+              transform: [{ translateX: revealX }],
+            },
+          ]}
+        />
       </Animated.View>
     );
   }
@@ -222,6 +266,17 @@ export function TabBarIcon({
 }
 
 const styles = StyleSheet.create({
+  drawWrapper: {
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  drawCover: {
+    position: 'absolute',
+    top: -1,
+    bottom: -1,
+    left: -1,
+  },
   bookFrame: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',

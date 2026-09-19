@@ -170,7 +170,7 @@ describe('CollectionScreen', () => {
     const { getByText } = render(
       <CollectionScreen navigation={mockNavigation} route={mockRoute} />
     );
-    expect(getByText('あつめる')).toBeTruthy();
+    expect(getByText('あゆみ')).toBeTruthy();
   });
 
   it('統計サマリーに spotCount/stampCount が表示される', () => {

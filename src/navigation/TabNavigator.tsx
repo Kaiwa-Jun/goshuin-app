@@ -1,5 +1,4 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { MaterialIcons } from '@expo/vector-icons';
 
 import { TabBarIcon } from '@components/animated/TabBarIcon';
 
@@ -56,9 +55,17 @@ export function TabNavigator() {
         name="CollectionTab"
         component={CollectionStack}
         options={{
-          title: 'あつめる',
+          title: 'あゆみ',
           headerShown: false,
-          tabBarIcon: ({ color }) => <MaterialIcons name="emoji-events" size={24} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon
+              name="route"
+              routeName="CollectionTab"
+              motion="draw"
+              color={color}
+              focused={focused}
+            />
+          ),
         }}
       />
       <Tab.Screen

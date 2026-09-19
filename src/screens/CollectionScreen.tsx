@@ -83,7 +83,7 @@ export function CollectionScreen({ navigation }: Props) {
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerText}>あつめる</Text>
+        <Text style={styles.headerText}>あゆみ</Text>
       </View>
 
       <ScrollView

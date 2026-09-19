@@ -119,7 +119,7 @@ describe('RecordCompleteScreen', () => {
     );
     expect(getByText('もう1枚記録する')).toBeTruthy();
     expect(getByText('地図を見る')).toBeTruthy();
-    expect(getByText('あつめるを見る')).toBeTruthy();
+    expect(getByText('あゆみを見る')).toBeTruthy();
   });
 
   it('navigates to Record on "record another" press', () => {
