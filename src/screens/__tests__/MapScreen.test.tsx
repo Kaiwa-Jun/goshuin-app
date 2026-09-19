@@ -447,16 +447,28 @@ describe('MapScreen', () => {
       expect(r.getByTestId('bottom-sheet')).toBeTruthy();
     });
 
+    // 引っ込むモーションを描き切ってから外す。タイマーを進めないと消えない
     it('hides FAB when a spot is selected', () => {
-      const r = render(<MapScreen navigation={mockNavigation as never} route={mockRoute} />);
-      fireEvent(r.getByTestId('goshuin-pinned'), 'onPress', {
-        nativeEvent: {
-          lngLat: [140.87, 38.27],
-          features: [{ properties: { spotId: 'spot-1' } }],
-        },
-      });
+      jest.useFakeTimers();
+      try {
+        const r = render(<MapScreen navigation={mockNavigation as never} route={mockRoute} />);
+        fireEvent(r.getByTestId('goshuin-pinned'), 'onPress', {
+          nativeEvent: {
+            lngLat: [140.87, 38.27],
+            features: [{ properties: { spotId: 'spot-1' } }],
+          },
+        });
 
-      expect(r.queryByTestId('fab-button')).toBeNull();
+        expect(r.queryByTestId('fab-button')).toBeTruthy();
+
+        act(() => {
+          jest.advanceTimersByTime(500);
+        });
+
+        expect(r.queryByTestId('fab-button')).toBeNull();
+      } finally {
+        jest.useRealTimers();
+      }
     });
 
     it('団子をタップすると、中身がばらけるズームまで寄せる', async () => {
