@@ -1,6 +1,6 @@
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import { Image } from 'react-native';
+import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
+import { Image, ScrollView } from 'react-native';
 import { RecordScreen } from '@screens/RecordScreen';
 import { evaluateNewBadge } from '@services/badges';
 import type { Spot, Stamp } from '@/types/supabase';
@@ -1243,5 +1243,99 @@ describe('訪問済みスポットの取得に成功したとき（Issue #133 �
     });
 
     expect(paramsOfRecordComplete()).not.toHaveProperty('countUnavailable');
+  });
+});
+
+describe('日付ピッカーを開いたときのスクロール', () => {
+  /*
+   * 訪問日の行を画面最上部まで持ち上げると、上にある御朱印の写真が画面外に出る。
+   * 写真の日付を見ながら訪問日を決めたいので、必要な分だけ動かす。
+   *
+   * ScrollView.prototype.scrollTo を spy する。ローカルの jest.fn() を作っても
+   * ref には配線されないため、何も検証できない
+   */
+  const VIEWPORT = 600;
+  let scrollTo: jest.SpyInstance;
+
+  beforeEach(() => {
+    scrollTo = jest.spyOn(ScrollView.prototype, 'scrollTo').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    scrollTo.mockRestore();
+  });
+
+  const setup = () => {
+    const r = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent(r.getByTestId('record-scroll'), 'layout', {
+      nativeEvent: { layout: { height: VIEWPORT } },
+    });
+    return r;
+  };
+
+  it('タップしただけでは動かさない。高さが分かるまで動かす量を決められない', () => {
+    jest.useFakeTimers();
+    try {
+      const r = setup();
+
+      fireEvent.press(r.getByTestId('date-picker-trigger'));
+      act(() => {
+        jest.advanceTimersByTime(1000);
+      });
+
+      expect(scrollTo).not.toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('ピッカーの下端が入る分だけ動かす。行を最上部に持ち上げない', () => {
+    const r = setup();
+    fireEvent.press(r.getByTestId('date-picker-trigger'));
+
+    fireEvent(r.getByTestId('date-picker-block'), 'layout', {
+      nativeEvent: { layout: { y: 460, height: 260 } },
+    });
+
+    // 下端 720 / 画面 600 → 120 + 余白。行の位置(460)まで上げてはいけない
+    expect(scrollTo).toHaveBeenCalledTimes(1);
+    const { y } = scrollTo.mock.calls[0][0] as { y: number };
+    expect(y).toBeGreaterThanOrEqual(120);
+    expect(y).toBeLessThan(460);
+  });
+
+  it('すでに見えていれば動かさない', () => {
+    const r = setup();
+    fireEvent.press(r.getByTestId('date-picker-trigger'));
+
+    fireEvent(r.getByTestId('date-picker-block'), 'layout', {
+      nativeEvent: { layout: { y: 100, height: 200 } },
+    });
+
+    expect(scrollTo).not.toHaveBeenCalled();
+  });
+
+  // メモ欄も同じ不具合を抱えていた（行を最上部に持ち上げる）
+  it('メモ欄も下端が入る分だけ動かす', () => {
+    jest.useFakeTimers();
+    try {
+      const r = setup();
+      fireEvent(r.getByTestId('memo-block'), 'layout', {
+        nativeEvent: { layout: { y: 700, height: 120 } },
+      });
+
+      fireEvent(r.getByTestId('memo-input'), 'focus');
+      act(() => {
+        jest.advanceTimersByTime(500);
+      });
+
+      expect(scrollTo).toHaveBeenCalledTimes(1);
+      const { y } = scrollTo.mock.calls[0][0] as { y: number };
+      // 下端 820 / 画面 600 → 220 + 余白。行の位置(700)まで上げてはいけない
+      expect(y).toBeGreaterThanOrEqual(220);
+      expect(y).toBeLessThan(700);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });
