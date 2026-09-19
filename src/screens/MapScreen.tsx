@@ -15,6 +15,7 @@ import { fetchSpotsByPrefecture } from '@services/spots';
 import { FABButton } from '@components/animated/FABButton';
 import { SearchBar } from '@components/common/SearchBar';
 import { LoginPromptModal } from '@components/common/LoginPromptModal';
+import { MAP_STYLE } from '@components/map/mapStyle';
 import { SpotMapLayers } from '@components/map/SpotMapLayers';
 import { SpotBottomSheet } from '@components/spot-detail/SpotBottomSheet';
 import { useAuth } from '@hooks/useAuth';
@@ -32,9 +33,6 @@ import { shadows } from '@theme/shadows';
 
 type Props = MapStackScreenProps<'Map'>;
 type FilterMode = 'all' | 'visited';
-
-/** 地図の下地。ベクタータイル（OpenStreetMap 由来・キー不要） */
-const MAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/positron';
 
 /** 起動時のズーム。旧実装の delta 0.015 相当（log2(360/0.015) ≈ 14.5） */
 const INITIAL_ZOOM = 14.5;
@@ -313,7 +311,7 @@ export function MapScreen({ navigation, route }: Props) {
 
       <Map
         style={styles.map}
-        mapStyle={MAP_STYLE_URL}
+        mapStyle={MAP_STYLE}
         testID="map-view"
         onPress={handleMapPress}
         logo={false}

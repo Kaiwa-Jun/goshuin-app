@@ -265,11 +265,28 @@ describe('MapScreen', () => {
   });
 
   describe('地図の下地', () => {
-    it('キー不要のベクタータイルスタイルを読む', () => {
+    it('同梱したベクタータイルのスタイルを読む', () => {
       const { getByTestId } = render(
         <MapScreen navigation={mockNavigation as never} route={mockRoute} />
       );
-      expect(getByTestId('map-view').props.mapStyle).toMatch(/^https:\/\/.+/);
+      const style = getByTestId('map-view').props.mapStyle;
+
+      expect(style.sources).toBeDefined();
+      expect(style.layers.length).toBeGreaterThan(0);
+    });
+
+    it('下地の地名は日本語だけにする（ローマ字を併記しない）', () => {
+      const { getByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+      const style = getByTestId('map-view').props.mapStyle;
+      const labels = style.layers
+        .map((l: { layout?: Record<string, unknown> }) => l.layout?.['text-field'])
+        .filter(Boolean)
+        .map((f: unknown) => JSON.stringify(f));
+
+      expect(labels.length).toBeGreaterThan(0);
+      expect(labels.some((f: string) => f.includes('name:latin'))).toBe(false);
     });
 
     it('初期カメラは現在地に置かれる', () => {

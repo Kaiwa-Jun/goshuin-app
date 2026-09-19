@@ -55,6 +55,24 @@ function toFeature(spot: Spot, state: SpotPinState): SpotFeature {
   };
 }
 
+/** スポットを1本の FeatureCollection にする（団子化しない地図向け） */
+export function toSpotFeatureCollection({
+  spots,
+  visitedSpotIds,
+  wishlistSpotIds,
+}: {
+  spots: Spot[];
+  visitedSpotIds: Set<string>;
+  wishlistSpotIds: Set<string>;
+}): SpotFeatureCollection {
+  return {
+    type: 'FeatureCollection',
+    features: spots.map(spot =>
+      toFeature(spot, getSpotPinState(spot, visitedSpotIds, wishlistSpotIds))
+    ),
+  };
+}
+
 /**
  * スポットを地図の2つのソースに振り分ける。
  *

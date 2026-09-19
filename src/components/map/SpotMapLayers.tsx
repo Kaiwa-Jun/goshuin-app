@@ -1,6 +1,6 @@
 import React, { useCallback, useRef } from 'react';
 import type { NativeSyntheticEvent } from 'react-native';
-import { GeoJSONSource, Images, Layer } from '@maplibre/maplibre-react-native';
+import { GeoJSONSource, Layer } from '@maplibre/maplibre-react-native';
 import type {
   CircleLayerSpecification,
   FilterSpecification,
@@ -9,6 +9,12 @@ import type {
   SymbolLayerSpecification,
 } from '@maplibre/maplibre-react-native';
 
+import {
+  LABEL_PAINT,
+  PIN_LAYOUT,
+  RANKED_PIN_LAYOUT,
+  SpotPinImages,
+} from '@components/map/spotPins';
 import { colors } from '@theme/colors';
 import type { SpotFeatureCollection } from '@utils/spotGeoJson';
 
@@ -19,66 +25,8 @@ export const CLUSTER_MIN_POINTS = 5;
 /** 団子半径(px)。supercluster の既定値。「実際に重なる距離」とほぼ一致する */
 export const CLUSTER_RADIUS = 50;
 
-/* eslint-disable @typescript-eslint/no-require-imports */
-/**
- * ピン画像。旧 SpotMarker と同じ形（丸頭 + 白フチ + 尾）を事前に描いたもの。
- * UIView ではなくスタイルのアイコンなので、何枚出しても描画コストは変わらない
- */
-const PIN_IMAGES = {
-  'spot-pin-unvisited': require('../../../assets/map-pins/pin-unvisited.png'),
-  'spot-pin-wishlist': require('../../../assets/map-pins/pin-wishlist.png'),
-  'spot-pin-visited-shrine': require('../../../assets/map-pins/pin-visited-shrine.png'),
-  'spot-pin-visited-temple': require('../../../assets/map-pins/pin-visited-temple.png'),
-};
-/* eslint-enable @typescript-eslint/no-require-imports */
-
 const IS_CLUSTER: FilterSpecification = ['has', 'point_count'];
 const IS_SPOT: FilterSpecification = ['!', ['has', 'point_count']];
-
-/**
- * ピン + 名前を1枚のレイヤで出す。
- * - `icon-allow-overlap: true` … ピンは重なっても必ず描く = 全件見える
- * - `text-optional: true` … 名前が置けなければ名前だけ諦めてピンは残す
- * - `icon-ignore-placement: false` … 名前はピンを避けて置かれる
- */
-const PIN_LAYOUT: SymbolLayerSpecification['layout'] = {
-  'icon-image': [
-    'match',
-    ['get', 'state'],
-    'visited-shrine',
-    'spot-pin-visited-shrine',
-    'visited-temple',
-    'spot-pin-visited-temple',
-    'wishlist',
-    'spot-pin-wishlist',
-    'spot-pin-unvisited',
-  ],
-  'icon-anchor': 'bottom',
-  'icon-size': ['interpolate', ['linear'], ['zoom'], 8, 0.2, 12, 0.26, 16, 0.32],
-  'icon-allow-overlap': true,
-  'icon-ignore-placement': false,
-  'text-field': ['get', 'name'],
-  'text-font': ['Noto Sans Bold'],
-  'text-size': ['interpolate', ['linear'], ['zoom'], 12, 10, 16, 13],
-  'text-anchor': 'top',
-  'text-offset': [0, 0.25],
-  'text-allow-overlap': false,
-  'text-optional': true,
-  'text-padding': 3,
-  'text-max-width': 8,
-};
-
-/** rank が高いものほど先に置かれる（小さい sort key が優先） */
-const SPOT_PIN_LAYOUT: SymbolLayerSpecification['layout'] = {
-  ...PIN_LAYOUT,
-  'symbol-sort-key': ['-', 10, ['get', 'rank']],
-};
-
-const LABEL_PAINT: SymbolLayerSpecification['paint'] = {
-  'text-color': colors.gray[800],
-  'text-halo-color': colors.white,
-  'text-halo-width': 1.5,
-};
 
 const CLUSTER_PAINT: CircleLayerSpecification['paint'] = {
   'circle-radius': ['step', ['get', 'point_count'], 16, 10, 20, 50, 24, 100, 28],
@@ -147,7 +95,7 @@ export function SpotMapLayers({ clustered, pinned, onPressSpot, onPressCluster }
 
   return (
     <>
-      <Images images={PIN_IMAGES} />
+      <SpotPinImages />
 
       {/* 自分の記録。団子に吸収させない。ラベルの配置もこちらが先に取る */}
       <GeoJSONSource id="goshuin-pinned" data={pinned} onPress={handlePinnedPress}>
@@ -182,7 +130,7 @@ export function SpotMapLayers({ clustered, pinned, onPressSpot, onPressCluster }
           id="goshuin-spot-pin"
           type="symbol"
           filter={IS_SPOT}
-          layout={SPOT_PIN_LAYOUT}
+          layout={RANKED_PIN_LAYOUT}
           paint={LABEL_PAINT}
         />
       </GeoJSONSource>

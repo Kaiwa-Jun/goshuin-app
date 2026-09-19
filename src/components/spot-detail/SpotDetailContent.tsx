@@ -1,9 +1,12 @@
 import React, { useCallback, useState } from 'react';
 import { Dimensions, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import { Camera, Map } from '@maplibre/maplibre-react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { ImageGalleryModal, GalleryImage } from '@components/common/ImageGalleryModal';
+import { SpotPinImages, SpotPinLayer } from '@components/map/spotPins';
+import { MAP_STYLE } from '@components/map/mapStyle';
+import { toSpotFeatureCollection } from '@utils/spotGeoJson';
 import { SpotInfoSection } from '@components/spot-detail/SpotInfoSection';
 import { SpotSheetHeader } from '@components/spot-detail/SpotSheetHeader';
 import { SpotSheetActions } from '@components/spot-detail/SpotSheetActions';
@@ -18,6 +21,8 @@ import { spacing, borderRadius } from '@theme/spacing';
 const GRID_GAP = spacing.xs;
 const CONTENT_PADDING = spacing.lg;
 const STAMP_IMAGE_SIZE = (Dimensions.get('window').width - CONTENT_PADDING * 2 - GRID_GAP * 2) / 3;
+/** ミニマップは訪問状況で色を変えない（未訪問色の1本ピン） */
+const EMPTY_IDS = new Set<string>();
 
 interface SpotDetailContentProps {
   spot: Spot;
@@ -146,21 +151,32 @@ export function SpotDetailContent({
         <>
           <Text style={styles.sectionTitle}>アクセス</Text>
           <View style={styles.miniMapContainer} testID="mini-map">
-            <MapView
+            <Map
               style={styles.miniMapView}
-              initialRegion={{
-                latitude: spot.lat,
-                longitude: spot.lng,
-                latitudeDelta: 0.005,
-                longitudeDelta: 0.005,
-              }}
-              scrollEnabled={false}
-              zoomEnabled={false}
-              rotateEnabled={false}
-              pitchEnabled={false}
+              mapStyle={MAP_STYLE}
+              logo={false}
+              compass={false}
+              attribution={false}
+              dragPan={false}
+              touchZoom={false}
+              doubleTapZoom={false}
+              doubleTapHoldZoom={false}
+              touchRotate={false}
+              touchPitch={false}
             >
-              <Marker coordinate={{ latitude: spot.lat, longitude: spot.lng }} />
-            </MapView>
+              <Camera initialViewState={{ center: [spot.lng, spot.lat], zoom: 15.5 }} />
+              <SpotPinImages />
+              {/* 名前は真上のヘッダに出ているので、ここではピンだけ */}
+              <SpotPinLayer
+                id="spot-detail-mini-map"
+                data={toSpotFeatureCollection({
+                  spots: [spot],
+                  visitedSpotIds: EMPTY_IDS,
+                  wishlistSpotIds: EMPTY_IDS,
+                })}
+                hideLabels
+              />
+            </Map>
           </View>
           {spot.address && (
             <View style={styles.miniMapAddress}>

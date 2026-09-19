@@ -16,7 +16,9 @@
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "typecheck": "tsc --noEmit",
     "e2e": "maestro test e2e/flows/",
-    "prepare": "husky"
+    "prepare": "husky",
+    "gen:map-pins": "python3 scripts/generate-map-pins.py",
+    "gen:map-style": "node scripts/generate-map-style.mjs"
   },
   "dependencies": {
     "@expo/ngrok": "^4.1.3",

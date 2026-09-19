@@ -10,10 +10,13 @@ import {
   ViewToken,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import MapView, { Marker } from 'react-native-maps';
+import { Camera, Map } from '@maplibre/maplibre-react-native';
+import type { CameraRef } from '@maplibre/maplibre-react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 
-import { SpotMarker } from '@components/common/SpotMarker';
+import { SpotPinImages, SpotPinLayer } from '@components/map/spotPins';
+import { MAP_STYLE } from '@components/map/mapStyle';
+import { toSpotFeatureCollection } from '@utils/spotGeoJson';
 import { Badge } from '@components/common/Badge';
 import { useUserStamps } from '@hooks/useUserStamps';
 import { fetchPilgrimageSpots, type PilgrimageSpotWithDetail } from '@services/pilgrimages';
@@ -26,6 +29,8 @@ import type { CollectionStackScreenProps } from '@/navigation/types';
 type Props = CollectionStackScreenProps<'PilgrimageDetail'>;
 
 const CARD_WIDTH = Dimensions.get('window').width * 0.8;
+/** 巡礼の地図に「行きたい」は出さない（訪問済みかどうかだけ色で分ける） */
+const EMPTY_IDS = new Set<string>();
 
 export function PilgrimageDetailScreen({ navigation, route }: Props) {
   const { pilgrimageId, pilgrimageName } = route.params;
@@ -33,7 +38,7 @@ export function PilgrimageDetailScreen({ navigation, route }: Props) {
   const [spots, setSpots] = useState<PilgrimageSpotWithDetail[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const mapRef = useRef<MapView>(null);
+  const cameraRef = useRef<CameraRef>(null);
   const flatListRef = useRef<FlatList<PilgrimageSpotWithDetail>>(null);
 
   useEffect(() => {
@@ -53,44 +58,39 @@ export function PilgrimageDetailScreen({ navigation, route }: Props) {
 
   // スポットが読み込まれたら全スポットが収まるように地図を調整
   useEffect(() => {
-    if (spots.length === 0 || !mapRef.current) return;
-    const coords = spots.map(s => ({ latitude: s.spot.lat, longitude: s.spot.lng }));
-    mapRef.current.fitToCoordinates(coords, {
-      edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
-      animated: true,
-    });
+    if (spots.length === 0) return;
+    const lats = spots.map(s => s.spot.lat);
+    const lngs = spots.map(s => s.spot.lng);
+    cameraRef.current?.fitBounds(
+      [Math.min(...lngs), Math.min(...lats), Math.max(...lngs), Math.max(...lats)],
+      { padding: { top: 50, right: 50, bottom: 50, left: 50 }, duration: 600 }
+    );
   }, [spots]);
 
   const visitedCount = spots.filter(s => visitedSpotIds.has(s.spot.id)).length;
   const totalSpots = spots.length;
 
-  const handleMarkerPress = useCallback((index: number) => {
-    flatListRef.current?.scrollToIndex({ index, animated: true });
-  }, []);
+  // ピンをタップしたら、その札所のカードまでスクロールする
+  const handleSpotPress = useCallback(
+    (spotId: string) => {
+      const index = spots.findIndex(s => s.spot.id === spotId);
+      if (index >= 0) flatListRef.current?.scrollToIndex({ index, animated: true });
+    },
+    [spots]
+  );
 
   const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
     if (viewableItems.length > 0) {
       const item = viewableItems[0].item as PilgrimageSpotWithDetail;
-      mapRef.current?.animateToRegion(
-        {
-          latitude: item.spot.lat,
-          longitude: item.spot.lng,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        },
-        800
-      );
+      cameraRef.current?.flyTo({
+        center: [item.spot.lng, item.spot.lat],
+        zoom: 15,
+        duration: 800,
+      });
     }
   }).current;
 
   const viewabilityConfig = useRef({ viewAreaCoveragePercentThreshold: 50 }).current;
-
-  const getPinColor = (spotId: string, type: string): string => {
-    if (visitedSpotIds.has(spotId)) {
-      return type === 'shrine' ? colors.pin.shrineVisited : colors.pin.templeVisited;
-    }
-    return colors.pin.unvisited;
-  };
 
   const renderCard = ({ item }: { item: PilgrimageSpotWithDetail }) => {
     const isVisited = visitedSpotIds.has(item.spot.id);
@@ -140,22 +140,19 @@ export function PilgrimageDetailScreen({ navigation, route }: Props) {
 
       {/* マップ（全画面） + カード（マップ上に浮かせる） */}
       <View style={styles.mapContainer}>
-        <MapView ref={mapRef} style={styles.map} testID="pilgrimage-map">
-          {spots.map((item, index) => (
-            <Marker
-              key={item.id}
-              coordinate={{ latitude: item.spot.lat, longitude: item.spot.lng }}
-              onPress={() => handleMarkerPress(index)}
-              testID={`marker-${item.spot.id}`}
-            >
-              <SpotMarker
-                color={getPinColor(item.spot.id, item.spot.type)}
-                name={item.spot.name}
-                showLabel={true}
-              />
-            </Marker>
-          ))}
-        </MapView>
+        <Map style={styles.map} mapStyle={MAP_STYLE} testID="pilgrimage-map" logo={false}>
+          <Camera ref={cameraRef} initialViewState={{ center: [135.7681, 35.0116], zoom: 9 }} />
+          <SpotPinImages />
+          <SpotPinLayer
+            id="pilgrimage-spots"
+            data={toSpotFeatureCollection({
+              spots: spots.map(s => s.spot),
+              visitedSpotIds,
+              wishlistSpotIds: EMPTY_IDS,
+            })}
+            onPressSpot={handleSpotPress}
+          />
+        </Map>
 
         {/* カード一覧（マップ上にオーバーレイ） */}
         {isLoading ? (
