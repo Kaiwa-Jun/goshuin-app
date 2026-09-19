@@ -151,12 +151,12 @@ export function SpotDetailContent({
         <>
           <Text style={styles.sectionTitle}>アクセス</Text>
           <View style={styles.miniMapContainer} testID="mini-map">
+            {/* attribution は消さない。OSM 由来のタイルは ODbL で帰属表示が要る */}
             <Map
               style={styles.miniMapView}
               mapStyle={MAP_STYLE}
               logo={false}
               compass={false}
-              attribution={false}
               dragPan={false}
               touchZoom={false}
               doubleTapZoom={false}

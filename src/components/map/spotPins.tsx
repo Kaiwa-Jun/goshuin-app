@@ -86,7 +86,14 @@ interface SpotPinLayerProps {
   hideLabels?: boolean;
 }
 
-/** 団子化しない地図にスポットのピンを出す */
+/**
+ * 団子化しない地図にスポットのピンを出す。
+ *
+ * ピンは GL のレイヤなのでネイティブビューが存在せず、VoiceOver から個々の
+ * ピンにフォーカスできない（旧 SpotMarker は View だったので拾えていた）。
+ * 地図以外の導線（検索・御朱印帳・行きたいリスト）からスポット詳細へ到達
+ * できるため許容しているが、地図だけで完結させる機能を足すときは要検討
+ */
 export function SpotPinLayer({ id, data, onPressSpot, hideLabels }: SpotPinLayerProps) {
   const handlePress = useCallback(
     (event: NativeSyntheticEvent<PressEventWithFeatures>) => {

@@ -22,7 +22,7 @@ import type { SpotFeatureCollection } from '@utils/spotGeoJson';
 export const CLUSTER_MAX_ZOOM = 11;
 /** 団子を作る最小件数。4件以下はまとめず、その場にピンで出す */
 export const CLUSTER_MIN_POINTS = 5;
-/** 団子半径(px)。supercluster の既定値。「実際に重なる距離」とほぼ一致する */
+/** 団子半径(px)。MapLibre のクラスタリング既定値。「実際に重なる距離」とほぼ一致する */
 export const CLUSTER_RADIUS = 50;
 
 const IS_CLUSTER: FilterSpecification = ['has', 'point_count'];

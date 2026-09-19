@@ -13,6 +13,9 @@
  *
  *   node scripts/generate-map-style.mjs
  *
+ * 焼き込みなので、配信元のレイヤ構成が変わっても自動では追従しない。
+ * 地図の見た目に違和感が出たとき・タイル配信元を変えるときは焼き直すこと。
+ *
  * 英語併記に戻したい／多言語に広げたい場合は LABEL を差し替えて焼き直す。
  */
 import fs from 'node:fs/promises';
