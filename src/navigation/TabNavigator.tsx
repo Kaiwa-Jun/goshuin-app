@@ -1,6 +1,8 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialIcons } from '@expo/vector-icons';
 
+import { TabBarIcon } from '@components/animated/TabBarIcon';
+
 import { MapStack } from '@/navigation/MapStack';
 import { GalleryStack } from '@/navigation/GalleryStack';
 import { CollectionStack } from '@/navigation/CollectionStack';
@@ -23,7 +25,9 @@ export function TabNavigator() {
         component={MapStack}
         options={{
           title: '地図',
-          tabBarIcon: ({ color }) => <MaterialIcons name="explore" size={24} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon name="explore" color={color} focused={focused} />
+          ),
         }}
       />
       <Tab.Screen
