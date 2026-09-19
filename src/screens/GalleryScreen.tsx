@@ -189,8 +189,6 @@ export function GalleryScreen({ navigation }: Props) {
     return (
       <TouchableOpacity
         style={[styles.gridItem, isMiddleColumn && styles.gridItemMiddle]}
-        // 押し込んだ時点で写真の縦横比を取りにいく。指が離れるまでの分だけ先行できる
-        onPressIn={() => hero.prefetchAspect(item.id, imageUrl)}
         onPress={() => openStamp(index, item)}
         testID={`gallery-item-${item.id}`}
       >
@@ -203,6 +201,10 @@ export function GalleryScreen({ navigation }: Props) {
           <Image
             source={{ uri: imageUrl }}
             style={styles.stampImage}
+            // 読み込んだついでに縦横比を控える。飛ぶ先の高さがこれで決まる
+            onLoad={e =>
+              hero.rememberAspect(item.id, e.nativeEvent.source.width, e.nativeEvent.source.height)
+            }
             testID={`stamp-image-${item.id}`}
           />
         </View>
