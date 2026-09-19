@@ -4,3 +4,6 @@ dist/
 build/
 coverage/
 *.lock
+
+# 生成物（scripts/generate-map-style.mjs が焼く）。最小化のまま置く
+assets/map-style.json
