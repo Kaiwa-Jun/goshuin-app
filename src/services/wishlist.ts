@@ -1,5 +1,4 @@
 import { supabase } from '@services/supabase';
-import type { WishlistWithSpot } from '@/types/supabase';
 
 /**
  * ユーザーのwishlistに登録されたspot IDをSet<string>で取得（MapScreen用）
@@ -41,21 +40,4 @@ export async function removeFromWishlist(userId: string, spotId: string): Promis
   if (error) {
     console.warn('removeFromWishlist error:', error.message);
   }
-}
-
-/**
- * wishlistのスポット一覧をspot情報込みで取得（CollectionScreen用）
- */
-export async function fetchWishlistSpots(userId: string): Promise<WishlistWithSpot[]> {
-  const { data, error } = await supabase
-    .from('wishlists')
-    .select('*, spots!inner(name, type, address)')
-    .eq('user_id', userId);
-
-  if (error) {
-    console.warn('fetchWishlistSpots error:', error.message);
-    return [];
-  }
-
-  return data as WishlistWithSpot[];
 }

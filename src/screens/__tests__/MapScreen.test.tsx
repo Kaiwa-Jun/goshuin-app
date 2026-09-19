@@ -573,6 +573,27 @@ describe('MapScreen', () => {
       expect(r.getByTestId('bottom-sheet')).toBeTruthy();
     });
 
+    it('地域別から飛んできた分もフィルタを通す', async () => {
+      // prefectureSpots は useSpots を通らないので、素通しにすると
+      // 絞っているのにフィルタ対象外のピンが混ざる（あゆみの地域別から遷移する経路）
+      mockWishlistSpotIds = new Set(['spot-1']);
+      mockFetchSpotsByPrefecture.mockResolvedValue([
+        { ...mockSpots[1], id: 'pref-1', name: '県内スポット', lat: 35.0, lng: 135.0 },
+      ]);
+      const route = { ...mockRoute, params: { focusPrefecture: '京都府' } };
+      const r = render(<MapScreen navigation={mockNavigation as never} route={route as never} />);
+      await waitFor(() => expect(mockFetchSpotsByPrefecture).toHaveBeenCalled());
+
+      fireEvent.press(r.getByTestId('filter-button'));
+      fireEvent.press(r.getByTestId('filter-option-wishlist'));
+
+      const ids = [
+        ...r.getByTestId('goshuin-pinned').props.data.features,
+        ...r.getByTestId('goshuin-spots').props.data.features,
+      ].map((f: { properties: { spotId: string } }) => f.properties.spotId);
+      expect(ids).toEqual(['spot-1']);
+    });
+
     it('0件なら空表示を出す。真っ白な地図にしない', () => {
       mockWishlistSpotIds = new Set();
       const r = openFilter(

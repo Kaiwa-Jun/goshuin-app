@@ -1,9 +1,4 @@
-import {
-  fetchWishlistSpotIds,
-  addToWishlist,
-  removeFromWishlist,
-  fetchWishlistSpots,
-} from '@services/wishlist';
+import { fetchWishlistSpotIds, addToWishlist, removeFromWishlist } from '@services/wishlist';
 
 const mockSelect = jest.fn();
 const mockEq = jest.fn();
@@ -119,71 +114,5 @@ describe('removeFromWishlist', () => {
 
     expect(warnSpy).toHaveBeenCalledWith('removeFromWishlist error:', 'delete error');
     warnSpy.mockRestore();
-  });
-});
-
-describe('fetchWishlistSpots', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  it('スポット情報込みのwishlistを返す', async () => {
-    const mockData = [
-      {
-        id: 'wl-1',
-        user_id: 'user-1',
-        spot_id: 'spot-1',
-        created_at: '2026-01-01T00:00:00Z',
-        spots: { name: '伊勢神宮', type: 'shrine', address: '三重県伊勢市宇治館町1' },
-      },
-      {
-        id: 'wl-2',
-        user_id: 'user-1',
-        spot_id: 'spot-2',
-        created_at: '2026-01-02T00:00:00Z',
-        spots: { name: '浅草寺', type: 'temple', address: '東京都台東区浅草2-3-1' },
-      },
-    ];
-    mockFrom.mockReturnValue({ select: mockSelect });
-    mockSelect.mockReturnValue({ eq: mockEq });
-    mockEq.mockReturnValue({ data: mockData, error: null });
-
-    const result = await fetchWishlistSpots('user-1');
-
-    expect(mockFrom).toHaveBeenCalledWith('wishlists');
-    expect(mockSelect).toHaveBeenCalledWith('*, spots!inner(name, type, address)');
-    expect(mockEq).toHaveBeenCalledWith('user_id', 'user-1');
-    expect(result).toEqual(mockData);
-    expect(result[0].spots.name).toBe('伊勢神宮');
-  });
-
-  it('エラー時は空配列を返す', async () => {
-    mockFrom.mockReturnValue({ select: mockSelect });
-    mockSelect.mockReturnValue({ eq: mockEq });
-    mockEq.mockReturnValue({ data: null, error: { message: 'error' } });
-
-    const result = await fetchWishlistSpots('user-1');
-
-    expect(result).toEqual([]);
-  });
-
-  it('住所がnullのスポットも含む', async () => {
-    const mockData = [
-      {
-        id: 'wl-1',
-        user_id: 'user-1',
-        spot_id: 'spot-1',
-        created_at: '2026-01-01T00:00:00Z',
-        spots: { name: '不明神社', type: 'shrine', address: null },
-      },
-    ];
-    mockFrom.mockReturnValue({ select: mockSelect });
-    mockSelect.mockReturnValue({ eq: mockEq });
-    mockEq.mockReturnValue({ data: mockData, error: null });
-
-    const result = await fetchWishlistSpots('user-1');
-
-    expect(result).toHaveLength(1);
-    expect(result[0].spots.address).toBeNull();
   });
 });

@@ -25,7 +25,7 @@ import { useUserStamps } from '@hooks/useUserStamps';
 import { useWishlist } from '@hooks/useWishlist';
 import type { MapStackScreenProps } from '@/navigation/types';
 import type { Spot } from '@/types/supabase';
-import { buildSpotSources, pointCollection } from '@utils/spotGeoJson';
+import { buildSpotSources, pointCollection, spotFilterIds } from '@utils/spotGeoJson';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { spacing, borderRadius } from '@theme/spacing';
@@ -50,12 +50,17 @@ export function MapScreen({ navigation, route }: Props) {
   const [prefectureSpots, setPrefectureSpots] = useState<Spot[]>([]);
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const { spots } = useSpots(location, filterMode, visitedSpotIds, wishlistSpotIds);
+  const filterIds = spotFilterIds(filterMode, visitedSpotIds, wishlistSpotIds);
   const displaySpots = useMemo(() => {
     if (prefectureSpots.length === 0) return spots;
     const ids = new Set(spots.map(s => s.id));
-    const additional = prefectureSpots.filter(s => !ids.has(s.id));
+    // 都道府県検索の結果は useSpots を通らないので、ここで同じ絞り込みを掛ける。
+    // 掛けないと、絞っているのにフィルタ対象外のピンが混ざる
+    const additional = prefectureSpots.filter(
+      s => !ids.has(s.id) && (!filterIds || filterIds.has(s.id))
+    );
     return [...spots, ...additional];
-  }, [spots, prefectureSpots]);
+  }, [spots, prefectureSpots, filterIds]);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showFilter, setShowFilter] = useState(false);
   const [selectedSpotId, setSelectedSpotId] = useState<string | null>(null);
@@ -331,6 +336,8 @@ export function MapScreen({ navigation, route }: Props) {
             <TouchableOpacity
               style={[styles.filterOption, filterMode === 'all' && styles.filterOptionActive]}
               onPress={() => handleFilterSelect('all')}
+              accessibilityRole="button"
+              accessibilityState={{ selected: filterMode === 'all' }}
               testID="filter-option-all"
             >
               <Text
@@ -345,6 +352,8 @@ export function MapScreen({ navigation, route }: Props) {
             <TouchableOpacity
               style={[styles.filterOption, filterMode === 'wishlist' && styles.filterOptionActive]}
               onPress={() => handleFilterSelect('wishlist')}
+              accessibilityRole="button"
+              accessibilityState={{ selected: filterMode === 'wishlist' }}
               testID="filter-option-wishlist"
             >
               <Text
@@ -361,6 +370,8 @@ export function MapScreen({ navigation, route }: Props) {
             <TouchableOpacity
               style={[styles.filterOption, filterMode === 'visited' && styles.filterOptionActive]}
               onPress={() => handleFilterSelect('visited')}
+              accessibilityRole="button"
+              accessibilityState={{ selected: filterMode === 'visited' }}
               testID="filter-option-visited"
             >
               <Text

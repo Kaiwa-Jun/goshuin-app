@@ -119,14 +119,6 @@ export interface Wishlist {
   created_at: string;
 }
 
-export interface WishlistWithSpot extends Wishlist {
-  spots: {
-    name: string;
-    type: SpotType;
-    address: string | null;
-  };
-}
-
 export interface PublicStampWithUser extends Stamp {
   profiles: {
     display_name: string | null;

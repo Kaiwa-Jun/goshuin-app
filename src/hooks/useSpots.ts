@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { fetchAllActiveSpots } from '@services/spots';
 import type { Spot } from '@/types/supabase';
+import { spotFilterIds, type SpotFilterMode } from '@utils/spotGeoJson';
 
-type FilterMode = 'all' | 'visited' | 'wishlist';
+type FilterMode = SpotFilterMode;
 
 interface UseSpotsReturn {
   spots: Spot[];
@@ -55,12 +56,7 @@ export function useSpots(
 
   // 絞り込みは地図のピンに効かせる。該当0件なら空のまま返す
   // （全件に戻すと「絞ったのに減らない」になる）
-  const filterIds =
-    filterMode === 'visited'
-      ? visitedSpotIds
-      : filterMode === 'wishlist'
-        ? wishlistSpotIds
-        : undefined;
+  const filterIds = spotFilterIds(filterMode, visitedSpotIds, wishlistSpotIds);
   const spots = filterIds ? allSpots.filter(s => filterIds.has(s.id)) : allSpots;
 
   return { spots, allSpots, isLoading, error };

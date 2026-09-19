@@ -6,6 +6,25 @@ import type { Spot } from '@/types/supabase';
  */
 export type SpotPinState = 'visited-shrine' | 'visited-temple' | 'wishlist' | 'unvisited';
 
+/** 地図のピンの絞り込み */
+export type SpotFilterMode = 'all' | 'visited' | 'wishlist';
+
+/**
+ * 絞り込みに使う ID の集合。'all' なら null。
+ *
+ * 地図には useSpots を通らないスポット（都道府県検索の結果）も混ざるので、
+ * hook 側と画面側の両方で同じ判定が要る。二重に書かないためここに置く
+ */
+export function spotFilterIds(
+  filterMode: SpotFilterMode,
+  visitedSpotIds?: Set<string>,
+  wishlistSpotIds?: Set<string>
+): Set<string> | null {
+  if (filterMode === 'visited') return visitedSpotIds ?? null;
+  if (filterMode === 'wishlist') return wishlistSpotIds ?? null;
+  return null;
+}
+
 /** GeoJSON Feature の properties。地図のスタイル式から参照される */
 export interface SpotFeatureProperties {
   spotId: string;
