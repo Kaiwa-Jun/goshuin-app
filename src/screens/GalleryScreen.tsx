@@ -183,8 +183,6 @@ export function GalleryScreen({ navigation }: Props) {
   const renderItem = ({ item, index }: { item: StampWithSpot; index: number }) => {
     const isMiddleColumn = index % NUM_COLUMNS === 1;
     const imageUrl = imageUrlOf(item);
-    // 飛んでいる間は隠す。出したままだと同じ御朱印が一覧と空中の二重に見える
-    const isFlying = hero.flight?.stampId === item.id;
 
     return (
       <TouchableOpacity
@@ -192,11 +190,12 @@ export function GalleryScreen({ navigation }: Props) {
         onPress={() => openStamp(index, item)}
         testID={`gallery-item-${item.id}`}
       >
+        {/* 飛んでいる間もタイルは隠さない。飛ぶ1枚は出発時にタイルとぴったり
+            重なるので二重には見えないし、隠すと写真を待っている間だけ穴があく */}
         <View
           ref={node => {
             hero.registerTile(item.id, 'image', node);
           }}
-          style={isFlying && styles.flying}
         >
           <Image
             source={{ uri: imageUrl }}
@@ -212,7 +211,6 @@ export function GalleryScreen({ navigation }: Props) {
           ref={node => {
             hero.registerTile(item.id, 'text', node);
           }}
-          style={isFlying && styles.flying}
         >
           <Text style={styles.itemSpotName} numberOfLines={1}>
             {item.spots.name}
@@ -391,9 +389,6 @@ const styles = StyleSheet.create({
   },
   gridItemMiddle: {
     marginHorizontal: ITEM_MARGIN,
-  },
-  flying: {
-    opacity: 0,
   },
   stampImage: {
     width: ITEM_SIZE,
