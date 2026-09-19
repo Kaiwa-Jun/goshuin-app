@@ -1,4 +1,5 @@
 import { colors, typography, spacing, borderRadius, shadows } from '@theme/index';
+import bakedPinColors from '../../../assets/map-pins/baked-colors.json';
 
 describe('Theme', () => {
   describe('colors', () => {
@@ -111,6 +112,19 @@ describe('Theme', () => {
       );
 
       expect(tooClose).toEqual([]);
+    });
+
+    // ピン画像は PNG なのでテストから色を読めない。焼いたときの色を
+    // generate-map-pins.py が baked-colors.json に残しているので、それと突き合わせる。
+    // colors.ts だけ変えて npm run gen:map-pins を忘れた状態がこれで落ちる
+    it('should keep the baked pin images in sync with the color tokens', () => {
+      const baked = bakedPinColors as Record<string, string>;
+      const tokens = colors.pin as Record<string, string>;
+
+      expect(Object.keys(baked).length).toBeGreaterThan(0);
+      for (const [token, hex] of Object.entries(baked)) {
+        expect(`${token}=${hex}`).toBe(`${token}=${tokens[token]}`);
+      }
     });
 
     // 未訪問の色替えで訪問済みの色分けを巻き添えにしていないこと
