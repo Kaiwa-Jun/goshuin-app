@@ -18,9 +18,18 @@ export interface GalleryImage {
   id: string;
   imageUrl: string;
   userName?: string | null;
+  /** 寺社の名前。一覧から飛んでくる文字の行き先になる（Issue #192） */
+  spotName?: string | null;
   memo?: string | null;
   visitedAt?: string | null;
 }
+
+/**
+ * 情報の行の置き場所。飛んでいる文字の行き先を合わせるため、
+ * HeroFlyer から参照する（Issue #192）
+ */
+export const GALLERY_INFO_BOTTOM = spacing['5xl'];
+export const GALLERY_INFO_LEFT = spacing.lg;
 
 interface ImageGalleryModalProps {
   visible: boolean;
@@ -31,6 +40,8 @@ interface ImageGalleryModalProps {
   onDelete?: (index: number) => void;
   /** When false, renders as absolute-positioned View instead of Modal to avoid native modal flicker. */
   useModal?: boolean;
+  /** 横スワイプで見ている1枚が変わったとき。閉じるとき、その1枚のタイルへ戻すのに使う（#192） */
+  onIndexChange?: (index: number) => void;
 }
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -56,9 +67,12 @@ export function ImageGalleryModal({
   onEdit,
   onDelete,
   useModal = true,
+  onIndexChange,
 }: ImageGalleryModalProps) {
   // currentIndex is only used for info display (userName, memo, counter)
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const onIndexChangeRef = useRef(onIndexChange);
+  onIndexChangeRef.current = onIndexChange;
   const [imageHeights, setImageHeights] = useState<Record<string, number>>({});
 
   // Single animated value for the entire strip position
@@ -126,10 +140,12 @@ export function ImageGalleryModal({
           useNativeDriver: true,
         }).start(() => {
           setCurrentIndex(newIndex);
+          onIndexChangeRef.current?.(newIndex);
         });
       } else {
         stripX.setValue(targetX);
         setCurrentIndex(newIndex);
+        onIndexChangeRef.current?.(newIndex);
       }
     },
     [stripX]
@@ -272,6 +288,11 @@ export function ImageGalleryModal({
               {currentImage.userName}
             </Text>
           )}
+          {currentImage.spotName && (
+            <Text style={styles.spotName} testID="gallery-spot-name" numberOfLines={1}>
+              {currentImage.spotName}
+            </Text>
+          )}
           {currentImage.memo && (
             <Text style={styles.memo} testID="gallery-memo">
               {currentImage.memo}
@@ -350,7 +371,8 @@ export function ImageGalleryModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(50, 50, 50, 0.85)',
+    // 不透明にする。透かすと一覧が見えたままで、画面が変わったように読めない（#192）
+    backgroundColor: colors.gray[900],
     justifyContent: 'center',
     overflow: 'hidden',
   },
@@ -360,7 +382,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(50, 50, 50, 0.85)',
+    backgroundColor: colors.gray[900],
     justifyContent: 'center',
     overflow: 'hidden',
     zIndex: 1000,
@@ -398,13 +420,18 @@ const styles = StyleSheet.create({
   },
   infoContainer: {
     position: 'absolute',
-    bottom: spacing['5xl'],
+    bottom: GALLERY_INFO_BOTTOM,
     left: 0,
     right: 0,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: GALLERY_INFO_LEFT,
     gap: spacing.xs,
   },
   userName: {
+    ...typography.body,
+    color: colors.white,
+    fontWeight: '600',
+  },
+  spotName: {
     ...typography.body,
     color: colors.white,
     fontWeight: '600',

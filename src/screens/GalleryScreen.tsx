@@ -22,6 +22,8 @@ import { getStampImageUrl } from '@services/stamps';
 import { Button } from '@components/common/Button';
 import { ImageGalleryModal, GalleryImage } from '@components/common/ImageGalleryModal';
 import { GoshuinchoFlipView } from '@components/gallery/GoshuinchoFlipView';
+import { HeroFlyer } from '@components/gallery/HeroFlyer';
+import { useHeroTransition } from '@hooks/useHeroTransition';
 import { ViewModeToggle } from '@components/gallery/ViewModeToggle';
 import { getWebPreviewStamps, previewImageUrl } from '@components/gallery/webPreview';
 import { EditStampModal } from '@components/stamp-detail/EditStampModal';
@@ -61,6 +63,9 @@ export function GalleryScreen({ navigation }: Props) {
   const showsGallery = isAuthenticated || isPreview;
 
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
+  /** 詳細で今どの1枚を見ているか。横スワイプで変わる。閉じるときの行き先になる */
+  const [viewingIndex, setViewingIndex] = useState<number | null>(null);
+  const hero = useHeroTransition();
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
 
@@ -82,6 +87,7 @@ export function GalleryScreen({ navigation }: Props) {
       displayStamps.map(s => ({
         id: s.id,
         imageUrl: isPreview ? previewImageUrl(s) : getStampImageUrl(s.image_path),
+        spotName: s.spots.name,
         memo: s.memo,
         visitedAt: s.visited_at,
       })),
@@ -123,25 +129,96 @@ export function GalleryScreen({ navigation }: Props) {
 
   const formatDate = (dateStr: string) => dateStr.replace(/-/g, '/');
 
+  const imageUrlOf = (stamp: StampWithSpot) =>
+    isPreview ? previewImageUrl(stamp) : getStampImageUrl(stamp.image_path);
+
+  /** 押したタイルから詳細へ飛ばす。測れなければ演出を諦めて開く（Issue #192） */
+  const openStamp = (index: number, stamp: StampWithSpot) => {
+    setViewingIndex(index);
+    hero.start(
+      {
+        stampId: stamp.id,
+        index,
+        direction: 'in',
+        imageUrl: imageUrlOf(stamp),
+        spotName: stamp.spots.name,
+        visitedAt: formatDate(stamp.visited_at),
+      },
+      // 開かないのが一番まずい。飛べないときはそのまま出す
+      started => {
+        if (!started) setSelectedImageIndex(index);
+      }
+    );
+  };
+
+  /** 閉じるときは「今見ている1枚」のタイルへ戻す。横スワイプで別の1枚になっている */
+  const closeStamp = () => {
+    const index = viewingIndex ?? selectedImageIndex;
+    const stamp = index !== null ? displayStamps[index] : null;
+
+    if (!stamp || index === null) {
+      setSelectedImageIndex(null);
+      return;
+    }
+
+    hero.start(
+      {
+        stampId: stamp.id,
+        index,
+        direction: 'out',
+        imageUrl: imageUrlOf(stamp),
+        spotName: stamp.spots.name,
+        visitedAt: formatDate(stamp.visited_at),
+      },
+      // 飛ぶ1枚が地を覆ってから詳細を外す。先に外すと一覧が1フレーム見える
+      () => setSelectedImageIndex(null)
+    );
+  };
+
+  const handleFlightDone = () => {
+    if (hero.flight?.direction === 'in') setSelectedImageIndex(hero.flight.index);
+    hero.end();
+  };
+
   const renderItem = ({ item, index }: { item: StampWithSpot; index: number }) => {
     const isMiddleColumn = index % NUM_COLUMNS === 1;
-    const imageUrl = isPreview ? previewImageUrl(item) : getStampImageUrl(item.image_path);
+    const imageUrl = imageUrlOf(item);
+    // 飛んでいる間は隠す。出したままだと同じ御朱印が一覧と空中の二重に見える
+    const isFlying = hero.flight?.stampId === item.id;
 
     return (
       <TouchableOpacity
         style={[styles.gridItem, isMiddleColumn && styles.gridItemMiddle]}
-        onPress={() => setSelectedImageIndex(index)}
+        // 押し込んだ時点で写真の縦横比を取りにいく。指が離れるまでの分だけ先行できる
+        onPressIn={() => hero.prefetchAspect(item.id, imageUrl)}
+        onPress={() => openStamp(index, item)}
         testID={`gallery-item-${item.id}`}
       >
-        <Image
-          source={{ uri: imageUrl }}
-          style={styles.stampImage}
-          testID={`stamp-image-${item.id}`}
-        />
-        <Text style={styles.itemSpotName} numberOfLines={1}>
-          {item.spots.name}
-        </Text>
-        {sortOrder === 'date' && <Text style={styles.itemDate}>{formatDate(item.visited_at)}</Text>}
+        <View
+          ref={node => {
+            hero.registerTile(item.id, 'image', node);
+          }}
+          style={isFlying && styles.flying}
+        >
+          <Image
+            source={{ uri: imageUrl }}
+            style={styles.stampImage}
+            testID={`stamp-image-${item.id}`}
+          />
+        </View>
+        <View
+          ref={node => {
+            hero.registerTile(item.id, 'text', node);
+          }}
+          style={isFlying && styles.flying}
+        >
+          <Text style={styles.itemSpotName} numberOfLines={1}>
+            {item.spots.name}
+          </Text>
+          {sortOrder === 'date' && (
+            <Text style={styles.itemDate}>{formatDate(item.visited_at)}</Text>
+          )}
+        </View>
       </TouchableOpacity>
     );
   };
@@ -247,13 +324,28 @@ export function GalleryScreen({ navigation }: Props) {
       </SafeAreaView>
       <ImageGalleryModal
         visible={selectedImageIndex !== null}
-        onClose={() => setSelectedImageIndex(null)}
+        onClose={closeStamp}
         images={galleryImages}
         initialIndex={selectedImageIndex ?? 0}
         onEdit={handleEdit}
         onDelete={handleDeletePress}
+        onIndexChange={setViewingIndex}
         useModal={false}
       />
+
+      {hero.flight && (
+        <HeroFlyer
+          key={`${hero.flight.stampId}-${hero.flight.direction}`}
+          imageUrl={hero.flight.imageUrl}
+          imageAspect={hero.flight.imageAspect}
+          sourceRect={hero.flight.sourceRect}
+          sourceTextRect={hero.flight.sourceTextRect}
+          spotName={hero.flight.spotName}
+          visitedAt={hero.flight.visitedAt}
+          direction={hero.flight.direction}
+          onDone={handleFlightDone}
+        />
+      )}
     </View>
   );
 }
@@ -297,6 +389,9 @@ const styles = StyleSheet.create({
   },
   gridItemMiddle: {
     marginHorizontal: ITEM_MARGIN,
+  },
+  flying: {
+    opacity: 0,
   },
   stampImage: {
     width: ITEM_SIZE,

@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
+import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { Image } from 'react-native';
 import { GalleryScreen } from '@screens/GalleryScreen';
 import { useGalleryStamps } from '@hooks/useGalleryStamps';
@@ -208,7 +208,9 @@ describe('GalleryScreen', () => {
     expect(queryByText('2024/01/15')).toBeNull();
   });
 
-  it('アイテムタップでギャラリーモーダルが開く', () => {
+  // 位置を測ってから飛ばすので、開くのは1フレーム後になった（Issue #192）。
+  // 測れない環境では演出を飛ばして開く。開かないのが一番まずい
+  it('アイテムタップでギャラリーモーダルが開く', async () => {
     mockUseGalleryStamps.mockReturnValue({
       stamps: [makeStamp({ id: 'stamp-abc' })],
       totalCount: 1,
@@ -220,7 +222,10 @@ describe('GalleryScreen', () => {
 
     const { getByTestId } = renderGalleryScreenInGrid();
     fireEvent.press(getByTestId('gallery-item-stamp-abc'));
-    expect(getByTestId('gallery-image')).toBeTruthy();
+
+    await waitFor(() => {
+      expect(getByTestId('gallery-image')).toBeTruthy();
+    });
   });
 
   describe('表示モードの切り替え（Issue #116）', () => {
