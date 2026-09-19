@@ -157,6 +157,7 @@ jest.mock('@maplibre/maplibre-react-native', () => {
     Camera: named('Camera', 'map-camera', cameraMocks),
     GeoJSONSource: named('GeoJSONSource', undefined, sourceMocks),
     Layer: named('Layer'),
+    Images: named('Images'),
     Marker: named('Marker', 'marker'),
     UserLocation: named('UserLocation'),
     NativeUserLocation: named('NativeUserLocation'),

@@ -34,7 +34,7 @@ type Props = MapStackScreenProps<'Map'>;
 type FilterMode = 'all' | 'visited';
 
 /** 地図の下地。ベクタータイル（OpenStreetMap 由来・キー不要） */
-const MAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
+const MAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/positron';
 
 /** 起動時のズーム。旧実装の delta 0.015 相当（log2(360/0.015) ≈ 14.5） */
 const INITIAL_ZOOM = 14.5;

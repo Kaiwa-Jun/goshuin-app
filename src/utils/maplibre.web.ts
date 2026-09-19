@@ -50,6 +50,7 @@ export const GeoJSONSource = React.forwardRef((props: Record<string, unknown>, r
 GeoJSONSource.displayName = 'GeoJSONSource';
 
 export const Layer = passthrough('Layer');
+export const Images = passthrough('Images');
 export const Marker = passthrough('Marker');
 export const UserLocation = passthrough('UserLocation');
 export const NativeUserLocation = passthrough('NativeUserLocation');

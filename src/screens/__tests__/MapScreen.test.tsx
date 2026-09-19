@@ -355,15 +355,16 @@ describe('MapScreen', () => {
     });
   });
 
-  describe('ラベルの間引き', () => {
-    it('名前は重なったら描かない（衝突判定に載せる）', () => {
+  describe('ピンとラベル', () => {
+    it('ピンは重なっても必ず描く（間引かれるのは名前だけ）', () => {
       const { getByTestId } = render(
         <MapScreen navigation={mockNavigation as never} route={mockRoute} />
       );
-      const layout = getByTestId('goshuin-spot-label').props.layout;
+      const layout = getByTestId('goshuin-spot-pin').props.layout;
 
+      expect(layout['icon-allow-overlap']).toBe(true);
+      expect(layout['text-optional']).toBe(true);
       expect(layout['text-allow-overlap']).toBe(false);
-      expect(layout['text-ignore-placement']).toBe(false);
     });
 
     it('残す順は rank の高いものから', () => {
@@ -371,20 +372,30 @@ describe('MapScreen', () => {
         <MapScreen navigation={mockNavigation as never} route={mockRoute} />
       );
       // 小さい sort key が先に置かれるので rank を反転させる
-      expect(getByTestId('goshuin-spot-label').props.layout['symbol-sort-key']).toEqual([
+      expect(getByTestId('goshuin-spot-pin').props.layout['symbol-sort-key']).toEqual([
         '-',
         10,
         ['get', 'rank'],
       ]);
     });
 
-    it('点そのものは衝突判定の対象外なので常に全件描かれる', () => {
+    it('ピンの絵は state ごとに出し分ける', () => {
       const { getByTestId } = render(
         <MapScreen navigation={mockNavigation as never} route={mockRoute} />
       );
-      // CircleLayer には allow-overlap の概念がない = 間引かれない
-      expect(getByTestId('goshuin-spot-dot').props.type).toBe('circle');
-      expect(getByTestId('goshuin-pinned-dot').props.type).toBe('circle');
+      const iconImage = getByTestId('goshuin-pinned-pin').props.layout['icon-image'];
+
+      expect(iconImage).toContain('spot-pin-visited-shrine');
+      expect(iconImage).toContain('spot-pin-visited-temple');
+      expect(iconImage).toContain('spot-pin-wishlist');
+      expect(iconImage).toContain('spot-pin-unvisited');
+    });
+
+    it('ピンは足元が座標に来る', () => {
+      const { getByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+      expect(getByTestId('goshuin-spot-pin').props.layout['icon-anchor']).toBe('bottom');
     });
   });
 
