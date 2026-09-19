@@ -35,6 +35,7 @@ const EXITS = {
 
 export function RecordCompleteScreen({ navigation, route }: Props) {
   const stampImageUrl = route.params?.stampImageUrl;
+  const stampCount = route.params?.stampCount ?? 1;
   const spotName = route.params?.spotName;
   const visitCount = route.params?.visitCount;
   const badge = route.params?.badge;
@@ -69,19 +70,25 @@ export function RecordCompleteScreen({ navigation, route }: Props) {
 
           <Text style={styles.title}>登録完了！</Text>
 
-          {stampImageUrl && !imageError ? (
-            <Image
-              source={{ uri: stampImageUrl }}
-              style={styles.stampImage}
-              resizeMode="cover"
-              testID="stamp-image"
-              onError={() => setImageError(true)}
-            />
-          ) : (
-            <View style={styles.imagePlaceholder} testID="stamp-image-placeholder">
-              <MaterialIcons name="photo" size={48} color="rgba(255,255,255,0.5)" />
-            </View>
-          )}
+          {/* まとめて登録しても出せるのは先頭の1枚。残りがあることは枚数で示す */}
+          <View>
+            {stampImageUrl && !imageError ? (
+              <Image
+                source={{ uri: stampImageUrl }}
+                style={styles.stampImage}
+                resizeMode="cover"
+                testID="stamp-image"
+                onError={() => setImageError(true)}
+              />
+            ) : (
+              <View style={styles.imagePlaceholder} testID="stamp-image-placeholder">
+                <MaterialIcons name="photo" size={48} color="rgba(255,255,255,0.5)" />
+              </View>
+            )}
+            {stampCount > 1 && (
+              <Text style={styles.stampCount} testID="stamp-count">{`${stampCount}枚`}</Text>
+            )}
+          </View>
 
           {spotName && (
             <Text style={styles.spotName} testID="spot-name">
@@ -144,6 +151,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: spacing['2xl'],
     gap: spacing.xl,
+  },
+  stampCount: {
+    position: 'absolute',
+    top: spacing.sm,
+    right: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    ...typography.caption,
+    color: colors.white,
   },
   title: {
     ...typography.h1,

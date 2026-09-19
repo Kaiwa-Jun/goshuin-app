@@ -82,7 +82,7 @@ describe('stamps service', () => {
       mockFrom.mockReturnValue({ select: mockSelect });
       mockSelect.mockReturnValue({ eq: mockEq });
       mockEq.mockReturnValue({ order: mockOrder });
-      mockOrder.mockReturnValue({ data: mockStamps, error: null });
+      mockOrder.mockReturnValue({ order: mockOrder, data: mockStamps, error: null });
 
       const result = await fetchStampsBySpotId('spot-1');
       expect(mockFrom).toHaveBeenCalledWith('stamps');
@@ -96,10 +96,24 @@ describe('stamps service', () => {
       mockFrom.mockReturnValue({ select: mockSelect });
       mockSelect.mockReturnValue({ eq: mockEq });
       mockEq.mockReturnValue({ order: mockOrder });
-      mockOrder.mockReturnValue({ data: null, error: { message: 'error' } });
+      mockOrder.mockReturnValue({ order: mockOrder, data: null, error: { message: 'error' } });
 
       const result = await fetchStampsBySpotId('spot-1');
       expect(result).toEqual([]);
+    });
+
+    // 同じ日に同じ場所で複数枚いただく（大崎八幡宮など）のは普通のこと。
+    // visited_at だけで並べると同日分の順序は Postgres 任せで、
+    // 開いたびに並びが変わる
+    it('同じ訪問日の中は登録順で並ぶ', async () => {
+      mockFrom.mockReturnValue({ select: mockSelect });
+      mockSelect.mockReturnValue({ eq: mockEq });
+      mockEq.mockReturnValue({ order: mockOrder });
+      mockOrder.mockReturnValue({ order: mockOrder, data: [], error: null });
+
+      await fetchStampsBySpotId('spot-1');
+
+      expect(mockOrder).toHaveBeenCalledWith('created_at', { ascending: false });
     });
   });
 
@@ -126,7 +140,7 @@ describe('stamps service', () => {
       mockFrom.mockReturnValue({ select: mockSelect });
       mockSelect.mockReturnValue({ eq: mockEq });
       mockEq.mockReturnValue({ order: mockOrder });
-      mockOrder.mockReturnValue({ data: mockStamps, error: null });
+      mockOrder.mockReturnValue({ order: mockOrder, data: mockStamps, error: null });
 
       const result = await fetchAllStamps('user-1');
       expect(mockFrom).toHaveBeenCalledWith('stamps');
@@ -140,10 +154,22 @@ describe('stamps service', () => {
       mockFrom.mockReturnValue({ select: mockSelect });
       mockSelect.mockReturnValue({ eq: mockEq });
       mockEq.mockReturnValue({ order: mockOrder });
-      mockOrder.mockReturnValue({ data: null, error: { message: 'error' } });
+      mockOrder.mockReturnValue({ order: mockOrder, data: null, error: { message: 'error' } });
 
       const result = await fetchAllStamps('user-1');
       expect(result).toEqual([]);
+    });
+
+    // まとめて登録した1組が、御朱印帳を開くたびに並び替わらないようにする
+    it('同じ訪問日の中は登録順で並ぶ', async () => {
+      mockFrom.mockReturnValue({ select: mockSelect });
+      mockSelect.mockReturnValue({ eq: mockEq });
+      mockEq.mockReturnValue({ order: mockOrder });
+      mockOrder.mockReturnValue({ order: mockOrder, data: [], error: null });
+
+      await fetchAllStamps('user-1');
+
+      expect(mockOrder).toHaveBeenCalledWith('created_at', { ascending: false });
     });
   });
 

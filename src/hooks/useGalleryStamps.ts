@@ -64,15 +64,16 @@ export function useGalleryStamps(sortOrder: SortOrder): UseGalleryStampsReturn {
   }, []);
 
   const stamps = useMemo(() => {
-    const sorted = [...allStamps];
-    if (sortOrder === 'spot') {
-      sorted.sort((a, b) => a.spots.name.localeCompare(b.spots.name, 'ja'));
-      return sorted;
-    }
     // 御朱印帳は古い順に綴じていくもの。グリッドも左上が最も古く、右へ・下へ
     // 進むほど新しくなるようにする（めくり表示の 1ページ目 = 最も古い と揃う）。
-    // API は visited_at DESC で返すので反転する
-    return sorted.reverse();
+    // API は新しい順で返すので反転する
+    const oldestFirst = [...allStamps].reverse();
+    if (sortOrder === 'spot') {
+      // Array#sort は安定なので、同じスポットの中は古い順のまま。
+      // まとめて登録した1組が、選んだ順で読める
+      oldestFirst.sort((a, b) => a.spots.name.localeCompare(b.spots.name, 'ja'));
+    }
+    return oldestFirst;
   }, [allStamps, sortOrder]);
 
   return {

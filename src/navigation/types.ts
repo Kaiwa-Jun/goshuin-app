@@ -15,6 +15,8 @@ export type RootStackParamList = {
   RecordComplete:
     | {
         stampImageUrl?: string;
+        /** まとめて登録した枚数。表示できるのは先頭の1枚だけなので数だけ添える */
+        stampCount?: number;
         spotName?: string;
         visitCount?: number;
         badge?: { name: string; description: string } | null;
