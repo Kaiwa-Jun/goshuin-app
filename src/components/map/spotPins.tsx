@@ -80,6 +80,10 @@ export const PIN_LAYOUT: SymbolLayerSpecification['layout'] = {
  * 消えたが、top-N 自体が MapLibre 移行で不要になったため、意図的な間引きだけ
  * を改めて入れ直している。
  *
+ * 下限の 11 は SpotMapLayers の CLUSTER_MAX_ZOOM と揃えてある。そこより引くと
+ * 団子になるので、素のピンが出るのはこの段階より寄ったときだけ。片方を動かす
+ * ときはもう片方も見ること。
+ *
  * 自分の記録（訪問済み・行きたい）には掛けない。#93 の除外規定を引き継ぐ。
  *
  * 変数を合成せず1つのリテラルで書いているのは、FilterSpecification が旧形式の

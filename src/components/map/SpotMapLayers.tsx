@@ -19,7 +19,10 @@ import {
 import { colors } from '@theme/colors';
 import type { SpotFeatureCollection } from '@utils/spotGeoJson';
 
-/** 団子化を打ち切るズーム。これより寄ると必ず1件1ピンで出る */
+/**
+ * 団子化を打ち切るズーム。これより寄ると必ず1件1ピンで出る。
+ * spotPins の VISIBLE_SPOT_FILTER の下限と揃えてある（片方を動かすときは両方見る）
+ */
 export const CLUSTER_MAX_ZOOM = 11;
 /** 団子を作る最小件数。4件以下はまとめず、その場にピンで出す */
 export const CLUSTER_MIN_POINTS = 5;

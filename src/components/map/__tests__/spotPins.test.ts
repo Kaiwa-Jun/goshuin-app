@@ -4,10 +4,20 @@ import { VISIBLE_SPOT_FILTER } from '@components/map/spotPins';
  * 式を目で追っても、どのズームで何が出るかは分からない。
  * テスト側で評価して確かめる
  */
+/** 式の中から ['step', ['zoom'], ...] を探す。'all' の中の並び順に依存しない */
+function findZoomStep(node: unknown): unknown[] | null {
+  if (!Array.isArray(node)) return null;
+  if (node[0] === 'step' && JSON.stringify(node[1]) === JSON.stringify(['zoom'])) return node;
+  for (const child of node) {
+    const found = findZoomStep(child);
+    if (found) return found;
+  }
+  return null;
+}
+
 function minRankAt(zoom: number): number {
-  // ['all', <団子でない>, ['>=', ['get','rank'], ['step', ['zoom'], base, z1, v1, ...]]]
-  const rankClause = (VISIBLE_SPOT_FILTER as unknown[])[2] as unknown[];
-  const step = rankClause[2] as unknown[];
+  const step = findZoomStep(VISIBLE_SPOT_FILTER);
+  if (!step) throw new Error('ズーム段階の式が見つからない');
   let value = step[2] as number;
   for (let i = 3; i < step.length; i += 2) {
     if (zoom >= (step[i] as number)) value = step[i + 1] as number;
