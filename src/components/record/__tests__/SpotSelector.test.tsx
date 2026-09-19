@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
+import { render, fireEvent, within } from '@testing-library/react-native';
 import { SpotSelector } from '../SpotSelector';
 import type { Spot } from '@/types/supabase';
 
@@ -82,5 +82,54 @@ describe('SpotSelector', () => {
     fireEvent.press(getByText('スポットが見つからない場合は追加'));
 
     expect(mockOnAddSpotPress).toHaveBeenCalled();
+  });
+});
+
+describe('都道府県の表示', () => {
+  // 白山神社が4件、日枝神社が3件など、同名のスポットが 27 種 60 件ある。
+  // 名前と距離だけでは、どの県のものか判別できない
+  const props = {
+    selectedSpot: null,
+    nearbySpots,
+    searchQuery: '',
+    onSearchQueryChange: jest.fn(),
+    onSelectSpot: jest.fn(),
+    onAddSpotPress: jest.fn(),
+    error: null,
+  };
+
+  const openDropdown = (spots: typeof nearbySpots) => {
+    const r = render(<SpotSelector {...props} nearbySpots={spots} />);
+    fireEvent(r.getByPlaceholderText('スポット名で検索'), 'focus');
+    return r;
+  };
+
+  it('候補に都道府県を出す', () => {
+    const r = openDropdown([
+      { spot: makeSpot({ name: '白山神社', prefecture: '岩手県' }), distanceKm: 0.5 },
+    ]);
+
+    expect(r.getByText('岩手県')).toBeTruthy();
+  });
+
+  it('同名でも県で見分けられる。県が正しい行に付く', () => {
+    const r = openDropdown([
+      { spot: makeSpot({ id: 'a', name: '白山神社', prefecture: '岩手県' }), distanceKm: 0.5 },
+      { spot: makeSpot({ id: 'b', name: '白山神社', prefecture: '新潟県' }), distanceKm: 1.2 },
+    ]);
+
+    expect(r.getAllByText('白山神社')).toHaveLength(2);
+    // 行ごとに見る。両方出ているだけでは、入れ違っていても通ってしまう
+    expect(within(r.getByTestId('spot-option-a')).getByText('岩手県')).toBeTruthy();
+    expect(within(r.getByTestId('spot-option-b')).getByText('新潟県')).toBeTruthy();
+    expect(within(r.getByTestId('spot-option-a')).queryByText('新潟県')).toBeNull();
+  });
+
+  it('都道府県が無いスポットでも落ちない', () => {
+    const r = openDropdown([
+      { spot: makeSpot({ name: '名無し神社', prefecture: null }), distanceKm: 0.5 },
+    ]);
+
+    expect(r.getByText('名無し神社')).toBeTruthy();
   });
 });
