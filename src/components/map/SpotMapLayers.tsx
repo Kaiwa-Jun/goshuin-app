@@ -13,6 +13,7 @@ import {
   LABEL_PAINT,
   PIN_LAYOUT,
   RANKED_PIN_LAYOUT,
+  VISIBLE_SPOT_FILTER,
   SpotPinImages,
 } from '@components/map/spotPins';
 import { colors } from '@theme/colors';
@@ -26,7 +27,6 @@ export const CLUSTER_MIN_POINTS = 5;
 export const CLUSTER_RADIUS = 50;
 
 const IS_CLUSTER: FilterSpecification = ['has', 'point_count'];
-const IS_SPOT: FilterSpecification = ['!', ['has', 'point_count']];
 
 const CLUSTER_PAINT: CircleLayerSpecification['paint'] = {
   'circle-radius': ['step', ['get', 'point_count'], 16, 10, 20, 50, 24, 100, 28],
@@ -129,7 +129,7 @@ export function SpotMapLayers({ clustered, pinned, onPressSpot, onPressCluster }
         <Layer
           id="goshuin-spot-pin"
           type="symbol"
-          filter={IS_SPOT}
+          filter={VISIBLE_SPOT_FILTER}
           layout={RANKED_PIN_LAYOUT}
           paint={LABEL_PAINT}
         />

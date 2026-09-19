@@ -2,6 +2,7 @@ import React, { useCallback } from 'react';
 import type { NativeSyntheticEvent } from 'react-native';
 import { GeoJSONSource, Images, Layer } from '@maplibre/maplibre-react-native';
 import type {
+  FilterSpecification,
   PressEventWithFeatures,
   SymbolLayerSpecification,
 } from '@maplibre/maplibre-react-native';
@@ -64,6 +65,33 @@ export const PIN_LAYOUT: SymbolLayerSpecification['layout'] = {
   'text-padding': 3,
   'text-max-width': 8,
 };
+
+/**
+ * ズームに応じて出すランクを絞る。寄るほど下のランクまで出す。
+ *
+ * 全件を常に出すと、団子化しない帯（z12〜13）で画面が埋まる。実機で仙台の
+ * z12.5 を測ると 24 件が同時に乗っていた（このしきい値で 5 件になる）。
+ *
+ * 段階は実機で測って決めた。1段きつくすると同じ条件で 2 件まで落ち、
+ * 市街地からピンがほぼ消えて「壊れている」ように見える。
+ *
+ * これは #93 にあった「ズームアウト = rank カット」を戻したもの。#96 で
+ * ビューポート top-N（react-native-maps のクラッシュ回避）に置き換えられて
+ * 消えたが、top-N 自体が MapLibre 移行で不要になったため、意図的な間引きだけ
+ * を改めて入れ直している。
+ *
+ * 自分の記録（訪問済み・行きたい）には掛けない。#93 の除外規定を引き継ぐ。
+ *
+ * 変数を合成せず1つのリテラルで書いているのは、FilterSpecification が旧形式の
+ * 配列を含む union で、部品に分けると ['all', ...] に入れ子にできなくなるため
+ */
+export const VISIBLE_SPOT_FILTER: FilterSpecification = [
+  'all',
+  // 団子にまとまっていない1件だけ
+  ['!', ['has', 'point_count']],
+  // 今のズームで出すランクに達しているもの
+  ['>=', ['get', 'rank'], ['step', ['zoom'], 5, 11, 4, 12.5, 3, 14, 1]],
+];
 
 /** rank が高いものほど先に置かれる（小さい sort key が優先） */
 export const RANKED_PIN_LAYOUT: SymbolLayerSpecification['layout'] = {
