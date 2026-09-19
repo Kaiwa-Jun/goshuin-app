@@ -23,6 +23,11 @@ export interface HeroFlyerProps {
 }
 
 const DURATION = 320;
+/**
+ * 写真が出てくるのを待つ上限。飛ぶ1枚は新しい <Image> なので、一覧に出ていても
+ * 読み込み直しが要る。待たずに飛ばすと最初の数フレームが空になる（実機で確認）
+ */
+const IMAGE_WAIT_MS = 200;
 
 /**
  * 一覧のタイルと詳細の画像をつなぐ、飛んでいる最中だけの1枚（Issue #192）。
@@ -46,12 +51,20 @@ export function HeroFlyer({
   const reduceMotion = useReduceMotion();
   const progress = useRef(new Animated.Value(direction === 'in' ? 0 : 1)).current;
   const [container, setContainer] = useState<Rect | null>(null);
+  /** 写真が出せる状態か。出る前に飛ぶと、空の枠だけが動く */
+  const [imageReady, setImageReady] = useState(false);
   const containerRef = useRef<View>(null);
   const onDoneRef = useRef(onDone);
   onDoneRef.current = onDone;
 
+  // 写真を待つのは飛び始めだけ。いつまでも待つと詳細が開かない
   useEffect(() => {
-    if (!container) return;
+    const timer = setTimeout(() => setImageReady(true), IMAGE_WAIT_MS);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!container || !imageReady) return;
 
     const to = direction === 'in' ? 1 : 0;
 
@@ -74,7 +87,7 @@ export function HeroFlyer({
     });
 
     return () => anim.stop();
-  }, [container, direction, reduceMotion, progress]);
+  }, [container, imageReady, direction, reduceMotion, progress]);
 
   /**
    * 飛ぶ枠の位置。タイルは画面座標で測っているので、こちらも画面座標で欲しい。
@@ -154,6 +167,7 @@ export function HeroFlyer({
             source={{ uri: imageUrl }}
             style={{ width: target.width, height: target.height }}
             resizeMode="cover"
+            onLoad={() => setImageReady(true)}
             testID="hero-image"
           />
         </Animated.View>
