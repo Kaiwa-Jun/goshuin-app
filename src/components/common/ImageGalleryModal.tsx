@@ -18,9 +18,18 @@ export interface GalleryImage {
   id: string;
   imageUrl: string;
   userName?: string | null;
+  /** 寺社の名前。一覧から飛んでくる文字の行き先になる（Issue #192） */
+  spotName?: string | null;
   memo?: string | null;
   visitedAt?: string | null;
 }
+
+/**
+ * 情報の行の置き場所。飛んでいる文字の行き先を合わせるため、
+ * HeroFlyer から参照する（Issue #192）
+ */
+export const GALLERY_INFO_BOTTOM = spacing['5xl'];
+export const GALLERY_INFO_LEFT = spacing.lg;
 
 interface ImageGalleryModalProps {
   visible: boolean;
@@ -31,6 +40,8 @@ interface ImageGalleryModalProps {
   onDelete?: (index: number) => void;
   /** When false, renders as absolute-positioned View instead of Modal to avoid native modal flicker. */
   useModal?: boolean;
+  /** 横スワイプで見ている1枚が変わったとき。閉じるとき、その1枚のタイルへ戻すのに使う（#192） */
+  onIndexChange?: (index: number) => void;
 }
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -39,6 +50,8 @@ const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.25;
 const VELOCITY_THRESHOLD = 0.5;
 const TAP_MAX_DURATION = 200;
 const TAP_MAX_DISTANCE = 10;
+/** 今の1枚の前後いくつまで実際に描くか。横スワイプの先読みぶん */
+const NEIGHBORS = 1;
 
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr);
@@ -56,9 +69,12 @@ export function ImageGalleryModal({
   onEdit,
   onDelete,
   useModal = true,
+  onIndexChange,
 }: ImageGalleryModalProps) {
   // currentIndex is only used for info display (userName, memo, counter)
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const onIndexChangeRef = useRef(onIndexChange);
+  onIndexChangeRef.current = onIndexChange;
   const [imageHeights, setImageHeights] = useState<Record<string, number>>({});
 
   // Single animated value for the entire strip position
@@ -80,6 +96,9 @@ export function ImageGalleryModal({
   // to avoid 1-frame flicker when reopening after a swipe-dismiss
   const prevVisible = useRef(false);
   if (visible && !prevVisible.current) {
+    // 番号も描画のうちに合わせる。useEffect だと1フレームだけ前の1枚が出て、
+    // 地が不透明になってからはその瞬きが見える（Issue #192）
+    setCurrentIndex(initialIndex);
     settledIndex.current = initialIndex;
     baseX.current = -initialIndex * SCREEN_WIDTH;
     stripX.setValue(-initialIndex * SCREEN_WIDTH);
@@ -97,22 +116,20 @@ export function ImageGalleryModal({
     }
   }, [visible, initialIndex]);
 
-  // Preload image sizes regardless of visibility so heights are ready when modal opens
-  useEffect(() => {
-    if (images.length === 0) return;
-    images.forEach(img => {
-      if (imageHeights[img.id] !== undefined) return;
-      Image.getSize(
-        img.imageUrl,
-        (w, h) => {
-          setImageHeights(prev => ({ ...prev, [img.id]: SCREEN_WIDTH * (h / w) }));
-        },
-        () => {
-          setImageHeights(prev => ({ ...prev, [img.id]: SCREEN_WIDTH }));
-        }
-      );
-    });
-  }, [images, imageHeights]);
+  /*
+   * 高さは、描いた画像の onLoad から受け取る。
+   *
+   * 以前はここで全枚数ぶん Image.getSize を呼んでいた。getSize は iOS では
+   * 画像を丸ごと取りにいくので、57件あると 1.2MB × 57 の取得が同時に走り、
+   * 画像ローダーが詰まる。新しく置いた <Image> が読み込まれず、load も error も
+   * 返ってこない状態になっていた（実機で確認 / Issue #192）
+   */
+  const rememberHeight = useCallback((id: string, width: number, height: number) => {
+    if (width <= 0 || height <= 0) return;
+    setImageHeights(prev =>
+      prev[id] !== undefined ? prev : { ...prev, [id]: SCREEN_WIDTH * (height / width) }
+    );
+  }, []);
 
   const navigateTo = useCallback(
     (newIndex: number, animated: boolean) => {
@@ -126,10 +143,12 @@ export function ImageGalleryModal({
           useNativeDriver: true,
         }).start(() => {
           setCurrentIndex(newIndex);
+          onIndexChangeRef.current?.(newIndex);
         });
       } else {
         stripX.setValue(targetX);
         setCurrentIndex(newIndex);
+        onIndexChangeRef.current?.(newIndex);
       }
     },
     [stripX]
@@ -256,12 +275,19 @@ export function ImageGalleryModal({
         >
           {images.map((img, index) => (
             <View key={img.id} style={styles.imageSlot}>
-              <Image
-                source={{ uri: img.imageUrl }}
-                style={[styles.image, { height: imageHeights[img.id] ?? SCREEN_WIDTH }]}
-                resizeMode="contain"
-                testID={index === currentIndex ? 'gallery-image' : undefined}
-              />
+              {/* 見えている前後だけ描く。全枚数を一度に置くと、そのぶんの取得が
+                  同時に走って画像ローダーが詰まる（Issue #192） */}
+              {Math.abs(index - currentIndex) <= NEIGHBORS && (
+                <Image
+                  source={{ uri: img.imageUrl }}
+                  style={[styles.image, { height: imageHeights[img.id] ?? SCREEN_WIDTH }]}
+                  resizeMode="contain"
+                  onLoad={e =>
+                    rememberHeight(img.id, e.nativeEvent.source.width, e.nativeEvent.source.height)
+                  }
+                  testID={index === currentIndex ? 'gallery-image' : undefined}
+                />
+              )}
             </View>
           ))}
         </Animated.View>
@@ -270,6 +296,11 @@ export function ImageGalleryModal({
           {currentImage.userName && (
             <Text style={styles.userName} testID="gallery-username">
               {currentImage.userName}
+            </Text>
+          )}
+          {currentImage.spotName && (
+            <Text style={styles.spotName} testID="gallery-spot-name" numberOfLines={1}>
+              {currentImage.spotName}
             </Text>
           )}
           {currentImage.memo && (
@@ -350,7 +381,8 @@ export function ImageGalleryModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(50, 50, 50, 0.85)',
+    // 不透明にする。透かすと一覧が見えたままで、画面が変わったように読めない（#192）
+    backgroundColor: colors.gray[900],
     justifyContent: 'center',
     overflow: 'hidden',
   },
@@ -360,7 +392,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(50, 50, 50, 0.85)',
+    backgroundColor: colors.gray[900],
     justifyContent: 'center',
     overflow: 'hidden',
     zIndex: 1000,
@@ -398,13 +430,18 @@ const styles = StyleSheet.create({
   },
   infoContainer: {
     position: 'absolute',
-    bottom: spacing['5xl'],
+    bottom: GALLERY_INFO_BOTTOM,
     left: 0,
     right: 0,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: GALLERY_INFO_LEFT,
     gap: spacing.xs,
   },
   userName: {
+    ...typography.body,
+    color: colors.white,
+    fontWeight: '600',
+  },
+  spotName: {
     ...typography.body,
     color: colors.white,
     fontWeight: '600',

@@ -22,6 +22,8 @@ import { getStampImageUrl } from '@services/stamps';
 import { Button } from '@components/common/Button';
 import { ImageGalleryModal, GalleryImage } from '@components/common/ImageGalleryModal';
 import { GoshuinchoFlipView } from '@components/gallery/GoshuinchoFlipView';
+import { HeroFlyer } from '@components/gallery/HeroFlyer';
+import { useHeroTransition } from '@hooks/useHeroTransition';
 import { ViewModeToggle } from '@components/gallery/ViewModeToggle';
 import { getWebPreviewStamps, previewImageUrl } from '@components/gallery/webPreview';
 import { EditStampModal } from '@components/stamp-detail/EditStampModal';
@@ -61,6 +63,9 @@ export function GalleryScreen({ navigation }: Props) {
   const showsGallery = isAuthenticated || isPreview;
 
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
+  /** 詳細で今どの1枚を見ているか。横スワイプで変わる。閉じるときの行き先になる */
+  const [viewingIndex, setViewingIndex] = useState<number | null>(null);
+  const hero = useHeroTransition();
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
 
@@ -82,6 +87,7 @@ export function GalleryScreen({ navigation }: Props) {
       displayStamps.map(s => ({
         id: s.id,
         imageUrl: isPreview ? previewImageUrl(s) : getStampImageUrl(s.image_path),
+        spotName: s.spots.name,
         memo: s.memo,
         visitedAt: s.visited_at,
       })),
@@ -123,25 +129,96 @@ export function GalleryScreen({ navigation }: Props) {
 
   const formatDate = (dateStr: string) => dateStr.replace(/-/g, '/');
 
+  const imageUrlOf = (stamp: StampWithSpot) =>
+    isPreview ? previewImageUrl(stamp) : getStampImageUrl(stamp.image_path);
+
+  /** 押したタイルから詳細へ飛ばす。測れなければ演出を諦めて開く（Issue #192） */
+  const openStamp = (index: number, stamp: StampWithSpot) => {
+    setViewingIndex(index);
+    hero.start(
+      {
+        stampId: stamp.id,
+        index,
+        direction: 'in',
+        imageUrl: imageUrlOf(stamp),
+        spotName: stamp.spots.name,
+        visitedAt: formatDate(stamp.visited_at),
+      },
+      // 開かないのが一番まずい。飛べないときはそのまま出す
+      started => {
+        if (!started) setSelectedImageIndex(index);
+      }
+    );
+  };
+
+  /** 閉じるときは「今見ている1枚」のタイルへ戻す。横スワイプで別の1枚になっている */
+  const closeStamp = () => {
+    const index = viewingIndex ?? selectedImageIndex;
+    const stamp = index !== null ? displayStamps[index] : null;
+
+    if (!stamp || index === null) {
+      setSelectedImageIndex(null);
+      return;
+    }
+
+    hero.start(
+      {
+        stampId: stamp.id,
+        index,
+        direction: 'out',
+        imageUrl: imageUrlOf(stamp),
+        spotName: stamp.spots.name,
+        visitedAt: formatDate(stamp.visited_at),
+      },
+      // 飛ぶ1枚が地を覆ってから詳細を外す。先に外すと一覧が1フレーム見える
+      () => setSelectedImageIndex(null)
+    );
+  };
+
+  const handleFlightDone = () => {
+    if (hero.flight?.direction === 'in') setSelectedImageIndex(hero.flight.index);
+    hero.end();
+  };
+
   const renderItem = ({ item, index }: { item: StampWithSpot; index: number }) => {
     const isMiddleColumn = index % NUM_COLUMNS === 1;
-    const imageUrl = isPreview ? previewImageUrl(item) : getStampImageUrl(item.image_path);
+    const imageUrl = imageUrlOf(item);
 
     return (
       <TouchableOpacity
         style={[styles.gridItem, isMiddleColumn && styles.gridItemMiddle]}
-        onPress={() => setSelectedImageIndex(index)}
+        onPress={() => openStamp(index, item)}
         testID={`gallery-item-${item.id}`}
       >
-        <Image
-          source={{ uri: imageUrl }}
-          style={styles.stampImage}
-          testID={`stamp-image-${item.id}`}
-        />
-        <Text style={styles.itemSpotName} numberOfLines={1}>
-          {item.spots.name}
-        </Text>
-        {sortOrder === 'date' && <Text style={styles.itemDate}>{formatDate(item.visited_at)}</Text>}
+        {/* 飛んでいる間もタイルは隠さない。飛ぶ1枚は出発時にタイルとぴったり
+            重なるので二重には見えないし、隠すと写真を待っている間だけ穴があく */}
+        <View
+          ref={node => {
+            hero.registerTile(item.id, 'image', node);
+          }}
+        >
+          <Image
+            source={{ uri: imageUrl }}
+            style={styles.stampImage}
+            // 読み込んだついでに縦横比を控える。飛ぶ先の高さがこれで決まる
+            onLoad={e =>
+              hero.rememberAspect(item.id, e.nativeEvent.source.width, e.nativeEvent.source.height)
+            }
+            testID={`stamp-image-${item.id}`}
+          />
+        </View>
+        <View
+          ref={node => {
+            hero.registerTile(item.id, 'text', node);
+          }}
+        >
+          <Text style={styles.itemSpotName} numberOfLines={1}>
+            {item.spots.name}
+          </Text>
+          {sortOrder === 'date' && (
+            <Text style={styles.itemDate}>{formatDate(item.visited_at)}</Text>
+          )}
+        </View>
       </TouchableOpacity>
     );
   };
@@ -247,13 +324,28 @@ export function GalleryScreen({ navigation }: Props) {
       </SafeAreaView>
       <ImageGalleryModal
         visible={selectedImageIndex !== null}
-        onClose={() => setSelectedImageIndex(null)}
+        onClose={closeStamp}
         images={galleryImages}
         initialIndex={selectedImageIndex ?? 0}
         onEdit={handleEdit}
         onDelete={handleDeletePress}
+        onIndexChange={setViewingIndex}
         useModal={false}
       />
+
+      {hero.flight && (
+        <HeroFlyer
+          key={`${hero.flight.stampId}-${hero.flight.direction}`}
+          imageUrl={hero.flight.imageUrl}
+          imageAspect={hero.flight.imageAspect}
+          sourceRect={hero.flight.sourceRect}
+          sourceTextRect={hero.flight.sourceTextRect}
+          spotName={hero.flight.spotName}
+          visitedAt={hero.flight.visitedAt}
+          direction={hero.flight.direction}
+          onDone={handleFlightDone}
+        />
+      )}
     </View>
   );
 }
