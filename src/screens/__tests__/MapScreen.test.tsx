@@ -2,6 +2,8 @@ import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { MapScreen } from '@screens/MapScreen';
 import { StyleSheet } from 'react-native';
+import { colors } from '@theme/colors';
+import { shadows } from '@theme/shadows';
 
 const mockFetchSpotsByPrefecture = jest.fn();
 
@@ -458,6 +460,19 @@ describe('MapScreen', () => {
         );
       });
     });
+  });
+
+  // 地図に重ねる白い要素は同じ強さで浮かせる。1つだけ強くすると不揃いに見える
+  it.each(['search-bar', 'filter-button', 'wishlist-entry'])('%s は地図から浮いている', testID => {
+    // フィルタボタンはログイン時のみ出る
+    mockUseAuthReturn = { ...mockUseAuthReturn, isAuthenticated: true };
+    const { getByTestId } = render(
+      <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+    );
+    const style = StyleSheet.flatten(getByTestId(testID).props.style) as Record<string, unknown>;
+
+    expect(style.backgroundColor).toBe(colors.white);
+    expect(style.shadowOpacity).toBe(shadows.md.shadowOpacity);
   });
 
   describe('検索バーに選んだスポット名を残す', () => {

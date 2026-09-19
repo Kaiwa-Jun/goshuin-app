@@ -18,6 +18,14 @@ interface SearchBarProps {
   autoFocus?: boolean;
   leftIcon?: 'search' | 'back';
   onLeftIconPress?: () => void;
+  /**
+   * 'floating' は地図の上に重ねるとき用。
+   * 地図の地の色(#F2F3F0)と gray[100] の差は L* で 0.4 しかなく、
+   * 既定の見た目だと下地に沈む。白にしても地の色がほぼ白なので、
+   * 分離を作っているのは影の方（Google マップも同じ作り）。
+   * 検索画面・記録画面は白背景なので、そちらで浮かせると逆に沈む
+   */
+  variant?: 'plain' | 'floating';
 }
 
 /** 入力欄の高さ。body の lineHeight と同じにして、検索バー全体の高さを変えない */
@@ -35,7 +43,9 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   autoFocus = false,
   leftIcon = 'search',
   onLeftIconPress,
+  variant = 'plain',
 }) => {
+  const containerStyle = [styles.container, variant === 'floating' && styles.floating];
   const iconName = leftIcon === 'back' ? 'arrow-back' : 'search';
   const iconElement = onLeftIconPress ? (
     <TouchableOpacity onPress={onLeftIconPress} testID="search-left-icon" activeOpacity={0.7}>
@@ -77,14 +87,14 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 
   if (!editable && onPress) {
     return (
-      <Pressable style={styles.container} testID="search-bar" onPress={onPress}>
+      <Pressable style={containerStyle} testID="search-bar" onPress={onPress}>
         {content}
       </Pressable>
     );
   }
 
   return (
-    <View style={styles.container} testID="search-bar">
+    <View style={containerStyle} testID="search-bar">
       {content}
     </View>
   );
@@ -100,6 +110,10 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     gap: spacing.sm,
     ...shadows.sm,
+  },
+  floating: {
+    backgroundColor: colors.white,
+    ...shadows.md,
   },
   inputWrapper: {
     flex: 1,

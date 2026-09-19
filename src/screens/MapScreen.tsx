@@ -258,6 +258,7 @@ export function MapScreen({ navigation, route }: Props) {
       <View style={[styles.searchRow, { top: searchRowTop }]}>
         <View style={styles.searchBarWrapper}>
           <SearchBar
+            variant="floating"
             editable={false}
             value={searchLabel ?? undefined}
             showClearButton={searchLabel !== null}
@@ -448,7 +449,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     alignItems: 'center',
     justifyContent: 'center',
-    ...shadows.sm,
+    // 地図に重ねる白い要素は検索バーと同じ強さで浮かせる。shadows.sm は
+    // 地図の地の色(#F2F3F0)の上では沈み込みが 3.5% しかなく、輪郭が出ない
+    ...shadows.md,
   },
   filterButtonActive: {
     borderWidth: 2,
@@ -520,7 +523,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.lg,
     backgroundColor: colors.white,
-    ...shadows.sm,
+    ...shadows.md,
   },
   wishlistEntryText: {
     ...typography.bodySmall,
