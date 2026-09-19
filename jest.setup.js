@@ -118,6 +118,53 @@ jest.mock('react-native-maps', () => {
   };
 });
 
+// @maplibre/maplibre-react-native mock
+jest.mock('@maplibre/maplibre-react-native', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  // imperative handle はモックファクトリスコープの安定オブジェクトにする
+  // （react-native-maps モックと同じ理由）
+  const cameraMocks = {
+    setStop: jest.fn(),
+    jumpTo: jest.fn(),
+    easeTo: jest.fn(),
+    flyTo: jest.fn(),
+    fitBounds: jest.fn(),
+    zoomTo: jest.fn(),
+  };
+  const sourceMocks = {
+    getClusterExpansionZoom: jest.fn(async () => 12),
+    getClusterLeaves: jest.fn(async () => ({ type: 'FeatureCollection', features: [] })),
+    getClusterChildren: jest.fn(async () => ({ type: 'FeatureCollection', features: [] })),
+  };
+  const named = (displayName, testID, handle) => {
+    const C = React.forwardRef((props, ref) => {
+      React.useImperativeHandle(ref, () => handle || {});
+      return React.createElement(
+        View,
+        // ソース/レイヤはスタイル上の id で引けるようにする。
+        // テストは getByTestId('goshuin-spots').props.data で中身を見る
+        { ...props, testID: props.testID || props.id || testID },
+        props.children
+      );
+    });
+    C.displayName = displayName;
+    return C;
+  };
+  return {
+    __esModule: true,
+    Map: named('Map', 'map-view'),
+    Camera: named('Camera', 'map-camera', cameraMocks),
+    GeoJSONSource: named('GeoJSONSource', undefined, sourceMocks),
+    Layer: named('Layer'),
+    Marker: named('Marker', 'marker'),
+    UserLocation: named('UserLocation'),
+    NativeUserLocation: named('NativeUserLocation'),
+    __cameraMocks: cameraMocks,
+    __sourceMocks: sourceMocks,
+  };
+});
+
 // expo-linear-gradient mock
 jest.mock('expo-linear-gradient', () => {
   const React = require('react');
