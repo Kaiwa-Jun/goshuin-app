@@ -2,7 +2,6 @@ import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import {
   Animated,
   AppState,
-  Easing,
   Pressable,
   StyleSheet,
   Text,
@@ -29,7 +28,7 @@ import { SpotMapLayers } from '@components/map/SpotMapLayers';
 import { SpotBottomSheet } from '@components/spot-detail/SpotBottomSheet';
 import { useAuth } from '@hooks/useAuth';
 import { useLocation } from '@hooks/useLocation';
-import { useReduceMotion } from '@hooks/useReduceMotion';
+import { useMountTransition } from '@hooks/useMountTransition';
 import { useSpots } from '@hooks/useSpots';
 import { useUserStamps } from '@hooks/useUserStamps';
 import { useWishlist } from '@hooks/useWishlist';
@@ -56,6 +55,10 @@ const FALLBACK_ZOOM = 9;
 const FILTER_OPEN_MS = 180;
 const FILTER_CLOSE_MS = 130;
 
+/** FAB の出入り。ピンをタップするたびに起きるので、目に留まらない程度に短く */
+const FAB_OPEN_MS = 160;
+const FAB_CLOSE_MS = 110;
+
 export function MapScreen({ navigation, route }: Props) {
   const { isAuthenticated } = useAuth();
   const { location, permissionStatus, refreshLocation } = useLocation();
@@ -77,12 +80,16 @@ export function MapScreen({ navigation, route }: Props) {
   }, [spots, prefectureSpots, filterIds]);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showFilter, setShowFilter] = useState(false);
-  // showFilter は「開いているか」。閉じるモーションの間も描き続けたいので
-  // マウントは別に持つ
-  const [filterMounted, setFilterMounted] = useState(false);
-  const filterAnim = useRef(new Animated.Value(0)).current;
-  const reduceMotion = useReduceMotion();
+  const { mounted: filterMounted, progress: filterAnim } = useMountTransition(showFilter, {
+    openMs: FILTER_OPEN_MS,
+    closeMs: FILTER_CLOSE_MS,
+  });
   const [selectedSpotId, setSelectedSpotId] = useState<string | null>(null);
+  // FAB はスポットを選ぶと引っ込む。瞬時に消えると唐突なので出入りを描く
+  const { mounted: fabMounted, progress: fabAnim } = useMountTransition(!selectedSpotId, {
+    openMs: FAB_OPEN_MS,
+    closeMs: FAB_CLOSE_MS,
+  });
   // 検索バーに出す名前。検索・履歴から飛んできたときとピンをタップしたときに入る。
   // selectedSpotId とは別に持つ。シートを閉じても消さず、× で消す
   const [searchLabel, setSearchLabel] = useState<string | null>(null);
@@ -193,33 +200,6 @@ export function MapScreen({ navigation, route }: Props) {
       { padding: { top: 140, right: 60, bottom: 200, left: 60 }, duration: 600 }
     );
   }, [filterMode, displaySpots]);
-
-  // 開くときは先にマウントしてから動かす。閉じるときは動かし終えてから外す
-  useEffect(() => {
-    if (showFilter) setFilterMounted(true);
-  }, [showFilter]);
-
-  useEffect(() => {
-    if (!filterMounted) return;
-
-    if (reduceMotion) {
-      filterAnim.setValue(showFilter ? 1 : 0);
-      if (!showFilter) setFilterMounted(false);
-      return;
-    }
-
-    Animated.timing(filterAnim, {
-      toValue: showFilter ? 1 : 0,
-      duration: showFilter ? FILTER_OPEN_MS : FILTER_CLOSE_MS,
-      easing: showFilter ? Easing.out(Easing.cubic) : Easing.in(Easing.cubic),
-      useNativeDriver: true,
-    }).start(({ finished }) => {
-      if (finished && !showFilter) setFilterMounted(false);
-    });
-
-    // 動いている途中で画面が外れたら止める。他の購読と同じく後始末する
-    return () => filterAnim.stopAnimation();
-  }, [showFilter, filterMounted, reduceMotion, filterAnim]);
 
   // 絞り込みで地図から消えたスポットのシートは閉じる。
   // 開いたままだと地図に無いスポットの詳細が出続け、0件のときは
@@ -535,10 +515,23 @@ export function MapScreen({ navigation, route }: Props) {
         </TouchableOpacity>
       )}
 
-      {!selectedSpotId && (
-        <View style={styles.fabContainer}>
+      {fabMounted && (
+        <Animated.View
+          style={[
+            styles.fabContainer,
+            {
+              opacity: fabAnim,
+              transform: [
+                {
+                  scale: fabAnim.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1] }),
+                },
+              ],
+            },
+          ]}
+          pointerEvents="box-none"
+        >
           <FABButton onPress={handleFABPress} />
-        </View>
+        </Animated.View>
       )}
 
       <SpotBottomSheet
