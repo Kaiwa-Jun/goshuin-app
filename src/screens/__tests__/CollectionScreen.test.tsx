@@ -23,18 +23,6 @@ jest.mock('@hooks/useAuth', () => ({
   useAuth: () => mockAuth,
 }));
 
-const mockRefetch = jest.fn();
-let mockWishlistSpots: unknown[] = [];
-
-jest.mock('@hooks/useWishlistSpots', () => ({
-  useWishlistSpots: () => ({
-    spots: mockWishlistSpots,
-    isLoading: false,
-    error: null,
-    refetch: mockRefetch,
-  }),
-}));
-
 let mockCollectionStats = {
   spotCount: 10,
   stampCount: 25,
@@ -130,7 +118,6 @@ describe('CollectionScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockAuth = { user: { id: 'user-1' }, isAuthenticated: true };
-    mockWishlistSpots = [];
     mockCollectionStats = {
       spotCount: 10,
       stampCount: 25,
@@ -299,15 +286,6 @@ describe('CollectionScreen', () => {
     });
 
     it('行きたいのカードが描画されない', () => {
-      mockWishlistSpots = [
-        {
-          id: 'wl-1',
-          user_id: 'user-1',
-          spot_id: 'spot-1',
-          created_at: '2026-01-01T00:00:00Z',
-          spots: { name: '伊勢神宮', type: 'shrine', address: '三重県伊勢市宇治館町1' },
-        },
-      ];
       const { queryByText, queryByTestId } = render(
         <CollectionScreen navigation={mockNavigation} route={mockRoute} />
       );
@@ -360,8 +338,6 @@ describe('CollectionScreen', () => {
         error: null,
         refetch: jest.fn(),
       };
-      mockWishlistSpots = [];
-
       const { getByText } = render(
         <CollectionScreen navigation={mockNavigation} route={mockRoute} />
       );

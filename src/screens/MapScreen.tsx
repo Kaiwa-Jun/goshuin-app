@@ -32,7 +32,7 @@ import { spacing, borderRadius } from '@theme/spacing';
 import { shadows } from '@theme/shadows';
 
 type Props = MapStackScreenProps<'Map'>;
-type FilterMode = 'all' | 'visited';
+type FilterMode = 'all' | 'visited' | 'wishlist';
 
 /** 起動時のズーム。旧実装の delta 0.015 相当（log2(360/0.015) ≈ 14.5） */
 const INITIAL_ZOOM = 14.5;
@@ -49,7 +49,7 @@ export function MapScreen({ navigation, route }: Props) {
   const { wishlistSpotIds, toggleWishlist } = useWishlist();
   const [prefectureSpots, setPrefectureSpots] = useState<Spot[]>([]);
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
-  const { spots } = useSpots(location, filterMode, visitedSpotIds);
+  const { spots } = useSpots(location, filterMode, visitedSpotIds, wishlistSpotIds);
   const displaySpots = useMemo(() => {
     if (prefectureSpots.length === 0) return spots;
     const ids = new Set(spots.map(s => s.id));
@@ -74,9 +74,8 @@ export function MapScreen({ navigation, route }: Props) {
   const currentLocationSource = useMemo(() => pointCollection(location), [location]);
 
   const searchRowTop = insets.top + spacing.xs;
-  // 検索行の直下。位置情報バナーはさらにこの下へずらす
-  const wishlistEntryTop = searchRowTop + 52;
-  const locationBannerTop = wishlistEntryTop + 44;
+  // 検索行の直下。行きたいチップを外したので1段上がった
+  const locationBannerTop = searchRowTop + 52;
 
   // 現在地が取れた最初の一度だけカメラを寄せる（以降はユーザーの操作を尊重する）
   const didCenterRef = useRef(false);
@@ -143,6 +142,43 @@ export function MapScreen({ navigation, route }: Props) {
     setSelectedSpotId(focusSpotId);
     setSearchLabel(spot.name);
   }, [route.params?.focusSpotId, displaySpots]);
+
+  // フィルタを掛けたら、残ったピンが見える位置までカメラを寄せる。
+  // 寄せないと、保存したスポットが今いる場所から遠いときに
+  // 「絞ったら何も出てこなくなった」ように見える
+  const appliedFilterRef = useRef<FilterMode>('all');
+  useEffect(() => {
+    if (filterMode === appliedFilterRef.current) return;
+    if (filterMode === 'all') {
+      appliedFilterRef.current = 'all';
+      return;
+    }
+    if (displaySpots.length === 0) return; // 0件。空表示に任せる
+
+    appliedFilterRef.current = filterMode;
+    const lats = displaySpots.map(s => s.lat);
+    const lngs = displaySpots.map(s => s.lng);
+
+    // 1件だけだと矩形が潰れるので、fitBounds ではなく寄せる
+    if (displaySpots.length === 1) {
+      cameraRef.current?.flyTo({ center: [lngs[0], lats[0]], zoom: FOCUS_ZOOM, duration: 600 });
+      return;
+    }
+    cameraRef.current?.fitBounds(
+      [Math.min(...lngs), Math.min(...lats), Math.max(...lngs), Math.max(...lats)],
+      { padding: { top: 140, right: 60, bottom: 200, left: 60 }, duration: 600 }
+    );
+  }, [filterMode, displaySpots]);
+
+  // 絞り込みで地図から消えたスポットのシートは閉じる。
+  // 開いたままだと地図に無いスポットの詳細が出続け、0件のときは
+  // 空表示とも重なる（どちらも検索行の直下にいる）
+  useEffect(() => {
+    if (!selectedSpotId) return;
+    if (displaySpots.some(s => s.id === selectedSpotId)) return;
+    setSelectedSpotId(null);
+    setSearchLabel(null);
+  }, [selectedSpotId, displaySpots]);
 
   useEffect(() => {
     const focusPrefecture = route.params?.focusPrefecture;
@@ -268,7 +304,7 @@ export function MapScreen({ navigation, route }: Props) {
         </View>
         {isAuthenticated && (
           <TouchableOpacity
-            style={[styles.filterButton, filterMode === 'visited' && styles.filterButtonActive]}
+            style={[styles.filterButton, filterMode !== 'all' && styles.filterButtonActive]}
             onPress={handleFilterPress}
             activeOpacity={0.7}
             testID="filter-button"
@@ -276,25 +312,11 @@ export function MapScreen({ navigation, route }: Props) {
             <MaterialIcons
               name="filter-list"
               size={24}
-              color={filterMode === 'visited' ? colors.primary[500] : colors.gray[600]}
+              color={filterMode !== 'all' ? colors.primary[500] : colors.gray[600]}
             />
           </TouchableOpacity>
         )}
       </View>
-
-      <TouchableOpacity
-        style={[styles.wishlistEntry, { top: wishlistEntryTop }]}
-        onPress={() => navigation.navigate('Wishlist')}
-        activeOpacity={0.7}
-        testID="wishlist-entry"
-      >
-        <MaterialIcons name="bookmark" size={18} color={colors.pin.wishlisted} />
-        <Text style={styles.wishlistEntryText}>
-          {/* ピン着色用に既に取っている ID の Set を使う。
-              件数表示のために詳細付きの JOIN クエリを再取得しない */}
-          {wishlistSpotIds.size > 0 ? `行きたい (${wishlistSpotIds.size})` : '行きたい'}
-        </Text>
-      </TouchableOpacity>
 
       {showFilter && (
         <Pressable
@@ -321,6 +343,22 @@ export function MapScreen({ navigation, route }: Props) {
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
+              style={[styles.filterOption, filterMode === 'wishlist' && styles.filterOptionActive]}
+              onPress={() => handleFilterSelect('wishlist')}
+              testID="filter-option-wishlist"
+            >
+              <Text
+                style={[
+                  styles.filterOptionText,
+                  filterMode === 'wishlist' && styles.filterOptionTextActive,
+                ]}
+              >
+                {/* ピン着色用に既に取っている ID の Set を使う。
+                    件数表示のために詳細付きの JOIN クエリを再取得しない */}
+                {wishlistSpotIds.size > 0 ? `行きたい (${wishlistSpotIds.size})` : '行きたい'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
               style={[styles.filterOption, filterMode === 'visited' && styles.filterOptionActive]}
               onPress={() => handleFilterSelect('visited')}
               testID="filter-option-visited"
@@ -336,6 +374,26 @@ export function MapScreen({ navigation, route }: Props) {
             </TouchableOpacity>
           </View>
         </Pressable>
+      )}
+
+      {/* 絞り込んだ結果が0件。真っ白な地図だけ出すと壊れて見える */}
+      {filterMode !== 'all' && displaySpots.length === 0 && (
+        <View
+          style={[styles.filterEmpty, { top: locationBannerTop }]}
+          pointerEvents="none"
+          testID="map-filter-empty"
+        >
+          <MaterialIcons
+            name={filterMode === 'wishlist' ? 'bookmark-border' : 'place'}
+            size={20}
+            color={colors.gray[400]}
+          />
+          <Text style={styles.filterEmptyText}>
+            {filterMode === 'wishlist'
+              ? 'まだ「行きたい」がありません。ピンをタップして保存できます'
+              : 'まだ訪問した記録がありません'}
+          </Text>
+        </View>
       )}
 
       <Map
@@ -491,6 +549,25 @@ const styles = StyleSheet.create({
   map: {
     flex: 1,
   },
+  filterEmpty: {
+    position: 'absolute',
+    left: spacing.lg,
+    right: spacing.lg,
+    zIndex: 9,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.lg,
+    backgroundColor: colors.white,
+    ...shadows.md,
+  },
+  filterEmptyText: {
+    ...typography.bodySmall,
+    color: colors.gray[600],
+    flex: 1,
+  },
   locationOffBanner: {
     position: 'absolute',
     left: 0,
@@ -510,24 +587,6 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.primary[600],
     fontSize: 13,
-  },
-  wishlistEntry: {
-    position: 'absolute',
-    left: spacing.lg,
-    zIndex: 9,
-    minHeight: 36,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.lg,
-    backgroundColor: colors.white,
-    ...shadows.md,
-  },
-  wishlistEntryText: {
-    ...typography.bodySmall,
-    color: colors.gray[700],
   },
   fabContainer: {
     position: 'absolute',
