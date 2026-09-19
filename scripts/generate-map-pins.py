@@ -10,6 +10,7 @@ assets/map-pins/*.png を作り直す。形は旧 SpotMarker を踏襲してい�
     npm run gen:map-pins
 """
 
+import json
 import pathlib
 import re
 import sys
@@ -82,10 +83,21 @@ def render(rgb: tuple[int, int, int]) -> Image.Image:
 
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
-    for name, rgb in read_pin_colors().items():
+    colors = read_pin_colors()
+    for name, rgb in colors.items():
         path = OUT / f"pin-{name}.png"
         render(rgb).save(path)
         print(f"{path.relative_to(ROOT)}  #{''.join(f'{c:02X}' for c in rgb)}")
+
+    # どの色で焼いたかを残す。PNG は中身を読まないと色が分からないので、
+    # colors.ts を変えて焼き直しを忘れた状態をテストで検出できるようにする
+    baked = {
+        token: "#" + "".join(f"{c:02X}" for c in colors[name]) for token, name in TOKENS.items()
+    }
+    (OUT / "baked-colors.json").write_text(
+        json.dumps(baked, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
+    print(f"{(OUT / 'baked-colors.json').relative_to(ROOT)}  {len(baked)} 色")
 
 
 if __name__ == "__main__":

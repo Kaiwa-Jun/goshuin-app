@@ -1,4 +1,5 @@
 import { colors, typography, spacing, borderRadius, shadows } from '@theme/index';
+import bakedPinColors from '../../../assets/map-pins/baked-colors.json';
 
 describe('Theme', () => {
   describe('colors', () => {
@@ -33,22 +34,97 @@ describe('Theme', () => {
       expect(colors.pin.unvisited).toBe(colors.primary[400]);
     });
 
-    // 未訪問(オレンジ)と「行きたい」(アンバー)は色相が近いので、明度で離す。
-    // 訪問済みの赤・紫は色相で離れているため明度の順は問わない
-    it('should keep the unvisited pin clearly lighter than the wishlisted pin', () => {
-      const lightness = (hex: string) => {
-        const channels = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255);
-        return (Math.max(...channels) + Math.min(...channels)) / 2;
-      };
-
-      expect(lightness(colors.pin.unvisited) - lightness(colors.pin.wishlisted)).toBeGreaterThan(
-        0.1
-      );
-    });
-
     it('should keep every pin state a distinct color', () => {
       const { currentLocation: _currentLocation, ...spotPins } = colors.pin;
       expect(new Set(Object.values(spotPins)).size).toBe(Object.keys(spotPins).length);
+    });
+
+    // 「値が違う」だけでは足りない。以前は未訪問(#FB923C)と行きたい(#D97706)が
+    // 別の値でありながら地図上の実寸(21pt)で見分けられず、明度差だけに頼った
+    // 設計が破綻していた。知覚上の距離で見る。
+    //
+    // 距離は CIE76（Lab のユークリッド距離）。ΔE2000 の方が正確だが、ここは
+    // 閾値判定で、落としたいペア（旧・未訪問×行きたい = 12.1）と通したい最小の
+    // ペア（未訪問×訪問済神社 = 42.5）が 3.5 倍離れているので精度は要らない
+    const labOf = (hex: string) => {
+      const [r, g, b] = [1, 3, 5]
+        .map(i => parseInt(hex.slice(i, i + 2), 16) / 255)
+        .map(c => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+      const f = (t: number) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
+      const fx = f((r * 0.4124564 + g * 0.3575761 + b * 0.1804375) / 0.95047);
+      const fy = f(r * 0.2126729 + g * 0.7151522 + b * 0.072175);
+      const fz = f((r * 0.0193339 + g * 0.119192 + b * 0.9503041) / 1.08883);
+      return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)];
+    };
+    const distance = (a: string, b: string) =>
+      Math.hypot(...labOf(a).map((v, i) => v - labOf(b)[i]));
+
+    /** 色覚多様性のシミュレーション（Viénot らの LMS 法） */
+    const simulate = (hex: string, kind: 'deutan' | 'protan') => {
+      const [r, g, b] = [1, 3, 5]
+        .map(i => parseInt(hex.slice(i, i + 2), 16) / 255)
+        .map(c => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+      let L = 17.8824 * r + 43.5161 * g + 4.11935 * b;
+      let M = 3.45565 * r + 27.1554 * g + 3.86714 * b;
+      const S = 0.0299566 * r + 0.184309 * g + 1.46709 * b;
+      if (kind === 'protan') L = 2.02344 * M - 2.52581 * S;
+      else M = 0.494207 * L + 1.24827 * S;
+      const out = [
+        0.080944 * L - 0.130504 * M + 0.116721 * S,
+        -0.0102485 * L + 0.0540194 * M - 0.113615 * S,
+        -0.000365294 * L - 0.00412163 * M + 0.693513 * S,
+      ].map(c => {
+        const k = Math.min(1, Math.max(0, c));
+        const e = k <= 0.0031308 ? 12.92 * k : 1.055 * k ** (1 / 2.4) - 0.055;
+        return Math.round(e * 255)
+          .toString(16)
+          .padStart(2, '0');
+      });
+      return `#${out.join('')}`;
+    };
+
+    const spotPinPairs = () => {
+      const { currentLocation: _currentLocation, ...spotPins } = colors.pin;
+      const entries = Object.entries(spotPins);
+      return entries.flatMap(([an, a], i) =>
+        entries.slice(i + 1).map(([bn, b]) => ({ label: `${an} × ${bn}`, a, b }))
+      );
+    };
+
+    it('should keep every pair of spot pins perceptually far apart', () => {
+      const tooClose = spotPinPairs()
+        .map(p => ({ ...p, d: distance(p.a, p.b) }))
+        .filter(p => p.d < 30)
+        .map(p => `${p.label}: ${p.d.toFixed(1)}`);
+
+      expect(tooClose).toEqual([]);
+    });
+
+    // 赤・橙・琥珀はD型/P型で同じ帯に落ちる。以前は未訪問・行きたい・訪問済(神社)の
+    // 3つが同じオリーブに潰れていた（10.7）。今の最小は未訪問×訪問済(神社)の 22.7 で、
+    // ここをさらに広げるには訪問済みか未訪問の色を動かす必要がある（別件）
+    it('should keep spot pins separable for common color vision deficiencies', () => {
+      const tooClose = (['deutan', 'protan'] as const).flatMap(kind =>
+        spotPinPairs()
+          .map(p => ({ ...p, kind, d: distance(simulate(p.a, kind), simulate(p.b, kind)) }))
+          .filter(p => p.d < 18)
+          .map(p => `${p.kind} ${p.label}: ${p.d.toFixed(1)}`)
+      );
+
+      expect(tooClose).toEqual([]);
+    });
+
+    // ピン画像は PNG なのでテストから色を読めない。焼いたときの色を
+    // generate-map-pins.py が baked-colors.json に残しているので、それと突き合わせる。
+    // colors.ts だけ変えて npm run gen:map-pins を忘れた状態がこれで落ちる
+    it('should keep the baked pin images in sync with the color tokens', () => {
+      const baked = bakedPinColors as Record<string, string>;
+      const tokens = colors.pin as Record<string, string>;
+
+      expect(Object.keys(baked).length).toBeGreaterThan(0);
+      for (const [token, hex] of Object.entries(baked)) {
+        expect(`${token}=${hex}`).toBe(`${token}=${tokens[token]}`);
+      }
     });
 
     // 未訪問の色替えで訪問済みの色分けを巻き添えにしていないこと

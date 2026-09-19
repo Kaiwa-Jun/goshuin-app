@@ -63,3 +63,7 @@ deno.lock
 
 # Playwright/検証で生成されるスクショ（証跡は .claude/harness/evidence/ に置く）
 /onboarding-last-slide.png
+
+# Python のキャッシュ（scripts/*.py）
+__pycache__/
+*.pyc
