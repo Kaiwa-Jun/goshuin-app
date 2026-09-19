@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { Image } from 'react-native';
 import { RecordScreen } from '@screens/RecordScreen';
 import { evaluateNewBadge } from '@services/badges';
@@ -1243,5 +1243,42 @@ describe('訪問済みスポットの取得に成功したとき（Issue #133 �
     });
 
     expect(paramsOfRecordComplete()).not.toHaveProperty('countUnavailable');
+  });
+});
+
+describe('日付ピッカーを開いたときのスクロール', () => {
+  /*
+   * 訪問日の行を画面最上部まで持ち上げると、上にある御朱印の写真が画面外に出る。
+   * 写真の日付を見ながら訪問日を決めたいので、必要な分だけ動かす
+   */
+  it('タップしただけでは、行を最上部に持ち上げるスクロールをしない', () => {
+    jest.useFakeTimers();
+    try {
+      const { getByTestId } = render(
+        <RecordScreen navigation={mockNavigation} route={mockRoute} />
+      );
+      const scrollTo = jest.fn();
+      getByTestId('record-scroll').props.onLayout({
+        nativeEvent: { layout: { height: 600 } },
+      });
+
+      fireEvent.press(getByTestId('date-picker-trigger'));
+      act(() => {
+        jest.advanceTimersByTime(1000);
+      });
+
+      expect(scrollTo).not.toHaveBeenCalled();
+      expect(getByTestId('date-picker')).toBeTruthy();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('ピッカーの塊に onLayout があり、そこでスクロール量を決める', () => {
+    const { getByTestId } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent.press(getByTestId('date-picker-trigger'));
+
+    // 高さが確定してから動かす。300ms の決め打ち待ちに頼らない
+    expect(getByTestId('date-picker-block').props.onLayout).toBeInstanceOf(Function);
   });
 });

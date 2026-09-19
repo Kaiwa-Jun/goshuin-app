@@ -24,6 +24,7 @@ import { useAuth } from '@hooks/useAuth';
 import { useLocation } from '@hooks/useLocation';
 import { formatJapaneseEraDate } from '@utils/japaneseEra';
 import { pickAutoSelectableSpot } from '@utils/autoSelectSpot';
+import { scrollTargetToReveal } from '@utils/revealInScrollView';
 import { getStampImageUrl, fetchVisitedSpotIds } from '@services/stamps';
 import { isNetworkError } from '@/utils/errorClassifier';
 import { evaluateNewBadge } from '@services/badges';
@@ -52,7 +53,8 @@ export function RecordScreen({ navigation, route }: Props) {
 
   const scrollViewRef = useRef<ScrollView>(null);
   const memoLayoutY = useRef(0);
-  const dateLayoutY = useRef(0);
+  const viewportHeight = useRef(0);
+  const scrollOffset = useRef(0);
   const isSavingRef = useRef(false);
 
   const [showSpotAdd, setShowSpotAdd] = useState(false);
@@ -165,6 +167,14 @@ export function RecordScreen({ navigation, route }: Props) {
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+          onLayout={e => {
+            viewportHeight.current = e.nativeEvent.layout.height;
+          }}
+          onScroll={e => {
+            scrollOffset.current = e.nativeEvent.contentOffset.y;
+          }}
+          scrollEventThrottle={16}
+          testID="record-scroll"
         >
           <Text style={styles.sectionLabel}>スポット</Text>
           <SpotSelector
@@ -197,17 +207,7 @@ export function RecordScreen({ navigation, route }: Props) {
           <Text style={styles.sectionLabel}>訪問日</Text>
           <TouchableOpacity
             style={styles.dateRow}
-            onLayout={e => {
-              dateLayoutY.current = e.nativeEvent.layout.y;
-            }}
-            onPress={() => {
-              setShowDatePicker(true);
-              // iOS の inline カレンダーは ScrollView の流れの中に展開されるため、
-              // そのままだと画面外に出る。メモ欄と同じ作法でスクロールさせる（監査 A-3）
-              setTimeout(() => {
-                scrollViewRef.current?.scrollTo({ y: dateLayoutY.current, animated: true });
-              }, 300);
-            }}
+            onPress={() => setShowDatePicker(true)}
             testID="date-picker-trigger"
           >
             <MaterialIcons name="calendar-today" size={20} color={colors.gray[500]} />
@@ -219,7 +219,24 @@ export function RecordScreen({ navigation, route }: Props) {
             </View>
           </TouchableOpacity>
           {showDatePicker && (
-            <View>
+            <View
+              onLayout={e => {
+                // 高さが確定してから動かす。行を最上部に持ち上げると、上にある
+                // 御朱印の写真が画面外に出て、日付を見ながら決められない
+                const { y, height } = e.nativeEvent.layout;
+                const target = scrollTargetToReveal({
+                  blockY: y,
+                  blockHeight: height,
+                  viewportHeight: viewportHeight.current,
+                  currentOffset: scrollOffset.current,
+                  margin: spacing.lg,
+                });
+                if (target !== null) {
+                  scrollViewRef.current?.scrollTo({ y: target, animated: true });
+                }
+              }}
+              testID="date-picker-block"
+            >
               <DateTimePicker
                 value={form.visitedAt}
                 mode="date"
