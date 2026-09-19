@@ -695,6 +695,31 @@ describe('最寄りスポットの既定選択（Issue #130 / S-4）', () => {
       expect(result.current.imageUris).toHaveLength(MAX_PHOTOS_PER_RECORD);
     });
 
+    // userId の取得を try の外に出していたため、セッションが切れていると
+    // TypeError が finally にも掛からず isSubmitting が true のまま固まり、
+    // 以降ボタンが一切押せなくなっていた
+    it('ログインが切れていても、ボタンが固まらずエラーを返す', async () => {
+      mockUseAuth.mockReturnValue({ user: null });
+
+      const { result } = renderHook(() => useRecordForm());
+
+      act(() => {
+        result.current.selectSpot(fakeSpot);
+        result.current.addImages(['file:///a.jpg', 'file:///b.jpg']);
+      });
+
+      let submitResult: RecordSubmitResult;
+      await act(async () => {
+        submitResult = await result.current.submit();
+      });
+
+      expect(submitResult!.success).toBe(false);
+      expect(submitResult!.failedCount).toBe(2);
+      expect(submitResult!.message).toBeTruthy();
+      expect(mockUploadStampImage).not.toHaveBeenCalled();
+      expect(result.current.isSubmitting).toBe(false);
+    });
+
     it('写真が1枚も無ければ imageError を出す', () => {
       const { result } = renderHook(() => useRecordForm());
 

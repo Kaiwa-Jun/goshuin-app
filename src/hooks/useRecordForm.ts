@@ -153,10 +153,19 @@ export function useRecordForm(params?: UseRecordFormParams): UseRecordFormReturn
       return { success: false, stamps: [], failedCount: 0 };
     }
 
+    // ⚠️ userId の取得を try の外に出さないこと。セッションが切れていると
+    // TypeError が finally にも掛からず、isSubmitting が true のまま固まって
+    // 以降ボタンが一切押せなくなる。そもそも非 null 断言を置かずに済ませる
+    if (!user) {
+      const message = 'ログインが切れています。もう一度ログインしてください';
+      setSubmitError(message);
+      return { success: false, stamps: [], failedCount: imageUris.length, message };
+    }
+    const userId = user.id;
+
     setIsSubmitting(true);
     setSubmitError(null);
 
-    const userId = user!.id;
     const saved: Stamp[] = [];
     const failed: string[] = [];
     let lastError: unknown;
