@@ -28,7 +28,7 @@ export function SpotDetailScreen({ navigation, route }: Props) {
   const handleRecord = () => {
     const parent = navigation.getParent();
     if (parent) {
-      parent.navigate('Record', { spotId });
+      parent.navigate('Record', { spotId, origin: 'map' });
     }
   };
 

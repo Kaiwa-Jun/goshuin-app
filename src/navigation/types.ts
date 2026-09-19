@@ -4,21 +4,24 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 
 // --- Param Lists ---
 
+/** 記録フローの入口。完了画面の出口の行き先になる */
+export type RecordOrigin = 'map' | 'gallery';
+
 export type RootStackParamList = {
   Onboarding: undefined;
   MainTabs: NavigatorScreenParams<MainTabParamList>;
-  Record: { spotId?: string } | undefined;
+  /** origin は完了画面が「来た場所」に返すために使う。記録画面は地図と御朱印帳の両方から開ける */
+  Record: { spotId?: string; origin?: RecordOrigin } | undefined;
   RecordComplete:
     | {
         stampImageUrl?: string;
         spotName?: string;
         visitCount?: number;
         badge?: { name: string; description: string } | null;
-        // 記録の取り消し用。deleteStamp が ID と画像パスの両方を要求する
-        stampId?: string;
-        imagePath?: string;
         /** 訪問済みスポットの取得に失敗し、件数とバッジを算出できなかった（Issue #133） */
         countUnavailable?: boolean;
+        /** 記録を始めた画面。終わったらここへ返す */
+        origin?: RecordOrigin;
       }
     | undefined;
   Login: undefined;

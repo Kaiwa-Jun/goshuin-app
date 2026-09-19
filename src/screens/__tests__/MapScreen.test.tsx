@@ -835,7 +835,10 @@ describe('MapScreen', () => {
         <MapScreen navigation={mockNavigation as never} route={mockRoute} />
       );
       fireEvent.press(getByTestId('fab-button'));
-      expect(mockParentNavigate).toHaveBeenCalledWith('Record', undefined);
+      expect(mockParentNavigate).toHaveBeenCalledWith('Record', {
+        spotId: undefined,
+        origin: 'map',
+      });
     });
 
     it('shows LoginPromptModal when not authenticated', () => {

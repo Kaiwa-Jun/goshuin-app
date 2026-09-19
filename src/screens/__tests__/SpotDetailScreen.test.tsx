@@ -364,7 +364,10 @@ describe('SpotDetailScreen', () => {
         <SpotDetailScreen navigation={mockNavigation as never} route={mockRoute} />
       );
       fireEvent.press(getByTestId('record-action-button'));
-      expect(mockParentNavigate).toHaveBeenCalledWith('Record', { spotId: 'spot-1' });
+      expect(mockParentNavigate).toHaveBeenCalledWith('Record', {
+        spotId: 'spot-1',
+        origin: 'map',
+      });
     });
   });
 });

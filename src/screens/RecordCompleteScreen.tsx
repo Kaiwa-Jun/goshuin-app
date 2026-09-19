@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { Alert, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
-import { deleteStamp } from '@services/stamps';
 import { CheckmarkAnimation } from '@components/animated/CheckmarkAnimation';
 import { BadgeAnimation } from '@components/animated/BadgeAnimation';
 import { ConfettiEffect } from '@components/animated/ConfettiEffect';
+import { PressableScale } from '@components/common/PressableScale';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { spacing, borderRadius } from '@theme/spacing';
@@ -14,61 +14,45 @@ import type { RootStackScreenProps } from '@/navigation/types';
 
 type Props = RootStackScreenProps<'RecordComplete'>;
 
+/**
+ * 記録を終えた人を、来た場所に返すための出口。
+ *
+ * 行き先はタブバーと同じアイコンで示す。文字だけだと、どのタブに飛ぶのかが
+ * 読まないと分からない。
+ */
+const EXITS = {
+  map: {
+    label: '地図に戻る',
+    icon: 'explore',
+    target: { screen: 'MapTab', params: { screen: 'Map' } },
+  },
+  gallery: {
+    label: '御朱印帳に戻る',
+    icon: 'menu-book',
+    target: { screen: 'GalleryTab', params: { screen: 'Gallery' } },
+  },
+} as const;
+
 export function RecordCompleteScreen({ navigation, route }: Props) {
   const stampImageUrl = route.params?.stampImageUrl;
   const spotName = route.params?.spotName;
   const visitCount = route.params?.visitCount;
   const badge = route.params?.badge;
-  const stampId = route.params?.stampId;
-  const imagePath = route.params?.imagePath;
   const countUnavailable = route.params?.countUnavailable;
   const [imageError, setImageError] = useState(false);
-  const [isUndoing, setIsUndoing] = useState(false);
 
-  // 確認モーダルを廃した（D-3）ぶんの受け皿。誤登録はここで回復する。
-  // 両方揃っていないと deleteStamp を呼べないので、その場合はボタン自体を出さない
-  const canUndo = Boolean(stampId && imagePath);
+  // 記録画面は地図と御朱印帳の両方から開ける。どちらから来たか分からない
+  // ときは地図に返す（入口として多く、迷子になりにくい）
+  const origin = route.params?.origin;
+  const exit = EXITS[origin ?? 'map'];
 
+  // 「もう1枚」を挟んでも入口を忘れない。渡さないと2周目が地図に戻る
   const handleRecordAnother = () => {
-    navigation.navigate('Record');
+    navigation.navigate('Record', { origin });
   };
 
-  const handleViewMap = () => {
-    navigation.navigate('MainTabs', { screen: 'MapTab', params: { screen: 'Map' } });
-  };
-
-  // 呼び出し元が canUndo のボタンだけとは限らなくなっても壊れないよう、
-  // ここでも揃っていることを確かめてから消す
-  const runUndo = async (id: string, path: string) => {
-    setIsUndoing(true);
-    try {
-      await deleteStamp(id, path);
-      navigation.navigate('MainTabs', { screen: 'MapTab', params: { screen: 'Map' } });
-    } catch (error) {
-      // 消せていないのに消えた顔をしない。原文を出して画面に留まる
-      const message = error instanceof Error ? error.message : String(error);
-      Alert.alert('取り消せませんでした', message);
-    } finally {
-      setIsUndoing(false);
-    }
-  };
-
-  // 取り消しは非可逆（redo は無い）ので、ここだけは確認を挟む。
-  // 主導線ではないためタップ数の目標には影響しない
-  const handleUndoPress = () => {
-    if (!stampId || !imagePath) return;
-
-    Alert.alert('この記録を取り消しますか？', '御朱印の写真ごと削除されます。元には戻せません。', [
-      { text: 'やめる', style: 'cancel' },
-      { text: '取り消す', style: 'destructive', onPress: () => runUndo(stampId, imagePath) },
-    ]);
-  };
-
-  const handleViewCollection = () => {
-    navigation.navigate('MainTabs', {
-      screen: 'CollectionTab',
-      params: { screen: 'CollectionList' },
-    });
+  const handleExit = () => {
+    navigation.navigate('MainTabs', exit.target);
   };
 
   return (
@@ -120,43 +104,27 @@ export function RecordCompleteScreen({ navigation, route }: Props) {
           {badge && <BadgeAnimation badge={badge} />}
         </View>
 
+        {/* 続ける / 終わる の2択だけ置く。お祝いの場に選択肢を並べない */}
         <View style={styles.actions}>
-          <TouchableOpacity
-            style={styles.buttonRecordAnother}
+          <PressableScale
+            style={[styles.button, styles.buttonRecordAnother]}
             onPress={handleRecordAnother}
+            accessibilityRole="button"
             testID="button-record-another"
           >
+            <MaterialIcons name="add-a-photo" size={20} color={colors.white} />
             <Text style={styles.buttonRecordAnotherText}>もう1枚記録する</Text>
-          </TouchableOpacity>
+          </PressableScale>
 
-          <TouchableOpacity
-            style={styles.buttonViewMap}
-            onPress={handleViewMap}
-            testID="button-view-map"
+          <PressableScale
+            style={[styles.button, styles.buttonExit]}
+            onPress={handleExit}
+            accessibilityRole="button"
+            testID="button-exit"
           >
-            <Text style={styles.buttonViewMapText}>地図を見る</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.buttonViewCollection}
-            onPress={handleViewCollection}
-            testID="button-view-collection"
-          >
-            <Text style={styles.buttonViewCollectionText}>あゆみを見る</Text>
-          </TouchableOpacity>
-
-          {canUndo && (
-            <TouchableOpacity
-              style={styles.buttonUndo}
-              onPress={handleUndoPress}
-              disabled={isUndoing}
-              testID="button-undo-record"
-            >
-              <Text style={styles.buttonUndoText}>
-                {isUndoing ? '取り消しています...' : '記録を取り消す'}
-              </Text>
-            </TouchableOpacity>
-          )}
+            <MaterialIcons name={exit.icon} size={20} color={colors.primary[500]} />
+            <Text style={styles.buttonExitText}>{exit.label}</Text>
+          </PressableScale>
         </View>
       </SafeAreaView>
     </LinearGradient>
@@ -215,44 +183,26 @@ const styles = StyleSheet.create({
     paddingBottom: spacing['2xl'],
     gap: spacing.md,
   },
-  buttonRecordAnother: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
+  button: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
     paddingVertical: spacing.md,
     borderRadius: borderRadius.lg,
-    alignItems: 'center',
+  },
+  buttonRecordAnother: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
   },
   buttonRecordAnotherText: {
     ...typography.button,
     color: colors.white,
   },
-  buttonViewMap: {
+  buttonExit: {
     backgroundColor: colors.white,
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.lg,
-    alignItems: 'center',
   },
-  buttonViewMapText: {
+  buttonExitText: {
     ...typography.button,
     color: colors.primary[500],
-  },
-  buttonViewCollection: {
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-  },
-  buttonViewCollectionText: {
-    ...typography.button,
-    color: 'rgba(255,255,255,0.8)',
-  },
-  // 主導線の3ボタンより控えめに、かつ間隔を空けて誤タップを避ける
-  buttonUndo: {
-    paddingVertical: spacing.md,
-    marginTop: spacing.lg,
-    alignItems: 'center',
-  },
-  buttonUndoText: {
-    ...typography.caption,
-    color: colors.white,
-    opacity: 0.7,
-    textDecorationLine: 'underline',
   },
 });
