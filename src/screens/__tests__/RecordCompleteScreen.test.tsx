@@ -5,12 +5,6 @@ import { RecordCompleteScreen } from '@screens/RecordCompleteScreen';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 
-const mockDeleteStamp = jest.fn();
-
-jest.mock('@services/stamps', () => ({
-  deleteStamp: (...args: unknown[]) => mockDeleteStamp(...args),
-}));
-
 jest.mock('react-native-safe-area-context', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
   const { View } = require('react-native');
@@ -126,14 +120,14 @@ describe('RecordCompleteScreen', () => {
       <RecordCompleteScreen navigation={mockNavigation} route={mockRouteNoParams} />
     );
     fireEvent.press(getByTestId('button-record-another'));
-    expect(mockNavigation.navigate).toHaveBeenCalledWith('Record');
+    expect(mockNavigation.navigate).toHaveBeenCalledWith('Record', { origin: undefined });
   });
 
   it('既定（地図から来た）では地図に戻る', () => {
     const { getByTestId } = render(
       <RecordCompleteScreen navigation={mockNavigation} route={mockRouteNoParams} />
     );
-    fireEvent.press(getByTestId('button-view-map'));
+    fireEvent.press(getByTestId('button-exit'));
     expect(mockNavigation.navigate).toHaveBeenCalledWith('MainTabs', {
       screen: 'MapTab',
       params: { screen: 'Map' },
@@ -239,14 +233,14 @@ describe('RecordCompleteScreen', () => {
         <RecordCompleteScreen navigation={mockNavigation} route={mockRouteWithBadge} />
       );
       fireEvent.press(getByTestId('button-record-another'));
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('Record');
+      expect(mockNavigation.navigate).toHaveBeenCalledWith('Record', { origin: undefined });
     });
 
     it('バッジがあっても地図に戻る', () => {
       const { getByTestId } = render(
         <RecordCompleteScreen navigation={mockNavigation} route={mockRouteWithBadge} />
       );
-      fireEvent.press(getByTestId('button-view-map'));
+      fireEvent.press(getByTestId('button-exit'));
       expect(mockNavigation.navigate).toHaveBeenCalledWith('MainTabs', {
         screen: 'MapTab',
         params: { screen: 'Map' },
@@ -381,12 +375,23 @@ describe('来た場所に戻す（origin）', () => {
       <RecordCompleteScreen navigation={mockNavigation} route={routeWith('gallery')} />
     );
 
-    fireEvent.press(getByTestId('button-view-map'));
+    fireEvent.press(getByTestId('button-exit'));
 
     expect(mockNavigation.navigate).toHaveBeenCalledWith('MainTabs', {
       screen: 'GalleryTab',
       params: { screen: 'Gallery' },
     });
+  });
+
+  // 「もう1枚記録する」を挟むと origin が落ち、2周目が地図に戻ってしまう
+  it('もう1枚記録するときも origin を引き継ぐ', () => {
+    const { getByTestId } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={routeWith('gallery')} />
+    );
+
+    fireEvent.press(getByTestId('button-record-another'));
+
+    expect(mockNavigation.navigate).toHaveBeenCalledWith('Record', { origin: 'gallery' });
   });
 
   it('地図から来たら地図へ戻る', () => {
@@ -395,7 +400,7 @@ describe('来た場所に戻す（origin）', () => {
     );
     expect(getByText('地図に戻る')).toBeTruthy();
 
-    fireEvent.press(getByTestId('button-view-map'));
+    fireEvent.press(getByTestId('button-exit'));
 
     expect(mockNavigation.navigate).toHaveBeenCalledWith('MainTabs', {
       screen: 'MapTab',
@@ -452,7 +457,7 @@ describe('行き先をアイコンで示す', () => {
 
     expect(getByTestId('button-record-another').findByProps({ name: 'add-a-photo' })).toBeTruthy();
     // 地図タブと同じ explore
-    expect(getByTestId('button-view-map').findByProps({ name: 'explore' })).toBeTruthy();
+    expect(getByTestId('button-exit').findByProps({ name: 'explore' })).toBeTruthy();
   });
 
   it('御朱印帳に戻るときは御朱印帳タブと同じアイコンを使う', () => {
@@ -465,6 +470,6 @@ describe('行き先をアイコンで示す', () => {
       />
     );
 
-    expect(getByTestId('button-view-map').findByProps({ name: 'menu-book' })).toBeTruthy();
+    expect(getByTestId('button-exit').findByProps({ name: 'menu-book' })).toBeTruthy();
   });
 });

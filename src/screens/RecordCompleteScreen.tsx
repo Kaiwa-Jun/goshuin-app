@@ -43,10 +43,12 @@ export function RecordCompleteScreen({ navigation, route }: Props) {
 
   // 記録画面は地図と御朱印帳の両方から開ける。どちらから来たか分からない
   // ときは地図に返す（入口として多く、迷子になりにくい）
-  const exit = EXITS[route.params?.origin ?? 'map'];
+  const origin = route.params?.origin;
+  const exit = EXITS[origin ?? 'map'];
 
+  // 「もう1枚」を挟んでも入口を忘れない。渡さないと2周目が地図に戻る
   const handleRecordAnother = () => {
-    navigation.navigate('Record');
+    navigation.navigate('Record', { origin });
   };
 
   const handleExit = () => {
@@ -118,7 +120,7 @@ export function RecordCompleteScreen({ navigation, route }: Props) {
             style={[styles.button, styles.buttonExit]}
             onPress={handleExit}
             accessibilityRole="button"
-            testID="button-view-map"
+            testID="button-exit"
           >
             <MaterialIcons name={exit.icon} size={20} color={colors.primary[500]} />
             <Text style={styles.buttonExitText}>{exit.label}</Text>
