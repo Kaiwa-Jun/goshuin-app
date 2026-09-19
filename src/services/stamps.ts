@@ -28,7 +28,10 @@ export async function fetchStampsBySpotId(spotId: string): Promise<Stamp[]> {
     .from('stamps')
     .select('*')
     .eq('spot_id', spotId)
-    .order('visited_at', { ascending: false });
+    .order('visited_at', { ascending: false })
+    // 同じ日に同じ場所で複数枚いただくのは普通のこと（大崎八幡宮など）。
+    // visited_at だけだと同日分の順序は Postgres 任せになり、開くたびに並びが変わる
+    .order('created_at', { ascending: false });
 
   if (error) {
     console.warn('fetchStampsBySpotId error:', error.message);
@@ -96,7 +99,9 @@ export async function fetchAllStamps(userId: string): Promise<StampWithSpot[]> {
     .from('stamps')
     .select('*, spots!inner(name, type)')
     .eq('user_id', userId)
-    .order('visited_at', { ascending: false });
+    .order('visited_at', { ascending: false })
+    // まとめて登録した1組が、御朱印帳を開くたびに並び替わらないようにする
+    .order('created_at', { ascending: false });
 
   if (error) {
     console.warn('fetchAllStamps error:', error.message);
