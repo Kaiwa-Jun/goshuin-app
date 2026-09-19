@@ -88,6 +88,28 @@ describe('TabBarIcon', () => {
     expect(timing).not.toHaveBeenCalled();
   });
 
+  // open-book / draw は補間の塊で、壊れても発火条件のテストでは気づけない。
+  // 最低限、例外なく描けることと発火することを見る
+  it.each([
+    ['open-book', 'menu-book', 'GalleryTab'],
+    ['draw', 'timeline', 'CollectionTab'],
+  ] as const)('%s は描画できて、選び直しで発火する', async (motion, icon, route) => {
+    const render1 = () => (
+      <TabBarIcon name={icon} routeName={route} motion={motion} color="#f27f0d" focused />
+    );
+    mockActiveRoute = route;
+    const { rerender, findByTestId, getByTestId } = render(render1());
+    expect(await findByTestId(`tab-icon-${icon}`)).toBeTruthy();
+
+    mockActiveRoute = 'MapTab';
+    rerender(render1());
+    mockActiveRoute = route;
+    rerender(render1());
+
+    expect(timing).toHaveBeenCalledTimes(1);
+    expect(getByTestId(`tab-icon-${icon}`)).toBeTruthy();
+  });
+
   it('歯車は戻さず、押すたびに1歯ぶん進む', async () => {
     const gear = () => (
       <TabBarIcon name="settings" routeName="Settings" motion="gear" color="#f27f0d" focused />

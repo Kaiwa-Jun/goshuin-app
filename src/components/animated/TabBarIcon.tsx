@@ -28,7 +28,10 @@ const SPINE_GAP_RATIO = 0.05;
 /**
  * タブごとの「直前にアクティブだったか」。
  * タブバーのアイコンは再マウントされることがあり、コンポーネント内に持つと
- * 直前の状態が消えてしまうのでモジュール側に置く
+ * 直前の状態が消えてしまうのでモジュール側に置く。
+ *
+ * 前提: TabNavigator はアプリに1つで、route 名は静的。複数のタブナビゲータで
+ * 同じ route 名を使うと互いに汚染する。テストでは resetTabBarIconMotion() を呼ぶこと
  */
 const lastActive = new Map<string, boolean>();
 
