@@ -28,6 +28,36 @@ function layer(id: string): BakedLayer {
   return found;
 }
 
+/** グレー（色相を持たない）と見なす RGB のばらつき幅 */
+const GRAY_TOLERANCE = 8;
+
+/**
+ * 色がグレーかどうか。判定できない形式は null を返す（呼び出し側で失敗扱いにする）。
+ * positron は #fff / rgb(213, 213, 213) / hsl(0,0%,88%) を混在させている
+ */
+function isGray(value: string): boolean | null {
+  const text = value.trim();
+
+  const hex = text.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (hex) {
+    const full = hex[1].length === 3 ? hex[1].replace(/./g, c => c + c) : hex[1];
+    const channels = [0, 2, 4].map(i => parseInt(full.slice(i, i + 2), 16));
+    return Math.max(...channels) - Math.min(...channels) <= GRAY_TOLERANCE;
+  }
+
+  const rgb = text.match(/^rgba?\(\s*(\d+)\D+(\d+)\D+(\d+)/i);
+  if (rgb) {
+    const channels = rgb.slice(1).map(Number);
+    return Math.max(...channels) - Math.min(...channels) <= GRAY_TOLERANCE;
+  }
+
+  // hsl は彩度だけ見れば足りる
+  const hsl = text.match(/^hsla?\(\s*[\d.]+\s*,\s*([\d.]+)%/i);
+  if (hsl) return Number(hsl[1]) === 0;
+
+  return null;
+}
+
 describe('assets/map-style.json（焼き込み済みの下地スタイル）', () => {
   describe('引き算', () => {
     it('町名を出さない。地名ラベルは区と島だけ', () => {
@@ -59,17 +89,26 @@ describe('assets/map-style.json（焼き込み済みの下地スタイル）', (
     });
 
     it('道路と建物はグレーのまま。暖色にするとスポットピンが沈む', () => {
-      // 目視では気付きにくいので、色相を持つ色が入っていないことを機械で見る
-      for (const id of ['highway_major_inner', 'highway_major_casing', 'building']) {
-        const paint = layer(id).paint ?? {};
-        for (const value of Object.values(paint)) {
-          if (typeof value !== 'string') continue;
-          const rgb = value.match(/^#?(?:rgb\()?\s*(\d+)\s*,?\s*(\d+)\s*,?\s*(\d+)/);
-          if (!rgb) continue;
-          const [r, g, b] = rgb.slice(1).map(Number);
-          expect(Math.max(r, g, b) - Math.min(r, g, b)).toBeLessThanOrEqual(8);
+      // 目視では気付きにくいので、色相を持つ色が入っていないことを機械で見る。
+      // 読めない形式は「素通り」ではなく失敗させる。positron は #fff と
+      // rgb() と hsl() を混在させていて、片方しか見ない判定だと穴になる
+      const colorProps: [string, string][] = [];
+      for (const id of [
+        'highway_minor',
+        'highway_major_inner',
+        'highway_major_casing',
+        'building',
+      ]) {
+        for (const [key, value] of Object.entries(layer(id).paint ?? {})) {
+          if (typeof value === 'string' && key.includes('color')) {
+            colorProps.push([`${id}.${key}`, value]);
+          }
         }
       }
+
+      // 判定そのものが素通りしていないことを先に確かめる
+      expect(colorProps.length).toBeGreaterThanOrEqual(5);
+      expect(colorProps.filter(([, value]) => isGray(value) !== true)).toEqual([]);
     });
   });
 
