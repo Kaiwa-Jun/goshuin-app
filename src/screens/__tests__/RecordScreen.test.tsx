@@ -1753,15 +1753,17 @@ describe('保存中の覆い（Issue #190）', () => {
     expect(mockNavigation.goBack).toHaveBeenCalled();
   });
 
-  it('覆いはヘッダーの高さのぶん下から敷く', () => {
+  // 絶対配置の基準は SafeAreaView の外枠で、セーフエリアの余白はその内側にある。
+  // 高さだけ見るとステータスバーのぶん足りず、覆いがヘッダーに乗る
+  it('覆いはヘッダーの下端から敷く（セーフエリアのぶんを含む）', () => {
     submitting(['file:///a.jpg'], 0);
 
     const { getByTestId } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
     fireEvent(getByTestId('header-block'), 'layout', {
-      nativeEvent: { layout: { y: 0, height: 56 } },
+      nativeEvent: { layout: { y: 59, height: 65 } },
     });
 
-    expect(StyleSheet.flatten(getByTestId('saving-overlay').props.style).top).toBe(56);
+    expect(StyleSheet.flatten(getByTestId('saving-overlay').props.style).top).toBe(124);
   });
 
   // メモを書いている途中で押されると、覆いがキーボードの下に潜る

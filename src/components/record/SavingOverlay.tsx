@@ -4,6 +4,7 @@ import { useReduceMotion } from '@hooks/useReduceMotion';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { spacing, borderRadius } from '@theme/spacing';
+import { shadows } from '@theme/shadows';
 
 interface SavingOverlayProps {
   visible: boolean;
@@ -112,49 +113,53 @@ export function SavingOverlay({ visible, total, saved, top = 0 }: SavingOverlayP
       accessible
       accessibilityLabel={`保存中 ${saved} / ${total}枚`}
     >
-      <View style={styles.label}>
-        {LABEL.map((char, index) => (
-          <Animated.Text
-            key={char}
-            style={[
-              styles.char,
-              {
-                opacity: chars[index],
-                transform: [
-                  {
-                    translateY: chars[index].interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [RISE, 0],
-                    }),
-                  },
-                ],
-              },
-            ]}
-          >
-            {char}
-          </Animated.Text>
-        ))}
-      </View>
+      {/* 地の色を敷く。透かしたままだと、背後のフォームの文字と枚数が重なって
+          読めなくなる（実機で「1 / 3枚」が訪問日に重なった） */}
+      <View style={styles.card}>
+        <View style={styles.label}>
+          {LABEL.map((char, index) => (
+            <Animated.Text
+              key={char}
+              style={[
+                styles.char,
+                {
+                  opacity: chars[index],
+                  transform: [
+                    {
+                      translateY: chars[index].interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [RISE, 0],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            >
+              {char}
+            </Animated.Text>
+          ))}
+        </View>
 
-      <View style={styles.dots}>
-        {hops.map((hop, index) => (
-          <Animated.View
-            key={index}
-            style={[
-              styles.dot,
-              index < saved && styles.dotFilled,
-              {
-                transform: [
-                  { translateY: hop.interpolate({ inputRange: [0, 1], outputRange: [0, -HOP] }) },
-                ],
-              },
-            ]}
-            testID={`saving-dot-${index}`}
-          />
-        ))}
-      </View>
+        <View style={styles.dots}>
+          {hops.map((hop, index) => (
+            <Animated.View
+              key={index}
+              style={[
+                styles.dot,
+                index < saved && styles.dotFilled,
+                {
+                  transform: [
+                    { translateY: hop.interpolate({ inputRange: [0, 1], outputRange: [0, -HOP] }) },
+                  ],
+                },
+              ]}
+              testID={`saving-dot-${index}`}
+            />
+          ))}
+        </View>
 
-      <Text style={styles.count} testID="saving-count">{`${saved} / ${total}枚`}</Text>
+        <Text style={styles.count} testID="saving-count">{`${saved} / ${total}枚`}</Text>
+      </View>
     </View>
   );
 }
@@ -169,9 +174,17 @@ const styles = StyleSheet.create({
     bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.lg,
     // モーダルの地と同じ。別の濃さにすると同じアプリの中で覆いが2種類になる
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  card: {
+    alignItems: 'center',
+    gap: spacing.lg,
+    paddingVertical: spacing['2xl'],
+    paddingHorizontal: spacing['3xl'],
+    borderRadius: borderRadius.xl,
+    backgroundColor: colors.white,
+    ...shadows.lg,
   },
   label: {
     flexDirection: 'row',
@@ -180,7 +193,7 @@ const styles = StyleSheet.create({
   },
   char: {
     ...typography.h2,
-    color: colors.white,
+    color: colors.gray[800],
   },
   dots: {
     flexDirection: 'row',
@@ -193,13 +206,13 @@ const styles = StyleSheet.create({
     width: DOT_SIZE,
     height: DOT_SIZE,
     borderRadius: borderRadius.full,
-    backgroundColor: 'rgba(255, 255, 255, 0.35)',
+    backgroundColor: colors.gray[200],
   },
   dotFilled: {
     backgroundColor: colors.primary[500],
   },
   count: {
     ...typography.bodySmall,
-    color: colors.white,
+    color: colors.gray[500],
   },
 });
