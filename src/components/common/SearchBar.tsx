@@ -2,7 +2,7 @@ import React from 'react';
 import { View, TextInput, StyleSheet, TouchableOpacity, Pressable } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { colors } from '@theme/colors';
-import { typography } from '@theme/typography';
+import { typography, singleLineInput } from '@theme/typography';
 import { borderRadius, spacing } from '@theme/spacing';
 import { shadows } from '@theme/shadows';
 
@@ -119,16 +119,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   input: {
-    fontSize: typography.body.fontSize,
-    fontWeight: typography.body.fontWeight,
-    // typography.body を丸ごと広げない。lineHeight を TextInput に当てると
-    // iOS は NSParagraphStyle として解釈し、余った行間が文字の上に入って
-    // 文字が下にずれる。しかもプレースホルダは UITextField 側が描くので
-    // この影響を受けず、入力の有無で文字の高さが変わってしまう。
-    // 高さだけ明示して、縦の中央寄せは UITextField に任せる
+    // lineHeight を渡さない理由は singleLineInput の説明にある
+    ...singleLineInput,
+    // 枠も padding も外側のコンテナが持っているので、高さは行の高さそのまま
     height: INPUT_HEIGHT,
-    // Android は TextInput の既定が top 寄せの端末があるので明示する。iOS は無視される
-    textAlignVertical: 'center',
     color: colors.gray[800],
     padding: 0,
   },

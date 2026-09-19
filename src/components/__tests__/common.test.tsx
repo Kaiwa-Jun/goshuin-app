@@ -131,6 +131,17 @@ describe('Common Components', () => {
   });
 
   describe('SearchBar', () => {
+    // lineHeight を TextInput に当てると iOS で文字が下端に寄る。
+    // 理由は theme/typography.ts の singleLineInput にある
+    it('入力欄に lineHeight を渡さない', () => {
+      const { getByTestId } = render(<SearchBar />);
+
+      const style = StyleSheet.flatten(getByTestId('search-input').props.style);
+
+      expect(style.lineHeight).toBeUndefined();
+      expect(style.textAlignVertical).toBe('center');
+    });
+
     it('renders with default placeholder', () => {
       const { getByTestId, getByPlaceholderText } = render(<SearchBar />);
       expect(getByTestId('search-bar')).toBeTruthy();
