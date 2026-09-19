@@ -59,7 +59,7 @@ export function TabNavigator() {
           headerShown: false,
           tabBarIcon: ({ color, focused }) => (
             <TabBarIcon
-              name="route"
+              name="timeline"
               routeName="CollectionTab"
               motion="draw"
               color={color}

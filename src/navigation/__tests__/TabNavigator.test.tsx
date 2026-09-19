@@ -285,9 +285,9 @@ describe('TabNavigator', () => {
       // @expo/vector-icons のモックはアイコン名をテキストとして描画する
       expect(getAllByText('menu-book').length).toBeGreaterThan(0);
       expect(getAllByText('settings').length).toBeGreaterThan(0);
-      // 地図は据え置き、あゆみは route
+      // 地図は据え置き、あゆみは timeline
       expect(getAllByText('explore').length).toBeGreaterThan(0);
-      expect(getAllByText('route').length).toBeGreaterThan(0);
+      expect(getAllByText('timeline').length).toBeGreaterThan(0);
     });
   });
 
