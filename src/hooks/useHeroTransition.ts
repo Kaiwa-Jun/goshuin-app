@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { Image, View } from 'react-native';
+import type { View } from 'react-native';
 import type { Rect } from '@utils/heroTransition';
 
 /** タイルのどの部分か。画像と文字は別々に飛ぶ */
@@ -59,19 +59,15 @@ export function useHeroTransition() {
   );
 
   /**
-   * 写真の縦横比を先に取っておく。押してから測ると、目的地が決まる前に
-   * 飛び始めてしまう。onPressIn で呼べば指が離れるまでの分だけ先行できる
+   * 写真の縦横比を覚える。一覧の Image の onLoad から渡す。
+   *
+   * Image.getSize を押した時点で呼ぶ手もあるが、指が離れるまでに間に合わず、
+   * 目的地が決まらないまま飛ぼうとして演出ごと落ちる（実機で確認）。
+   * 一覧は同じ写真をもう読み込んでいるので、そこで分かった大きさを使う
    */
-  const prefetchAspect = useCallback(
-    (stampId: string, imageUrl: string) => {
-      if (aspects.has(stampId)) return;
-      Image.getSize(
-        imageUrl,
-        (w, h) => {
-          if (h > 0) aspects.set(stampId, w / h);
-        },
-        () => {}
-      );
+  const rememberAspect = useCallback(
+    (stampId: string, width: number, height: number) => {
+      if (height > 0) aspects.set(stampId, width / height);
     },
     [aspects]
   );
@@ -128,5 +124,5 @@ export function useHeroTransition() {
 
   const end = useCallback(() => setFlight(null), []);
 
-  return { flight, registerTile, prefetchAspect, start, end };
+  return { flight, registerTile, rememberAspect, start, end };
 }

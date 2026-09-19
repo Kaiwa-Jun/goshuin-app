@@ -50,6 +50,8 @@ const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.25;
 const VELOCITY_THRESHOLD = 0.5;
 const TAP_MAX_DURATION = 200;
 const TAP_MAX_DISTANCE = 10;
+/** 今の1枚の前後いくつまで実際に描くか。横スワイプの先読みぶん */
+const NEIGHBORS = 1;
 
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr);
@@ -94,6 +96,9 @@ export function ImageGalleryModal({
   // to avoid 1-frame flicker when reopening after a swipe-dismiss
   const prevVisible = useRef(false);
   if (visible && !prevVisible.current) {
+    // 番号も描画のうちに合わせる。useEffect だと1フレームだけ前の1枚が出て、
+    // 地が不透明になってからはその瞬きが見える（Issue #192）
+    setCurrentIndex(initialIndex);
     settledIndex.current = initialIndex;
     baseX.current = -initialIndex * SCREEN_WIDTH;
     stripX.setValue(-initialIndex * SCREEN_WIDTH);
@@ -111,22 +116,20 @@ export function ImageGalleryModal({
     }
   }, [visible, initialIndex]);
 
-  // Preload image sizes regardless of visibility so heights are ready when modal opens
-  useEffect(() => {
-    if (images.length === 0) return;
-    images.forEach(img => {
-      if (imageHeights[img.id] !== undefined) return;
-      Image.getSize(
-        img.imageUrl,
-        (w, h) => {
-          setImageHeights(prev => ({ ...prev, [img.id]: SCREEN_WIDTH * (h / w) }));
-        },
-        () => {
-          setImageHeights(prev => ({ ...prev, [img.id]: SCREEN_WIDTH }));
-        }
-      );
-    });
-  }, [images, imageHeights]);
+  /*
+   * 高さは、描いた画像の onLoad から受け取る。
+   *
+   * 以前はここで全枚数ぶん Image.getSize を呼んでいた。getSize は iOS では
+   * 画像を丸ごと取りにいくので、57件あると 1.2MB × 57 の取得が同時に走り、
+   * 画像ローダーが詰まる。新しく置いた <Image> が読み込まれず、load も error も
+   * 返ってこない状態になっていた（実機で確認 / Issue #192）
+   */
+  const rememberHeight = useCallback((id: string, width: number, height: number) => {
+    if (width <= 0 || height <= 0) return;
+    setImageHeights(prev =>
+      prev[id] !== undefined ? prev : { ...prev, [id]: SCREEN_WIDTH * (height / width) }
+    );
+  }, []);
 
   const navigateTo = useCallback(
     (newIndex: number, animated: boolean) => {
@@ -272,12 +275,19 @@ export function ImageGalleryModal({
         >
           {images.map((img, index) => (
             <View key={img.id} style={styles.imageSlot}>
-              <Image
-                source={{ uri: img.imageUrl }}
-                style={[styles.image, { height: imageHeights[img.id] ?? SCREEN_WIDTH }]}
-                resizeMode="contain"
-                testID={index === currentIndex ? 'gallery-image' : undefined}
-              />
+              {/* 見えている前後だけ描く。全枚数を一度に置くと、そのぶんの取得が
+                  同時に走って画像ローダーが詰まる（Issue #192） */}
+              {Math.abs(index - currentIndex) <= NEIGHBORS && (
+                <Image
+                  source={{ uri: img.imageUrl }}
+                  style={[styles.image, { height: imageHeights[img.id] ?? SCREEN_WIDTH }]}
+                  resizeMode="contain"
+                  onLoad={e =>
+                    rememberHeight(img.id, e.nativeEvent.source.width, e.nativeEvent.source.height)
+                  }
+                  testID={index === currentIndex ? 'gallery-image' : undefined}
+                />
+              )}
             </View>
           ))}
         </Animated.View>

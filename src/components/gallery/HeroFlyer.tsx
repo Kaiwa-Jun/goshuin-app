@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Image, StyleSheet, Text, View } from 'react-native';
 import { useReduceMotion } from '@hooks/useReduceMotion';
 import { heroFlight, topLeftDelta, type Rect } from '@utils/heroTransition';
 import { GALLERY_INFO_BOTTOM, GALLERY_INFO_LEFT } from '@components/common/ImageGalleryModal';
@@ -124,7 +124,8 @@ export function HeroFlyer({
   return (
     <View
       ref={containerRef}
-      style={StyleSheet.absoluteFill}
+      // 詳細の地は zIndex 1000 を持っている。飛ぶ1枚はその上に出す
+      style={[StyleSheet.absoluteFill, { zIndex: 2000 }]}
       onLayout={e => measure(e.nativeEvent.layout)}
       pointerEvents="none"
       testID="hero-flyer"
@@ -149,12 +150,9 @@ export function HeroFlyer({
             },
           ]}
         >
-          <Animated.Image
+          <Image
             source={{ uri: imageUrl }}
-            style={[
-              { width: target.width, height: target.height },
-              { transform: [{ scaleY: between(flight.contentScaleY, 1) }] },
-            ]}
+            style={{ width: target.width, height: target.height }}
             resizeMode="cover"
             testID="hero-image"
           />
