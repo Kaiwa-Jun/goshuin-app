@@ -75,7 +75,7 @@ export function SettingsScreen({ navigation }: Props) {
         <Text style={styles.header}>設定</Text>
 
         {/* Account Section */}
-        <View style={styles.section} testID="settings-section">
+        <View style={styles.section} testID="settings-section-account">
           <Text style={styles.sectionTitle}>アカウント</Text>
           <Card>
             <View style={styles.row}>
@@ -122,7 +122,7 @@ export function SettingsScreen({ navigation }: Props) {
         {/* Guideline 1.2（UGC）対応で「公開設定」セクションを外した（Issue #147）。
             v1.1 で通報・ブロック・EULA を実装したらここに戻す */}
 
-        <View style={styles.section} testID="settings-section">
+        <View style={styles.section} testID="settings-section-location">
           <Text style={styles.sectionTitle}>位置情報</Text>
           <Card>
             <TouchableOpacity
@@ -142,7 +142,7 @@ export function SettingsScreen({ navigation }: Props) {
           </Card>
         </View>
 
-        <View style={styles.section} testID="settings-section">
+        <View style={styles.section} testID="settings-section-app-info">
           <Text style={styles.sectionTitle}>アプリ情報</Text>
           <Card>
             <View style={styles.row}>

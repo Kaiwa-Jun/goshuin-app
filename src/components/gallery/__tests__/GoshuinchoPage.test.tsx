@@ -95,7 +95,6 @@ describe('GoshuinchoPage', () => {
     it('紙面の背景が白である', () => {
       const { getByTestId } = render(<GoshuinchoPage {...stampProps} />);
       expect(flatten(getByTestId('flip-page-surface-stamp-1')).backgroundColor).toBe(colors.white);
-      expect(colors.white).not.toBe(colors.backgroundGrouped);
     });
 
     it('紙面の枠線が gray[200] / 1px である', () => {

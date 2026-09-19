@@ -353,13 +353,18 @@ describe('SettingsScreen 位置情報の行（Issue #123 / 監査 A-14）', () =
 
 describe('セクションの余白', () => {
   const setup = () => render(<SettingsScreen navigation={mockNavigation} route={mockRoute} />);
+  const SECTIONS = [
+    'settings-section-account',
+    'settings-section-location',
+    'settings-section-app-info',
+  ];
 
   it('見出しは、前のセクションよりも自分の中身に近い', () => {
     // 逆だと、見出しがどちらの塊のものか読み取れない
     const r = setup();
-    const withinSection = StyleSheet.flatten(
-      r.getAllByTestId('settings-section')[0].props.style
-    ) as { gap?: number };
+    const withinSection = StyleSheet.flatten(r.getByTestId(SECTIONS[0]).props.style) as {
+      gap?: number;
+    };
     const betweenSections = StyleSheet.flatten(
       r.getByTestId('settings-scroll').props.contentContainerStyle
     ) as { gap?: number };
@@ -373,14 +378,14 @@ describe('セクションの余白', () => {
     // 個別の margin で組むと、今回のように1箇所だけ付け忘れる
     const r = setup();
 
-    expect(r.getAllByTestId('settings-section')).toHaveLength(3);
+    for (const id of SECTIONS) expect(r.getByTestId(id)).toBeTruthy();
   });
 
   it('セクションの余白を個別の margin で持たない', () => {
     const r = setup();
 
-    for (const section of r.getAllByTestId('settings-section')) {
-      const style = StyleSheet.flatten(section.props.style) as Record<string, unknown>;
+    for (const id of SECTIONS) {
+      const style = StyleSheet.flatten(r.getByTestId(id).props.style) as Record<string, unknown>;
       expect(style.marginBottom).toBeUndefined();
     }
   });

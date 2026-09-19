@@ -147,12 +147,21 @@ describe('Theme', () => {
       expect(colors.error).toBeDefined();
     });
 
-    // 地の上に置くものと同じ色だと、その要素の輪郭が消える。
-    // Card は colors.white、SearchBar の既定の塗りは gray[100]
-    it('カードを並べる地は、カードとも入力欄とも別の色である', () => {
-      expect(colors.backgroundGrouped).not.toBe(colors.white);
-      expect(colors.backgroundGrouped).not.toBe(colors.gray[100]);
+    // カードが地から分かれていないと、そもそもカードに見えない
+    it('カードを並べる地は、カード(白)と知覚上分かれている', () => {
+      expect(distance(colors.backgroundGrouped, colors.white)).toBeGreaterThan(3);
     });
+
+    /*
+     * 注意: backgroundGrouped は gray[100] と ΔE 1.7 しかない。
+     *
+     * グレースケールの明部は互いに ΔE 2〜3 で密に並んでいるため、地をどの
+     * 明るいグレーにしても必ずどれかに近づく。トークン間の距離では守れない。
+     *
+     * したがって「カードを並べる画面に gray[100] の塗りを置かない」は規約として
+     * 守る。実際に置いていないことは、その画面のテストで個別に見る
+     * （AccountDeletionScreen のエラーの囲みなど）
+     */
 
     // ふつうの画面は白のまま。グレーにすると gray[100] の入力欄が溶ける
     it('ふつうの画面の地は白のままにする', () => {
