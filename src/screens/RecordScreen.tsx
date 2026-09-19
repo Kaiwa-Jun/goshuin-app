@@ -64,8 +64,14 @@ export function RecordScreen({ navigation, route }: Props) {
   const isSavingRef = useRef(false);
 
   const [showDatePicker, setShowDatePicker] = useState(false);
-  /** 保存中の覆いをどこから敷くか。ヘッダーは覆わない（Issue #190） */
-  const [headerHeight, setHeaderHeight] = useState(0);
+  /**
+   * 保存中の覆いをどこから敷くか。ヘッダーは覆わない（Issue #190）。
+   *
+   * 高さではなく下端を持つ。絶対配置の基準は SafeAreaView の外枠で、
+   * セーフエリアの余白はその内側にある。高さだけだとステータスバーのぶん
+   * 足りず、覆いがヘッダーに乗る（実測: y=59 / height=65）
+   */
+  const [headerBottom, setHeaderBottom] = useState(0);
   /** 一部だけ保存できたときの知らせ。全部成功なら完了画面へ行くので出番はない */
   const [partialNotice, setPartialNotice] = useState<string | null>(null);
 
@@ -229,7 +235,13 @@ export function RecordScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View onLayout={e => setHeaderHeight(e.nativeEvent.layout.height)} testID="header-block">
+      <View
+        onLayout={e => {
+          const { y, height } = e.nativeEvent.layout;
+          setHeaderBottom(y + height);
+        }}
+        testID="header-block"
+      >
         <Header title="御朱印を記録" variant="modal" onClose={() => navigation.goBack()} />
       </View>
 
@@ -392,7 +404,7 @@ export function RecordScreen({ navigation, route }: Props) {
         visible={form.isSubmitting}
         total={form.imageUris.length}
         saved={form.savedCount}
-        top={headerHeight}
+        top={headerBottom}
       />
     </SafeAreaView>
   );
