@@ -138,6 +138,7 @@ jest.mock('@react-native-community/datetimepicker', () => {
 
 const mockNavigation = {
   navigate: jest.fn(),
+  replace: jest.fn(),
   goBack: jest.fn(),
   getParent: jest.fn(() => ({ navigate: jest.fn() })),
 } as any;
@@ -238,7 +239,7 @@ describe('RecordScreen', () => {
 
     await waitFor(() => {
       expect(mockSubmit).toHaveBeenCalled();
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
+      expect(mockNavigation.replace).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
     });
   });
 
@@ -267,7 +268,7 @@ describe('RecordScreen', () => {
     fireEvent.press(getByText('この内容で記録する'));
 
     await waitFor(() => {
-      expect(mockNavigation.navigate).toHaveBeenCalledWith(
+      expect(mockNavigation.replace).toHaveBeenCalledWith(
         'RecordComplete',
         expect.objectContaining({
           visitCount: 3, // previousCount=2 + 1 new spot
@@ -301,7 +302,7 @@ describe('RecordScreen', () => {
     fireEvent.press(getByText('この内容で記録する'));
 
     await waitFor(() => {
-      expect(mockNavigation.navigate).toHaveBeenCalledWith(
+      expect(mockNavigation.replace).toHaveBeenCalledWith(
         'RecordComplete',
         expect.objectContaining({
           visitCount: 2, // previousCount=2, no change for re-visit
@@ -337,7 +338,7 @@ describe('RecordScreen', () => {
     fireEvent.press(getByText('この内容で記録する'));
 
     await waitFor(() => {
-      expect(mockNavigation.navigate).toHaveBeenCalledWith(
+      expect(mockNavigation.replace).toHaveBeenCalledWith(
         'RecordComplete',
         expect.objectContaining({
           badge: mockBadge,
@@ -532,7 +533,7 @@ describe('確認モーダルの廃止（Issue #130 / D-3）', () => {
     fireEvent.press(getByText('この内容で記録する'));
 
     await waitFor(() => {
-      expect(mockNavigation.navigate).toHaveBeenCalledWith(
+      expect(mockNavigation.replace).toHaveBeenCalledWith(
         'RecordComplete',
         expect.objectContaining({ origin: 'gallery' })
       );
@@ -831,7 +832,7 @@ describe('タップ数（Issue #130 / F 群）', () => {
     taps++;
 
     await waitFor(() => {
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
+      expect(mockNavigation.replace).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
     });
     expect(taps).toBe(2);
   });
@@ -936,7 +937,7 @@ describe('二重送信の防止（Issue #130 / A-10 補強）', () => {
       expect(mockSubmit).toHaveBeenCalledTimes(1);
     });
     expect(mockFetchVisitedSpotIds).toHaveBeenCalledTimes(1);
-    expect(mockNavigation.navigate).toHaveBeenCalledTimes(1);
+    expect(mockNavigation.replace).toHaveBeenCalledTimes(1);
   });
 
   it('送信が終われば次の記録を送信できる', async () => {
@@ -1044,7 +1045,7 @@ describe('訪問済みスポットの取得に失敗したとき（Issue #133）
 
     await waitFor(() => {
       expect(mockSubmit).toHaveBeenCalled();
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
+      expect(mockNavigation.replace).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
     });
   });
 
@@ -1054,10 +1055,10 @@ describe('訪問済みスポットの取得に失敗したとき（Issue #133）
     pressSave();
 
     await waitFor(() => {
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
+      expect(mockNavigation.replace).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
     });
 
-    const params = mockNavigation.navigate.mock.calls.find(
+    const params = mockNavigation.replace.mock.calls.find(
       (call: unknown[]) => call[0] === 'RecordComplete'
     )![1];
 
@@ -1084,10 +1085,10 @@ describe('訪問済みスポットの取得に失敗したとき（Issue #133）
     pressSave();
 
     await waitFor(() => {
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
+      expect(mockNavigation.replace).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
     });
 
-    const params = mockNavigation.navigate.mock.calls.find(
+    const params = mockNavigation.replace.mock.calls.find(
       (call: unknown[]) => call[0] === 'RecordComplete'
     )![1];
 
@@ -1128,7 +1129,7 @@ describe('訪問済みスポットの取得に失敗したとき（Issue #133）
 
     pressSave();
     await waitFor(() => {
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
+      expect(mockNavigation.replace).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
     });
     // 取りこぼした rejection がマイクロタスクの後に浮上してくる猶予を与える
     await new Promise(resolve => setImmediate(resolve));
@@ -1209,7 +1210,7 @@ describe('訪問済みスポットの取得に成功したとき（Issue #133 �
   });
 
   const paramsOfRecordComplete = () =>
-    mockNavigation.navigate.mock.calls.find((call: unknown[]) => call[0] === 'RecordComplete')![1];
+    mockNavigation.replace.mock.calls.find((call: unknown[]) => call[0] === 'RecordComplete')![1];
 
   it('新規スポットなら件数を1つ増やし、バッジ判定に前後の件数を渡す', async () => {
     (evaluateNewBadge as jest.Mock).mockReturnValue(null);
@@ -1219,7 +1220,7 @@ describe('訪問済みスポットの取得に成功したとき（Issue #133 �
     fireEvent.press(getByText('この内容で記録する'));
 
     await waitFor(() => {
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
+      expect(mockNavigation.replace).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
     });
 
     expect(paramsOfRecordComplete().visitCount).toBe(3);
@@ -1234,7 +1235,7 @@ describe('訪問済みスポットの取得に成功したとき（Issue #133 �
     fireEvent.press(getByText('この内容で記録する'));
 
     await waitFor(() => {
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
+      expect(mockNavigation.replace).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
     });
 
     expect(paramsOfRecordComplete().visitCount).toBe(2);
@@ -1250,7 +1251,7 @@ describe('訪問済みスポットの取得に成功したとき（Issue #133 �
     fireEvent.press(getByText('この内容で記録する'));
 
     await waitFor(() => {
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
+      expect(mockNavigation.replace).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
     });
 
     expect(paramsOfRecordComplete().badge).toEqual(badge);
@@ -1265,7 +1266,7 @@ describe('訪問済みスポットの取得に成功したとき（Issue #133 �
     fireEvent.press(getByText('この内容で記録する'));
 
     await waitFor(() => {
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
+      expect(mockNavigation.replace).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
     });
 
     expect(paramsOfRecordComplete()).not.toHaveProperty('countUnavailable');
@@ -1459,7 +1460,7 @@ describe('複数枚をまとめて登録する（Issue #180）', () => {
     fireEvent.press(getByText('この内容で記録する'));
 
     await waitFor(() => {
-      expect(mockNavigation.navigate).toHaveBeenCalledWith(
+      expect(mockNavigation.replace).toHaveBeenCalledWith(
         'RecordComplete',
         expect.objectContaining({
           stampCount: 3,
@@ -1683,5 +1684,99 @@ describe('バリデーションエラーのある欄まで連れていく', () =
       expect(mockValidate).toHaveBeenCalled();
     });
     expect(scrollTo).not.toHaveBeenCalled();
+  });
+});
+
+// 記録済みのフォームを履歴に残すと、完了画面の「もう1枚記録する」から戻ったとき
+// ✕ が完了画面に帰ってしまう。しかも押すたびに履歴が2つずつ伸びる（Issue #188）
+describe('記録を終えたら、そのフォームを履歴に残さない', () => {
+  const savedStamp: Stamp = {
+    id: 'stamp-1',
+    user_id: 'user-1',
+    spot_id: 'spot-1',
+    goshuincho_id: null,
+    visited_at: '2024-06-01T00:00:00.000Z',
+    image_path: 'user-1/12345.jpg',
+    memo: '',
+    is_public: false,
+    extracted_info: null,
+    created_at: '2024-06-01T00:00:00Z',
+    updated_at: '2024-06-01T00:00:00Z',
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockFormState = {
+      selectedSpot: fakeSpot,
+      imageUris: ['file:///a.jpg'],
+      visitedAt: new Date('2024-06-01'),
+      memo: '',
+      isPublic: false,
+      spotError: null,
+      imageError: null,
+      isSubmitting: false,
+      submitError: null,
+      selectSpot: mockSelectSpot,
+      addImages: mockAddImages,
+      removeImage: mockRemoveImage,
+      setVisitedAt: mockSetVisitedAt,
+      setMemo: mockSetMemo,
+      setIsPublic: mockSetIsPublic,
+      validate: mockValidate,
+      submit: mockSubmit,
+      reset: mockReset,
+    };
+    mockValidate.mockReturnValue([]);
+  });
+
+  it('完了画面へは push ではなく置き換えで行く', async () => {
+    mockFetchVisitedSpotIds.mockResolvedValue(new Set(['spot-1']));
+    mockSubmit.mockResolvedValue({ success: true, stamps: [savedStamp], failedCount: 0 });
+
+    const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent.press(getByText('この内容で記録する'));
+
+    await waitFor(() => {
+      expect(mockNavigation.replace).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
+    });
+    expect(mockNavigation.navigate).not.toHaveBeenCalled();
+  });
+
+  it('件数が取れなかったときも置き換えで行く', async () => {
+    mockFetchVisitedSpotIds.mockRejectedValue(new Error('network'));
+    mockSubmit.mockResolvedValue({ success: true, stamps: [savedStamp], failedCount: 0 });
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent.press(getByText('この内容で記録する'));
+
+    await waitFor(() => {
+      expect(mockNavigation.replace).toHaveBeenCalledWith(
+        'RecordComplete',
+        expect.objectContaining({ countUnavailable: true })
+      );
+    });
+    expect(mockNavigation.navigate).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  // 失敗はやり直せる必要があるので、エラー画面は今までどおり push
+  it('失敗したときのエラー画面は置き換えない', async () => {
+    mockFetchVisitedSpotIds.mockResolvedValue(new Set());
+    mockSubmit.mockResolvedValue({
+      success: false,
+      stamps: [],
+      failedCount: 1,
+      error: new Error('boom'),
+      stage: 'upload',
+    });
+
+    const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent.press(getByText('この内容で記録する'));
+
+    await waitFor(() => {
+      expect(mockNavigation.navigate).toHaveBeenCalledWith('Error', expect.any(Object));
+    });
+    expect(mockNavigation.replace).not.toHaveBeenCalled();
   });
 });

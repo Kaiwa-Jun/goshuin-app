@@ -177,7 +177,7 @@ export function RecordScreen({ navigation, route }: Props) {
     // previousCount が無い以上バッジは判定できない。0 を代入して評価すると
     // 「100箇所目なのに1箇所目」と祝い、獲得済みバッジが再発火する（Issue #133）
     if (visitedSpotIds === null) {
-      navigation.navigate('RecordComplete', { ...completeParams, countUnavailable: true });
+      navigation.replace('RecordComplete', { ...completeParams, countUnavailable: true });
       return;
     }
 
@@ -187,7 +187,10 @@ export function RecordScreen({ navigation, route }: Props) {
     const currentCount = isNewSpot ? previousCount + 1 : previousCount;
     const badge = evaluateNewBadge(previousCount, currentCount);
 
-    navigation.navigate('RecordComplete', {
+    // push ではなく置き換える。記録済みのフォームを履歴に残すと、完了画面の
+    // 「もう1枚記録する」から戻ったとき ✕ が完了画面へ帰ってしまい、しかも
+    // 押すたびに履歴が2つずつ伸びる（Issue #188）
+    navigation.replace('RecordComplete', {
       ...completeParams,
       visitCount: currentCount,
       badge,

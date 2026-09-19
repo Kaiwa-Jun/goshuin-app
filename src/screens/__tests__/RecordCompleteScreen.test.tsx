@@ -29,6 +29,8 @@ jest.mock('expo-linear-gradient', () => {
 
 const mockNavigation = {
   navigate: jest.fn(),
+  replace: jest.fn(),
+  popTo: jest.fn(),
   goBack: jest.fn(),
   getParent: jest.fn(() => ({ navigate: jest.fn() })),
 } as any;
@@ -120,7 +122,7 @@ describe('RecordCompleteScreen', () => {
       <RecordCompleteScreen navigation={mockNavigation} route={mockRouteNoParams} />
     );
     fireEvent.press(getByTestId('button-record-another'));
-    expect(mockNavigation.navigate).toHaveBeenCalledWith('Record', { origin: undefined });
+    expect(mockNavigation.replace).toHaveBeenCalledWith('Record', { origin: undefined });
   });
 
   it('既定（地図から来た）では地図に戻る', () => {
@@ -128,7 +130,7 @@ describe('RecordCompleteScreen', () => {
       <RecordCompleteScreen navigation={mockNavigation} route={mockRouteNoParams} />
     );
     fireEvent.press(getByTestId('button-exit'));
-    expect(mockNavigation.navigate).toHaveBeenCalledWith('MainTabs', {
+    expect(mockNavigation.popTo).toHaveBeenCalledWith('MainTabs', {
       screen: 'MapTab',
       params: { screen: 'Map' },
     });
@@ -233,7 +235,7 @@ describe('RecordCompleteScreen', () => {
         <RecordCompleteScreen navigation={mockNavigation} route={mockRouteWithBadge} />
       );
       fireEvent.press(getByTestId('button-record-another'));
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('Record', { origin: undefined });
+      expect(mockNavigation.replace).toHaveBeenCalledWith('Record', { origin: undefined });
     });
 
     it('バッジがあっても地図に戻る', () => {
@@ -241,7 +243,7 @@ describe('RecordCompleteScreen', () => {
         <RecordCompleteScreen navigation={mockNavigation} route={mockRouteWithBadge} />
       );
       fireEvent.press(getByTestId('button-exit'));
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('MainTabs', {
+      expect(mockNavigation.popTo).toHaveBeenCalledWith('MainTabs', {
         screen: 'MapTab',
         params: { screen: 'Map' },
       });
@@ -377,7 +379,7 @@ describe('来た場所に戻す（origin）', () => {
 
     fireEvent.press(getByTestId('button-exit'));
 
-    expect(mockNavigation.navigate).toHaveBeenCalledWith('MainTabs', {
+    expect(mockNavigation.popTo).toHaveBeenCalledWith('MainTabs', {
       screen: 'GalleryTab',
       params: { screen: 'Gallery' },
     });
@@ -391,7 +393,7 @@ describe('来た場所に戻す（origin）', () => {
 
     fireEvent.press(getByTestId('button-record-another'));
 
-    expect(mockNavigation.navigate).toHaveBeenCalledWith('Record', { origin: 'gallery' });
+    expect(mockNavigation.replace).toHaveBeenCalledWith('Record', { origin: 'gallery' });
   });
 
   it('地図から来たら地図へ戻る', () => {
@@ -402,7 +404,7 @@ describe('来た場所に戻す（origin）', () => {
 
     fireEvent.press(getByTestId('button-exit'));
 
-    expect(mockNavigation.navigate).toHaveBeenCalledWith('MainTabs', {
+    expect(mockNavigation.popTo).toHaveBeenCalledWith('MainTabs', {
       screen: 'MapTab',
       params: { screen: 'Map' },
     });
@@ -521,5 +523,59 @@ describe('まとめて登録したときの枚数表示', () => {
     );
 
     expect(getByTestId('visit-count').props.children).toBe('3箇所目の御朱印！');
+  });
+});
+
+// React Navigation v7 の navigate は、同じ名前の画面が履歴にあっても
+// 戻らず push する（StackRouter の NAVIGATE は payload.pop のときだけ戻る）。
+// そのため「もう1枚」で記録画面を重ねると、✕ がここへ帰ってきていた（Issue #188）
+describe('この画面を履歴に残さない', () => {
+  const route = (origin?: 'map' | 'gallery') =>
+    ({
+      key: 'test',
+      name: 'RecordComplete' as const,
+      params: { stampImageUrl: 'https://example.com/a.jpg', spotName: '大崎八幡宮', origin },
+    }) as any;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('「もう1枚記録する」はこの画面を置き換える', () => {
+    const { getByTestId } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={route('gallery')} />
+    );
+
+    fireEvent.press(getByTestId('button-record-another'));
+
+    expect(mockNavigation.replace).toHaveBeenCalledWith('Record', { origin: 'gallery' });
+    expect(mockNavigation.navigate).not.toHaveBeenCalled();
+  });
+
+  it('出口は履歴を伸ばさず、元のタブまで戻る', () => {
+    const { getByTestId } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={route('gallery')} />
+    );
+
+    fireEvent.press(getByTestId('button-exit'));
+
+    expect(mockNavigation.popTo).toHaveBeenCalledWith('MainTabs', {
+      screen: 'GalleryTab',
+      params: { screen: 'Gallery' },
+    });
+    expect(mockNavigation.navigate).not.toHaveBeenCalled();
+  });
+
+  it('来た場所が分からなければ地図へ戻る', () => {
+    const { getByTestId } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={route(undefined)} />
+    );
+
+    fireEvent.press(getByTestId('button-exit'));
+
+    expect(mockNavigation.popTo).toHaveBeenCalledWith('MainTabs', {
+      screen: 'MapTab',
+      params: { screen: 'Map' },
+    });
   });
 });
