@@ -25,6 +25,12 @@ interface UseRecordFormParams {
  */
 export type RecordSubmitStage = 'upload' | 'create';
 
+/**
+ * 入力の欠けている欄。画面はこれを見て、その欄までスクロールする。
+ * 返す順は画面の並び順と同じにする
+ */
+export type RecordField = 'spot' | 'image';
+
 export interface RecordSubmitResult {
   /** 選んだ写真が全部保存できたか */
   success: boolean;
@@ -55,7 +61,8 @@ interface UseRecordFormReturn {
   setVisitedAt: (date: Date) => void;
   setMemo: (text: string) => void;
   setIsPublic: (value: boolean) => void;
-  validate: () => boolean;
+  /** 欠けている欄を画面の並び順で返す。空配列なら問題なし */
+  validate: () => RecordField[];
   submit: () => Promise<RecordSubmitResult>;
   reset: () => void;
 }
@@ -128,28 +135,28 @@ export function useRecordForm(params?: UseRecordFormParams): UseRecordFormReturn
     setImageUris(prev => prev.filter((_, i) => i !== index));
   }, []);
 
-  const validate = useCallback((): boolean => {
-    let valid = true;
+  const validate = useCallback((): RecordField[] => {
+    const invalid: RecordField[] = [];
 
     if (!selectedSpot) {
       setSpotError('スポットを選択してください');
-      valid = false;
+      invalid.push('spot');
     } else {
       setSpotError(null);
     }
 
     if (imageUris.length === 0) {
       setImageError('御朱印の写真を追加してください');
-      valid = false;
+      invalid.push('image');
     } else {
       setImageError(null);
     }
 
-    return valid;
+    return invalid;
   }, [selectedSpot, imageUris]);
 
   const submit = useCallback(async (): Promise<RecordSubmitResult> => {
-    if (!validate()) {
+    if (validate().length > 0) {
       return { success: false, stamps: [], failedCount: 0 };
     }
 
