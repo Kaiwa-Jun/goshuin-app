@@ -96,6 +96,7 @@ export function SpotSelector({
                 style={styles.spotRow}
                 onPress={() => handleSelectSpot(item.spot)}
                 activeOpacity={0.7}
+                testID={`spot-option-${item.spot.id}`}
               >
                 <View style={styles.spotInfo}>
                   <Text style={styles.spotName} numberOfLines={1}>
@@ -103,9 +104,7 @@ export function SpotSelector({
                   </Text>
                   <Badge type={item.spot.type} />
                 </View>
-                {/* 同名のスポットが 27 種 60 件ある（白山神社 4 件など）。
-                    名前と距離だけではどの県のものか判別できない。
-                    行が狭いので住所フルではなく県だけにする */}
+                {/* 同名が 27 種 60 件あり名前だけでは判別できない。行が狭いので県だけ */}
                 {item.spot.prefecture && (
                   <Text style={styles.prefecture} numberOfLines={1}>
                     {item.spot.prefecture}
@@ -198,6 +197,8 @@ const styles = StyleSheet.create({
   spotName: {
     ...typography.body,
     color: colors.gray[800],
+    // 親の flex だけでは Text は縮まない。長い名前で県と距離を押し出さないため
+    flexShrink: 1,
   },
   prefecture: {
     ...typography.bodySmall,

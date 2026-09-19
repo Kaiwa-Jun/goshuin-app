@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
+import { render, fireEvent, within } from '@testing-library/react-native';
 import { SpotSelector } from '../SpotSelector';
 import type { Spot } from '@/types/supabase';
 
@@ -112,15 +112,17 @@ describe('都道府県の表示', () => {
     expect(r.getByText('岩手県')).toBeTruthy();
   });
 
-  it('同名でも県で見分けられる', () => {
+  it('同名でも県で見分けられる。県が正しい行に付く', () => {
     const r = openDropdown([
       { spot: makeSpot({ id: 'a', name: '白山神社', prefecture: '岩手県' }), distanceKm: 0.5 },
       { spot: makeSpot({ id: 'b', name: '白山神社', prefecture: '新潟県' }), distanceKm: 1.2 },
     ]);
 
     expect(r.getAllByText('白山神社')).toHaveLength(2);
-    expect(r.getByText('岩手県')).toBeTruthy();
-    expect(r.getByText('新潟県')).toBeTruthy();
+    // 行ごとに見る。両方出ているだけでは、入れ違っていても通ってしまう
+    expect(within(r.getByTestId('spot-option-a')).getByText('岩手県')).toBeTruthy();
+    expect(within(r.getByTestId('spot-option-b')).getByText('新潟県')).toBeTruthy();
+    expect(within(r.getByTestId('spot-option-a')).queryByText('新潟県')).toBeNull();
   });
 
   it('都道府県が無いスポットでも落ちない', () => {
