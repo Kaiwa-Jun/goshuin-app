@@ -24,6 +24,7 @@ import { useAuth } from '@hooks/useAuth';
 import { useLocation } from '@hooks/useLocation';
 import { formatJapaneseEraDate } from '@utils/japaneseEra';
 import { pickAutoSelectableSpot } from '@utils/autoSelectSpot';
+import { MAX_PHOTOS_PER_RECORD } from '@/constants/record';
 import { scrollTargetToReveal } from '@utils/revealInScrollView';
 import { getStampImageUrl, fetchVisitedSpotIds } from '@services/stamps';
 import { isNetworkError } from '@/utils/errorClassifier';
@@ -59,6 +60,8 @@ export function RecordScreen({ navigation, route }: Props) {
 
   const [showSpotAdd, setShowSpotAdd] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  /** 一部だけ保存できたときの知らせ。全部成功なら完了画面へ行くので出番はない */
+  const [partialNotice, setPartialNotice] = useState<string | null>(null);
 
   /** 要素の下端が画面に入る分だけ動かす。最上部に持ち上げると上のものが消える */
   const reveal = (rect: { y: number; height: number }) => {
@@ -91,6 +94,7 @@ export function RecordScreen({ navigation, route }: Props) {
     if (!form.validate()) return;
 
     isSavingRef.current = true;
+    setPartialNotice(null);
     try {
       await save();
     } finally {
@@ -111,50 +115,71 @@ export function RecordScreen({ navigation, route }: Props) {
 
     const result = await form.submit();
 
-    if (result.success && result.stamp) {
-      const completeParams = {
-        stampImageUrl: getStampImageUrl(result.stamp.image_path),
-        spotName: form.selectedSpot?.name,
-        // 完了画面は来た場所に返す
-        origin: route.params?.origin,
-      };
-
-      // previousCount が無い以上バッジは判定できない。0 を代入して評価すると
-      // 「100箇所目なのに1箇所目」と祝い、獲得済みバッジが再発火する（Issue #133）
-      if (visitedSpotIds === null) {
-        navigation.navigate('RecordComplete', { ...completeParams, countUnavailable: true });
-        return;
+    // 1枚も残らなかったときだけ従来どおりエラー画面へ。
+    // 1枚でも保存できていれば、それは有効な記録なので画面ごと捨てない
+    if (result.stamps.length === 0) {
+      if (result.failedCount > 0) {
+        const errorType = isNetworkError(result.error) ? 'network' : 'upload';
+        navigation.navigate('Error', {
+          type: errorType,
+          origin: 'record',
+          stage: result.stage,
+          message: result.message,
+        });
       }
-
-      const previousCount = visitedSpotIds.size;
-      const isNewSpot = form.selectedSpot ? !visitedSpotIds.has(form.selectedSpot.id) : false;
-      const currentCount = isNewSpot ? previousCount + 1 : previousCount;
-      const badge = evaluateNewBadge(previousCount, currentCount);
-
-      navigation.navigate('RecordComplete', {
-        ...completeParams,
-        visitCount: currentCount,
-        badge,
-      });
-    } else if (!result.success) {
-      const errorType = isNetworkError(result.error) ? 'network' : 'upload';
-      navigation.navigate('Error', {
-        type: errorType,
-        origin: 'record',
-        stage: result.stage,
-        message: result.message,
-      });
+      return;
     }
+
+    // 一部だけ失敗。保存できた分はフォームから外れているので、
+    // そのまま「記録する」を押せば残りだけをやり直せる
+    if (result.failedCount > 0) {
+      setPartialNotice(
+        `${result.stamps.length + result.failedCount}枚のうち${result.stamps.length}枚を記録しました。` +
+          `残り${result.failedCount}枚をもう一度お試しください`
+      );
+      return;
+    }
+
+    const completeParams = {
+      stampImageUrl: getStampImageUrl(result.stamps[0].image_path),
+      stampCount: result.stamps.length,
+      spotName: form.selectedSpot?.name,
+      // 完了画面は来た場所に返す
+      origin: route.params?.origin,
+    };
+
+    // previousCount が無い以上バッジは判定できない。0 を代入して評価すると
+    // 「100箇所目なのに1箇所目」と祝い、獲得済みバッジが再発火する（Issue #133）
+    if (visitedSpotIds === null) {
+      navigation.navigate('RecordComplete', { ...completeParams, countUnavailable: true });
+      return;
+    }
+
+    // まとめて登録しても訪問したスポットは1つ。件数は枚数ではなく箇所数で数える
+    const previousCount = visitedSpotIds.size;
+    const isNewSpot = form.selectedSpot ? !visitedSpotIds.has(form.selectedSpot.id) : false;
+    const currentCount = isNewSpot ? previousCount + 1 : previousCount;
+    const badge = evaluateNewBadge(previousCount, currentCount);
+
+    navigation.navigate('RecordComplete', {
+      ...completeParams,
+      visitCount: currentCount,
+      badge,
+    });
   };
+
+  const remainingSlots = MAX_PHOTOS_PER_RECORD - form.imageUris.length;
 
   const handleTakePhoto = async () => {
     const uri = await takePhoto();
-    if (uri) form.setImageUri(uri);
+    if (uri) form.addImages([uri]);
   };
 
   const handlePickFromLibrary = async () => {
-    const uri = await pickFromLibrary();
-    if (uri) form.setImageUri(uri);
+    // selectionLimit: 0 は expo-image-picker では「無制限」の意味になる。
+    // 残り0枚で呼ぶと上限が外れるので、リンク自体を出さない
+    const uris = await pickFromLibrary(remainingSlots);
+    if (uris.length > 0) form.addImages(uris);
   };
 
   const handleDateChange = (_event: unknown, selectedDate?: Date) => {
@@ -205,17 +230,20 @@ export function RecordScreen({ navigation, route }: Props) {
           {/* 写真枠のタップでカメラを直接起動する。選択モーダルを1タップ挟んでいた分を削った。
               ギャラリーは使用頻度が低いので、常時見えるリンクとして枠の下に残す */}
           <PhotoSection
-            imageUri={form.imageUri}
-            onPress={handleTakePhoto}
+            imageUris={form.imageUris}
+            onAddPress={handleTakePhoto}
+            onRemove={form.removeImage}
             error={form.imageError}
           />
-          <TouchableOpacity
-            style={styles.libraryLink}
-            onPress={handlePickFromLibrary}
-            testID="pick-from-library"
-          >
-            <Text style={styles.libraryLinkText}>ギャラリーから選ぶ</Text>
-          </TouchableOpacity>
+          {remainingSlots > 0 && (
+            <TouchableOpacity
+              style={styles.libraryLink}
+              onPress={handlePickFromLibrary}
+              testID="pick-from-library"
+            >
+              <Text style={styles.libraryLinkText}>ギャラリーから選ぶ</Text>
+            </TouchableOpacity>
+          )}
 
           <Text style={styles.sectionLabel}>訪問日</Text>
           <TouchableOpacity
@@ -293,6 +321,11 @@ export function RecordScreen({ navigation, route }: Props) {
       </KeyboardAvoidingView>
 
       <View style={styles.footer}>
+        {partialNotice && (
+          <Text style={styles.partialNotice} testID="partial-notice">
+            {partialNotice}
+          </Text>
+        )}
         <Button
           title="この内容で記録する"
           onPress={handleSavePress}
@@ -412,6 +445,11 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.primary[500],
     fontWeight: '600',
+  },
+  partialNotice: {
+    ...typography.caption,
+    color: colors.error,
+    marginBottom: spacing.sm,
   },
   footer: {
     padding: spacing.lg,

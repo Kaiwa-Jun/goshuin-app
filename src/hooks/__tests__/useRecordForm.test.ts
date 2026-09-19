@@ -2,6 +2,7 @@ import { renderHook, act, waitFor } from '@testing-library/react-native';
 import { useRecordForm } from '@hooks/useRecordForm';
 import type { RecordSubmitResult } from '@hooks/useRecordForm';
 import type { Spot, Stamp } from '@/types/supabase';
+import { MAX_PHOTOS_PER_RECORD } from '@/constants/record';
 
 const mockFetchSpotById = jest.fn();
 const mockUploadStampImage = jest.fn();
@@ -73,7 +74,7 @@ describe('useRecordForm', () => {
     const { result } = renderHook(() => useRecordForm());
 
     expect(result.current.selectedSpot).toBeNull();
-    expect(result.current.imageUri).toBeNull();
+    expect(result.current.imageUris).toEqual([]);
     expect(result.current.visitedAt).toBeInstanceOf(Date);
     expect(result.current.memo).toBe('');
     expect(result.current.spotError).toBeNull();
@@ -93,14 +94,14 @@ describe('useRecordForm', () => {
     expect(result.current.spotError).toBeNull();
   });
 
-  it('sets imageUri with setImageUri', () => {
+  it('sets imageUris with addImages', () => {
     const { result } = renderHook(() => useRecordForm());
 
     act(() => {
-      result.current.setImageUri('file:///photo.jpg');
+      result.current.addImages(['file:///photo.jpg']);
     });
 
-    expect(result.current.imageUri).toBe('file:///photo.jpg');
+    expect(result.current.imageUris).toEqual(['file:///photo.jpg']);
     expect(result.current.imageError).toBeNull();
   });
 
@@ -118,7 +119,7 @@ describe('useRecordForm', () => {
     const { result } = renderHook(() => useRecordForm());
 
     act(() => {
-      result.current.setImageUri('file:///photo.jpg');
+      result.current.addImages(['file:///photo.jpg']);
     });
 
     let valid: boolean;
@@ -151,7 +152,7 @@ describe('useRecordForm', () => {
 
     act(() => {
       result.current.selectSpot(fakeSpot);
-      result.current.setImageUri('file:///photo.jpg');
+      result.current.addImages(['file:///photo.jpg']);
     });
 
     let valid: boolean;
@@ -172,16 +173,16 @@ describe('useRecordForm', () => {
 
     act(() => {
       result.current.selectSpot(fakeSpot);
-      result.current.setImageUri('file:///photo.jpg');
+      result.current.addImages(['file:///photo.jpg']);
     });
 
-    let submitResult: { success: boolean; stamp?: Stamp };
+    let submitResult: RecordSubmitResult;
     await act(async () => {
       submitResult = await result.current.submit();
     });
 
     expect(submitResult!.success).toBe(true);
-    expect(submitResult!.stamp).toEqual(fakeStamp);
+    expect(submitResult!.stamps).toEqual([fakeStamp]);
     expect(mockUploadStampImage).toHaveBeenCalledWith('user-1', 'file:///photo.jpg');
     expect(mockCreateStamp).toHaveBeenCalledWith({
       userId: 'user-1',
@@ -201,7 +202,7 @@ describe('useRecordForm', () => {
 
     act(() => {
       result.current.selectSpot(fakeSpot);
-      result.current.setImageUri('file:///photo.jpg');
+      result.current.addImages(['file:///photo.jpg']);
     });
 
     let submitResult: { success: boolean; stamp?: Stamp };
@@ -224,7 +225,7 @@ describe('useRecordForm', () => {
 
     act(() => {
       result.current.selectSpot(fakeSpot);
-      result.current.setImageUri('file:///photo.jpg');
+      result.current.addImages(['file:///photo.jpg']);
     });
 
     let submitResult: RecordSubmitResult;
@@ -245,7 +246,7 @@ describe('useRecordForm', () => {
 
     act(() => {
       result.current.selectSpot(fakeSpot);
-      result.current.setImageUri('file:///photo.jpg');
+      result.current.addImages(['file:///photo.jpg']);
     });
 
     let submitResult: RecordSubmitResult;
@@ -275,7 +276,7 @@ describe('useRecordForm', () => {
 
     act(() => {
       result.current.selectSpot(fakeSpot);
-      result.current.setImageUri('file:///photo.jpg');
+      result.current.addImages(['file:///photo.jpg']);
       result.current.setMemo('test memo');
     });
 
@@ -286,7 +287,7 @@ describe('useRecordForm', () => {
     });
 
     expect(result.current.selectedSpot).toBeNull();
-    expect(result.current.imageUri).toBeNull();
+    expect(result.current.imageUris).toEqual([]);
     expect(result.current.memo).toBe('');
     expect(result.current.spotError).toBeNull();
     expect(result.current.imageError).toBeNull();
@@ -317,7 +318,7 @@ describe('useRecordForm', () => {
 
     act(() => {
       result.current.selectSpot(fakeSpot);
-      result.current.setImageUri('file:///photo.jpg');
+      result.current.addImages(['file:///photo.jpg']);
       result.current.setIsPublic(true);
     });
 
@@ -355,7 +356,7 @@ describe('useRecordForm', () => {
 
     act(() => {
       result.current.selectSpot(fakeSpot);
-      result.current.setImageUri('file:///photo.jpg');
+      result.current.addImages(['file:///photo.jpg']);
     });
 
     await act(async () => {
@@ -372,7 +373,7 @@ describe('useRecordForm', () => {
 
     act(() => {
       result.current.selectSpot(fakeSpot);
-      result.current.setImageUri('file:///photo.jpg');
+      result.current.addImages(['file:///photo.jpg']);
     });
 
     await act(async () => {
@@ -524,5 +525,172 @@ describe('最寄りスポットの既定選択（Issue #130 / S-4）', () => {
 
     expect(result.current.selectedSpot).toBeNull();
     expect(result.current.isSpotAutoSelected).toBe(false);
+  });
+  describe('複数枚をまとめて登録する（Issue #180）', () => {
+    const stampFor = (id: string): Stamp => ({ ...fakeStamp, id, image_path: `user-1/${id}.jpg` });
+
+    it('選んだ枚数ぶん stamps を作る', async () => {
+      mockUploadStampImage.mockImplementation((_userId: string, uri: string) =>
+        Promise.resolve(`user-1/${uri.slice(-5, -4)}.jpg`)
+      );
+      mockCreateStamp
+        .mockResolvedValueOnce(stampFor('s1'))
+        .mockResolvedValueOnce(stampFor('s2'))
+        .mockResolvedValueOnce(stampFor('s3'));
+
+      const { result } = renderHook(() => useRecordForm());
+
+      act(() => {
+        result.current.selectSpot(fakeSpot);
+        result.current.addImages(['file:///a.jpg', 'file:///b.jpg', 'file:///c.jpg']);
+      });
+
+      let submitResult: RecordSubmitResult;
+      await act(async () => {
+        submitResult = await result.current.submit();
+      });
+
+      expect(mockCreateStamp).toHaveBeenCalledTimes(3);
+      expect(submitResult!.success).toBe(true);
+      expect(submitResult!.stamps.map(s => s.id)).toEqual(['s1', 's2', 's3']);
+      expect(submitResult!.failedCount).toBe(0);
+    });
+
+    // 並列にすると created_at が前後して、選んだ順に綴じたはずの1組が並び替わる
+    it('選んだ順に1枚ずつ登録する', async () => {
+      const order: string[] = [];
+      mockUploadStampImage.mockImplementation(async (_userId: string, uri: string) => {
+        order.push(`upload:${uri}`);
+        return 'user-1/x.jpg';
+      });
+      mockCreateStamp.mockImplementation(async (params: { imagePath: string }) => {
+        order.push(`create:${params.imagePath}`);
+        return fakeStamp;
+      });
+
+      const { result } = renderHook(() => useRecordForm());
+
+      act(() => {
+        result.current.selectSpot(fakeSpot);
+        result.current.addImages(['file:///a.jpg', 'file:///b.jpg']);
+      });
+
+      await act(async () => {
+        await result.current.submit();
+      });
+
+      expect(order).toEqual([
+        'upload:file:///a.jpg',
+        'create:user-1/x.jpg',
+        'upload:file:///b.jpg',
+        'create:user-1/x.jpg',
+      ]);
+    });
+
+    // 同じスポットに何度投げても取れる情報は同じ。枚数ぶん Edge Function を叩かない
+    it('AI抽出は1枚目だけ呼ぶ', async () => {
+      mockUploadStampImage.mockResolvedValue('user-1/x.jpg');
+      mockCreateStamp.mockResolvedValueOnce(stampFor('s1')).mockResolvedValueOnce(stampFor('s2'));
+
+      const { result } = renderHook(() => useRecordForm());
+
+      act(() => {
+        result.current.selectSpot(fakeSpot);
+        result.current.addImages(['file:///a.jpg', 'file:///b.jpg']);
+      });
+
+      await act(async () => {
+        await result.current.submit();
+      });
+
+      expect(mockTriggerExtraction).toHaveBeenCalledTimes(1);
+      expect(mockTriggerExtraction).toHaveBeenCalledWith('s1');
+    });
+
+    // 3枚目で落ちたときに全部失敗したように見せると、やり直して重複ができる
+    it('途中で失敗しても、成功した分は保存され失敗枚数が返る', async () => {
+      mockUploadStampImage
+        .mockResolvedValueOnce('user-1/a.jpg')
+        .mockRejectedValueOnce(new Error('Upload failed'))
+        .mockResolvedValueOnce('user-1/c.jpg');
+      mockCreateStamp.mockResolvedValueOnce(stampFor('s1')).mockResolvedValueOnce(stampFor('s3'));
+
+      const { result } = renderHook(() => useRecordForm());
+
+      act(() => {
+        result.current.selectSpot(fakeSpot);
+        result.current.addImages(['file:///a.jpg', 'file:///b.jpg', 'file:///c.jpg']);
+      });
+
+      let submitResult: RecordSubmitResult;
+      await act(async () => {
+        submitResult = await result.current.submit();
+      });
+
+      expect(submitResult!.success).toBe(false);
+      expect(submitResult!.stamps.map(s => s.id)).toEqual(['s1', 's3']);
+      expect(submitResult!.failedCount).toBe(1);
+      expect(submitResult!.message).toContain('Upload failed');
+    });
+
+    // 1枚が壊れていても、残りの写真を巻き添えにしない
+    it('失敗した写真だけがフォームに残る', async () => {
+      mockUploadStampImage
+        .mockResolvedValueOnce('user-1/a.jpg')
+        .mockRejectedValueOnce(new Error('Upload failed'));
+      mockCreateStamp.mockResolvedValueOnce(stampFor('s1'));
+
+      const { result } = renderHook(() => useRecordForm());
+
+      act(() => {
+        result.current.selectSpot(fakeSpot);
+        result.current.addImages(['file:///a.jpg', 'file:///b.jpg']);
+      });
+
+      await act(async () => {
+        await result.current.submit();
+      });
+
+      // 保存済みの a を残すと、やり直しで同じ御朱印が2件できる
+      expect(result.current.imageUris).toEqual(['file:///b.jpg']);
+    });
+
+    it('removeImage で1枚だけ外せる', () => {
+      const { result } = renderHook(() => useRecordForm());
+
+      act(() => {
+        result.current.addImages(['file:///a.jpg', 'file:///b.jpg']);
+      });
+      act(() => {
+        result.current.removeImage('file:///a.jpg');
+      });
+
+      expect(result.current.imageUris).toEqual(['file:///b.jpg']);
+    });
+
+    it('上限を超える分は受け取らない', () => {
+      const { result } = renderHook(() => useRecordForm());
+
+      act(() => {
+        result.current.addImages(
+          Array.from({ length: MAX_PHOTOS_PER_RECORD + 5 }, (_, i) => `file:///${i}.jpg`)
+        );
+      });
+
+      expect(result.current.imageUris).toHaveLength(MAX_PHOTOS_PER_RECORD);
+    });
+
+    it('写真が1枚も無ければ imageError を出す', () => {
+      const { result } = renderHook(() => useRecordForm());
+
+      act(() => {
+        result.current.selectSpot(fakeSpot);
+      });
+      act(() => {
+        expect(result.current.validate()).toBe(false);
+      });
+
+      expect(result.current.imageError).toBe('御朱印の写真を追加してください');
+    });
   });
 });

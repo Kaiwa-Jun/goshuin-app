@@ -473,3 +473,53 @@ describe('行き先をアイコンで示す', () => {
     expect(getByTestId('button-exit').findByProps({ name: 'menu-book' })).toBeTruthy();
   });
 });
+
+// Issue #180: まとめて登録すると、表示できるのは先頭の1枚だけになる
+describe('まとめて登録したときの枚数表示', () => {
+  const routeWith = (stampCount?: number) =>
+    ({
+      key: 'test',
+      name: 'RecordComplete' as const,
+      params: {
+        stampImageUrl: 'https://example.com/stamps/user-1/12345.jpg',
+        spotName: '大崎八幡宮',
+        stampCount,
+      },
+    }) as any;
+
+  it('2枚以上なら枚数を出す', () => {
+    const { getByTestId } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={routeWith(5)} />
+    );
+
+    expect(getByTestId('stamp-count').props.children).toContain('5枚');
+  });
+
+  it('1枚なら枚数を出さない', () => {
+    const { queryByTestId } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={routeWith(1)} />
+    );
+
+    expect(queryByTestId('stamp-count')).toBeNull();
+  });
+
+  it('枚数が渡されなくても落ちない', () => {
+    const { queryByTestId } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={routeWith(undefined)} />
+    );
+
+    expect(queryByTestId('stamp-count')).toBeNull();
+  });
+
+  // 5枚もらっても訪問した場所は1つ。件数は箇所数のまま
+  it('枚数を出しても箇所数の文言は変わらない', () => {
+    const route = routeWith(5);
+    route.params.visitCount = 3;
+
+    const { getByTestId } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={route} />
+    );
+
+    expect(getByTestId('visit-count').props.children).toBe('3箇所目の御朱印！');
+  });
+});

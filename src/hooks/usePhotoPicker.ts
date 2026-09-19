@@ -14,8 +14,11 @@ function describeError(error: unknown): string {
 export interface UsePhotoPickerReturn {
   /** カメラを起動する。権限が無い / キャンセル / 失敗のときは null */
   takePhoto: () => Promise<string | null>;
-  /** ギャラリーを開く。キャンセル / 失敗のときは null */
-  pickFromLibrary: () => Promise<string | null>;
+  /**
+   * ギャラリーを開く。複数選べる。キャンセル / 失敗のときは空配列。
+   * `limit` にはあと何枚入るかを渡す
+   */
+  pickFromLibrary: (limit: number) => Promise<string[]>;
 }
 
 /**
@@ -52,14 +55,18 @@ export function usePhotoPicker(): UsePhotoPickerReturn {
     }
   }, []);
 
-  const pickFromLibrary = useCallback(async (): Promise<string | null> => {
+  const pickFromLibrary = useCallback(async (limit: number): Promise<string[]> => {
     try {
-      const result = await ImagePicker.launchImageLibraryAsync(pickerOptions);
-      if (result.canceled) return null;
-      return result.assets[0].uri;
+      const result = await ImagePicker.launchImageLibraryAsync({
+        ...pickerOptions,
+        allowsMultipleSelection: true,
+        selectionLimit: limit,
+      });
+      if (result.canceled) return [];
+      return result.assets.map(asset => asset.uri);
     } catch (error) {
       Alert.alert('写真を選べませんでした', describeError(error));
-      return null;
+      return [];
     }
   }, []);
 

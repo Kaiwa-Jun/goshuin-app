@@ -1,6 +1,7 @@
 import { renderHook } from '@testing-library/react-native';
 import { Alert, Linking } from 'react-native';
 import { usePhotoPicker } from '@hooks/usePhotoPicker';
+import { MAX_PHOTOS_PER_RECORD } from '@/constants/record';
 
 const mockRequestCameraPermissionsAsync = jest.fn();
 const mockLaunchCameraAsync = jest.fn();
@@ -96,30 +97,55 @@ describe('usePhotoPicker', () => {
       });
 
       const { result } = renderHook(() => usePhotoPicker());
-      const uri = await result.current.pickFromLibrary();
+      const uris = await result.current.pickFromLibrary(MAX_PHOTOS_PER_RECORD);
 
       expect(mockLaunchImageLibraryAsync).toHaveBeenCalled();
-      expect(uri).toBe('file:///library.jpg');
+      expect(uris).toEqual(['file:///library.jpg']);
     });
 
-    it('選択をキャンセルしたら null を返す', async () => {
+    // 1箇所で複数枚いただける寺社があるので、1枚ずつ登録させない（Issue #180）
+    it('複数選んだら全部返す', async () => {
+      mockLaunchImageLibraryAsync.mockResolvedValue({
+        canceled: false,
+        assets: [{ uri: 'file:///a.jpg' }, { uri: 'file:///b.jpg' }, { uri: 'file:///c.jpg' }],
+      });
+
+      const { result } = renderHook(() => usePhotoPicker());
+      const uris = await result.current.pickFromLibrary(MAX_PHOTOS_PER_RECORD);
+
+      expect(uris).toEqual(['file:///a.jpg', 'file:///b.jpg', 'file:///c.jpg']);
+    });
+
+    // 上限が無いと、50枚選べてしまい中断手段のないアップロードが始まる
+    it('残り枚数を選択上限としてピッカーに渡す', async () => {
       mockLaunchImageLibraryAsync.mockResolvedValue({ canceled: true });
 
       const { result } = renderHook(() => usePhotoPicker());
-      const uri = await result.current.pickFromLibrary();
+      await result.current.pickFromLibrary(3);
 
-      expect(uri).toBeNull();
+      expect(mockLaunchImageLibraryAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ allowsMultipleSelection: true, selectionLimit: 3 })
+      );
+    });
+
+    it('選択をキャンセルしたら空配列を返す', async () => {
+      mockLaunchImageLibraryAsync.mockResolvedValue({ canceled: true });
+
+      const { result } = renderHook(() => usePhotoPicker());
+      const uris = await result.current.pickFromLibrary(MAX_PHOTOS_PER_RECORD);
+
+      expect(uris).toEqual([]);
     });
 
     it('ギャラリーが失敗したらエラー原文を Alert に出す', async () => {
       mockLaunchImageLibraryAsync.mockRejectedValue(new Error('library unavailable'));
 
       const { result } = renderHook(() => usePhotoPicker());
-      const uri = await result.current.pickFromLibrary();
+      const uris = await result.current.pickFromLibrary(MAX_PHOTOS_PER_RECORD);
 
       const messages = (Alert.alert as jest.Mock).mock.calls.map(c => `${c[0]} ${c[1]}`).join('\n');
       expect(messages).toContain('library unavailable');
-      expect(uri).toBeNull();
+      expect(uris).toEqual([]);
     });
   });
 });

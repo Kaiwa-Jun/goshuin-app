@@ -6,3 +6,11 @@
  * 効くよう厳しくしている（Issue #130 / S-4）
  */
 export const AUTO_SELECT_SPOT_RADIUS_KM = 0.5;
+
+/**
+ * 1回の記録でまとめて登録できる御朱印の枚数。
+ *
+ * 1箇所で複数枚いただける寺社があるので1枚縛りは外したが、上限が無いと
+ * 50枚選べてしまい、中断手段のないアップロードが延々と続く（Issue #180）
+ */
+export const MAX_PHOTOS_PER_RECORD = 10;
