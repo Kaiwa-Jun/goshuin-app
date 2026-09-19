@@ -146,6 +146,27 @@ describe('Theme', () => {
       expect(colors.success).toBeDefined();
       expect(colors.error).toBeDefined();
     });
+
+    // カードが地から分かれていないと、そもそもカードに見えない
+    it('カードを並べる地は、カード(白)と知覚上分かれている', () => {
+      expect(distance(colors.backgroundGrouped, colors.white)).toBeGreaterThan(3);
+    });
+
+    /*
+     * 注意: backgroundGrouped は gray[100] と ΔE 1.7 しかない。
+     *
+     * グレースケールの明部は互いに ΔE 2〜3 で密に並んでいるため、地をどの
+     * 明るいグレーにしても必ずどれかに近づく。トークン間の距離では守れない。
+     *
+     * したがって「カードを並べる画面に gray[100] の塗りを置かない」は規約として
+     * 守る。実際に置いていないことは、その画面のテストで個別に見る
+     * （AccountDeletionScreen のエラーの囲みなど）
+     */
+
+    // ふつうの画面は白のまま。グレーにすると gray[100] の入力欄が溶ける
+    it('ふつうの画面の地は白のままにする', () => {
+      expect(colors.background).toBe(colors.white);
+    });
   });
 
   describe('typography', () => {

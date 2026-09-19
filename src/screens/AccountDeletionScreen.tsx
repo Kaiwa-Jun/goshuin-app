@@ -115,7 +115,7 @@ export function AccountDeletionScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.backgroundGrouped,
   },
   scrollView: {
     flex: 1,
@@ -153,7 +153,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   errorBox: {
-    backgroundColor: colors.gray[100],
+    // 灰色だと地（backgroundGrouped）とほぼ同じ色になって囲みが消える。
+    // エラーの囲みなので、地と分かれるだけでなく意味も伝わる色にする
+    backgroundColor: colors.shrine[50],
     borderRadius: spacing.sm,
     padding: spacing.md,
     gap: spacing.xs,

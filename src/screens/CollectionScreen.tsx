@@ -313,7 +313,7 @@ export function CollectionScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.backgroundGrouped,
   },
   header: {
     paddingHorizontal: spacing.lg,

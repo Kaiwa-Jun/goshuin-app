@@ -100,7 +100,8 @@ const styles = StyleSheet.create({
   },
   surface: {
     alignSelf: 'stretch',
-    backgroundColor: colors.background,
+    // ここは画面の地ではなく「紙」。地の色が変わっても白のまま
+    backgroundColor: colors.white,
     borderColor: colors.gray[200],
     borderWidth: 1,
     borderRadius: borderRadius.lg,
