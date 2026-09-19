@@ -70,103 +70,109 @@ export function SettingsScreen({ navigation }: Props) {
         style={styles.scrollView}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        testID="settings-scroll"
       >
         <Text style={styles.header}>設定</Text>
 
         {/* Account Section */}
-        <Text style={styles.sectionTitle}>アカウント</Text>
-        <Card style={styles.sectionCard}>
-          <View style={styles.row}>
-            <MaterialIcons name="person" size={24} color={colors.gray[500]} />
-            <Text style={styles.rowLabel}>{displayName}</Text>
-          </View>
-          <View style={styles.row}>
-            <MaterialIcons name="email" size={24} color={colors.gray[500]} />
-            <Text style={styles.rowLabel}>{displayEmail}</Text>
-          </View>
-          <View style={styles.divider} />
-          {isAuthenticated ? (
-            <>
-              <TouchableOpacity
-                style={styles.row}
-                accessibilityRole="button"
-                onPress={handleLogout}
-              >
-                <MaterialIcons name="logout" size={24} color={colors.error} />
-                <Text style={styles.logoutText}>ログアウト</Text>
-              </TouchableOpacity>
-              {/* App Store Guideline 5.1.1(v): アカウント作成があるアプリは
+        <View style={styles.section} testID="settings-section">
+          <Text style={styles.sectionTitle}>アカウント</Text>
+          <Card>
+            <View style={styles.row}>
+              <MaterialIcons name="person" size={24} color={colors.gray[500]} />
+              <Text style={styles.rowLabel}>{displayName}</Text>
+            </View>
+            <View style={styles.row}>
+              <MaterialIcons name="email" size={24} color={colors.gray[500]} />
+              <Text style={styles.rowLabel}>{displayEmail}</Text>
+            </View>
+            <View style={styles.divider} />
+            {isAuthenticated ? (
+              <>
+                <TouchableOpacity
+                  style={styles.row}
+                  accessibilityRole="button"
+                  onPress={handleLogout}
+                >
+                  <MaterialIcons name="logout" size={24} color={colors.error} />
+                  <Text style={styles.logoutText}>ログアウト</Text>
+                </TouchableOpacity>
+                {/* App Store Guideline 5.1.1(v): アカウント作成があるアプリは
                   アプリ内から削除を開始できなければならない（Issue #134） */}
-              <TouchableOpacity
-                style={styles.row}
-                accessibilityRole="button"
-                onPress={handleDeleteAccount}
-                testID="delete-account-row"
-              >
-                <MaterialIcons name="delete-forever" size={24} color={colors.error} />
-                <Text style={styles.logoutText}>アカウントを削除</Text>
-                <MaterialIcons name="chevron-right" size={24} color={colors.gray[400]} />
+                <TouchableOpacity
+                  style={styles.row}
+                  accessibilityRole="button"
+                  onPress={handleDeleteAccount}
+                  testID="delete-account-row"
+                >
+                  <MaterialIcons name="delete-forever" size={24} color={colors.error} />
+                  <Text style={styles.logoutText}>アカウントを削除</Text>
+                  <MaterialIcons name="chevron-right" size={24} color={colors.gray[400]} />
+                </TouchableOpacity>
+              </>
+            ) : (
+              <TouchableOpacity style={styles.row} accessibilityRole="button" onPress={handleLogin}>
+                <MaterialIcons name="login" size={24} color={colors.primary[500]} />
+                <Text style={styles.loginText}>ログイン</Text>
               </TouchableOpacity>
-            </>
-          ) : (
-            <TouchableOpacity style={styles.row} accessibilityRole="button" onPress={handleLogin}>
-              <MaterialIcons name="login" size={24} color={colors.primary[500]} />
-              <Text style={styles.loginText}>ログイン</Text>
-            </TouchableOpacity>
-          )}
-        </Card>
+            )}
+          </Card>
+        </View>
 
         {/* Guideline 1.2（UGC）対応で「公開設定」セクションを外した（Issue #147）。
             v1.1 で通報・ブロック・EULA を実装したらここに戻す */}
 
-        {/* App Info Section */}
-        <Text style={styles.sectionTitle}>位置情報</Text>
-        <Card>
-          <TouchableOpacity
-            style={styles.row}
-            accessibilityRole="button"
-            onPress={() => Linking.openSettings()}
-            testID="location-settings-row"
-          >
-            <Text style={styles.rowLabel}>現在地の利用</Text>
-            <View style={styles.rowRight}>
-              {locationGranted !== null && (
-                <Text style={styles.rowValue}>{locationGranted ? '許可済み' : '未許可'}</Text>
-              )}
-              <MaterialIcons name="chevron-right" size={24} color={colors.gray[400]} />
-            </View>
-          </TouchableOpacity>
-        </Card>
+        <View style={styles.section} testID="settings-section">
+          <Text style={styles.sectionTitle}>位置情報</Text>
+          <Card>
+            <TouchableOpacity
+              style={styles.row}
+              accessibilityRole="button"
+              onPress={() => Linking.openSettings()}
+              testID="location-settings-row"
+            >
+              <Text style={styles.rowLabel}>現在地の利用</Text>
+              <View style={styles.rowRight}>
+                {locationGranted !== null && (
+                  <Text style={styles.rowValue}>{locationGranted ? '許可済み' : '未許可'}</Text>
+                )}
+                <MaterialIcons name="chevron-right" size={24} color={colors.gray[400]} />
+              </View>
+            </TouchableOpacity>
+          </Card>
+        </View>
 
-        <Text style={styles.sectionTitle}>アプリ情報</Text>
-        <Card style={styles.sectionCard}>
-          <View style={styles.row}>
-            <Text style={styles.rowLabel}>バージョン</Text>
-            <Text style={styles.rowValue}>{appVersion}</Text>
-          </View>
-          <TouchableOpacity
-            style={styles.row}
-            accessibilityRole="button"
-            onPress={() => {
-              const parent = navigation.getParent();
-              if (parent) parent.navigate('TermsOfService');
-            }}
-          >
-            <Text style={styles.rowLabel}>利用規約</Text>
-            <MaterialIcons name="chevron-right" size={24} color={colors.gray[400]} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.row}
-            accessibilityRole="button"
-            onPress={() => {
-              const parent = navigation.getParent();
-              if (parent) parent.navigate('PrivacyPolicy');
-            }}
-          >
-            <Text style={styles.rowLabel}>プライバシーポリシー</Text>
-            <MaterialIcons name="chevron-right" size={24} color={colors.gray[400]} />
-          </TouchableOpacity>
-        </Card>
+        <View style={styles.section} testID="settings-section">
+          <Text style={styles.sectionTitle}>アプリ情報</Text>
+          <Card>
+            <View style={styles.row}>
+              <Text style={styles.rowLabel}>バージョン</Text>
+              <Text style={styles.rowValue}>{appVersion}</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.row}
+              accessibilityRole="button"
+              onPress={() => {
+                const parent = navigation.getParent();
+                if (parent) parent.navigate('TermsOfService');
+              }}
+            >
+              <Text style={styles.rowLabel}>利用規約</Text>
+              <MaterialIcons name="chevron-right" size={24} color={colors.gray[400]} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.row}
+              accessibilityRole="button"
+              onPress={() => {
+                const parent = navigation.getParent();
+                if (parent) parent.navigate('PrivacyPolicy');
+              }}
+            >
+              <Text style={styles.rowLabel}>プライバシーポリシー</Text>
+              <MaterialIcons name="chevron-right" size={24} color={colors.gray[400]} />
+            </TouchableOpacity>
+          </Card>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -175,7 +181,7 @@ export function SettingsScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.backgroundGrouped,
   },
   scrollView: {
     flex: 1,
@@ -183,19 +189,21 @@ const styles = StyleSheet.create({
   content: {
     padding: spacing.lg,
     paddingBottom: spacing['4xl'],
+    // セクション同士の距離。見出しと中身の距離（section の gap）より大きくして、
+    // 見出しがどちらの塊のものか読み取れるようにする
+    gap: spacing['3xl'],
   },
   header: {
     ...typography.h2,
     color: colors.gray[900],
-    marginBottom: spacing.lg,
+  },
+  // 見出しと中身は1つの入れ物に入れる。個別の margin で組むと付け忘れる
+  section: {
+    gap: spacing.sm,
   },
   sectionTitle: {
     ...typography.h3,
     color: colors.gray[800],
-    marginBottom: spacing.md,
-  },
-  sectionCard: {
-    marginBottom: spacing.xl,
   },
   row: {
     flexDirection: 'row',

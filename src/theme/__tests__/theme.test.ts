@@ -146,6 +146,18 @@ describe('Theme', () => {
       expect(colors.success).toBeDefined();
       expect(colors.error).toBeDefined();
     });
+
+    // 地の上に置くものと同じ色だと、その要素の輪郭が消える。
+    // Card は colors.white、SearchBar の既定の塗りは gray[100]
+    it('カードを並べる地は、カードとも入力欄とも別の色である', () => {
+      expect(colors.backgroundGrouped).not.toBe(colors.white);
+      expect(colors.backgroundGrouped).not.toBe(colors.gray[100]);
+    });
+
+    // ふつうの画面は白のまま。グレーにすると gray[100] の入力欄が溶ける
+    it('ふつうの画面の地は白のままにする', () => {
+      expect(colors.background).toBe(colors.white);
+    });
   });
 
   describe('typography', () => {

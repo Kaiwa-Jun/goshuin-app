@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import { Alert, Linking } from 'react-native';
+import { Alert, Linking, StyleSheet } from 'react-native';
 
 import { SettingsScreen } from '../SettingsScreen';
 import type { MainTabScreenProps } from '@/navigation/types';
@@ -348,5 +348,40 @@ describe('SettingsScreen 位置情報の行（Issue #123 / 監査 A-14）', () =
       expect(queryByText(/御朱印のデフォルト公開設定/)).toBeNull();
       expect(queryByTestId('default-public-toggle')).toBeNull();
     });
+  });
+});
+
+describe('セクションの余白', () => {
+  const setup = () => render(<SettingsScreen navigation={mockNavigation} route={mockRoute} />);
+
+  it('見出しは、前のセクションよりも自分の中身に近い', () => {
+    // 逆だと、見出しがどちらの塊のものか読み取れない
+    const r = setup();
+    const withinSection = StyleSheet.flatten(
+      r.getAllByTestId('settings-section')[0].props.style
+    ) as { gap?: number };
+    const betweenSections = StyleSheet.flatten(
+      r.getByTestId('settings-scroll').props.contentContainerStyle
+    ) as { gap?: number };
+
+    expect(withinSection.gap).toBeDefined();
+    expect(betweenSections.gap).toBeDefined();
+    expect(withinSection.gap!).toBeLessThan(betweenSections.gap!);
+  });
+
+  it('見出しと中身がすべて同じ入れ物に入っている', () => {
+    // 個別の margin で組むと、今回のように1箇所だけ付け忘れる
+    const r = setup();
+
+    expect(r.getAllByTestId('settings-section')).toHaveLength(3);
+  });
+
+  it('セクションの余白を個別の margin で持たない', () => {
+    const r = setup();
+
+    for (const section of r.getAllByTestId('settings-section')) {
+      const style = StyleSheet.flatten(section.props.style) as Record<string, unknown>;
+      expect(style.marginBottom).toBeUndefined();
+    }
   });
 });

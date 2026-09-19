@@ -66,7 +66,20 @@ export const colors = {
   black: '#000000',
   transparent: 'transparent',
 
+  /** ふつうの画面の地。フォームなど、要素が直接乗るもの */
   background: '#FFFFFF',
+
+  /**
+   * カードを並べる画面の地（設定・あゆみ・アカウント削除）。
+   *
+   * Card は colors.white なので、地が白だとカードが見えない。実測で、カードの
+   * 上端は完全に背景と同化し、左右に 3.5% の影がにじむだけだった。
+   *
+   * 全画面をこれにはできない。記録画面の検索欄は gray[100] で、地をグレーに
+   * すると今度は検索欄が溶ける（ΔE 1.4 まで落ちた）。iOS の
+   * systemBackground / systemGroupedBackground と同じ使い分けにする
+   */
+  backgroundGrouped: '#F2F2F7',
   surface: '#F9FAFB',
 
   success: '#22C55E',
