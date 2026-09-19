@@ -103,6 +103,14 @@ export function SpotSelector({
                   </Text>
                   <Badge type={item.spot.type} />
                 </View>
+                {/* 同名のスポットが 27 種 60 件ある（白山神社 4 件など）。
+                    名前と距離だけではどの県のものか判別できない。
+                    行が狭いので住所フルではなく県だけにする */}
+                {item.spot.prefecture && (
+                  <Text style={styles.prefecture} numberOfLines={1}>
+                    {item.spot.prefecture}
+                  </Text>
+                )}
                 <Text style={styles.distance}>{item.distanceKm.toFixed(1)}km</Text>
               </TouchableOpacity>
             )}
@@ -190,6 +198,11 @@ const styles = StyleSheet.create({
   spotName: {
     ...typography.body,
     color: colors.gray[800],
+  },
+  prefecture: {
+    ...typography.bodySmall,
+    color: colors.gray[500],
+    marginLeft: spacing.sm,
   },
   distance: {
     ...typography.bodySmall,
