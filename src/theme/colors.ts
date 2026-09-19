@@ -43,13 +43,15 @@ export const colors = {
     900: '#111827',
   },
 
+  // 地図のピンの色。変更したら `npm run gen:map-pins` で
+  // assets/map-pins/*.png を焼き直すこと（ピンは事前レンダリング画像）
   pin: {
-    shrineVisited: '#EF4444',
-    templeVisited: '#A855F7',
-    wishlisted: '#F59E0B',
-    // 未訪問は淡いブランド色1色 (= primary[200])。神社/寺の区別はつけない。
-    // primary[300] は wishlisted (#F59E0B) と色相も明度も近く地図上で判別できない
-    unvisited: '#FED7AA',
+    shrineVisited: '#DC2626',
+    templeVisited: '#9333EA',
+    wishlisted: '#D97706',
+    // 未訪問はブランド色1色。神社/寺の区別はつけない。
+    // 「行きたい」とは色相が近いので、未訪問を明らかに明るくして見分けさせる
+    unvisited: '#FB923C',
     currentLocation: '#3B82F6',
   },
 

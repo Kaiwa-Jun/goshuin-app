@@ -10,16 +10,6 @@ jest
     success(800, 1200);
   });
 
-jest.mock('react-native-maps', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
-  const { View } = require('react-native');
-  return {
-    __esModule: true,
-    default: View,
-    Marker: View,
-  };
-});
-
 jest.mock('@services/stamps', () => ({
   getStampImageUrl: (path: string) => `https://example.com/${path}`,
 }));

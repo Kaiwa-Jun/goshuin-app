@@ -4,35 +4,6 @@ import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { PilgrimageDetailScreen } from '../PilgrimageDetailScreen';
 import type { CollectionStackScreenProps } from '@/navigation/types';
 
-// react-native-maps モック
-jest.mock('react-native-maps', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
-  const { View } = require('react-native');
-  const MockMapView = ({ children, testID }: { children?: React.ReactNode; testID?: string }) => (
-    <View testID={testID ?? 'map-view'}>{children}</View>
-  );
-  MockMapView.displayName = 'MockMapView';
-  const MockMarker = ({
-    children,
-    testID,
-    onPress,
-  }: {
-    children?: React.ReactNode;
-    testID?: string;
-    onPress?: () => void;
-  }) => (
-    <View testID={testID ?? 'marker'} onTouchEnd={onPress}>
-      {children}
-    </View>
-  );
-  MockMarker.displayName = 'MockMarker';
-  return {
-    __esModule: true,
-    default: MockMapView,
-    Marker: MockMarker,
-  };
-});
-
 jest.mock('react-native-safe-area-context', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
   const RN = require('react-native');

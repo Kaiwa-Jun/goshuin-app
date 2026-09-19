@@ -1,7 +1,13 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { AppState, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import type { NativeSyntheticEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import MapView, { Marker, type MapPressEvent, type Region } from 'react-native-maps';
+import { Camera, GeoJSONSource, Layer, Map } from '@maplibre/maplibre-react-native';
+import type {
+  CameraRef,
+  PressEvent,
+  PressEventWithFeatures,
+} from '@maplibre/maplibre-react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { PermissionStatus } from 'expo-location';
@@ -9,20 +15,17 @@ import { fetchSpotsByPrefecture } from '@services/spots';
 import { FABButton } from '@components/animated/FABButton';
 import { SearchBar } from '@components/common/SearchBar';
 import { LoginPromptModal } from '@components/common/LoginPromptModal';
-import { MapPin } from '@components/common/MapPin';
-import { SpotMarker } from '@components/common/SpotMarker';
-import { ClusterMarker } from '@components/common/ClusterMarker';
+import { MAP_STYLE } from '@components/map/mapStyle';
+import { SpotMapLayers } from '@components/map/SpotMapLayers';
 import { SpotBottomSheet } from '@components/spot-detail/SpotBottomSheet';
 import { useAuth } from '@hooks/useAuth';
 import { useLocation } from '@hooks/useLocation';
-import { useSpotClusters } from '@hooks/useSpotClusters';
 import { useSpots } from '@hooks/useSpots';
 import { useUserStamps } from '@hooks/useUserStamps';
 import { useWishlist } from '@hooks/useWishlist';
 import type { MapStackScreenProps } from '@/navigation/types';
 import type { Spot } from '@/types/supabase';
-import type { SpotCluster } from '@utils/spotClustering';
-import { CLUSTER_REGION_DEBOUNCE_MS, shouldRecomputeRegion } from '@utils/regionHysteresis';
+import { buildSpotSources, pointCollection } from '@utils/spotGeoJson';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { spacing, borderRadius } from '@theme/spacing';
@@ -31,28 +34,13 @@ import { shadows } from '@theme/shadows';
 type Props = MapStackScreenProps<'Map'>;
 type FilterMode = 'all' | 'visited';
 
-const LATITUDE_DELTA = 0.015;
-const LONGITUDE_DELTA = 0.015;
-const LABEL_VISIBLE_DELTA = 0.2;
-/**
- * ズームアウトの下限(#99 追補4)。全国スケール(delta >= 2)での連続操作は
- * Apple Maps のタイルメモリ累積により実機で Jetsam クラッシュするため、
- * 実測安全域(delta 1.33 まで無事故)の内側 zoom 8(最大幅 delta ≈ 1.41)で
- * 封じ込める。全国表示の解禁は feature-list の恒久対応エントリで再開する
- */
-const MIN_ZOOM_LEVEL = 8;
-
-function getPinColor(
-  spot: Spot,
-  visitedSpotIds: Set<string>,
-  wishlistSpotIds?: Set<string>
-): string {
-  if (visitedSpotIds.has(spot.id)) {
-    return spot.type === 'shrine' ? colors.pin.shrineVisited : colors.pin.templeVisited;
-  }
-  if (wishlistSpotIds?.has(spot.id)) return colors.pin.wishlisted;
-  return colors.pin.unvisited;
-}
+/** 起動時のズーム。旧実装の delta 0.015 相当（log2(360/0.015) ≈ 14.5） */
+const INITIAL_ZOOM = 14.5;
+/** スポットを選んだとき／検索から飛んだときの寄り */
+const FOCUS_ZOOM = 15.5;
+/** 位置情報が取れないときの初期表示（東京駅） */
+const FALLBACK_CENTER: [number, number] = [139.7671, 35.6812];
+const FALLBACK_ZOOM = 9;
 
 export function MapScreen({ navigation, route }: Props) {
   const { isAuthenticated } = useAuth();
@@ -70,42 +58,34 @@ export function MapScreen({ navigation, route }: Props) {
   }, [spots, prefectureSpots]);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showFilter, setShowFilter] = useState(false);
-  const [currentRegion, setCurrentRegion] = useState<Region | null>(null);
-  // クラスタ再計算に使う region。ヒステリシス(shouldRecomputeRegion)で更新頻度を落とす
-  const [clusterRegion, setClusterRegion] = useState<Region | null>(null);
   const [selectedSpotId, setSelectedSpotId] = useState<string | null>(null);
-  const [forceLabelVisible, setForceLabelVisible] = useState(false);
-  const skipRegionChangeRef = useRef(false);
-  const clusterRegionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(
-    () => () => {
-      if (clusterRegionTimerRef.current) clearTimeout(clusterRegionTimerRef.current);
-    },
-    []
-  );
-  // ユーザー操作前は location ベースの初期 region(initialRegion と同一値)を実効 region とする
-  const effectiveRegion = useMemo<Region | null>(
-    () =>
-      currentRegion ??
-      (location
-        ? {
-            latitude: location.latitude,
-            longitude: location.longitude,
-            latitudeDelta: LATITUDE_DELTA,
-            longitudeDelta: LONGITUDE_DELTA,
-          }
-        : null),
-    [currentRegion, location]
-  );
-  const shouldShowLabels =
-    (effectiveRegion?.latitudeDelta ?? LATITUDE_DELTA) <= LABEL_VISIBLE_DELTA || forceLabelVisible;
-  const mapRef = useRef<MapView>(null);
+
+  const cameraRef = useRef<CameraRef>(null);
   const insets = useSafeAreaInsets();
+
+  // 地図に渡す GeoJSON。件数の上限もビューポート絞り込みも掛けない
+  const { clustered, pinned } = useMemo(
+    () => buildSpotSources({ spots: displaySpots, visitedSpotIds, wishlistSpotIds }),
+    [displaySpots, visitedSpotIds, wishlistSpotIds]
+  );
+  const currentLocationSource = useMemo(() => pointCollection(location), [location]);
 
   const searchRowTop = insets.top + spacing.xs;
   // 検索行の直下。位置情報バナーはさらにこの下へずらす
   const wishlistEntryTop = searchRowTop + 52;
   const locationBannerTop = wishlistEntryTop + 44;
+
+  // 現在地が取れた最初の一度だけカメラを寄せる（以降はユーザーの操作を尊重する）
+  const didCenterRef = useRef(false);
+  useEffect(() => {
+    if (!location || didCenterRef.current) return;
+    didCenterRef.current = true;
+    cameraRef.current?.flyTo({
+      center: [location.longitude, location.latitude],
+      zoom: INITIAL_ZOOM,
+      duration: 0,
+    });
+  }, [location]);
 
   // 設定画面から戻った際に位置情報を再取得し、地図を現在地に移動する
   const appStateRef = useRef(AppState.currentState);
@@ -118,16 +98,12 @@ export function MapScreen({ navigation, route }: Props) {
         nextAppState === 'active'
       ) {
         const coords = await refreshLocation();
-        if (coords && mapRef.current) {
-          mapRef.current.animateToRegion(
-            {
-              latitude: coords.latitude,
-              longitude: coords.longitude,
-              latitudeDelta: LATITUDE_DELTA,
-              longitudeDelta: LONGITUDE_DELTA,
-            },
-            500
-          );
+        if (coords) {
+          cameraRef.current?.flyTo({
+            center: [coords.longitude, coords.latitude],
+            zoom: INITIAL_ZOOM,
+            duration: 500,
+          });
         }
       }
       appStateRef.current = nextAppState;
@@ -136,45 +112,18 @@ export function MapScreen({ navigation, route }: Props) {
     return () => subscription.remove();
   }, [permissionStatus, refreshLocation]);
 
-  // ユーザー操作前は location ベースの初期 region をクラスタ算出の実効 region とする
-  const effectiveClusterRegion = useMemo<Region | null>(
-    () =>
-      clusterRegion ??
-      (location
-        ? {
-            latitude: location.latitude,
-            longitude: location.longitude,
-            latitudeDelta: LATITUDE_DELTA,
-            longitudeDelta: LONGITUDE_DELTA,
-          }
-        : null),
-    [clusterRegion, location]
-  );
-
-  // 広域はクラスタバブル、近接は個別ピン。訪問済み・行きたいはクラスタに吸収されない
-  const { clusters, individualSpots, getClusterExpansionRegion } = useSpotClusters({
-    spots: displaySpots,
-    region: effectiveClusterRegion,
-    visitedSpotIds,
-    wishlistSpotIds,
-  });
-
   useEffect(() => {
     const focusSpotId = route.params?.focusSpotId;
-    if (!focusSpotId || !mapRef.current) return;
+    if (!focusSpotId) return;
 
     const spot = displaySpots.find(s => s.id === focusSpotId);
     if (!spot) return;
 
-    mapRef.current.animateToRegion(
-      {
-        latitude: spot.lat,
-        longitude: spot.lng,
-        latitudeDelta: LATITUDE_DELTA,
-        longitudeDelta: LONGITUDE_DELTA,
-      },
-      500
-    );
+    cameraRef.current?.flyTo({
+      center: [spot.lng, spot.lat],
+      zoom: FOCUS_ZOOM,
+      duration: 500,
+    });
 
     setSelectedSpotId(focusSpotId);
   }, [route.params?.focusSpotId, displaySpots]);
@@ -183,7 +132,6 @@ export function MapScreen({ navigation, route }: Props) {
     const focusPrefecture = route.params?.focusPrefecture;
     if (!focusPrefecture) {
       setPrefectureSpots([]);
-      setForceLabelVisible(false);
       return;
     }
 
@@ -191,15 +139,13 @@ export function MapScreen({ navigation, route }: Props) {
       const data = await fetchSpotsByPrefecture(focusPrefecture);
       setPrefectureSpots(data);
 
-      if (data.length > 0 && mapRef.current) {
-        const coords = data.map(s => ({ latitude: s.lat, longitude: s.lng }));
-        skipRegionChangeRef.current = true;
-        setForceLabelVisible(true);
-        mapRef.current.fitToCoordinates(coords, {
-          edgePadding: { top: 100, right: 50, bottom: 50, left: 50 },
-          animated: true,
-        });
-      }
+      if (data.length === 0) return;
+      const lats = data.map(s => s.lat);
+      const lngs = data.map(s => s.lng);
+      cameraRef.current?.fitBounds(
+        [Math.min(...lngs), Math.min(...lats), Math.max(...lngs), Math.max(...lats)],
+        { padding: { top: 100, right: 50, bottom: 50, left: 50 }, duration: 600 }
+      );
     })();
   }, [route.params?.focusPrefecture]);
 
@@ -223,54 +169,32 @@ export function MapScreen({ navigation, route }: Props) {
     navigateToRecord();
   };
 
-  const handleRegionChangeComplete = useCallback((r: Region) => {
-    setCurrentRegion(r);
-    // クラスタ region は trailing debounce で採用する。連続ピンチ操作の
-    // 中間ズーム段階で再計算（= マーカー churn の波）を起こさないため。
-    // 比較相手は「直近に採用した region」。関数形式更新でそれを保証する
-    if (clusterRegionTimerRef.current) clearTimeout(clusterRegionTimerRef.current);
-    clusterRegionTimerRef.current = setTimeout(() => {
-      clusterRegionTimerRef.current = null;
-      setClusterRegion(prev => (shouldRecomputeRegion(prev, r) ? r : prev));
-    }, CLUSTER_REGION_DEBOUNCE_MS);
-    if (skipRegionChangeRef.current) {
-      skipRegionChangeRef.current = false;
-    } else {
-      setForceLabelVisible(false);
-    }
-  }, []);
-
-  const handleMarkerPress = useCallback(
+  const handleSpotPress = useCallback(
     (spotId: string) => {
       setSelectedSpotId(spotId);
 
       const spot = displaySpots.find(s => s.id === spotId);
-      if (spot && mapRef.current) {
-        mapRef.current.animateCamera(
-          {
-            center: {
-              latitude: spot.lat,
-              longitude: spot.lng,
-            },
-          },
-          { duration: 300 }
-        );
+      if (spot) {
+        cameraRef.current?.easeTo({ center: [spot.lng, spot.lat], duration: 300 });
       }
     },
     [displaySpots]
   );
 
-  const handleClusterPress = useCallback(
-    (cluster: SpotCluster) => {
-      mapRef.current?.animateToRegion(getClusterExpansionRegion(cluster), 300);
-    },
-    [getClusterExpansionRegion]
-  );
-
-  const handleMapPress = useCallback((event?: MapPressEvent) => {
-    if (event?.nativeEvent?.action === 'marker-press') return;
-    setSelectedSpotId(null);
+  const handleClusterPress = useCallback((center: [number, number], expansionZoom: number) => {
+    cameraRef.current?.flyTo({ center, zoom: expansionZoom, duration: 400 });
   }, []);
+
+  // スポットをタップした場合も Map まで伝播してくる。feature が付いていたら
+  // ソース側で処理済みなので、ボトムシートを閉じない
+  const handleMapPress = useCallback(
+    (event: NativeSyntheticEvent<PressEventWithFeatures> | NativeSyntheticEvent<PressEvent>) => {
+      const features = (event.nativeEvent as Partial<PressEventWithFeatures>).features;
+      if (features && features.length > 0) return;
+      setSelectedSpotId(null);
+    },
+    []
+  );
 
   const handleBottomSheetDismiss = useCallback(() => {
     setSelectedSpotId(null);
@@ -306,15 +230,6 @@ export function MapScreen({ navigation, route }: Props) {
     setFilterMode(mode);
     setShowFilter(false);
   };
-
-  const region = location
-    ? {
-        latitude: location.latitude,
-        longitude: location.longitude,
-        latitudeDelta: LATITUDE_DELTA,
-        longitudeDelta: LONGITUDE_DELTA,
-      }
-    : undefined;
 
   return (
     <View style={styles.container} testID="map-screen">
@@ -394,51 +309,54 @@ export function MapScreen({ navigation, route }: Props) {
         </Pressable>
       )}
 
-      <MapView
-        ref={mapRef}
+      <Map
         style={styles.map}
-        initialRegion={region}
+        mapStyle={MAP_STYLE}
         testID="map-view"
-        minZoomLevel={MIN_ZOOM_LEVEL}
-        showsUserLocation={false}
-        onRegionChangeComplete={handleRegionChangeComplete}
         onPress={handleMapPress}
+        logo={false}
+        compass={false}
+        attributionPosition={{ bottom: 78, left: 8 }}
       >
-        {location && (
-          <Marker
-            coordinate={{
-              latitude: location.latitude,
-              longitude: location.longitude,
+        <Camera
+          ref={cameraRef}
+          initialViewState={
+            location
+              ? { center: [location.longitude, location.latitude], zoom: INITIAL_ZOOM }
+              : { center: FALLBACK_CENTER, zoom: FALLBACK_ZOOM }
+          }
+        />
+
+        {/* 現在地。ネイティブビューではなくレイヤなので再描画コストがない */}
+        <GeoJSONSource id="goshuin-current-location" data={currentLocationSource}>
+          <Layer
+            id="goshuin-current-location-halo"
+            type="circle"
+            paint={{
+              'circle-radius': 20,
+              'circle-color': colors.pin.currentLocation,
+              'circle-opacity': 0.2,
             }}
-            testID="current-location-marker"
-            anchor={{ x: 0.5, y: 0.5 }}
-            tracksViewChanges={false}
-          >
-            <MapPin type="current-location" />
-          </Marker>
-        )}
-        {clusters.map(cluster => (
-          // key は leaf 由来の cluster.id のみ。count 変化は ClusterMarker 内の
-          // redraw 制御で反映するため、remount を発生させない
-          <ClusterMarker key={cluster.id} cluster={cluster} onPress={handleClusterPress} />
-        ))}
-        {individualSpots.map(spot => (
-          <Marker
-            key={spot.id}
-            coordinate={{ latitude: spot.lat, longitude: spot.lng }}
-            testID={`spot-marker-${spot.id}`}
-            onPress={() => handleMarkerPress(spot.id)}
-            anchor={{ x: 0.5, y: 1 }}
-            tracksViewChanges={false}
-          >
-            <SpotMarker
-              color={getPinColor(spot, visitedSpotIds, wishlistSpotIds)}
-              name={spot.name}
-              showLabel={shouldShowLabels}
-            />
-          </Marker>
-        ))}
-      </MapView>
+          />
+          <Layer
+            id="goshuin-current-location-dot"
+            type="circle"
+            paint={{
+              'circle-radius': 7,
+              'circle-color': colors.pin.currentLocation,
+              'circle-stroke-width': 3,
+              'circle-stroke-color': colors.white,
+            }}
+          />
+        </GeoJSONSource>
+
+        <SpotMapLayers
+          clustered={clustered}
+          pinned={pinned}
+          onPressSpot={handleSpotPress}
+          onPressCluster={handleClusterPress}
+        />
+      </Map>
 
       {permissionStatus === PermissionStatus.DENIED && (
         <TouchableOpacity

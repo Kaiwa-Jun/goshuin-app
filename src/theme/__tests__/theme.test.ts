@@ -21,29 +21,40 @@ describe('Theme', () => {
     });
 
     it('should export pin colors', () => {
-      expect(colors.pin.shrineVisited).toBe('#EF4444');
-      expect(colors.pin.templeVisited).toBe('#A855F7');
-      expect(colors.pin.unvisited).toBe('#FED7AA');
+      expect(colors.pin.shrineVisited).toBe('#DC2626');
+      expect(colors.pin.templeVisited).toBe('#9333EA');
+      expect(colors.pin.unvisited).toBe('#FB923C');
       expect(colors.pin.currentLocation).toBe('#3B82F6');
     });
 
-    // Issue #140 (D-5): 未訪問ピンは淡いブランド色1色
-    it('should use a pale brand tone for the unvisited pin', () => {
-      expect(colors.pin.unvisited).toBe(colors.primary[200]);
+    // 未訪問はブランド色1色（Issue #140 D-5）。淡すぎて地図で見えなかったため
+    // primary[200] から primary[400] へ濃くした
+    it('should use a brand tone strong enough to read on the map', () => {
+      expect(colors.pin.unvisited).toBe(colors.primary[400]);
     });
 
-    // 「行きたい」(アンバー) と未訪問が地図上で判別できることの担保。
-    // primary[300] を採ると色相も明度も wishlisted に寄って区別がつかなくなる
-    it('should keep the unvisited pin distinguishable from the wishlisted pin', () => {
-      expect(colors.pin.wishlisted).toBe('#F59E0B');
-      expect(colors.pin.unvisited).not.toBe(colors.pin.wishlisted);
-      expect(colors.pin.unvisited).not.toBe(colors.primary[300]);
+    // 未訪問(オレンジ)と「行きたい」(アンバー)は色相が近いので、明度で離す。
+    // 訪問済みの赤・紫は色相で離れているため明度の順は問わない
+    it('should keep the unvisited pin clearly lighter than the wishlisted pin', () => {
+      const lightness = (hex: string) => {
+        const channels = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255);
+        return (Math.max(...channels) + Math.min(...channels)) / 2;
+      };
+
+      expect(lightness(colors.pin.unvisited) - lightness(colors.pin.wishlisted)).toBeGreaterThan(
+        0.1
+      );
+    });
+
+    it('should keep every pin state a distinct color', () => {
+      const { currentLocation: _currentLocation, ...spotPins } = colors.pin;
+      expect(new Set(Object.values(spotPins)).size).toBe(Object.keys(spotPins).length);
     });
 
     // 未訪問の色替えで訪問済みの色分けを巻き添えにしていないこと
-    it('should keep the visited pin colors unchanged', () => {
-      expect(colors.pin.shrineVisited).toBe(colors.shrine[500]);
-      expect(colors.pin.templeVisited).toBe(colors.temple[500]);
+    it('should keep the visited pins on the shrine/temple scales', () => {
+      expect(colors.pin.shrineVisited).toBe(colors.shrine[600]);
+      expect(colors.pin.templeVisited).toBe(colors.temple[600]);
     });
 
     // pin.unvisited は gray[400] と同値だったが別トークン。
