@@ -115,12 +115,24 @@ export function MapScreen({ navigation, route }: Props) {
     return () => subscription.remove();
   }, [permissionStatus, refreshLocation]);
 
+  // 処理済みの focusSpotId。displaySpots は再取得のたびに参照が変わるので、
+  // これが無いと × で消した名前とボトムシートが勝手に復活する。
+  // 「変化したら実行」ではなく「まだ処理していなければ実行」にしているのは、
+  // 飛んできた直後はスポットの読み込みが終わっておらず find が空振りするため
+  const handledFocusSpotIdRef = useRef<string | null>(null);
+
   useEffect(() => {
     const focusSpotId = route.params?.focusSpotId;
-    if (!focusSpotId) return;
+    if (!focusSpotId) {
+      handledFocusSpotIdRef.current = null;
+      return;
+    }
+    if (handledFocusSpotIdRef.current === focusSpotId) return;
 
     const spot = displaySpots.find(s => s.id === focusSpotId);
-    if (!spot) return;
+    if (!spot) return; // まだ読めていない。次の displaySpots 更新で拾う
+
+    handledFocusSpotIdRef.current = focusSpotId;
 
     cameraRef.current?.flyTo({
       center: [spot.lng, spot.lat],

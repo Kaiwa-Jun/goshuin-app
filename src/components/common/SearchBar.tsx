@@ -62,7 +62,13 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         />
       </View>
       {showClearButton && (
-        <TouchableOpacity onPress={onClear} testID="search-clear-button" activeOpacity={0.7}>
+        <TouchableOpacity
+          onPress={onClear}
+          testID="search-clear-button"
+          accessibilityRole="button"
+          accessibilityLabel="検索条件をクリア"
+          activeOpacity={0.7}
+        >
           <MaterialIcons name="close" size={20} color={colors.gray[400]} />
         </TouchableOpacity>
       )}
@@ -107,6 +113,8 @@ const styles = StyleSheet.create({
     // この影響を受けず、入力の有無で文字の高さが変わってしまう。
     // 高さだけ明示して、縦の中央寄せは UITextField に任せる
     height: INPUT_HEIGHT,
+    // Android は TextInput の既定が top 寄せの端末があるので明示する。iOS は無視される
+    textAlignVertical: 'center',
     color: colors.gray[800],
     padding: 0,
   },
