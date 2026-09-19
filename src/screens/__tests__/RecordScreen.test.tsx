@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
-import { Image, ScrollView } from 'react-native';
+import { Image, Keyboard, ScrollView, StyleSheet } from 'react-native';
 import { RecordScreen } from '@screens/RecordScreen';
 import { evaluateNewBadge } from '@services/badges';
 import type { Spot, Stamp } from '@/types/supabase';
@@ -58,6 +58,7 @@ let mockFormState = {
   spotError: null as string | null,
   imageError: null as string | null,
   isSubmitting: false,
+  savedCount: 0,
   submitError: null as string | null,
   selectSpot: mockSelectSpot,
   addImages: mockAddImages,
@@ -160,6 +161,7 @@ describe('RecordScreen', () => {
       spotError: null,
       imageError: null,
       isSubmitting: false,
+      savedCount: 0,
       submitError: null,
       selectSpot: mockSelectSpot,
       addImages: mockAddImages,
@@ -471,6 +473,7 @@ describe('確認モーダルの廃止（Issue #130 / D-3）', () => {
       spotError: null,
       imageError: null,
       isSubmitting: false,
+      savedCount: 0,
       submitError: null,
       selectSpot: mockSelectSpot,
       addImages: mockAddImages,
@@ -628,6 +631,7 @@ describe('写真のカメラ直起動（Issue #130 / S-3）', () => {
       spotError: null,
       imageError: null,
       isSubmitting: false,
+      savedCount: 0,
       submitError: null,
       selectSpot: mockSelectSpot,
       addImages: mockAddImages,
@@ -710,6 +714,7 @@ describe('最寄りスポットの自動選択ラベル（Issue #130 / S-5）', 
     spotError: null as string | null,
     imageError: null as string | null,
     isSubmitting: false,
+    savedCount: 0,
     submitError: null as string | null,
     selectSpot: mockSelectSpot,
     addImages: mockAddImages,
@@ -775,6 +780,7 @@ describe('タップ数（Issue #130 / F 群）', () => {
     spotError: null as string | null,
     imageError: null as string | null,
     isSubmitting: false,
+    savedCount: 0,
     submitError: null as string | null,
     selectSpot: mockSelectSpot,
     addImages: mockAddImages,
@@ -897,6 +903,7 @@ describe('二重送信の防止（Issue #130 / A-10 補強）', () => {
       spotError: null,
       imageError: null,
       isSubmitting: false,
+      savedCount: 0,
       submitError: null,
       selectSpot: mockSelectSpot,
       addImages: mockAddImages,
@@ -1012,6 +1019,7 @@ describe('訪問済みスポットの取得に失敗したとき（Issue #133）
       spotError: null,
       imageError: null,
       isSubmitting: false,
+      savedCount: 0,
       submitError: null,
       selectSpot: mockSelectSpot,
       addImages: mockAddImages,
@@ -1193,6 +1201,7 @@ describe('訪問済みスポットの取得に成功したとき（Issue #133 �
       spotError: null,
       imageError: null,
       isSubmitting: false,
+      savedCount: 0,
       submitError: null,
       selectSpot: mockSelectSpot,
       addImages: mockAddImages,
@@ -1392,6 +1401,7 @@ describe('複数枚をまとめて登録する（Issue #180）', () => {
       spotError: null,
       imageError: null,
       isSubmitting: false,
+      savedCount: 0,
       submitError: null,
       selectSpot: mockSelectSpot,
       addImages: mockAddImages,
@@ -1555,6 +1565,7 @@ describe('バリデーションエラーのある欄まで連れていく', () =
       spotError: null,
       imageError: null,
       isSubmitting: false,
+      savedCount: 0,
       submitError: null,
       selectSpot: mockSelectSpot,
       addImages: mockAddImages,
@@ -1683,5 +1694,95 @@ describe('バリデーションエラーのある欄まで連れていく', () =
       expect(mockValidate).toHaveBeenCalled();
     });
     expect(scrollTo).not.toHaveBeenCalled();
+  });
+});
+
+describe('保存中の覆い（Issue #190）', () => {
+  const submitting = (imageUris: string[], savedCount: number) => {
+    mockFormState = {
+      ...mockFormState,
+      selectedSpot: fakeSpot,
+      imageUris,
+      isSubmitting: true,
+      savedCount,
+    };
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockFormState = {
+      ...mockFormState,
+      selectedSpot: null,
+      imageUris: [],
+      isSubmitting: false,
+      savedCount: 0,
+      spotError: null,
+      imageError: null,
+    };
+  });
+
+  it('保存していないときは覆いを出さない', () => {
+    const { queryByTestId } = render(
+      <RecordScreen navigation={mockNavigation} route={mockRoute} />
+    );
+
+    expect(queryByTestId('saving-overlay')).toBeNull();
+  });
+
+  it('保存中は覆いを出し、選んだ枚数ぶんの点を並べる', () => {
+    submitting(['file:///a.jpg', 'file:///b.jpg', 'file:///c.jpg'], 1);
+
+    const { getByTestId, queryByTestId } = render(
+      <RecordScreen navigation={mockNavigation} route={mockRoute} />
+    );
+
+    expect(getByTestId('saving-overlay')).toBeTruthy();
+    expect(getByTestId('saving-dot-2')).toBeTruthy();
+    expect(queryByTestId('saving-dot-3')).toBeNull();
+    expect(getByTestId('saving-count').props.children).toBe('1 / 3枚');
+  });
+
+  // アップロードにタイムアウトが無いので、全面を塞ぐと回線が死んだとき
+  // 強制終了しか道が無くなる。覆いはヘッダーの下から敷く
+  it('保存中でもヘッダーの ✕ は押せる', () => {
+    submitting(['file:///a.jpg'], 0);
+
+    const { getByTestId } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent.press(getByTestId('header-close-button'));
+
+    expect(mockNavigation.goBack).toHaveBeenCalled();
+  });
+
+  it('覆いはヘッダーの高さのぶん下から敷く', () => {
+    submitting(['file:///a.jpg'], 0);
+
+    const { getByTestId } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent(getByTestId('header-block'), 'layout', {
+      nativeEvent: { layout: { y: 0, height: 56 } },
+    });
+
+    expect(StyleSheet.flatten(getByTestId('saving-overlay').props.style).top).toBe(56);
+  });
+
+  // メモを書いている途中で押されると、覆いがキーボードの下に潜る
+  it('保存を始めるときキーボードを閉じる', async () => {
+    const dismiss = jest.spyOn(Keyboard, 'dismiss');
+    mockFormState = { ...mockFormState, selectedSpot: fakeSpot, imageUris: ['file:///a.jpg'] };
+    mockValidate.mockReturnValue([]);
+    mockFetchVisitedSpotIds.mockResolvedValue(new Set());
+    mockSubmit.mockResolvedValue({
+      success: true,
+      stamps: [{ id: 'stamp-1', spot_id: 'spot-1', image_path: 'user-1/1.jpg' } as Stamp],
+      failedCount: 0,
+    });
+
+    const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent.press(getByText('この内容で記録する'));
+
+    await waitFor(() => {
+      expect(mockSubmit).toHaveBeenCalled();
+    });
+    expect(dismiss).toHaveBeenCalled();
+    dismiss.mockRestore();
   });
 });
