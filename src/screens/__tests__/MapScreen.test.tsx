@@ -805,7 +805,9 @@ describe('MapScreen', () => {
       const { getByTestId, queryByTestId } = render(
         <MapScreen navigation={mockNavigation as never} route={mockRoute} />
       );
-      await waitFor(() => expect(getByTestId('filter-button')).toBeTruthy());
+      // isReduceMotionEnabled() の解決を待つ。ボタンの存在で待つと、
+      // まだ false のまま press してしまって運で通ることがある
+      await act(async () => {});
       fireEvent.press(getByTestId('filter-button'));
 
       fireEvent.press(getByTestId('filter-overlay'));

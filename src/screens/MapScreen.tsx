@@ -216,6 +216,9 @@ export function MapScreen({ navigation, route }: Props) {
     }).start(({ finished }) => {
       if (finished && !showFilter) setFilterMounted(false);
     });
+
+    // 動いている途中で画面が外れたら止める。他の購読と同じく後始末する
+    return () => filterAnim.stopAnimation();
   }, [showFilter, filterMounted, reduceMotion, filterAnim]);
 
   // 絞り込みで地図から消えたスポットのシートは閉じる。
