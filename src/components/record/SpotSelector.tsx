@@ -19,7 +19,6 @@ interface SpotSelectorProps {
   searchQuery: string;
   onSearchQueryChange: (q: string) => void;
   onSelectSpot: (spot: Spot) => void;
-  onAddSpotPress: () => void;
   error: string | null;
   /** 現在地から自動で選ばれた状態か。勝手に選ばれたことを隠さないためのラベルを出す */
   isAutoSelected?: boolean;
@@ -31,7 +30,6 @@ export function SpotSelector({
   searchQuery,
   onSearchQueryChange,
   onSelectSpot,
-  onAddSpotPress,
   error,
   isAutoSelected = false,
 }: SpotSelectorProps) {
@@ -119,16 +117,10 @@ export function SpotSelector({
               </View>
             }
           />
-          <TouchableOpacity
-            style={styles.addLink}
-            onPress={() => {
-              setShowDropdown(false);
-              onAddSpotPress();
-            }}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.addLinkText}>スポットが見つからない場合は追加</Text>
-          </TouchableOpacity>
+          {/* 「スポットが見つからない場合は追加」はここにあったが外した。
+              追加したスポットは status: 'pending' で入り、RLS の SELECT は
+              active しか返さないので、作った本人にも二度と出てこなかった。
+              動線の設計をやり直すまで出さない（Issue #184） */}
         </View>
       )}
     </View>
@@ -217,15 +209,5 @@ const styles = StyleSheet.create({
   emptyText: {
     ...typography.bodySmall,
     color: colors.gray[400],
-  },
-  addLink: {
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.gray[200],
-  },
-  addLinkText: {
-    ...typography.bodySmall,
-    color: colors.primary[500],
   },
 });
