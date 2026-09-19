@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Easing, StyleSheet } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { Animated, Easing, StyleSheet } from 'react-native';
 import { useNavigationState } from '@react-navigation/native';
+import { useReduceMotion } from '@hooks/useReduceMotion';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import type { MainTabParamList } from '@/navigation/types';
@@ -82,23 +83,8 @@ export function TabBarIcon({
   // gear: タップのたびに 1 ずつ増える。1 = 歯1つ分
   const progress = useRef(new Animated.Value(motion === 'gear' ? 0 : 1)).current;
   const gearSteps = useRef(0);
-  const [reduceMotion, setReduceMotion] = useState(false);
-
   // 「視差効果を減らす」がオンなら動かさない（色の切り替えだけにする）
-  useEffect(() => {
-    let cancelled = false;
-    AccessibilityInfo.isReduceMotionEnabled()
-      .then(enabled => {
-        if (!cancelled) setReduceMotion(enabled);
-      })
-      // 取れなければ動かす側に倒す（初期値 false のまま）
-      .catch(() => {});
-    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
-    return () => {
-      cancelled = true;
-      subscription.remove();
-    };
-  }, []);
+  const reduceMotion = useReduceMotion();
 
   useEffect(() => {
     // 重なっている2枚のうち、非アクティブ側の複製では動かさない

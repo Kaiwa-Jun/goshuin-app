@@ -1,5 +1,14 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
-import { AppState, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  Animated,
+  AppState,
+  Easing,
+  Pressable,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import type { NativeSyntheticEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Camera, GeoJSONSource, Layer, Map } from '@maplibre/maplibre-react-native';
@@ -20,6 +29,7 @@ import { SpotMapLayers } from '@components/map/SpotMapLayers';
 import { SpotBottomSheet } from '@components/spot-detail/SpotBottomSheet';
 import { useAuth } from '@hooks/useAuth';
 import { useLocation } from '@hooks/useLocation';
+import { useReduceMotion } from '@hooks/useReduceMotion';
 import { useSpots } from '@hooks/useSpots';
 import { useUserStamps } from '@hooks/useUserStamps';
 import { useWishlist } from '@hooks/useWishlist';
@@ -42,6 +52,10 @@ const FOCUS_ZOOM = 15.5;
 const FALLBACK_CENTER: [number, number] = [139.7671, 35.6812];
 const FALLBACK_ZOOM = 9;
 
+/** フィルタの開閉。閉じる方を短くして、待たされる感じを残さない */
+const FILTER_OPEN_MS = 180;
+const FILTER_CLOSE_MS = 130;
+
 export function MapScreen({ navigation, route }: Props) {
   const { isAuthenticated } = useAuth();
   const { location, permissionStatus, refreshLocation } = useLocation();
@@ -63,6 +77,11 @@ export function MapScreen({ navigation, route }: Props) {
   }, [spots, prefectureSpots, filterIds]);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showFilter, setShowFilter] = useState(false);
+  // showFilter は「開いているか」。閉じるモーションの間も描き続けたいので
+  // マウントは別に持つ
+  const [filterMounted, setFilterMounted] = useState(false);
+  const filterAnim = useRef(new Animated.Value(0)).current;
+  const reduceMotion = useReduceMotion();
   const [selectedSpotId, setSelectedSpotId] = useState<string | null>(null);
   // 検索バーに出す名前。検索・履歴から飛んできたときとピンをタップしたときに入る。
   // selectedSpotId とは別に持つ。シートを閉じても消さず、× で消す
@@ -174,6 +193,30 @@ export function MapScreen({ navigation, route }: Props) {
       { padding: { top: 140, right: 60, bottom: 200, left: 60 }, duration: 600 }
     );
   }, [filterMode, displaySpots]);
+
+  // 開くときは先にマウントしてから動かす。閉じるときは動かし終えてから外す
+  useEffect(() => {
+    if (showFilter) setFilterMounted(true);
+  }, [showFilter]);
+
+  useEffect(() => {
+    if (!filterMounted) return;
+
+    if (reduceMotion) {
+      filterAnim.setValue(showFilter ? 1 : 0);
+      if (!showFilter) setFilterMounted(false);
+      return;
+    }
+
+    Animated.timing(filterAnim, {
+      toValue: showFilter ? 1 : 0,
+      duration: showFilter ? FILTER_OPEN_MS : FILTER_CLOSE_MS,
+      easing: showFilter ? Easing.out(Easing.cubic) : Easing.in(Easing.cubic),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished && !showFilter) setFilterMounted(false);
+    });
+  }, [showFilter, filterMounted, reduceMotion, filterAnim]);
 
   // 絞り込みで地図から消えたスポットのシートは閉じる。
   // 開いたままだと地図に無いスポットの詳細が出続け、0件のときは
@@ -323,14 +366,35 @@ export function MapScreen({ navigation, route }: Props) {
         )}
       </View>
 
-      {showFilter && (
+      {filterMounted && (
         <Pressable
           style={styles.filterOverlay}
           onPress={() => setShowFilter(false)}
           testID="filter-overlay"
         >
-          <View
-            style={[styles.filterDropdown, { top: searchRowTop + 52 }]}
+          <Animated.View
+            style={[
+              styles.filterDropdown,
+              {
+                top: searchRowTop + 52,
+                opacity: filterAnim,
+                // ボタンから降りてくるように、少し上から・少し小さく入る
+                transform: [
+                  {
+                    translateY: filterAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [-8, 0],
+                    }),
+                  },
+                  {
+                    scale: filterAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.96, 1],
+                    }),
+                  },
+                ],
+              },
+            ]}
             testID="filter-dropdown"
           >
             <TouchableOpacity
@@ -383,7 +447,7 @@ export function MapScreen({ navigation, route }: Props) {
                 訪問済みのみ
               </Text>
             </TouchableOpacity>
-          </View>
+          </Animated.View>
         </Pressable>
       )}
 

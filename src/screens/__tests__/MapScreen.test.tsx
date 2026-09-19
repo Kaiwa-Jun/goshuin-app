@@ -1,7 +1,7 @@
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { MapScreen } from '@screens/MapScreen';
-import { StyleSheet } from 'react-native';
+import { AccessibilityInfo, StyleSheet } from 'react-native';
 import { colors } from '@theme/colors';
 import { shadows } from '@theme/shadows';
 
@@ -776,13 +776,40 @@ describe('MapScreen', () => {
       expect(getByTestId('filter-dropdown')).toBeTruthy();
     });
 
-    it('closes filter dropdown when overlay is pressed', () => {
+    // 閉じるモーションを描き切ってから外す。タイマーを進めないと消えない
+    it('閉じた直後はまだ出ていて、モーションが終わると消える', () => {
       mockUseAuthReturn = { ...mockUseAuthReturn, isAuthenticated: true };
+      jest.useFakeTimers();
+      try {
+        const { getByTestId, queryByTestId } = render(
+          <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+        );
+        fireEvent.press(getByTestId('filter-button'));
+        fireEvent.press(getByTestId('filter-overlay'));
+
+        expect(queryByTestId('filter-dropdown')).toBeTruthy();
+
+        act(() => {
+          jest.advanceTimersByTime(500);
+        });
+
+        expect(queryByTestId('filter-dropdown')).toBeNull();
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it('「視差効果を減らす」がオンなら即座に消える', async () => {
+      mockUseAuthReturn = { ...mockUseAuthReturn, isAuthenticated: true };
+      jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
       const { getByTestId, queryByTestId } = render(
         <MapScreen navigation={mockNavigation as never} route={mockRoute} />
       );
+      await waitFor(() => expect(getByTestId('filter-button')).toBeTruthy());
       fireEvent.press(getByTestId('filter-button'));
+
       fireEvent.press(getByTestId('filter-overlay'));
+
       expect(queryByTestId('filter-dropdown')).toBeNull();
     });
   });
