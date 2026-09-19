@@ -1,6 +1,6 @@
 import { renderHook, act, waitFor } from '@testing-library/react-native';
 import { useRecordForm } from '@hooks/useRecordForm';
-import type { RecordSubmitResult } from '@hooks/useRecordForm';
+import type { RecordSubmitResult, RecordField } from '@hooks/useRecordForm';
 import type { Spot, Stamp } from '@/types/supabase';
 import { MAX_PHOTOS_PER_RECORD } from '@/constants/record';
 
@@ -115,39 +115,51 @@ describe('useRecordForm', () => {
     expect(result.current.memo).toBe('素晴らしい参拝でした');
   });
 
-  it('validate returns false and sets spotError when no spot selected', () => {
+  it('スポット未選択なら spot を返し spotError を出す', () => {
     const { result } = renderHook(() => useRecordForm());
 
     act(() => {
       result.current.addImages(['file:///photo.jpg']);
     });
 
-    let valid: boolean;
+    let invalid: RecordField[];
     act(() => {
-      valid = result.current.validate();
+      invalid = result.current.validate();
     });
 
-    expect(valid!).toBe(false);
+    expect(invalid!).toEqual(['spot']);
     expect(result.current.spotError).toBe('スポットを選択してください');
   });
 
-  it('validate returns false and sets imageError when no image', () => {
+  it('写真が無ければ image を返し imageError を出す', () => {
     const { result } = renderHook(() => useRecordForm());
 
     act(() => {
       result.current.selectSpot(fakeSpot);
     });
 
-    let valid: boolean;
+    let invalid: RecordField[];
     act(() => {
-      valid = result.current.validate();
+      invalid = result.current.validate();
     });
 
-    expect(valid!).toBe(false);
+    expect(invalid!).toEqual(['image']);
     expect(result.current.imageError).toBe('御朱印の写真を追加してください');
   });
 
-  it('validate returns true when spot and image are set', () => {
+  // 画面がどの欄までスクロールすべきかを決めるので、並び順は画面と同じにする
+  it('両方欠けていたら画面の並び順で返す', () => {
+    const { result } = renderHook(() => useRecordForm());
+
+    let invalid: RecordField[];
+    act(() => {
+      invalid = result.current.validate();
+    });
+
+    expect(invalid!).toEqual(['spot', 'image']);
+  });
+
+  it('両方そろっていれば空配列', () => {
     const { result } = renderHook(() => useRecordForm());
 
     act(() => {
@@ -155,12 +167,12 @@ describe('useRecordForm', () => {
       result.current.addImages(['file:///photo.jpg']);
     });
 
-    let valid: boolean;
+    let invalid: RecordField[];
     act(() => {
-      valid = result.current.validate();
+      invalid = result.current.validate();
     });
 
-    expect(valid!).toBe(true);
+    expect(invalid!).toEqual([]);
     expect(result.current.spotError).toBeNull();
     expect(result.current.imageError).toBeNull();
   });
@@ -727,7 +739,7 @@ describe('最寄りスポットの既定選択（Issue #130 / S-4）', () => {
         result.current.selectSpot(fakeSpot);
       });
       act(() => {
-        expect(result.current.validate()).toBe(false);
+        expect(result.current.validate()).toEqual(['image']);
       });
 
       expect(result.current.imageError).toBe('御朱印の写真を追加してください');

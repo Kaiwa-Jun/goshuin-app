@@ -23,7 +23,7 @@ import { useLocation } from '@hooks/useLocation';
 import { formatJapaneseEraDate } from '@utils/japaneseEra';
 import { pickAutoSelectableSpot } from '@utils/autoSelectSpot';
 import { MAX_PHOTOS_PER_RECORD } from '@/constants/record';
-import { scrollTargetToReveal } from '@utils/revealInScrollView';
+import { scrollTargetToReveal, scrollTargetToShow } from '@utils/revealInScrollView';
 import { getStampImageUrl, fetchVisitedSpotIds } from '@services/stamps';
 import { isNetworkError } from '@/utils/errorClassifier';
 import { evaluateNewBadge } from '@services/badges';
@@ -31,6 +31,7 @@ import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { spacing, borderRadius } from '@theme/spacing';
 import type { RootStackScreenProps } from '@/navigation/types';
+import type { RecordField } from '@hooks/useRecordForm';
 
 type Props = RootStackScreenProps<'Record'>;
 
@@ -51,6 +52,11 @@ export function RecordScreen({ navigation, route }: Props) {
 
   const scrollViewRef = useRef<ScrollView>(null);
   const memoRect = useRef({ y: 0, height: 0 });
+  /** バリデーションで欠けていた欄まで連れていくために、欄の位置を覚えておく */
+  const fieldRects: Record<RecordField, React.RefObject<{ y: number; height: number }>> = {
+    spot: useRef({ y: 0, height: 0 }),
+    image: useRef({ y: 0, height: 0 }),
+  };
   const viewportHeight = useRef(0);
   const scrollOffset = useRef(0);
   const isSavingRef = useRef(false);
@@ -72,6 +78,19 @@ export function RecordScreen({ navigation, route }: Props) {
   };
   const revealMemo = () => reveal(memoRect.current);
 
+  /** 欠けている欄を画面に入れる。reveal と違い、上にも戻す */
+  const showField = (field: RecordField) => {
+    const rect = fieldRects[field].current;
+    const target = scrollTargetToShow({
+      blockY: rect.y,
+      blockHeight: rect.height,
+      viewportHeight: viewportHeight.current,
+      currentOffset: scrollOffset.current,
+      margin: spacing.lg,
+    });
+    if (target !== null) scrollViewRef.current?.scrollTo({ y: target, animated: true });
+  };
+
   const formattedDate = `${form.visitedAt.getFullYear()}年${form.visitedAt.getMonth() + 1}月${form.visitedAt.getDate()}日`;
   // 紙の御朱印は和暦で書かれている。ピッカーは西暦なので、照合できるよう併記する（監査 A-2）
   const eraDate = formatJapaneseEraDate(
@@ -87,7 +106,18 @@ export function RecordScreen({ navigation, route }: Props) {
     // 確認モーダルが二度押しを吸収していたぶん、ここを塞がないと
     // 素早い二度押しで御朱印が2件・画像も2枚できてしまう
     if (isSavingRef.current) return;
-    if (!form.validate()) return;
+
+    // 記録ボタンは画面下に固定されているので、下までスクロールしたまま押せる。
+    // エラーの出た欄が画面の外だと、押しても何も起きていないように見える
+    const invalid = form.validate();
+    if (invalid.length > 0) {
+      // 日付ピッカーの枠は onLayout で自分を画面に入れ直す。エラー文が増えると
+      // 枠の位置が動いて onLayout が再発火し、いま指定したスクロールを上書きする。
+      // 直す欄へ連れていくのが先なので、開きっぱなしのピッカーは閉じる
+      setShowDatePicker(false);
+      showField(invalid[0]);
+      return;
+    }
 
     isSavingRef.current = true;
     setPartialNotice(null);
@@ -211,25 +241,39 @@ export function RecordScreen({ navigation, route }: Props) {
           testID="record-scroll"
         >
           <Text style={styles.sectionLabel}>スポット</Text>
-          <SpotSelector
-            selectedSpot={form.selectedSpot}
-            nearbySpots={filteredSpots}
-            searchQuery={searchQuery}
-            onSearchQueryChange={setSearchQuery}
-            onSelectSpot={form.selectSpot}
-            error={form.spotError}
-            isAutoSelected={form.isSpotAutoSelected}
-          />
+          <View
+            onLayout={e => {
+              fieldRects.spot.current = e.nativeEvent.layout;
+            }}
+            testID="spot-block"
+          >
+            <SpotSelector
+              selectedSpot={form.selectedSpot}
+              nearbySpots={filteredSpots}
+              searchQuery={searchQuery}
+              onSearchQueryChange={setSearchQuery}
+              onSelectSpot={form.selectSpot}
+              error={form.spotError}
+              isAutoSelected={form.isSpotAutoSelected}
+            />
+          </View>
 
           <Text style={styles.sectionLabel}>御朱印の写真</Text>
           {/* 写真枠のタップでカメラを直接起動する。選択モーダルを1タップ挟んでいた分を削った。
               ギャラリーは使用頻度が低いので、常時見えるリンクとして枠の下に残す */}
-          <PhotoSection
-            imageUris={form.imageUris}
-            onAddPress={handleTakePhoto}
-            onRemove={form.removeImage}
-            error={form.imageError}
-          />
+          <View
+            onLayout={e => {
+              fieldRects.image.current = e.nativeEvent.layout;
+            }}
+            testID="photo-block"
+          >
+            <PhotoSection
+              imageUris={form.imageUris}
+              onAddPress={handleTakePhoto}
+              onRemove={form.removeImage}
+              error={form.imageError}
+            />
+          </View>
           {remainingSlots > 0 && (
             <TouchableOpacity
               style={styles.libraryLink}

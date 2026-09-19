@@ -36,3 +36,40 @@ export function scrollTargetToReveal({
   // 上に戻す方向には動かさない
   return Math.max(0, target);
 }
+
+/**
+ * 要素が画面に入るのに必要なスクロール位置を返す。すでに見えていれば null。
+ *
+ * `scrollTargetToReveal` と違い、**上にも戻す**。
+ * 記録ボタンは画面下に固定されているので、下までスクロールしたまま押せる。
+ * そのときスポット欄や写真欄のエラーは画面の外にあり、押しても何も
+ * 起きていないように見えてしまう。
+ */
+export function scrollTargetToShow({
+  blockY,
+  blockHeight,
+  viewportHeight,
+  currentOffset,
+  margin = 0,
+}: Params): number | null {
+  // 高さが取れていないうちは判断できない
+  if (blockHeight <= 0 || viewportHeight <= 0) return null;
+
+  const top = blockY - margin;
+  const bottom = blockY + blockHeight + margin;
+
+  let target: number;
+  if (top < currentOffset) {
+    // 画面より上にある。上端を出す
+    target = Math.max(0, top);
+  } else if (bottom > currentOffset + viewportHeight) {
+    // 画面より下にある。下端を出す
+    target = bottom - viewportHeight;
+  } else {
+    return null;
+  }
+
+  // 先頭の欄は margin のぶん top が負になり、0 に丸めると今の位置と同じになる。
+  // そこで scrollTo を呼ぶと、何も動かないアニメーションが走るだけ
+  return target === currentOffset ? null : target;
+}

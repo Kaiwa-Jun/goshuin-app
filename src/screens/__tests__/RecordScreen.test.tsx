@@ -27,7 +27,7 @@ const mockAddImages = jest.fn();
 const mockRemoveImage = jest.fn();
 const mockSetVisitedAt = jest.fn();
 const mockSetMemo = jest.fn();
-const mockValidate = jest.fn(() => true);
+const mockValidate = jest.fn((): string[] => []);
 const mockSubmit = jest.fn();
 const mockReset = jest.fn();
 
@@ -482,7 +482,7 @@ describe('確認モーダルの廃止（Issue #130 / D-3）', () => {
       submit: mockSubmit,
       reset: mockReset,
     };
-    mockValidate.mockReturnValue(true);
+    mockValidate.mockReturnValue([]);
   });
 
   const fakeStamp: Stamp = {
@@ -543,7 +543,7 @@ describe('確認モーダルの廃止（Issue #130 / D-3）', () => {
   it('スポット未選択なら送信も遷移もしない', async () => {
     mockFormState.selectedSpot = null;
     mockFormState.imageUris = ['file:///photo.jpg'];
-    mockValidate.mockReturnValueOnce(false);
+    mockValidate.mockReturnValueOnce(['spot']);
 
     const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
     fireEvent.press(getByText('この内容で記録する'));
@@ -558,7 +558,7 @@ describe('確認モーダルの廃止（Issue #130 / D-3）', () => {
   it('写真未選択なら送信も遷移もしない', async () => {
     mockFormState.selectedSpot = fakeSpot;
     mockFormState.imageUris = [];
-    mockValidate.mockReturnValueOnce(false);
+    mockValidate.mockReturnValueOnce(['image']);
 
     const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
     fireEvent.press(getByText('この内容で記録する'));
@@ -804,7 +804,7 @@ describe('タップ数（Issue #130 / F 群）', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockFormState = baseFormState();
-    mockValidate.mockReturnValue(true);
+    mockValidate.mockReturnValue([]);
     mockSubmit.mockResolvedValue({ success: true, stamps: [fakeStamp], failedCount: 0 });
     mockFetchVisitedSpotIds.mockResolvedValue(new Set());
     mockTakePhoto.mockResolvedValue('file:///photo.jpg');
@@ -908,7 +908,7 @@ describe('二重送信の防止（Issue #130 / A-10 補強）', () => {
       submit: mockSubmit,
       reset: mockReset,
     };
-    mockValidate.mockReturnValue(true);
+    mockValidate.mockReturnValue([]);
   });
 
   // 確認モーダルを廃したことで、記録ボタンが唯一の入口になった。
@@ -1023,7 +1023,7 @@ describe('訪問済みスポットの取得に失敗したとき（Issue #133）
       submit: mockSubmit,
       reset: mockReset,
     };
-    mockValidate.mockReturnValue(true);
+    mockValidate.mockReturnValue([]);
     mockFetchVisitedSpotIds.mockRejectedValue(new Error('訪問済みスポットの取得に失敗しました'));
     warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
   });
@@ -1204,7 +1204,7 @@ describe('訪問済みスポットの取得に成功したとき（Issue #133 �
       submit: mockSubmit,
       reset: mockReset,
     };
-    mockValidate.mockReturnValue(true);
+    mockValidate.mockReturnValue([]);
     mockSubmit.mockResolvedValue({ success: true, stamps: [fakeStamp], failedCount: 0 });
   });
 
@@ -1403,7 +1403,7 @@ describe('複数枚をまとめて登録する（Issue #180）', () => {
       submit: mockSubmit,
       reset: mockReset,
     };
-    mockValidate.mockReturnValue(true);
+    mockValidate.mockReturnValue([]);
     mockFetchVisitedSpotIds.mockResolvedValue(new Set(['spot-1']));
     mockTakePhoto.mockReset();
     mockPickFromLibrary.mockReset();
@@ -1531,5 +1531,157 @@ describe('複数枚をまとめて登録する（Issue #180）', () => {
     await waitFor(() => {
       expect(evaluateNewBadge).toHaveBeenCalledWith(2, 3);
     });
+  });
+});
+
+describe('バリデーションエラーのある欄まで連れていく', () => {
+  /*
+   * 記録ボタンは画面下に固定されているので、下までスクロールしたまま押せる。
+   * そのときスポット欄や写真欄のエラーは画面の外にあり、押しても何も起きて
+   * いないように見えていた。
+   */
+  const VIEWPORT = 600;
+  let scrollTo: jest.SpyInstance;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    scrollTo = jest.spyOn(ScrollView.prototype, 'scrollTo').mockImplementation(() => {});
+    mockFormState = {
+      selectedSpot: null,
+      imageUris: [],
+      visitedAt: new Date('2024-06-01'),
+      memo: '',
+      isPublic: false,
+      spotError: null,
+      imageError: null,
+      isSubmitting: false,
+      submitError: null,
+      selectSpot: mockSelectSpot,
+      addImages: mockAddImages,
+      removeImage: mockRemoveImage,
+      setVisitedAt: mockSetVisitedAt,
+      setMemo: mockSetMemo,
+      setIsPublic: mockSetIsPublic,
+      validate: mockValidate,
+      submit: mockSubmit,
+      reset: mockReset,
+    };
+  });
+
+  afterEach(() => {
+    scrollTo.mockRestore();
+  });
+
+  /** 画面より下までスクロールした状態にして、欄の位置を教える */
+  const setup = () => {
+    const r = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent(r.getByTestId('record-scroll'), 'layout', {
+      nativeEvent: { layout: { height: VIEWPORT } },
+    });
+    fireEvent(r.getByTestId('spot-block'), 'layout', {
+      nativeEvent: { layout: { y: 0, height: 120 } },
+    });
+    fireEvent(r.getByTestId('photo-block'), 'layout', {
+      nativeEvent: { layout: { y: 160, height: 280 } },
+    });
+    // メモ欄まで下げた状態
+    fireEvent.scroll(r.getByTestId('record-scroll'), {
+      nativeEvent: { contentOffset: { y: 700 } },
+    });
+    return r;
+  };
+
+  it('スポット未選択ならスポット欄まで戻る', async () => {
+    mockValidate.mockReturnValue(['spot']);
+
+    const r = setup();
+    fireEvent.press(r.getByText('この内容で記録する'));
+
+    await waitFor(() => {
+      expect(scrollTo).toHaveBeenCalled();
+    });
+    const { y } = scrollTo.mock.calls[0][0] as { y: number };
+    // スポット欄は先頭にあるので一番上まで
+    expect(y).toBe(0);
+    expect(mockSubmit).not.toHaveBeenCalled();
+  });
+
+  it('写真が無ければ写真欄まで戻る', async () => {
+    mockValidate.mockReturnValue(['image']);
+
+    const r = setup();
+    fireEvent.press(r.getByText('この内容で記録する'));
+
+    await waitFor(() => {
+      expect(scrollTo).toHaveBeenCalled();
+    });
+    const { y } = scrollTo.mock.calls[0][0] as { y: number };
+    // 写真欄の上端(160)が見える位置。スポット欄まで戻しすぎない
+    expect(y).toBeGreaterThan(0);
+    expect(y).toBeLessThanOrEqual(160);
+  });
+
+  it('両方欠けていたら上の欄へ連れていく', async () => {
+    mockValidate.mockReturnValue(['spot', 'image']);
+
+    const r = setup();
+    fireEvent.press(r.getByText('この内容で記録する'));
+
+    await waitFor(() => {
+      expect(scrollTo).toHaveBeenCalled();
+    });
+    expect(scrollTo).toHaveBeenCalledTimes(1);
+    const { y } = scrollTo.mock.calls[0][0] as { y: number };
+    expect(y).toBe(0);
+  });
+
+  // 日付ピッカーの枠は onLayout で自分を画面に入れ直す。エラー文が増えると
+  // 枠の位置が動いて onLayout が再発火し、せっかく欄まで戻したスクロールを
+  // 上書きしてしまう。実機で「写真欄に飛ばされる」形で出た
+  it('日付ピッカーが開いていたら閉じてから連れていく', async () => {
+    mockValidate.mockReturnValue(['spot']);
+
+    const r = setup();
+    fireEvent.press(r.getByTestId('date-picker-trigger'));
+    expect(r.getByTestId('date-picker-block')).toBeTruthy();
+
+    fireEvent.press(r.getByText('この内容で記録する'));
+
+    await waitFor(() => {
+      expect(r.queryByTestId('date-picker-block')).toBeNull();
+    });
+  });
+
+  it('入力がそろっていれば動かさない', async () => {
+    mockValidate.mockReturnValue([]);
+    mockFetchVisitedSpotIds.mockResolvedValue(new Set());
+    mockSubmit.mockResolvedValue({ success: true, stamps: [], failedCount: 0 });
+
+    const r = setup();
+    fireEvent.press(r.getByText('この内容で記録する'));
+
+    await waitFor(() => {
+      expect(mockSubmit).toHaveBeenCalled();
+    });
+    expect(scrollTo).not.toHaveBeenCalled();
+  });
+
+  it('その欄がすでに見えていれば動かさない', async () => {
+    mockValidate.mockReturnValue(['spot']);
+
+    const r = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent(r.getByTestId('record-scroll'), 'layout', {
+      nativeEvent: { layout: { height: VIEWPORT } },
+    });
+    fireEvent(r.getByTestId('spot-block'), 'layout', {
+      nativeEvent: { layout: { y: 0, height: 120 } },
+    });
+    // スクロールしていない = スポット欄は見えている
+    fireEvent.press(r.getByText('この内容で記録する'));
+
+    await waitFor(() => {
+      expect(mockValidate).toHaveBeenCalled();
+    });
+    expect(scrollTo).not.toHaveBeenCalled();
   });
 });
