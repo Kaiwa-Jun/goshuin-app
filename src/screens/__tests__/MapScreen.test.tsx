@@ -460,6 +460,82 @@ describe('MapScreen', () => {
     });
   });
 
+  describe('検索バーに選んだスポット名を残す', () => {
+    const selectSpotOnMap = (r: ReturnType<typeof render>, spotId: string) =>
+      fireEvent(r.getByTestId('goshuin-pinned'), 'onPress', {
+        nativeEvent: { lngLat: [140.87, 38.27], features: [{ properties: { spotId } }] },
+      });
+
+    it('検索から飛んできたら、選んだスポット名が検索欄に入る', () => {
+      const route = { ...mockRoute, params: { focusSpotId: 'spot-1' } };
+      const { getByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={route as never} />
+      );
+
+      expect(getByTestId('search-input').props.value).toBe('Test Shrine');
+    });
+
+    it('何も選んでいなければ空のまま', () => {
+      const { getByTestId, queryByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+
+      expect(getByTestId('search-input').props.value).toBeUndefined();
+      expect(queryByTestId('search-clear-button')).toBeNull();
+    });
+
+    it('地図のピンをタップしたときも名前が入る。前の検索名を残さない', () => {
+      const route = { ...mockRoute, params: { focusSpotId: 'spot-1' } };
+      const r = render(<MapScreen navigation={mockNavigation as never} route={route as never} />);
+      expect(r.getByTestId('search-input').props.value).toBe('Test Shrine');
+
+      selectSpotOnMap(r, 'spot-2');
+
+      expect(r.getByTestId('search-input').props.value).toBe('Test Temple');
+    });
+
+    it('ボトムシートを閉じても名前は残る', () => {
+      const r = render(<MapScreen navigation={mockNavigation as never} route={mockRoute} />);
+      selectSpotOnMap(r, 'spot-1');
+      expect(r.getByTestId('search-input').props.value).toBe('Test Shrine');
+
+      fireEvent(r.getByTestId('map-view'), 'onPress', { nativeEvent: { lngLat: [0, 0] } });
+
+      expect(r.queryByTestId('bottom-sheet')).toBeNull();
+      expect(r.getByTestId('search-input').props.value).toBe('Test Shrine');
+    });
+
+    it('× で消した後にスポット一覧が再取得されても、名前とシートは復活しない', () => {
+      // displaySpots は再取得のたびに参照が変わる。focusSpotId の effect が
+      // それに引きずられて再実行されると、消したはずの状態が戻ってしまう
+      const route = { ...mockRoute, params: { focusSpotId: 'spot-1' } };
+      const r = render(<MapScreen navigation={mockNavigation as never} route={route as never} />);
+      expect(r.getByTestId('search-input').props.value).toBe('Test Shrine');
+
+      fireEvent.press(r.getByTestId('search-clear-button'));
+      expect(r.getByTestId('search-input').props.value).toBeUndefined();
+
+      // スポットを取り直す（配列の参照が変わる）
+      mockSpotsOverride = mockSpots.map(spot => ({ ...spot }));
+      r.rerender(<MapScreen navigation={mockNavigation as never} route={route as never} />);
+
+      expect(r.getByTestId('search-input').props.value).toBeUndefined();
+      expect(r.queryByTestId('bottom-sheet')).toBeNull();
+    });
+
+    it('× で名前を消すと、選択も解除される', () => {
+      const r = render(<MapScreen navigation={mockNavigation as never} route={mockRoute} />);
+      selectSpotOnMap(r, 'spot-1');
+
+      fireEvent.press(r.getByTestId('search-clear-button'));
+
+      expect(r.getByTestId('search-input').props.value).toBeUndefined();
+      expect(r.queryByTestId('bottom-sheet')).toBeNull();
+      // × は検索画面への遷移を兼ねない
+      expect(mockNavigation.navigate).not.toHaveBeenCalledWith('Search');
+    });
+  });
+
   describe('Bottom sheet', () => {
     it('shows bottom sheet when focusSpotId is provided', () => {
       const route = {

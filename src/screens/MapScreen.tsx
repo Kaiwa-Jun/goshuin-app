@@ -59,6 +59,9 @@ export function MapScreen({ navigation, route }: Props) {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showFilter, setShowFilter] = useState(false);
   const [selectedSpotId, setSelectedSpotId] = useState<string | null>(null);
+  // 検索バーに出す名前。検索・履歴から飛んできたときとピンをタップしたときに入る。
+  // selectedSpotId とは別に持つ。シートを閉じても消さず、× で消す
+  const [searchLabel, setSearchLabel] = useState<string | null>(null);
 
   const cameraRef = useRef<CameraRef>(null);
   const insets = useSafeAreaInsets();
@@ -112,12 +115,24 @@ export function MapScreen({ navigation, route }: Props) {
     return () => subscription.remove();
   }, [permissionStatus, refreshLocation]);
 
+  // 処理済みの focusSpotId。displaySpots は再取得のたびに参照が変わるので、
+  // これが無いと × で消した名前とボトムシートが勝手に復活する。
+  // 「変化したら実行」ではなく「まだ処理していなければ実行」にしているのは、
+  // 飛んできた直後はスポットの読み込みが終わっておらず find が空振りするため
+  const handledFocusSpotIdRef = useRef<string | null>(null);
+
   useEffect(() => {
     const focusSpotId = route.params?.focusSpotId;
-    if (!focusSpotId) return;
+    if (!focusSpotId) {
+      handledFocusSpotIdRef.current = null;
+      return;
+    }
+    if (handledFocusSpotIdRef.current === focusSpotId) return;
 
     const spot = displaySpots.find(s => s.id === focusSpotId);
-    if (!spot) return;
+    if (!spot) return; // まだ読めていない。次の displaySpots 更新で拾う
+
+    handledFocusSpotIdRef.current = focusSpotId;
 
     cameraRef.current?.flyTo({
       center: [spot.lng, spot.lat],
@@ -126,6 +141,7 @@ export function MapScreen({ navigation, route }: Props) {
     });
 
     setSelectedSpotId(focusSpotId);
+    setSearchLabel(spot.name);
   }, [route.params?.focusSpotId, displaySpots]);
 
   useEffect(() => {
@@ -175,6 +191,7 @@ export function MapScreen({ navigation, route }: Props) {
 
       const spot = displaySpots.find(s => s.id === spotId);
       if (spot) {
+        setSearchLabel(spot.name);
         cameraRef.current?.easeTo({ center: [spot.lng, spot.lat], duration: 300 });
       }
     },
@@ -197,6 +214,11 @@ export function MapScreen({ navigation, route }: Props) {
   );
 
   const handleBottomSheetDismiss = useCallback(() => {
+    setSelectedSpotId(null);
+  }, []);
+
+  const handleSearchClear = useCallback(() => {
+    setSearchLabel(null);
     setSelectedSpotId(null);
   }, []);
 
@@ -235,7 +257,13 @@ export function MapScreen({ navigation, route }: Props) {
     <View style={styles.container} testID="map-screen">
       <View style={[styles.searchRow, { top: searchRowTop }]}>
         <View style={styles.searchBarWrapper}>
-          <SearchBar editable={false} onPress={() => navigation.navigate('Search')} />
+          <SearchBar
+            editable={false}
+            value={searchLabel ?? undefined}
+            showClearButton={searchLabel !== null}
+            onClear={handleSearchClear}
+            onPress={() => navigation.navigate('Search')}
+          />
         </View>
         {isAuthenticated && (
           <TouchableOpacity
