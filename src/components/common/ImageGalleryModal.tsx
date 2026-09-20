@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Animated,
   Dimensions,
-  Image,
   Modal,
   PanResponder,
   StyleSheet,
@@ -13,6 +13,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { spacing } from '@theme/spacing';
+import { TYPICAL_STAMP_ASPECT } from '@/constants/stampImage';
 
 export interface GalleryImage {
   id: string;
@@ -75,6 +76,67 @@ const TAP_MAX_DURATION = 200;
 const TAP_MAX_DISTANCE = 10;
 /** 今の1枚の前後いくつまで実際に描くか。横スワイプの先読みぶん */
 const NEIGHBORS = 1;
+/** 写真が届いたときの溶け込み */
+const FADE_IN_MS = 160;
+/** ここまで待っても届かないなら、黙っているより出ていないことを示す */
+const SLOW_MS = 2000;
+
+interface GalleryImageSlotProps {
+  image: GalleryImage;
+  /** 枠の高さ。実寸が分かるまでは、よくある形で置く */
+  height: number;
+  isCurrent: boolean;
+  onLoaded: (width: number, height: number) => void;
+}
+
+/**
+ * 1枚ぶんの枠（Issue #192）。
+ *
+ * 写真が届くまで「何も無い」のではなく「正しい形の枠」を出す。白いままだと
+ * 壊れて見えるが、形のある枠は「ここに写真が来る」と言っている。
+ * スピナーは最初から出さない。あれは「遅い・怪しい」の記号なので、
+ * ふつうに届く場面で出すと不安にさせるだけ。2秒待っても来ないときだけ出す
+ */
+function GalleryImageSlot({ image, height, isCurrent, onLoaded }: GalleryImageSlotProps) {
+  const fade = useRef(new Animated.Value(0)).current;
+  const [loaded, setLoaded] = useState(false);
+  const [slow, setSlow] = useState(false);
+
+  useEffect(() => {
+    if (loaded) return;
+    const timer = setTimeout(() => setSlow(true), SLOW_MS);
+    return () => clearTimeout(timer);
+  }, [loaded]);
+
+  return (
+    <View style={styles.imageSlot}>
+      <View
+        style={[styles.imageFrame, { height }]}
+        testID={isCurrent ? 'gallery-frame' : undefined}
+      >
+        {!loaded && slow && (
+          <ActivityIndicator size="small" color={colors.gray[400]} testID="gallery-image-slow" />
+        )}
+        <Animated.Image
+          source={{ uri: image.imageUrl }}
+          style={[styles.image, { opacity: fade }]}
+          resizeMode="contain"
+          onLoad={e => {
+            const { width, height: sourceHeight } = e.nativeEvent.source;
+            setLoaded(true);
+            onLoaded(width, sourceHeight);
+            Animated.timing(fade, {
+              toValue: 1,
+              duration: FADE_IN_MS,
+              useNativeDriver: true,
+            }).start();
+          }}
+          testID={isCurrent ? 'gallery-image' : undefined}
+        />
+      </View>
+    </View>
+  );
+}
 
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr);
@@ -324,27 +386,22 @@ export function ImageGalleryModal({
               今の1枚が早く出る（Issue #192） */}
           {(swipeable ? images : [currentImage]).map((img, slot) => {
             const index = swipeable ? slot : currentIndex;
+            // 見えている前後だけ描く。全枚数を一度に置くと、そのぶんの取得が
+            // 同時に走って画像ローダーが詰まる（Issue #192）
+            if (Math.abs(index - currentIndex) > NEIGHBORS) {
+              return <View key={img.id} style={styles.imageSlot} />;
+            }
             return (
-              <View key={img.id} style={styles.imageSlot}>
-                {/* 見えている前後だけ描く。全枚数を一度に置くと、そのぶんの取得が
-                    同時に走って画像ローダーが詰まる（Issue #192） */}
-                {Math.abs(index - currentIndex) <= NEIGHBORS && (
-                  <Image
-                    source={{ uri: img.imageUrl }}
-                    style={[styles.image, { height: imageHeights[img.id] ?? SCREEN_WIDTH }]}
-                    resizeMode="contain"
-                    onLoad={e => {
-                      rememberHeight(
-                        img.id,
-                        e.nativeEvent.source.width,
-                        e.nativeEvent.source.height
-                      );
-                      if (index === currentIndex) onImageReadyRef.current?.(index);
-                    }}
-                    testID={index === currentIndex ? 'gallery-image' : undefined}
-                  />
-                )}
-              </View>
+              <GalleryImageSlot
+                key={img.id}
+                image={img}
+                height={imageHeights[img.id] ?? SCREEN_WIDTH / TYPICAL_STAMP_ASPECT}
+                isCurrent={index === currentIndex}
+                onLoaded={(width, sourceHeight) => {
+                  rememberHeight(img.id, width, sourceHeight);
+                  if (index === currentIndex) onImageReadyRef.current?.(index);
+                }}
+              />
             );
           })}
         </Animated.View>
@@ -469,8 +526,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  image: {
+  imageFrame: {
     width: SCREEN_WIDTH,
+    alignItems: 'center',
+    justifyContent: 'center',
+    // 写真が届くまでの地。一覧のタイルと同じ考えで、形だけ先に見せる
+    backgroundColor: colors.gray[100],
+  },
+  image: {
+    ...StyleSheet.absoluteFillObject,
   },
   topBar: {
     position: 'absolute',

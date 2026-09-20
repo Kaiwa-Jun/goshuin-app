@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Image, StyleSheet, Text, View } from 'react-native';
 import { useReduceMotion } from '@hooks/useReduceMotion';
 import { heroFlight, anchorDelta, type Rect } from '@utils/heroTransition';
+import { TYPICAL_STAMP_ASPECT } from '@/constants/stampImage';
 import { GALLERY_INFO_BOTTOM, GALLERY_INFO_LEFT } from '@components/common/ImageGalleryModal';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
@@ -77,6 +78,8 @@ export function HeroFlyer({
   const [container, setContainer] = useState<Rect | null>(null);
   /** 写真が出せる状態か。出る前に飛ぶと、空の枠だけが動く */
   const [imageReady, setImageReady] = useState(false);
+  /** 飛ぶ1枚自身が読み込めたときに分かる縦横比。一覧がまだ読めていない場合の受け皿 */
+  const [loadedAspect, setLoadedAspect] = useState<number | null>(null);
   const containerRef = useRef<View>(null);
   const onDoneRef = useRef(onDone);
   onDoneRef.current = onDone;
@@ -144,8 +147,17 @@ export function HeroFlyer({
     });
   };
 
+  /*
+   * 縦横比は、分かっているものから順に使う。
+   *
+   * 一覧がまだ写真を読めていないと比が取れず、以前はそこで飛ぶのをやめていた。
+   * 押したのに何も起きないのが一番情報が少ない。よくある形を仮に置いて必ず飛ばし、
+   * 本当の比が分かったら差し替える（Issue #192）
+   */
+  const aspect = imageAspect ?? loadedAspect ?? TYPICAL_STAMP_ASPECT;
+
   // 目的地は詳細と同じ置き方にする。全幅で、枠の中央
-  const targetHeight = container && imageAspect ? container.width / imageAspect : 0;
+  const targetHeight = container ? container.width / aspect : 0;
   const target: Rect | null = container
     ? {
         x: container.x,
@@ -155,7 +167,7 @@ export function HeroFlyer({
       }
     : null;
 
-  const flight = target && imageAspect ? heroFlight(sourceRect, target, imageAspect) : null;
+  const flight = target ? heroFlight(sourceRect, target, aspect) : null;
 
   // 大きさが取れていなければ飛ばしようがない。詰まらせずに先へ進める
   useEffect(() => {
@@ -224,7 +236,12 @@ export function HeroFlyer({
               source={{ uri: imageUrl }}
               style={{ width: target.width, height: target.height }}
               resizeMode="cover"
-              onLoad={() => setImageReady(true)}
+              onLoad={e => {
+                // 一覧がまだ読めていなくても、ここで本当の縦横比が分かる
+                const { width, height } = e.nativeEvent.source;
+                if (height > 0) setLoadedAspect(width / height);
+                setImageReady(true);
+              }}
               testID="hero-image"
             />
           </Animated.View>

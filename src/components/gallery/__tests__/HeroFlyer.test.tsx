@@ -93,15 +93,17 @@ describe('HeroFlyer', () => {
     });
   });
 
-  // 大きさが取れていないと目的地が決まらない。ここで黙って止まると詳細が開かない
-  it('写真の縦横比が取れていなければ、飛ばさずに先へ進める', async () => {
-    const { getByTestId, onDone, queryByTestId } = renderFlyer({ imageAspect: null });
+  // 一覧がまだ写真を読めていないと縦横比が取れない。以前はそこで飛ぶのを
+  // やめていたが、押したのに何も起きないのが一番情報が少ない。
+  // よくある形を仮に置いて必ず飛ばす（Issue #192）
+  it('縦横比が分からなくても、よくある形で飛ぶ', async () => {
+    const { getByTestId, onDone } = renderFlyer({ imageAspect: null });
     layout(getByTestId);
 
+    expect(getByTestId('hero-image')).toBeTruthy();
     await waitFor(() => {
       expect(onDone).toHaveBeenCalled();
     });
-    expect(queryByTestId('hero-image')).toBeNull();
   });
 
   describe('視差効果を減らす設定', () => {
