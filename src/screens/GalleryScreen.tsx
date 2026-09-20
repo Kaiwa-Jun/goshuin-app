@@ -18,7 +18,12 @@ import { useAuth } from '@hooks/useAuth';
 import { useGalleryStamps } from '@hooks/useGalleryStamps';
 import { useGalleryViewMode } from '@hooks/useGalleryViewMode';
 import { useStampDetail } from '@hooks/useStampDetail';
-import { getStampImageUrl, getStampThumbUrl, ensureStampThumbnails } from '@services/stamps';
+import {
+  getStampImageUrl,
+  getStampThumbUrl,
+  getStampViewUrl,
+  ensureStampVariants,
+} from '@services/stamps';
 import { Button } from '@components/common/Button';
 import { ImageGalleryModal, GalleryImage } from '@components/common/ImageGalleryModal';
 import { GoshuinchoFlipView } from '@components/gallery/GoshuinchoFlipView';
@@ -88,16 +93,20 @@ export function GalleryScreen({ navigation }: Props) {
    * サムネが無かった。表示は元の写真で続けつつ、裏で焼かせる。
    * 1枚ごとに叩くと一覧を開くたび数十回になるので、少し溜めてから1回で送る
    */
-  const handleThumbMissing = (stamp: StampWithSpot) => {
-    setThumbMissing(prev => (prev.has(stamp.id) ? prev : new Set(prev).add(stamp.id)));
-
-    pendingThumbs.current.add(stamp.image_path);
+  const requestVariants = (imagePath: string) => {
+    pendingThumbs.current.add(imagePath);
     if (thumbTimer.current) clearTimeout(thumbTimer.current);
     thumbTimer.current = setTimeout(() => {
       const paths = [...pendingThumbs.current];
       pendingThumbs.current.clear();
-      ensureStampThumbnails(paths).catch(() => {});
+      ensureStampVariants(paths).catch(() => {});
     }, THUMB_REQUEST_DEBOUNCE_MS);
+  };
+
+  /** 一覧のタイルが小さい方を出せなかった。元に落として表示を続けつつ焼かせる */
+  const handleThumbMissing = (stamp: StampWithSpot) => {
+    setThumbMissing(prev => (prev.has(stamp.id) ? prev : new Set(prev).add(stamp.id)));
+    requestVariants(stamp.image_path);
   };
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
@@ -119,7 +128,10 @@ export function GalleryScreen({ navigation }: Props) {
     () =>
       displayStamps.map(s => ({
         id: s.id,
-        imageUrl: isPreview ? previewImageUrl(s) : getStampImageUrl(s.image_path),
+        // 詳細は JPEG の方を見る。元は HEIC で Safari 以外では表示できない。
+        // まだ焼かれていなければ元に落ちる（Issue #196）
+        imageUrl: isPreview ? previewImageUrl(s) : getStampViewUrl(s.image_path),
+        fallbackUrl: isPreview ? undefined : getStampImageUrl(s.image_path),
         spotName: s.spots.name,
         memo: s.memo,
         visitedAt: s.visited_at,
@@ -410,6 +422,11 @@ export function GalleryScreen({ navigation }: Props) {
         onEdit={handleEdit}
         onDelete={handleDeletePress}
         onImageReady={handleDetailImageReady}
+        // 詳細用がまだ無い。一覧は小さい方を見ているので、ここでしか気づけない
+        onImageFallback={id => {
+          const stamp = displayStamps.find(s => s.id === id);
+          if (stamp) requestVariants(stamp.image_path);
+        }}
         // 一覧のタイルと詳細を1対1で繋いでいる。途中で別の1枚に移ると
         // その結びつきが切れて元のタイルへ戻れない。順に見る動線は
         // 蛇腹めくりが持っている（Issue #192）

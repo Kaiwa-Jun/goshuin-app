@@ -143,6 +143,9 @@ jest.mock('@hooks/useDefaultPublicSetting', () => ({
 
 jest.mock('@services/stamps', () => ({
   getStampImageUrl: (path: string) => `https://example.com/stamps/${path}`,
+  getStampThumbUrl: (path: string) => `https://example.com/stamps/thumb-400/${path}`,
+  getStampViewUrl: (path: string) => `https://example.com/stamps/view-1200/${path}`,
+  ensureStampVariants: () => Promise.resolve(),
 }));
 
 jest.mock('@hooks/useGalleryStamps', () => ({

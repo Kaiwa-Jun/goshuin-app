@@ -18,6 +18,8 @@ import { TYPICAL_STAMP_ASPECT } from '@/constants/stampImage';
 export interface GalleryImage {
   id: string;
   imageUrl: string;
+  /** imageUrl が出せなかったときに使う。縮小版がまだ焼かれていない場合の逃げ道 */
+  fallbackUrl?: string;
   userName?: string | null;
   /** 寺社の名前。一覧から飛んでくる文字の行き先になる（Issue #192） */
   spotName?: string | null;
@@ -48,6 +50,11 @@ interface ImageGalleryModalProps {
    * 一覧から飛んできた1枚を、いつ引っ込めてよいかの合図に使う（#192）
    */
   onImageReady?: (index: number) => void;
+  /**
+   * 縮小版が無くて元に落ちたとき。焼かせる合図に使う（Issue #196）。
+   * 一覧のタイルは小さい方を見ているので、詳細用が無いことに気づけるのはここだけ
+   */
+  onImageFallback?: (id: string) => void;
   /**
    * 横スワイプで隣の1枚へ移れるか。件数の表示もこれに従う。
    *
@@ -87,6 +94,7 @@ interface GalleryImageSlotProps {
   height: number;
   isCurrent: boolean;
   onLoaded: (width: number, height: number) => void;
+  onFallback: () => void;
 }
 
 /**
@@ -97,10 +105,19 @@ interface GalleryImageSlotProps {
  * スピナーは最初から出さない。あれは「遅い・怪しい」の記号なので、
  * ふつうに届く場面で出すと不安にさせるだけ。2秒待っても来ないときだけ出す
  */
-function GalleryImageSlot({ image, height, isCurrent, onLoaded }: GalleryImageSlotProps) {
+function GalleryImageSlot({
+  image,
+  height,
+  isCurrent,
+  onLoaded,
+  onFallback,
+}: GalleryImageSlotProps) {
   const fade = useRef(new Animated.Value(0)).current;
   const [loaded, setLoaded] = useState(false);
   const [slow, setSlow] = useState(false);
+  /** 縮小版がまだ無いときに元へ落ちる（Issue #196） */
+  const [fellBack, setFellBack] = useState(false);
+  const uri = fellBack && image.fallbackUrl ? image.fallbackUrl : image.imageUrl;
 
   useEffect(() => {
     if (loaded) return;
@@ -118,7 +135,7 @@ function GalleryImageSlot({ image, height, isCurrent, onLoaded }: GalleryImageSl
           <ActivityIndicator size="small" color={colors.gray[400]} testID="gallery-image-slow" />
         )}
         <Animated.Image
-          source={{ uri: image.imageUrl }}
+          source={{ uri }}
           style={[styles.image, { opacity: fade }]}
           resizeMode="contain"
           onLoad={e => {
@@ -130,6 +147,12 @@ function GalleryImageSlot({ image, height, isCurrent, onLoaded }: GalleryImageSl
               duration: FADE_IN_MS,
               useNativeDriver: true,
             }).start();
+          }}
+          onError={() => {
+            if (image.fallbackUrl && !fellBack) {
+              setFellBack(true);
+              onFallback();
+            }
           }}
           testID={isCurrent ? 'gallery-image' : undefined}
         />
@@ -156,6 +179,7 @@ export function ImageGalleryModal({
   useModal = true,
   onIndexChange,
   onImageReady,
+  onImageFallback,
   swipeable = true,
   dismissFollowsFinger = true,
 }: ImageGalleryModalProps) {
@@ -165,6 +189,8 @@ export function ImageGalleryModal({
   onIndexChangeRef.current = onIndexChange;
   const onImageReadyRef = useRef(onImageReady);
   onImageReadyRef.current = onImageReady;
+  const onImageFallbackRef = useRef(onImageFallback);
+  onImageFallbackRef.current = onImageFallback;
   const swipeableRef = useRef(swipeable);
   swipeableRef.current = swipeable;
   const followsFingerRef = useRef(dismissFollowsFinger);
@@ -401,6 +427,7 @@ export function ImageGalleryModal({
                   rememberHeight(img.id, width, sourceHeight);
                   if (index === currentIndex) onImageReadyRef.current?.(index);
                 }}
+                onFallback={() => onImageFallbackRef.current?.(img.id)}
               />
             );
           })}

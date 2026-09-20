@@ -10,7 +10,7 @@ const mockCreateStamp = jest.fn();
 const mockUseAuth = jest.fn();
 const mockFetchProfile = jest.fn();
 const mockTriggerExtraction = jest.fn();
-const mockEnsureStampThumbnails = jest.fn();
+const mockEnsureStampVariants = jest.fn();
 
 jest.mock('@services/spots', () => ({
   fetchSpotById: (...args: unknown[]) => mockFetchSpotById(...args),
@@ -19,7 +19,7 @@ jest.mock('@services/spots', () => ({
 jest.mock('@services/stamps', () => ({
   uploadStampImage: (...args: unknown[]) => mockUploadStampImage(...args),
   createStamp: (...args: unknown[]) => mockCreateStamp(...args),
-  ensureStampThumbnails: (...args: unknown[]) => mockEnsureStampThumbnails(...args),
+  ensureStampVariants: (...args: unknown[]) => mockEnsureStampVariants(...args),
 }));
 
 jest.mock('@hooks/useAuth', () => ({
@@ -70,7 +70,7 @@ describe('useRecordForm', () => {
     mockUseAuth.mockReturnValue({ user: { id: 'user-1' } });
     mockFetchProfile.mockResolvedValue({ default_stamp_public: false });
     mockTriggerExtraction.mockResolvedValue(undefined);
-    mockEnsureStampThumbnails.mockResolvedValue(undefined);
+    mockEnsureStampVariants.mockResolvedValue(undefined);
   });
 
   it('has correct initial state', () => {
