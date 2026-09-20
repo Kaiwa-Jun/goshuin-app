@@ -66,6 +66,15 @@ const GREEN_DEEP = '#C3DCBA';
 /** 水面・河川 */
 const BLUE = '#A9CFE8';
 
+/**
+ * 丸ごと落とすレイヤ。
+ *
+ * 道路番号の盾（403 のような四角）。拡大すると幹線沿いに大量に並び、
+ * こちらのスポット名と衝突する。参拝先を探す地図で道路番号を読む場面は無い。
+ * 米国専用の2つは日本では描かれないが、出番が無いものを持っていても仕方ない
+ */
+const DROP = new Set(['highway-shield-non-us', 'highway-shield-us-interstate', 'road_shield_us']);
+
 /** レイヤ id → 書き換え関数 */
 const TUNING = {
   // ------ 引き算 ------
@@ -163,6 +172,13 @@ const STATION_LAYER = {
   },
 };
 
+const before = style.layers.length;
+style.layers = style.layers.filter(layer => !DROP.has(layer.id));
+const dropped = before - style.layers.length;
+if (dropped !== DROP.size) {
+  console.warn(`⚠ 落とすはずのレイヤが見つからない（${dropped}/${DROP.size}）。positron の構成が変わった可能性`);
+}
+
 let tuned = 0;
 for (const [id, apply] of Object.entries(TUNING)) {
   const layer = style.layers.find(l => l.id === id);
@@ -193,5 +209,5 @@ await fs.writeFile(OUT, `${JSON.stringify(style)}\n`);
 
 const { size } = await fs.stat(OUT);
 console.log(
-  `${path.relative(ROOT, OUT)}  ラベル日本語化 ${rewritten} / 見やすさ調整 ${tuned} / 駅レイヤ +1  ${size} bytes`
+  `${path.relative(ROOT, OUT)}  ラベル日本語化 ${rewritten} / 見やすさ調整 ${tuned} / 削除 ${dropped} / 駅レイヤ +1  ${size} bytes`
 );

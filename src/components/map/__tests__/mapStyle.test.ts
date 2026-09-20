@@ -128,6 +128,24 @@ describe('assets/map-style.json（焼き込み済みの下地スタイル）', (
     });
   });
 
+  // 拡大すると幹線沿いに 403 のような四角が大量に並び、こちらのスポット名と
+  // 衝突していた。参拝先を探す地図で道路番号を読む場面は無い
+  it('道路番号の盾は焼き込まない', () => {
+    const shields = layers.filter(l => /shield/i.test(l.id));
+
+    expect(shields).toEqual([]);
+  });
+
+  // ref（道路番号）を出すレイヤが別名で復活していないかも見る
+  it('道路番号（ref）を出すレイヤが残っていない', () => {
+    const refLayers = layers.filter(l => {
+      const field = l.layout?.['text-field'];
+      return field !== undefined && JSON.stringify(field).includes('"ref"');
+    });
+
+    expect(refLayers.map(l => l.id)).toEqual([]);
+  });
+
   it('ラベルはすべて日本語優先で引く', () => {
     const labelLayers = layers.filter(
       l => l.layout?.['text-field'] && JSON.stringify(l.layout['text-field']).includes('name')
