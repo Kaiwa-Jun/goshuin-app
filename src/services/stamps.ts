@@ -2,6 +2,7 @@ import { File } from 'expo-file-system';
 
 import { supabase } from '@services/supabase';
 import { describeSupabaseError } from '@/utils/supabaseError';
+import { stampThumbPath } from '@/utils/stampThumb';
 import type { Stamp, StampWithSpot, PublicStampWithUser } from '@/types/supabase';
 
 /**
@@ -167,8 +168,37 @@ export async function fetchPublicStampsBySpotId(spotId: string): Promise<PublicS
   return data as PublicStampWithUser[];
 }
 
+/**
+ * 一覧で使う小さい方の URL（Issue #194）。
+ *
+ * まだ焼かれていなければ 404 になる。呼び出し側は onError で元の写真に
+ * 落として表示を続け、裏で焼かせること
+ */
+export function getStampThumbUrl(imagePath: string): string {
+  return getStampImageUrl(stampThumbPath(imagePath));
+}
+
+/**
+ * 足りないサムネを焼かせる。表示を止めないよう投げっぱなしで呼ぶ（Issue #194）
+ */
+export async function ensureStampThumbnails(imagePaths: string[]): Promise<void> {
+  if (imagePaths.length === 0) return;
+
+  const { error } = await supabase.functions.invoke('make-stamp-thumbnail', {
+    body: { image_paths: imagePaths },
+  });
+
+  if (error) {
+    console.warn('Failed to make stamp thumbnails:', error.message);
+  }
+}
+
 export async function deleteStampImage(imagePath: string): Promise<void> {
-  const { error } = await supabase.storage.from('goshuin-images').remove([imagePath]);
+  // サムネも一緒に片付ける。残すと持ち主のいないファイルが溜まる。
+  // まだ焼かれていない場合も remove はエラーにならない
+  const { error } = await supabase.storage
+    .from('goshuin-images')
+    .remove([imagePath, stampThumbPath(imagePath)]);
   if (error) throw new Error(error.message);
 }
 
