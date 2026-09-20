@@ -89,12 +89,6 @@ export function GalleryScreen({ navigation }: Props) {
     };
   }, []);
 
-  // ⚠ 焼き込み用の一時コード。既存分を焼き終えたら戻すこと
-  useEffect(() => {
-    if (isPreview || displayStamps.length === 0) return;
-    ensureStampVariants(displayStamps.map(stamp => stamp.image_path)).catch(() => {});
-  }, [isPreview, displayStamps]);
-
   /**
    * サムネが無かった。表示は元の写真で続けつつ、裏で焼かせる。
    * 1枚ごとに叩くと一覧を開くたび数十回になるので、少し溜めてから1回で送る
