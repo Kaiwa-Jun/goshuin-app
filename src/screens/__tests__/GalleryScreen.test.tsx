@@ -43,6 +43,8 @@ jest.mock('@hooks/useStampDetail', () => ({
 
 jest.mock('@services/stamps', () => ({
   getStampImageUrl: jest.fn((path: string) => `https://example.com/${path}`),
+  getStampThumbUrl: jest.fn((path: string) => `https://example.com/thumb-400/${path}`),
+  ensureStampThumbnails: jest.fn(() => Promise.resolve()),
 }));
 
 jest

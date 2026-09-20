@@ -288,7 +288,8 @@ describe('stamps service', () => {
 
       await deleteStampImage('img/1.jpg');
       expect(mockStorageFrom).toHaveBeenCalledWith('goshuin-images');
-      expect(mockRemove).toHaveBeenCalledWith(['img/1.jpg']);
+      // サムネも一緒に片付ける（Issue #194）
+      expect(mockRemove).toHaveBeenCalledWith(['img/1.jpg', 'img/thumb-400/1.jpg']);
     });
 
     it('throws on error', async () => {
@@ -324,7 +325,8 @@ describe('stamps service', () => {
       expect(mockFrom).toHaveBeenCalledWith('stamps');
       expect(mockDelete).toHaveBeenCalled();
       expect(mockEq).toHaveBeenCalledWith('id', 'stamp-1');
-      expect(mockRemove).toHaveBeenCalledWith(['img/1.jpg']);
+      // サムネも一緒に片付ける（Issue #194）
+      expect(mockRemove).toHaveBeenCalledWith(['img/1.jpg', 'img/thumb-400/1.jpg']);
     });
 
     it('throws if image deletion fails', async () => {

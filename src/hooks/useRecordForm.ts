@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Spot, Stamp } from '@/types/supabase';
 import { fetchSpotById } from '@services/spots';
-import { uploadStampImage, createStamp } from '@services/stamps';
+import { uploadStampImage, createStamp, ensureStampThumbnails } from '@services/stamps';
 import { fetchProfile } from '@services/profiles';
 import { triggerExtraction } from '@services/spotInfo';
 import { useAuth } from '@hooks/useAuth';
@@ -229,6 +229,9 @@ export function useRecordForm(params?: UseRecordFormParams): UseRecordFormReturn
       // 同じスポットに何枚投げても取れる情報は同じなので1枚目だけ
       if (saved.length > 0) {
         triggerExtraction(saved[0].id).catch(() => {});
+        // 一覧で使う小さい方を焼いておく。ここで作っておけば、
+        // 御朱印帳を開いたときに原寸を取りに行かずに済む（Issue #194）
+        ensureStampThumbnails(saved.map(stamp => stamp.image_path)).catch(() => {});
       }
 
       return {

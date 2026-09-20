@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -18,7 +18,7 @@ import { useAuth } from '@hooks/useAuth';
 import { useGalleryStamps } from '@hooks/useGalleryStamps';
 import { useGalleryViewMode } from '@hooks/useGalleryViewMode';
 import { useStampDetail } from '@hooks/useStampDetail';
-import { getStampImageUrl } from '@services/stamps';
+import { getStampImageUrl, getStampThumbUrl, ensureStampThumbnails } from '@services/stamps';
 import { Button } from '@components/common/Button';
 import { ImageGalleryModal, GalleryImage } from '@components/common/ImageGalleryModal';
 import { GoshuinchoFlipView } from '@components/gallery/GoshuinchoFlipView';
@@ -41,6 +41,8 @@ const ITEM_SIZE = (SCREEN_WIDTH - spacing.lg * 2 - ITEM_MARGIN * (NUM_COLUMNS - 
 
 /** 詳細から「写真が出せる」合図が来なかったときに、飛ぶ1枚を諦めて引っ込めるまで */
 const HANDOVER_FALLBACK_MS = 800;
+/** サムネが無いものをまとめて焼かせるまでの待ち。1枚ごとに叩かないため */
+const THUMB_REQUEST_DEBOUNCE_MS = 400;
 
 const GUEST_PREVIEW_ITEMS = [
   { icon: 'photo-camera', label: '写真で御朱印を残す' },
@@ -71,6 +73,32 @@ export function GalleryScreen({ navigation }: Props) {
   const [flyingStampId, setFlyingStampId] = useState<string | null>(null);
   /** 詳細を開いたまま、飛ぶ1枚を持ったままにしているか（Issue #192） */
   const [resting, setResting] = useState(false);
+  /** サムネがまだ無い御朱印。元の写真に落として表示を続ける（Issue #194） */
+  const [thumbMissing, setThumbMissing] = useState<ReadonlySet<string>>(() => new Set());
+  const pendingThumbs = useRef<Set<string>>(new Set());
+  const thumbTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (thumbTimer.current) clearTimeout(thumbTimer.current);
+    };
+  }, []);
+
+  /**
+   * サムネが無かった。表示は元の写真で続けつつ、裏で焼かせる。
+   * 1枚ごとに叩くと一覧を開くたび数十回になるので、少し溜めてから1回で送る
+   */
+  const handleThumbMissing = (stamp: StampWithSpot) => {
+    setThumbMissing(prev => (prev.has(stamp.id) ? prev : new Set(prev).add(stamp.id)));
+
+    pendingThumbs.current.add(stamp.image_path);
+    if (thumbTimer.current) clearTimeout(thumbTimer.current);
+    thumbTimer.current = setTimeout(() => {
+      const paths = [...pendingThumbs.current];
+      pendingThumbs.current.clear();
+      ensureStampThumbnails(paths).catch(() => {});
+    }, THUMB_REQUEST_DEBOUNCE_MS);
+  };
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
 
@@ -134,8 +162,15 @@ export function GalleryScreen({ navigation }: Props) {
 
   const formatDate = (dateStr: string) => dateStr.replace(/-/g, '/');
 
-  const imageUrlOf = (stamp: StampWithSpot) =>
-    isPreview ? previewImageUrl(stamp) : getStampImageUrl(stamp.image_path);
+  /**
+   * 一覧に出す URL。小さい方を先に見に行く（Issue #194）。
+   * 飛ぶ1枚もこれを使う。一覧がもう持っている画像なので待たずに飛べる
+   */
+  const imageUrlOf = (stamp: StampWithSpot) => {
+    if (isPreview) return previewImageUrl(stamp);
+    if (thumbMissing.has(stamp.id)) return getStampImageUrl(stamp.image_path);
+    return getStampThumbUrl(stamp.image_path);
+  };
 
   /** 押したタイルから詳細へ飛ばす。測れなければ演出を諦めて開く（Issue #192） */
   const openStamp = (index: number, stamp: StampWithSpot) => {
@@ -238,6 +273,8 @@ export function GalleryScreen({ navigation }: Props) {
             onLoad={e =>
               hero.rememberAspect(item.id, e.nativeEvent.source.width, e.nativeEvent.source.height)
             }
+            // 小さい方がまだ焼かれていない。元の写真に落として表示は続け、裏で焼かせる
+            onError={() => handleThumbMissing(item)}
             testID={`stamp-image-${item.id}`}
           />
         </View>
