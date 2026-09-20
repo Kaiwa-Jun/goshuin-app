@@ -315,11 +315,17 @@ describe('GalleryScreen', () => {
       expect(mockNavigation.navigate).toHaveBeenCalledWith('Record', { origin: 'gallery' });
     });
 
-    it('めくり表示で中央のページをタップするとギャラリーモーダルが開く', () => {
+    // 一覧のタイルと同じく、位置を測ってから飛ばすので開くのは1フレーム後になる。
+    // 測れない環境では演出を飛ばして開く（Issue #202）
+    it('めくり表示で中央のページをタップするとギャラリーモーダルが開く', async () => {
       withStamps([makeStamp({ id: 'stamp-abc' })]);
       const { getByTestId } = renderGalleryScreen();
+
       fireEvent.press(getByTestId('flip-page-stamp-abc'));
-      expect(getByTestId('gallery-image')).toBeTruthy();
+
+      await waitFor(() => {
+        expect(getByTestId('gallery-image')).toBeTruthy();
+      });
     });
 
     it('めくり表示のフッターに和暦の訪問日を出す', () => {

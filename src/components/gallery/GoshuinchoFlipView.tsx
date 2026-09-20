@@ -76,6 +76,12 @@ interface GoshuinchoFlipViewProps {
   onPressBlank: () => void;
   /** 省略時は getStampImageUrl。web プレビューが data URI を差し込むために使う */
   resolveImageUrl?: (stamp: StampWithSpot) => string;
+  /** 詳細へ連続的に繋ぐために、ページの位置を測れるようにする（Issue #202） */
+  registerNode?: (stampId: string, part: 'image' | 'text', node: View | null) => void;
+  /** 読み込んだ写真の実寸 */
+  onImageLoad?: (stampId: string, width: number, height: number) => void;
+  /** 飛んでいる最中の1枚。出したままだと同じ御朱印が二重に見える */
+  hiddenStampId?: string | null;
 }
 
 // Animated.FlatList の型は総称を保てないので、ここで Page 版として与え直す
@@ -88,6 +94,9 @@ export function GoshuinchoFlipView({
   onPressStamp,
   onPressBlank,
   resolveImageUrl,
+  registerNode,
+  onImageLoad,
+  hiddenStampId,
 }: GoshuinchoFlipViewProps) {
   const { width } = useWindowDimensions();
   const layout = useMemo(() => computePageLayout(width || Dimensions.get('window').width), [width]);
@@ -195,6 +204,9 @@ export function GoshuinchoFlipView({
               isCurrent={isCurrent}
               onPress={onPress}
               stampId={item.stamp.id}
+              registerNode={(part, node) => registerNode?.(item.stamp.id, part, node)}
+              onImageLoad={(w, h) => onImageLoad?.(item.stamp.id, w, h)}
+              hidden={hiddenStampId === item.stamp.id}
               imageUrl={
                 resolveImageUrl
                   ? resolveImageUrl(item.stamp)
@@ -214,9 +226,12 @@ export function GoshuinchoFlipView({
     [
       currentIndex,
       handlePressPage,
+      hiddenStampId,
       layout.pageWidth,
       layout.snapInterval,
+      onImageLoad,
       pages.length,
+      registerNode,
       resolveImageUrl,
       scrollX,
     ]

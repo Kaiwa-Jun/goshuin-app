@@ -1,4 +1,4 @@
-import { heroFlight, anchorDelta } from '@utils/heroTransition';
+import { heroFlight, anchorDelta, containedRect } from '@utils/heroTransition';
 
 /** 実測値。詳細の画像は全幅 393pt、御朱印の写真は 3:4 だった（Issue #192） */
 const TARGET = { x: 0, y: 122, width: 393, height: 524 };
@@ -72,5 +72,42 @@ describe('anchorDelta', () => {
 
     expect(d.translateX).toBe(0);
     expect(d.translateY).toBe(-259);
+  });
+});
+
+describe('containedRect', () => {
+  // 蛇腹のページは枠が 1:1.5、写真は 3:4。幅いっぱいに収まり上下に余白ができる
+  it('縦長の枠に収めると、幅いっぱいで上下に余白ができる', () => {
+    const box = { x: 16, y: 100, width: 300, height: 450 };
+
+    const r = containedRect(box, 3 / 4);
+
+    expect(r.width).toBe(300);
+    expect(r.height).toBe(400);
+    expect(r.x).toBe(16);
+    expect(r.y).toBe(125); // (450 - 400) / 2 = 25 ぶん下げる
+  });
+
+  it('横長の枠に収めると、高さいっぱいで左右に余白ができる', () => {
+    const box = { x: 0, y: 0, width: 400, height: 200 };
+
+    const r = containedRect(box, 3 / 4);
+
+    expect(r.height).toBe(200);
+    expect(r.width).toBe(150);
+    expect(r.x).toBe(125);
+  });
+
+  // 一覧のタイルは枠と写真が同じ形。余白が出ないので何も変わらない
+  it('枠と写真が同じ形なら、そのまま', () => {
+    const box = { x: 10, y: 20, width: 300, height: 400 };
+
+    expect(containedRect(box, 3 / 4)).toEqual(box);
+  });
+
+  it('大きさが取れていなければ、そのまま返す', () => {
+    const box = { x: 0, y: 0, width: 0, height: 0 };
+
+    expect(containedRect(box, 3 / 4)).toEqual(box);
   });
 });

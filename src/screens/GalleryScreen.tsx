@@ -185,16 +185,24 @@ export function GalleryScreen({ navigation }: Props) {
   };
 
   /** 押したタイルから詳細へ飛ばす。測れなければ演出を諦めて開く（Issue #192） */
-  const openStamp = (index: number, stamp: StampWithSpot) => {
+  const openStamp = (
+    index: number,
+    stamp: StampWithSpot,
+    fit: 'cover' | 'contain' = 'cover',
+    // 飛ぶ1枚は、押した画面に出ているものと同じ URL を使う。違うものを使うと
+    // 出発の瞬間に解像度が変わって見える
+    imageUrl: string = imageUrlOf(stamp)
+  ) => {
     hero.start(
       {
         stampId: stamp.id,
         index,
         direction: 'in',
-        imageUrl: imageUrlOf(stamp),
+        imageUrl,
         spotName: stamp.spots.name,
         visitedAt: formatDate(stamp.visited_at),
         memo: stamp.memo ?? null,
+        fit,
       },
       // 開かないのが一番まずい。飛べないときはそのまま出す
       started => {
@@ -364,7 +372,15 @@ export function GalleryScreen({ navigation }: Props) {
           <GoshuinchoFlipView
             stamps={displayStamps}
             resolveImageUrl={isPreview ? previewImageUrl : undefined}
-            onPressStamp={setSelectedImageIndex}
+            onPressStamp={index => {
+              const stamp = displayStamps[index];
+              // 蛇腹は contain。枠（1:1.5）と写真（3:4）がずれるので、
+              // 写真が実際に占めているところから飛ばす（Issue #202）
+              if (stamp) openStamp(index, stamp, 'contain', getStampImageUrl(stamp.image_path));
+            }}
+            registerNode={(id, part, node) => hero.registerTile(id, part, node)}
+            onImageLoad={(id, w, h) => hero.rememberAspect(id, w, h)}
+            hiddenStampId={flyingStampId}
             onPressBlank={() => navigation.navigate('Record', { origin: 'gallery' })}
           />
         ) : displayStamps.length === 0 ? (
