@@ -2,7 +2,7 @@ import { File } from 'expo-file-system';
 
 import { supabase } from '@services/supabase';
 import { describeSupabaseError } from '@/utils/supabaseError';
-import { stampThumbPath } from '@/utils/stampThumb';
+import { stampVariantPath, THUMB_DIR, VIEW_DIR } from '@/utils/stampThumb';
 import type { Stamp, StampWithSpot, PublicStampWithUser } from '@/types/supabase';
 
 /**
@@ -175,13 +175,24 @@ export async function fetchPublicStampsBySpotId(spotId: string): Promise<PublicS
  * 落として表示を続け、裏で焼かせること
  */
 export function getStampThumbUrl(imagePath: string): string {
-  return getStampImageUrl(stampThumbPath(imagePath));
+  return getStampImageUrl(stampVariantPath(imagePath, THUMB_DIR));
 }
 
 /**
- * 足りないサムネを焼かせる。表示を止めないよう投げっぱなしで呼ぶ（Issue #194）
+ * 詳細・Web で使う方の URL（Issue #196）。
+ *
+ * 元は iPhone の HEIC がそのまま上がっていて、Safari 以外では表示できない。
+ * こちらは JPEG なのでどこでも出る。まだ焼かれていなければ 404 になるので、
+ * 呼び出し側は元の写真に落として表示を続けること
  */
-export async function ensureStampThumbnails(imagePaths: string[]): Promise<void> {
+export function getStampViewUrl(imagePath: string): string {
+  return getStampImageUrl(stampVariantPath(imagePath, VIEW_DIR));
+}
+
+/**
+ * 足りない縮小版を焼かせる。表示を止めないよう投げっぱなしで呼ぶ（Issue #194）
+ */
+export async function ensureStampVariants(imagePaths: string[]): Promise<void> {
   if (imagePaths.length === 0) return;
 
   const { error } = await supabase.functions.invoke('make-stamp-thumbnail', {
@@ -189,16 +200,20 @@ export async function ensureStampThumbnails(imagePaths: string[]): Promise<void>
   });
 
   if (error) {
-    console.warn('Failed to make stamp thumbnails:', error.message);
+    console.warn('Failed to make stamp variants:', error.message);
   }
 }
 
 export async function deleteStampImage(imagePath: string): Promise<void> {
-  // サムネも一緒に片付ける。残すと持ち主のいないファイルが溜まる。
+  // 縮小版も一緒に片付ける。残すと持ち主のいないファイルが溜まる。
   // まだ焼かれていない場合も remove はエラーにならない
   const { error } = await supabase.storage
     .from('goshuin-images')
-    .remove([imagePath, stampThumbPath(imagePath)]);
+    .remove([
+      imagePath,
+      stampVariantPath(imagePath, THUMB_DIR),
+      stampVariantPath(imagePath, VIEW_DIR),
+    ]);
   if (error) throw new Error(error.message);
 }
 

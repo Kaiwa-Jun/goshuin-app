@@ -18,7 +18,12 @@ import { useAuth } from '@hooks/useAuth';
 import { useGalleryStamps } from '@hooks/useGalleryStamps';
 import { useGalleryViewMode } from '@hooks/useGalleryViewMode';
 import { useStampDetail } from '@hooks/useStampDetail';
-import { getStampImageUrl, getStampThumbUrl, ensureStampThumbnails } from '@services/stamps';
+import {
+  getStampImageUrl,
+  getStampThumbUrl,
+  getStampViewUrl,
+  ensureStampVariants,
+} from '@services/stamps';
 import { Button } from '@components/common/Button';
 import { ImageGalleryModal, GalleryImage } from '@components/common/ImageGalleryModal';
 import { GoshuinchoFlipView } from '@components/gallery/GoshuinchoFlipView';
@@ -96,7 +101,7 @@ export function GalleryScreen({ navigation }: Props) {
     thumbTimer.current = setTimeout(() => {
       const paths = [...pendingThumbs.current];
       pendingThumbs.current.clear();
-      ensureStampThumbnails(paths).catch(() => {});
+      ensureStampVariants(paths).catch(() => {});
     }, THUMB_REQUEST_DEBOUNCE_MS);
   };
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -119,7 +124,10 @@ export function GalleryScreen({ navigation }: Props) {
     () =>
       displayStamps.map(s => ({
         id: s.id,
-        imageUrl: isPreview ? previewImageUrl(s) : getStampImageUrl(s.image_path),
+        // 詳細は JPEG の方を見る。元は HEIC で Safari 以外では表示できない。
+        // まだ焼かれていなければ元に落ちる（Issue #196）
+        imageUrl: isPreview ? previewImageUrl(s) : getStampViewUrl(s.image_path),
+        fallbackUrl: isPreview ? undefined : getStampImageUrl(s.image_path),
         spotName: s.spots.name,
         memo: s.memo,
         visitedAt: s.visited_at,

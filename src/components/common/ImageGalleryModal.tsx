@@ -18,6 +18,8 @@ import { TYPICAL_STAMP_ASPECT } from '@/constants/stampImage';
 export interface GalleryImage {
   id: string;
   imageUrl: string;
+  /** imageUrl が出せなかったときに使う。縮小版がまだ焼かれていない場合の逃げ道 */
+  fallbackUrl?: string;
   userName?: string | null;
   /** 寺社の名前。一覧から飛んでくる文字の行き先になる（Issue #192） */
   spotName?: string | null;
@@ -101,6 +103,9 @@ function GalleryImageSlot({ image, height, isCurrent, onLoaded }: GalleryImageSl
   const fade = useRef(new Animated.Value(0)).current;
   const [loaded, setLoaded] = useState(false);
   const [slow, setSlow] = useState(false);
+  /** 縮小版がまだ無いときに元へ落ちる（Issue #196） */
+  const [fellBack, setFellBack] = useState(false);
+  const uri = fellBack && image.fallbackUrl ? image.fallbackUrl : image.imageUrl;
 
   useEffect(() => {
     if (loaded) return;
@@ -118,7 +123,7 @@ function GalleryImageSlot({ image, height, isCurrent, onLoaded }: GalleryImageSl
           <ActivityIndicator size="small" color={colors.gray[400]} testID="gallery-image-slow" />
         )}
         <Animated.Image
-          source={{ uri: image.imageUrl }}
+          source={{ uri }}
           style={[styles.image, { opacity: fade }]}
           resizeMode="contain"
           onLoad={e => {
@@ -130,6 +135,9 @@ function GalleryImageSlot({ image, height, isCurrent, onLoaded }: GalleryImageSl
               duration: FADE_IN_MS,
               useNativeDriver: true,
             }).start();
+          }}
+          onError={() => {
+            if (image.fallbackUrl && !fellBack) setFellBack(true);
           }}
           testID={isCurrent ? 'gallery-image' : undefined}
         />
