@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -38,6 +38,9 @@ const NUM_COLUMNS = 3;
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const ITEM_MARGIN = spacing.xs;
 const ITEM_SIZE = (SCREEN_WIDTH - spacing.lg * 2 - ITEM_MARGIN * (NUM_COLUMNS - 1)) / NUM_COLUMNS;
+
+/** 詳細から「写真が出せる」合図が来なかったときに、飛ぶ1枚を諦めて引っ込めるまで */
+const HANDOVER_FALLBACK_MS = 800;
 
 const GUEST_PREVIEW_ITEMS = [
   { icon: 'photo-camera', label: '写真で御朱印を残す' },
@@ -179,6 +182,18 @@ export function GalleryScreen({ navigation }: Props) {
    * 写真の読み込みを待つぶん間があり、その間に隠すと穴があき、
    * 隠さないまま飛び始めると同じ御朱印が二重に見える
    */
+  /**
+   * 詳細側の写真が出せるようになった合図。ここで初めて飛ぶ1枚を溶かす。
+   * 合図が来ないことがあるので、少し待って諦める
+   */
+  const handleDetailImageReady = useCallback(() => setResting(true), []);
+
+  useEffect(() => {
+    if (selectedImageIndex === null || resting) return;
+    const timer = setTimeout(() => setResting(true), HANDOVER_FALLBACK_MS);
+    return () => clearTimeout(timer);
+  }, [selectedImageIndex, resting]);
+
   const handleFlightStart = () => {
     if (!hero.flight) return;
     setFlyingStampId(hero.flight.stampId);
@@ -187,10 +202,11 @@ export function GalleryScreen({ navigation }: Props) {
   };
 
   const handleFlightDone = () => {
-    // 行きはここで終わりにしない。同じ1枚を持ったまま詳細の裏で待たせる
+    // 行きはここで終わりにしない。同じ1枚を持ったまま詳細の裏で待たせる。
+    // ⚠️ ここで引っ込めないこと。詳細の画像はまだ読み込み中で、切り替えた
+    // 瞬間に写真が消えて見える。詳細から「出せる」合図が来てから溶かす
     if (hero.flight?.direction === 'in') {
       setSelectedImageIndex(hero.flight.index);
-      setResting(true);
       return;
     }
 
@@ -351,6 +367,7 @@ export function GalleryScreen({ navigation }: Props) {
         onEdit={handleEdit}
         onDelete={handleDeletePress}
         onIndexChange={setViewingIndex}
+        onImageReady={handleDetailImageReady}
         useModal={false}
       />
 

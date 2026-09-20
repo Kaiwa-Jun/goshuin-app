@@ -39,6 +39,12 @@ const DURATION = 320;
  * 読み込み直しが要る。待たずに飛ばすと最初の数フレームが空になる（実機で確認）
  */
 const IMAGE_WAIT_MS = 200;
+/**
+ * 着いたあと、詳細に受け渡すまでに溶かす時間。
+ * ぱっと消すと、詳細側の画像がまだ出ていない瞬間が見えるし、
+ * 文字の行の高さもわずかに違うので、その差が瞬きとして見える
+ */
+const HANDOVER_MS = 180;
 
 /**
  * 一覧のタイルと詳細の画像をつなぐ、飛んでいる最中だけの1枚（Issue #192）。
@@ -63,6 +69,8 @@ export function HeroFlyer({
 }: HeroFlyerProps) {
   const reduceMotion = useReduceMotion();
   const progress = useRef(new Animated.Value(direction === 'in' ? 0 : 1)).current;
+  /** 受け渡しの溶け具合。1 = 出ている / 0 = 詳細に渡し終えた */
+  const handover = useRef(new Animated.Value(1)).current;
   const [container, setContainer] = useState<Rect | null>(null);
   /** 写真が出せる状態か。出る前に飛ぶと、空の枠だけが動く */
   const [imageReady, setImageReady] = useState(false);
@@ -71,6 +79,21 @@ export function HeroFlyer({
   onDoneRef.current = onDone;
   const onStartRef = useRef(onStart);
   onStartRef.current = onStart;
+
+  // 待機に入ったら溶かして消す。姿は消すが、この1枚は持ったままにする
+  useEffect(() => {
+    if (!resting) {
+      handover.setValue(1);
+      return;
+    }
+    const anim = Animated.timing(handover, {
+      toValue: 0,
+      duration: reduceMotion ? 0 : HANDOVER_MS,
+      useNativeDriver: true,
+    });
+    anim.start();
+    return () => anim.stop();
+  }, [resting, reduceMotion, handover]);
 
   // 写真を待つのは飛び始めだけ。いつまでも待つと詳細が開かない
   useEffect(() => {
@@ -153,81 +176,82 @@ export function HeroFlyer({
   return (
     <View
       ref={containerRef}
-      // 詳細の地は zIndex 1000 を持っている。飛ぶ1枚はその上に出す。
-      // 待機中は姿だけ消す。外すと写真の読み込みからやり直しになる
-      style={[StyleSheet.absoluteFill, { zIndex: 2000 }, resting && styles.resting]}
+      // 詳細の地は zIndex 1000 を持っている。飛ぶ1枚はその上に出す
+      style={[StyleSheet.absoluteFill, { zIndex: 2000 }]}
       onLayout={e => measure(e.nativeEvent.layout)}
       pointerEvents="none"
       testID="hero-flyer"
     >
-      <Animated.View style={[styles.backdrop, { opacity: between(0, 1) }]} testID="hero-backdrop" />
-
-      {flight && target && (
+      <Animated.View style={[StyleSheet.absoluteFill, { opacity: handover }]}>
         <Animated.View
-          style={[
-            styles.box,
-            {
-              left: target.x - (container?.x ?? 0),
-              top: target.y - (container?.y ?? 0),
-              width: target.width,
-              height: target.height,
-              transform: [
-                { translateX: between(flight.translateX, 0) },
-                { translateY: between(flight.translateY, 0) },
-                { scaleX: between(flight.boxScaleX, 1) },
-                { scaleY: between(flight.boxScaleY, 1) },
-              ],
-            },
-          ]}
-        >
-          <Image
-            source={{ uri: imageUrl }}
-            style={{ width: target.width, height: target.height }}
-            resizeMode="cover"
-            onLoad={() => setImageReady(true)}
-            testID="hero-image"
-          />
-        </Animated.View>
-      )}
+          style={[styles.backdrop, { opacity: between(0, 1) }]}
+          testID="hero-backdrop"
+        />
 
-      {textDelta && textTarget && (
-        <Animated.View
-          style={[
-            styles.text,
-            {
-              left: textTarget.x - (container?.x ?? 0),
-              top: textTarget.y - (container?.y ?? 0),
-              width: textTarget.width,
-              transform: [
-                { translateX: between(textDelta.translateX, 0) },
-                { translateY: between(textDelta.translateY, 0) },
-              ],
-            },
-          ]}
-        >
-          {/* 色は transform では動かせないので、2枚を重ねて入れ替える */}
-          <Animated.View style={{ opacity: between(1, 0) }}>
-            <Text style={styles.gridName} numberOfLines={1}>
-              {spotName}
-            </Text>
-            <Text style={styles.gridDate}>{visitedAt}</Text>
+        {flight && target && (
+          <Animated.View
+            style={[
+              styles.box,
+              {
+                left: target.x - (container?.x ?? 0),
+                top: target.y - (container?.y ?? 0),
+                width: target.width,
+                height: target.height,
+                transform: [
+                  { translateX: between(flight.translateX, 0) },
+                  { translateY: between(flight.translateY, 0) },
+                  { scaleX: between(flight.boxScaleX, 1) },
+                  { scaleY: between(flight.boxScaleY, 1) },
+                ],
+              },
+            ]}
+          >
+            <Image
+              source={{ uri: imageUrl }}
+              style={{ width: target.width, height: target.height }}
+              resizeMode="cover"
+              onLoad={() => setImageReady(true)}
+              testID="hero-image"
+            />
           </Animated.View>
-          <Animated.View style={[StyleSheet.absoluteFill, { opacity: between(0, 1) }]}>
-            <Text style={styles.detailName} numberOfLines={1}>
-              {spotName}
-            </Text>
-            <Text style={styles.detailDate}>{visitedAt}</Text>
+        )}
+
+        {textDelta && textTarget && (
+          <Animated.View
+            style={[
+              styles.text,
+              {
+                left: textTarget.x - (container?.x ?? 0),
+                top: textTarget.y - (container?.y ?? 0),
+                width: textTarget.width,
+                transform: [
+                  { translateX: between(textDelta.translateX, 0) },
+                  { translateY: between(textDelta.translateY, 0) },
+                ],
+              },
+            ]}
+          >
+            {/* 色は transform では動かせないので、2枚を重ねて入れ替える */}
+            <Animated.View style={{ opacity: between(1, 0) }}>
+              <Text style={styles.gridName} numberOfLines={1}>
+                {spotName}
+              </Text>
+              <Text style={styles.gridDate}>{visitedAt}</Text>
+            </Animated.View>
+            <Animated.View style={[StyleSheet.absoluteFill, { opacity: between(0, 1) }]}>
+              <Text style={styles.detailName} numberOfLines={1}>
+                {spotName}
+              </Text>
+              <Text style={styles.detailDate}>{visitedAt}</Text>
+            </Animated.View>
           </Animated.View>
-        </Animated.View>
-      )}
+        )}
+      </Animated.View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  resting: {
-    opacity: 0,
-  },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
     // 詳細の地と同じ色。違う色だと、着いた瞬間に地が切り替わって見える

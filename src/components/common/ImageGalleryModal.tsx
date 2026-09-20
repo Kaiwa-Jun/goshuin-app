@@ -42,6 +42,11 @@ interface ImageGalleryModalProps {
   useModal?: boolean;
   /** 横スワイプで見ている1枚が変わったとき。閉じるとき、その1枚のタイルへ戻すのに使う（#192） */
   onIndexChange?: (index: number) => void;
+  /**
+   * 今見ている1枚の写真が出せるようになったとき。
+   * 一覧から飛んできた1枚を、いつ引っ込めてよいかの合図に使う（#192）
+   */
+  onImageReady?: (index: number) => void;
 }
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -70,11 +75,14 @@ export function ImageGalleryModal({
   onDelete,
   useModal = true,
   onIndexChange,
+  onImageReady,
 }: ImageGalleryModalProps) {
   // currentIndex is only used for info display (userName, memo, counter)
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const onIndexChangeRef = useRef(onIndexChange);
   onIndexChangeRef.current = onIndexChange;
+  const onImageReadyRef = useRef(onImageReady);
+  onImageReadyRef.current = onImageReady;
   const [imageHeights, setImageHeights] = useState<Record<string, number>>({});
 
   // Single animated value for the entire strip position
@@ -282,9 +290,10 @@ export function ImageGalleryModal({
                   source={{ uri: img.imageUrl }}
                   style={[styles.image, { height: imageHeights[img.id] ?? SCREEN_WIDTH }]}
                   resizeMode="contain"
-                  onLoad={e =>
-                    rememberHeight(img.id, e.nativeEvent.source.width, e.nativeEvent.source.height)
-                  }
+                  onLoad={e => {
+                    rememberHeight(img.id, e.nativeEvent.source.width, e.nativeEvent.source.height);
+                    if (index === currentIndex) onImageReadyRef.current?.(index);
+                  }}
                   testID={index === currentIndex ? 'gallery-image' : undefined}
                 />
               )}
