@@ -5,6 +5,7 @@ import { uploadStampImage, createStamp, ensureStampVariants } from '@services/st
 import { fetchProfile } from '@services/profiles';
 import { triggerExtraction } from '@services/spotInfo';
 import { useAuth } from '@hooks/useAuth';
+import { toLocalDateString } from '@utils/localDate';
 import { MAX_PHOTOS_PER_RECORD } from '@/constants/record';
 
 interface UseRecordFormParams {
@@ -201,7 +202,9 @@ export function useRecordForm(params?: UseRecordFormParams): UseRecordFormReturn
             userId,
             spotId: selectedSpot!.id,
             imagePath,
-            visitedAt: visitedAt.toISOString(),
+            // ⚠️ toISOString() にしないこと。visited_at は DATE 型で、UTC に直すと
+            //    JST の深夜が前日として保存される（Issue #204）
+            visitedAt: toLocalDateString(visitedAt),
             memo,
             isPublic: isPublic,
           });

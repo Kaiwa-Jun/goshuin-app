@@ -882,4 +882,48 @@ describe('最寄りスポットの既定選択（Issue #130 / S-4）', () => {
       expect(result.current.imageError).toBe('御朱印の写真を追加してください');
     });
   });
+  // ずれは「端末が UTC より進んでいる」ときだけ出る。JST の固定は jest.config.js 側
+  describe('訪問日のタイムゾーン（Issue #204）', () => {
+    it('深夜に登録しても、画面に出ている日付をそのまま createStamp へ渡す', async () => {
+      mockUploadStampImage.mockResolvedValue('user-1/12345.jpg');
+      mockCreateStamp.mockResolvedValue(fakeStamp);
+
+      const { result } = renderHook(() => useRecordForm());
+      const midnight = new Date(2026, 8, 20, 0, 30);
+
+      act(() => {
+        result.current.selectSpot(fakeSpot);
+        result.current.addImages(['file:///photo.jpg']);
+        result.current.setVisitedAt(midnight);
+      });
+
+      await act(async () => {
+        await result.current.submit();
+      });
+
+      // toISOString() を通していた頃は 2026-09-19 が渡っていた
+      expect(midnight.toISOString().slice(0, 10)).toBe('2026-09-19');
+      expect(mockCreateStamp).toHaveBeenCalledWith(
+        expect.objectContaining({ visitedAt: '2026-09-20' })
+      );
+    });
+
+    it('DATE 型に入れられる形（YYYY-MM-DD）で渡す', async () => {
+      mockUploadStampImage.mockResolvedValue('user-1/12345.jpg');
+      mockCreateStamp.mockResolvedValue(fakeStamp);
+
+      const { result } = renderHook(() => useRecordForm());
+
+      act(() => {
+        result.current.selectSpot(fakeSpot);
+        result.current.addImages(['file:///photo.jpg']);
+      });
+
+      await act(async () => {
+        await result.current.submit();
+      });
+
+      expect(mockCreateStamp.mock.calls[0][0].visitedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    });
+  });
 });
