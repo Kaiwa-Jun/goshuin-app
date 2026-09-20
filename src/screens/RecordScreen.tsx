@@ -23,6 +23,7 @@ import { useRecordForm } from '@hooks/useRecordForm';
 import { useNearbySpots } from '@hooks/useNearbySpots';
 import { useLocation } from '@hooks/useLocation';
 import { formatJapaneseEraDate } from '@utils/japaneseEra';
+import { toLocalDateString } from '@utils/localDate';
 import { pickAutoSelectableSpot } from '@utils/autoSelectSpot';
 import { MAX_PHOTOS_PER_RECORD } from '@/constants/record';
 import { scrollTargetToReveal, scrollTargetToShow } from '@utils/revealInScrollView';
@@ -103,9 +104,7 @@ export function RecordScreen({ navigation, route }: Props) {
 
   const formattedDate = `${form.visitedAt.getFullYear()}年${form.visitedAt.getMonth() + 1}月${form.visitedAt.getDate()}日`;
   // 紙の御朱印は和暦で書かれている。ピッカーは西暦なので、照合できるよう併記する（監査 A-2）
-  const eraDate = formatJapaneseEraDate(
-    `${form.visitedAt.getFullYear()}-${String(form.visitedAt.getMonth() + 1).padStart(2, '0')}-${String(form.visitedAt.getDate()).padStart(2, '0')}`
-  );
+  const eraDate = formatJapaneseEraDate(toLocalDateString(form.visitedAt));
 
   // 確認モーダルは廃止した（D-3）。モーダルが出していたのはスポット名と訪問日だけで
   // どちらも直前のフォーム上に見えており、一番間違えやすい写真は確認していなかった。

@@ -14,6 +14,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Modal } from '@components/common/Modal';
 import { Button } from '@components/common/Button';
+import { toLocalDateString } from '@utils/localDate';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { spacing, borderRadius } from '@theme/spacing';
@@ -86,10 +87,7 @@ export function EditStampModal({
       setShowDatePicker(false);
     }
     if (selectedDate) {
-      const y = selectedDate.getFullYear();
-      const m = String(selectedDate.getMonth() + 1).padStart(2, '0');
-      const d = String(selectedDate.getDate()).padStart(2, '0');
-      setVisitedAt(`${y}-${m}-${d}`);
+      setVisitedAt(toLocalDateString(selectedDate));
     }
   };
 
