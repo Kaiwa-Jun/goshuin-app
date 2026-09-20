@@ -11,6 +11,18 @@
 -- `npx supabase@latest secrets set META_ACCESS_TOKEN=<延長後トークン> --project-ref tvnozkpxncmnehyomoff`
 -- で登録し直す。失効すると Instagram パスのレスポンスに instagram.token_invalid = true が出る
 -- （web パスは影響を受けない）。
+--
+-- 【無期限にはできない（2026-09-21 調査済み・再調査不要）】
+-- 「長期ページアクセストークンは無期限」という逃げ道があるが、**この構成では使えない**。
+-- グラフAPIエクスプローラで確認した結果:
+--   ・pages_show_list は granted（me/permissions で確認）
+--   ・にもかかわらず me/accounts は {"data": []} ＝ 紐づく Facebook ページが無い
+-- ページが無い以上ページトークンは発行できないため、60日ごとの手動更新は避けられない。
+-- business_discovery 自体は現トークンで正常動作することも同日に確認済み。
+--
+-- 自動更新（fb_exchange_token で延ばし続ける）は見送った。Edge Function は自分の
+-- secrets を書き換えられないため、トークンを DB か Vault に移して更新ジョブを持つ必要があり、
+-- 年6回・2分の作業のために新しい壊れどころを作ることになる。
 
 -- 事前準備（初回のみ）
 create extension if not exists pg_cron;
