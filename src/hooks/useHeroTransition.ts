@@ -122,7 +122,12 @@ export function useHeroTransition() {
     [tiles, aspects]
   );
 
+  /** 同じ1枚のまま、帰り道に向き直す。作り直すと写真の読み込みからやり直しになる */
+  const turnBack = useCallback(() => {
+    setFlight(prev => (prev ? { ...prev, direction: 'out' } : prev));
+  }, []);
+
   const end = useCallback(() => setFlight(null), []);
 
-  return { flight, registerTile, rememberAspect, start, end };
+  return { flight, registerTile, rememberAspect, start, turnBack, end };
 }

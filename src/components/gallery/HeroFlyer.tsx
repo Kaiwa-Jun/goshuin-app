@@ -25,6 +25,11 @@ export interface HeroFlyerProps {
    * 隠さないまま飛び始めると同じ御朱印が二重に見える
    */
   onStart?: () => void;
+  /**
+   * 詳細を開いたまま待機しているか。姿は消すが、この1枚は持ったままにする。
+   * 作り直すと写真の読み込みからやり直しになり、閉じるときに間に合わない
+   */
+  resting?: boolean;
   onDone: () => void;
 }
 
@@ -53,6 +58,7 @@ export function HeroFlyer({
   visitedAt,
   direction,
   onStart,
+  resting = false,
   onDone,
 }: HeroFlyerProps) {
   const reduceMotion = useReduceMotion();
@@ -73,7 +79,7 @@ export function HeroFlyer({
   }, []);
 
   useEffect(() => {
-    if (!container || !imageReady) return;
+    if (!container || !imageReady || resting) return;
 
     const to = direction === 'in' ? 1 : 0;
     onStartRef.current?.();
@@ -97,7 +103,7 @@ export function HeroFlyer({
     });
 
     return () => anim.stop();
-  }, [container, imageReady, direction, reduceMotion, progress]);
+  }, [container, imageReady, direction, resting, reduceMotion, progress]);
 
   /**
    * 飛ぶ枠の位置。タイルは画面座標で測っているので、こちらも画面座標で欲しい。
@@ -127,8 +133,8 @@ export function HeroFlyer({
 
   // 大きさが取れていなければ飛ばしようがない。詰まらせずに先へ進める
   useEffect(() => {
-    if (container && !flight) onDoneRef.current();
-  }, [container, flight]);
+    if (container && !flight && !resting) onDoneRef.current();
+  }, [container, flight, resting]);
 
   const textTarget: Rect | null =
     container && sourceTextRect
@@ -147,8 +153,9 @@ export function HeroFlyer({
   return (
     <View
       ref={containerRef}
-      // 詳細の地は zIndex 1000 を持っている。飛ぶ1枚はその上に出す
-      style={[StyleSheet.absoluteFill, { zIndex: 2000 }]}
+      // 詳細の地は zIndex 1000 を持っている。飛ぶ1枚はその上に出す。
+      // 待機中は姿だけ消す。外すと写真の読み込みからやり直しになる
+      style={[StyleSheet.absoluteFill, { zIndex: 2000 }, resting && styles.resting]}
       onLayout={e => measure(e.nativeEvent.layout)}
       pointerEvents="none"
       testID="hero-flyer"
@@ -218,6 +225,9 @@ export function HeroFlyer({
 }
 
 const styles = StyleSheet.create({
+  resting: {
+    opacity: 0,
+  },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
     // 詳細の地と同じ色。違う色だと、着いた瞬間に地が切り替わって見える

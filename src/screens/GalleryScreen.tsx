@@ -68,6 +68,8 @@ export function GalleryScreen({ navigation }: Props) {
   const hero = useHeroTransition();
   /** 今まさに飛んでいる御朱印。一覧のタイルはこれを見て隠れる */
   const [flyingStampId, setFlyingStampId] = useState<string | null>(null);
+  /** 詳細を開いたまま、飛ぶ1枚を持ったままにしているか（Issue #192） */
+  const [resting, setResting] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
 
@@ -153,30 +155,23 @@ export function GalleryScreen({ navigation }: Props) {
     );
   };
 
-  /** 閉じるときは「今見ている1枚」のタイルへ戻す。横スワイプで別の1枚になっている */
+  /**
+   * 閉じる。行きに飛ばした1枚をそのまま持っているので、向き直すだけで帰れる。
+   *
+   * 作り直すと写真の読み込みからやり直しになり、間に合わずに空の枠が飛ぶ。
+   * 横スワイプで別の1枚に移っていたら、その1枚は持っていないので素直に閉じる
+   */
   const closeStamp = () => {
-    const index = viewingIndex ?? selectedImageIndex;
-    const stamp = index !== null ? displayStamps[index] : null;
-
-    if (!stamp || index === null) {
-      setSelectedImageIndex(null);
+    if (resting && hero.flight && viewingIndex === hero.flight.index) {
+      setResting(false);
+      hero.turnBack();
       return;
     }
 
-    hero.start(
-      {
-        stampId: stamp.id,
-        index,
-        direction: 'out',
-        imageUrl: imageUrlOf(stamp),
-        spotName: stamp.spots.name,
-        visitedAt: formatDate(stamp.visited_at),
-      },
-      // 飛べないときだけここで閉じる。飛べるなら、動き出してから外す
-      started => {
-        if (!started) setSelectedImageIndex(null);
-      }
-    );
+    setSelectedImageIndex(null);
+    setFlyingStampId(null);
+    setResting(false);
+    hero.end();
   };
 
   /**
@@ -192,8 +187,15 @@ export function GalleryScreen({ navigation }: Props) {
   };
 
   const handleFlightDone = () => {
-    if (hero.flight?.direction === 'in') setSelectedImageIndex(hero.flight.index);
+    // 行きはここで終わりにしない。同じ1枚を持ったまま詳細の裏で待たせる
+    if (hero.flight?.direction === 'in') {
+      setSelectedImageIndex(hero.flight.index);
+      setResting(true);
+      return;
+    }
+
     setFlyingStampId(null);
+    setResting(false);
     hero.end();
   };
 
@@ -354,7 +356,8 @@ export function GalleryScreen({ navigation }: Props) {
 
       {hero.flight && (
         <HeroFlyer
-          key={`${hero.flight.stampId}-${hero.flight.direction}`}
+          // 向きでは作り直さない。同じ1枚を行きと帰りで使い回す
+          key={hero.flight.stampId}
           imageUrl={hero.flight.imageUrl}
           imageAspect={hero.flight.imageAspect}
           sourceRect={hero.flight.sourceRect}
@@ -362,6 +365,7 @@ export function GalleryScreen({ navigation }: Props) {
           spotName={hero.flight.spotName}
           visitedAt={hero.flight.visitedAt}
           direction={hero.flight.direction}
+          resting={resting}
           onStart={handleFlightStart}
           onDone={handleFlightDone}
         />
