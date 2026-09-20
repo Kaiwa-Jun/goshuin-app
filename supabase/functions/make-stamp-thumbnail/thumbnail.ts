@@ -2,8 +2,13 @@
 export const THUMB_DIR = 'thumb-400';
 /** 長辺の目安。一覧のタイルは 118pt ＝ 354px（3x）なので、これで足りる */
 export const THUMB_WIDTH = 400;
-/** 一度に処理する上限。関数の実行時間を無限に伸ばさないため */
-export const MAX_PATHS = 30;
+/**
+ * 一度に処理する上限。
+ *
+ * HEIC の復号は 12MP で RGBA 約13MB を展開するので、欲張ると関数の
+ * メモリと実行時間を食い潰す。足りない分は次に開いたときに焼かれる
+ */
+export const MAX_PATHS = 12;
 
 /**
  * 元の写真のパスからサムネのパスを決める（Issue #194）。
