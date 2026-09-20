@@ -3,6 +3,7 @@ import { File } from 'expo-file-system';
 import { supabase } from '@services/supabase';
 import { describeSupabaseError } from '@/utils/supabaseError';
 import { stampVariantPath, THUMB_DIR, VIEW_DIR } from '@/utils/stampThumb';
+import { toUploadableJpeg } from '@/utils/toUploadableJpeg';
 import type { Stamp, StampWithSpot, PublicStampWithUser } from '@/types/supabase';
 
 /**
@@ -54,7 +55,11 @@ export async function uploadStampImage(userId: string, imageUri: string): Promis
   // 通常のユニットテストでは検出できない（stamps-upload-native.test.ts で再現している）。
   //
   // バイト列を直接渡す経路なら RN でも Node でも同じように通る。
-  const bytes = await new File(imageUri).bytes();
+  //
+  // ⚠ 先に JPEG にしておくこと。iPhone の写真は HEIC で、picker の複数選択は
+  //   それをそのまま返す。HEIC のまま上げると Web で表示できず、サーバ側で
+  //   触るにも毎回復号が要る（Issue #196）
+  const bytes = await new File(await toUploadableJpeg(imageUri)).bytes();
 
   const { data, error } = await supabase.storage
     .from('goshuin-images')

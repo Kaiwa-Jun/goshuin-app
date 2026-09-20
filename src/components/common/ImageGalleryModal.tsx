@@ -51,6 +51,11 @@ interface ImageGalleryModalProps {
    */
   onImageReady?: (index: number) => void;
   /**
+   * 縮小版が無くて元に落ちたとき。焼かせる合図に使う（Issue #196）。
+   * 一覧のタイルは小さい方を見ているので、詳細用が無いことに気づけるのはここだけ
+   */
+  onImageFallback?: (id: string) => void;
+  /**
    * 横スワイプで隣の1枚へ移れるか。件数の表示もこれに従う。
    *
    * 御朱印帳は off。一覧のタイルと詳細が1対1で繋がる動きにしているので、
@@ -89,6 +94,7 @@ interface GalleryImageSlotProps {
   height: number;
   isCurrent: boolean;
   onLoaded: (width: number, height: number) => void;
+  onFallback: () => void;
 }
 
 /**
@@ -99,7 +105,13 @@ interface GalleryImageSlotProps {
  * スピナーは最初から出さない。あれは「遅い・怪しい」の記号なので、
  * ふつうに届く場面で出すと不安にさせるだけ。2秒待っても来ないときだけ出す
  */
-function GalleryImageSlot({ image, height, isCurrent, onLoaded }: GalleryImageSlotProps) {
+function GalleryImageSlot({
+  image,
+  height,
+  isCurrent,
+  onLoaded,
+  onFallback,
+}: GalleryImageSlotProps) {
   const fade = useRef(new Animated.Value(0)).current;
   const [loaded, setLoaded] = useState(false);
   const [slow, setSlow] = useState(false);
@@ -137,7 +149,10 @@ function GalleryImageSlot({ image, height, isCurrent, onLoaded }: GalleryImageSl
             }).start();
           }}
           onError={() => {
-            if (image.fallbackUrl && !fellBack) setFellBack(true);
+            if (image.fallbackUrl && !fellBack) {
+              setFellBack(true);
+              onFallback();
+            }
           }}
           testID={isCurrent ? 'gallery-image' : undefined}
         />
@@ -164,6 +179,7 @@ export function ImageGalleryModal({
   useModal = true,
   onIndexChange,
   onImageReady,
+  onImageFallback,
   swipeable = true,
   dismissFollowsFinger = true,
 }: ImageGalleryModalProps) {
@@ -173,6 +189,8 @@ export function ImageGalleryModal({
   onIndexChangeRef.current = onIndexChange;
   const onImageReadyRef = useRef(onImageReady);
   onImageReadyRef.current = onImageReady;
+  const onImageFallbackRef = useRef(onImageFallback);
+  onImageFallbackRef.current = onImageFallback;
   const swipeableRef = useRef(swipeable);
   swipeableRef.current = swipeable;
   const followsFingerRef = useRef(dismissFollowsFinger);
@@ -409,6 +427,7 @@ export function ImageGalleryModal({
                   rememberHeight(img.id, width, sourceHeight);
                   if (index === currentIndex) onImageReadyRef.current?.(index);
                 }}
+                onFallback={() => onImageFallbackRef.current?.(img.id)}
               />
             );
           })}

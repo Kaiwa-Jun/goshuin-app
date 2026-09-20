@@ -89,20 +89,30 @@ export function GalleryScreen({ navigation }: Props) {
     };
   }, []);
 
+  // ⚠ 焼き込み用の一時コード。既存分を焼き終えたら戻すこと
+  useEffect(() => {
+    if (isPreview || displayStamps.length === 0) return;
+    ensureStampVariants(displayStamps.map(stamp => stamp.image_path)).catch(() => {});
+  }, [isPreview, displayStamps]);
+
   /**
    * サムネが無かった。表示は元の写真で続けつつ、裏で焼かせる。
    * 1枚ごとに叩くと一覧を開くたび数十回になるので、少し溜めてから1回で送る
    */
-  const handleThumbMissing = (stamp: StampWithSpot) => {
-    setThumbMissing(prev => (prev.has(stamp.id) ? prev : new Set(prev).add(stamp.id)));
-
-    pendingThumbs.current.add(stamp.image_path);
+  const requestVariants = (imagePath: string) => {
+    pendingThumbs.current.add(imagePath);
     if (thumbTimer.current) clearTimeout(thumbTimer.current);
     thumbTimer.current = setTimeout(() => {
       const paths = [...pendingThumbs.current];
       pendingThumbs.current.clear();
       ensureStampVariants(paths).catch(() => {});
     }, THUMB_REQUEST_DEBOUNCE_MS);
+  };
+
+  /** 一覧のタイルが小さい方を出せなかった。元に落として表示を続けつつ焼かせる */
+  const handleThumbMissing = (stamp: StampWithSpot) => {
+    setThumbMissing(prev => (prev.has(stamp.id) ? prev : new Set(prev).add(stamp.id)));
+    requestVariants(stamp.image_path);
   };
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
@@ -418,6 +428,11 @@ export function GalleryScreen({ navigation }: Props) {
         onEdit={handleEdit}
         onDelete={handleDeletePress}
         onImageReady={handleDetailImageReady}
+        // 詳細用がまだ無い。一覧は小さい方を見ているので、ここでしか気づけない
+        onImageFallback={id => {
+          const stamp = displayStamps.find(s => s.id === id);
+          if (stamp) requestVariants(stamp.image_path);
+        }}
         // 一覧のタイルと詳細を1対1で繋いでいる。途中で別の1枚に移ると
         // その結びつきが切れて元のタイルへ戻れない。順に見る動線は
         // 蛇腹めくりが持っている（Issue #192）
