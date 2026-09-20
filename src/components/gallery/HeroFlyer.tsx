@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
   backdrop: {
     ...StyleSheet.absoluteFillObject,
     // 詳細の地と同じ色。違う色だと、着いた瞬間に地が切り替わって見える
-    backgroundColor: colors.gray[900],
+    backgroundColor: colors.background,
   },
   box: {
     position: 'absolute',
@@ -276,12 +276,12 @@ const styles = StyleSheet.create({
   },
   detailName: {
     ...typography.body,
-    color: colors.white,
+    color: colors.gray[800],
     fontWeight: '600',
     marginTop: spacing.xs,
   },
   detailDate: {
     ...typography.caption,
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: colors.gray[500],
   },
 });

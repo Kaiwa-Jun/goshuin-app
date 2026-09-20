@@ -336,7 +336,7 @@ export function ImageGalleryModal({
               <MaterialIcons
                 name="edit"
                 size={24}
-                color={colors.white}
+                color={colors.gray[800]}
                 onPress={() => onEdit(currentIndex)}
                 testID="gallery-edit-button"
                 style={styles.topBarIcon}
@@ -346,7 +346,7 @@ export function ImageGalleryModal({
               <MaterialIcons
                 name="delete"
                 size={24}
-                color={colors.white}
+                color={colors.gray[800]}
                 onPress={() => onDelete(currentIndex)}
                 testID="gallery-delete-button"
                 style={styles.topBarIcon}
@@ -356,7 +356,7 @@ export function ImageGalleryModal({
           <MaterialIcons
             name="close"
             size={28}
-            color={colors.white}
+            color={colors.gray[800]}
             onPress={onClose}
             testID="gallery-close-button"
           />
@@ -390,8 +390,9 @@ export function ImageGalleryModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    // 不透明にする。透かすと一覧が見えたままで、画面が変わったように読めない（#192）
-    backgroundColor: colors.gray[900],
+    // 一覧と同じ地。暗くするとモーダルに見えるが、ここは画面が変わったのであって
+    // 一覧の上に何かが乗ったのではない（Issue #192）
+    backgroundColor: colors.background,
     justifyContent: 'center',
     overflow: 'hidden',
   },
@@ -401,7 +402,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: colors.gray[900],
+    backgroundColor: colors.background,
     justifyContent: 'center',
     overflow: 'hidden',
     zIndex: 1000,
@@ -447,21 +448,21 @@ const styles = StyleSheet.create({
   },
   userName: {
     ...typography.body,
-    color: colors.white,
+    color: colors.gray[800],
     fontWeight: '600',
   },
   spotName: {
     ...typography.body,
-    color: colors.white,
+    color: colors.gray[800],
     fontWeight: '600',
   },
   memo: {
     ...typography.bodySmall,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: colors.gray[600],
   },
   visitedAt: {
     ...typography.caption,
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: colors.gray[500],
   },
   counterContainer: {
     position: 'absolute',
@@ -472,6 +473,6 @@ const styles = StyleSheet.create({
   },
   counter: {
     ...typography.bodySmall,
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: colors.gray[500],
   },
 });
