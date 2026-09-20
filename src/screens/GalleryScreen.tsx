@@ -257,6 +257,11 @@ export function GalleryScreen({ navigation }: Props) {
     return (
       <TouchableOpacity
         style={[styles.gridItem, isMiddleColumn && styles.gridItemMiddle]}
+        // 指が離れるまでに読み込みを始めておく。飛ぶ1枚は新しい <Image> なので、
+        // 一覧に出ていても読み込み直しが要る
+        onPressIn={() => {
+          Image.prefetch(imageUrl).catch(() => {});
+        }}
         onPress={() => openStamp(index, item)}
         // 押しても暗くしない。押した合図は「その写真が開いていく」動きの方で
         // 出しているので、ここで色が変わると遷移の手前に余計な一手が挟まる
