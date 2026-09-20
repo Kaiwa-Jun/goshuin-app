@@ -77,7 +77,12 @@ Deno.serve(async req => {
 
     let created = 0;
     let skipped = 0;
-    const failed: string[] = [];
+    /** 失敗は理由つきで返す。関数のログは CLI から読めないので、呼び出し側で追えるようにする */
+    const failed: { path: string; reason: string }[] = [];
+    const fail = (path: string, reason: string) => {
+      console.warn(`[make-stamp-thumbnail] ${reason}: ${path}`);
+      failed.push({ path, reason: reason.slice(0, 200) });
+    };
 
     for (const imagePath of paths) {
       const thumbPath = thumbPathFor(imagePath);
@@ -91,15 +96,14 @@ Deno.serve(async req => {
 
         const original = await storage.download(imagePath);
         if (original.error || !original.data) {
-          console.warn(`[make-stamp-thumbnail] download failed: ${imagePath}`);
-          failed.push(imagePath);
+          fail(imagePath, `download: ${original.error?.message ?? 'no data'}`);
           continue;
         }
 
-        const decoded = await decode(new Uint8Array(await original.data.arrayBuffer()));
+        const bytes = new Uint8Array(await original.data.arrayBuffer());
+        const decoded = await decode(bytes);
         if (!(decoded instanceof Image)) {
-          console.warn(`[make-stamp-thumbnail] not a still image: ${imagePath}`);
-          failed.push(imagePath);
+          fail(imagePath, `decode: not a still image (${bytes.length} byte)`);
           continue;
         }
 
@@ -113,14 +117,12 @@ Deno.serve(async req => {
           upsert: true,
         });
         if (uploaded.error) {
-          console.warn(`[make-stamp-thumbnail] upload failed: ${thumbPath}`);
-          failed.push(imagePath);
+          fail(imagePath, `upload: ${uploaded.error.message}`);
           continue;
         }
         created++;
       } catch (error) {
-        console.warn(`[make-stamp-thumbnail] error on ${imagePath}:`, error);
-        failed.push(imagePath);
+        fail(imagePath, `throw: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
 

@@ -258,6 +258,9 @@ export function GalleryScreen({ navigation }: Props) {
       <TouchableOpacity
         style={[styles.gridItem, isMiddleColumn && styles.gridItemMiddle]}
         onPress={() => openStamp(index, item)}
+        // 押しても暗くしない。押した合図は「その写真が開いていく」動きの方で
+        // 出しているので、ここで色が変わると遷移の手前に余計な一手が挟まる
+        activeOpacity={1}
         testID={`gallery-item-${item.id}`}
       >
         <View
