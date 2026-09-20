@@ -12,6 +12,7 @@ const CONTAINER = { x: 0, y: 0, width: 393, height: 769 };
 
 function renderFlyer(props: Partial<React.ComponentProps<typeof HeroFlyer>> = {}) {
   const onDone = jest.fn();
+  const onStart = jest.fn();
   const view = render(
     <HeroFlyer
       imageUrl="https://example.com/a.jpg"
@@ -21,11 +22,12 @@ function renderFlyer(props: Partial<React.ComponentProps<typeof HeroFlyer>> = {}
       spotName="小網神社"
       visitedAt="2026/01/02"
       direction="in"
+      onStart={onStart}
       onDone={onDone}
       {...props}
     />
   );
-  return { ...view, onDone };
+  return { ...view, onDone, onStart };
 }
 
 /** 枠の大きさが決まるまで何も描けない。実機では onLayout で決まる */
@@ -62,6 +64,23 @@ describe('HeroFlyer', () => {
     // 一覧の見た目と詳細の見た目の2枚を重ねて入れ替える
     expect(getAllByText('小網神社')).toHaveLength(2);
     expect(getAllByText('2026/01/02')).toHaveLength(2);
+  });
+
+  // 「飛ぶと決めた時」ではなく「動き出した時」。この差が無いと、写真を待つ間に
+  // 一覧のタイルを隠すことになって穴があくか、隠さずに二重に見えるかのどちらかになる
+  it('枠が決まるまでは動き出さない', () => {
+    const { onStart } = renderFlyer();
+
+    expect(onStart).not.toHaveBeenCalled();
+  });
+
+  it('動き出したら知らせる', async () => {
+    const { getByTestId, onStart } = renderFlyer();
+    layout(getByTestId);
+
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalled();
+    });
   });
 
   it('着いたら知らせる', async () => {

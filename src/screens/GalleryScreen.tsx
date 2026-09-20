@@ -66,6 +66,8 @@ export function GalleryScreen({ navigation }: Props) {
   /** 詳細で今どの1枚を見ているか。横スワイプで変わる。閉じるときの行き先になる */
   const [viewingIndex, setViewingIndex] = useState<number | null>(null);
   const hero = useHeroTransition();
+  /** 今まさに飛んでいる御朱印。一覧のタイルはこれを見て隠れる */
+  const [flyingStampId, setFlyingStampId] = useState<string | null>(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
 
@@ -170,19 +172,36 @@ export function GalleryScreen({ navigation }: Props) {
         spotName: stamp.spots.name,
         visitedAt: formatDate(stamp.visited_at),
       },
-      // 飛ぶ1枚が地を覆ってから詳細を外す。先に外すと一覧が1フレーム見える
-      () => setSelectedImageIndex(null)
+      // 飛べないときだけここで閉じる。飛べるなら、動き出してから外す
+      started => {
+        if (!started) setSelectedImageIndex(null);
+      }
     );
+  };
+
+  /**
+   * 動き出した合図。飛ぶと決めた時ではなくここで元を隠す。
+   * 写真の読み込みを待つぶん間があり、その間に隠すと穴があき、
+   * 隠さないまま飛び始めると同じ御朱印が二重に見える
+   */
+  const handleFlightStart = () => {
+    if (!hero.flight) return;
+    setFlyingStampId(hero.flight.stampId);
+    // 戻るときは、飛ぶ1枚が出てから詳細を外す。先に外すと地が一瞬素になる
+    if (hero.flight.direction === 'out') setSelectedImageIndex(null);
   };
 
   const handleFlightDone = () => {
     if (hero.flight?.direction === 'in') setSelectedImageIndex(hero.flight.index);
+    setFlyingStampId(null);
     hero.end();
   };
 
   const renderItem = ({ item, index }: { item: StampWithSpot; index: number }) => {
     const isMiddleColumn = index % NUM_COLUMNS === 1;
     const imageUrl = imageUrlOf(item);
+    // 飛んでいる間は隠す。出したままだと同じ御朱印が一覧と空中で二重に見える
+    const isFlying = flyingStampId === item.id;
 
     return (
       <TouchableOpacity
@@ -190,12 +209,11 @@ export function GalleryScreen({ navigation }: Props) {
         onPress={() => openStamp(index, item)}
         testID={`gallery-item-${item.id}`}
       >
-        {/* 飛んでいる間もタイルは隠さない。飛ぶ1枚は出発時にタイルとぴったり
-            重なるので二重には見えないし、隠すと写真を待っている間だけ穴があく */}
         <View
           ref={node => {
             hero.registerTile(item.id, 'image', node);
           }}
+          style={isFlying && styles.flying}
         >
           <Image
             source={{ uri: imageUrl }}
@@ -211,6 +229,7 @@ export function GalleryScreen({ navigation }: Props) {
           ref={node => {
             hero.registerTile(item.id, 'text', node);
           }}
+          style={isFlying && styles.flying}
         >
           <Text style={styles.itemSpotName} numberOfLines={1}>
             {item.spots.name}
@@ -343,6 +362,7 @@ export function GalleryScreen({ navigation }: Props) {
           spotName={hero.flight.spotName}
           visitedAt={hero.flight.visitedAt}
           direction={hero.flight.direction}
+          onStart={handleFlightStart}
           onDone={handleFlightDone}
         />
       )}
@@ -389,6 +409,9 @@ const styles = StyleSheet.create({
   },
   gridItemMiddle: {
     marginHorizontal: ITEM_MARGIN,
+  },
+  flying: {
+    opacity: 0,
   },
   stampImage: {
     width: ITEM_SIZE,

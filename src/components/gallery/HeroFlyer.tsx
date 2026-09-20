@@ -19,6 +19,12 @@ export interface HeroFlyerProps {
   visitedAt: string;
   /** 'in' = 一覧から詳細へ / 'out' = 詳細から一覧へ */
   direction: 'in' | 'out';
+  /**
+   * 実際に動き出した合図。飛ぶと決めた時ではなくここで呼ぶ。
+   * 写真の読み込みを待つぶん間があり、その間に元を隠すと穴があき、
+   * 隠さないまま飛び始めると同じ御朱印が二重に見える
+   */
+  onStart?: () => void;
   onDone: () => void;
 }
 
@@ -46,6 +52,7 @@ export function HeroFlyer({
   spotName,
   visitedAt,
   direction,
+  onStart,
   onDone,
 }: HeroFlyerProps) {
   const reduceMotion = useReduceMotion();
@@ -56,6 +63,8 @@ export function HeroFlyer({
   const containerRef = useRef<View>(null);
   const onDoneRef = useRef(onDone);
   onDoneRef.current = onDone;
+  const onStartRef = useRef(onStart);
+  onStartRef.current = onStart;
 
   // 写真を待つのは飛び始めだけ。いつまでも待つと詳細が開かない
   useEffect(() => {
@@ -67,6 +76,7 @@ export function HeroFlyer({
     if (!container || !imageReady) return;
 
     const to = direction === 'in' ? 1 : 0;
+    onStartRef.current?.();
 
     // 動きを消す設定のときは、飛ばさずに着いた状態へ渡す。
     // 出るものは出る（詳細は開く）。演出だけ落とす
