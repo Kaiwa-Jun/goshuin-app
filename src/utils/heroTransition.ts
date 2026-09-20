@@ -67,3 +67,26 @@ export function anchorDelta(
 ): { translateX: number; translateY: number } {
   return { translateX: source.x - target.x, translateY: source.y - target.y };
 }
+
+/**
+ * contain で置いたとき、枠の中で写真が実際に occupying する矩形（Issue #202）。
+ *
+ * 蛇腹のページは枠が 1:1.5 で、写真は 3:4。contain なので幅いっぱいに収まり、
+ * 上下に余白ができる。枠をそのまま飛ばすと、余白のぶん大きいところから
+ * 始まってしまう。cover の一覧タイルは枠＝写真なので、こちらは要らない
+ */
+export function containedRect(box: Rect, imageAspect: number): Rect {
+  if (box.width <= 0 || box.height <= 0 || imageAspect <= 0) return box;
+
+  const boxAspect = box.width / box.height;
+  // 写真の方が横長なら幅で決まる。縦長なら高さで決まる
+  const width = boxAspect > imageAspect ? box.height * imageAspect : box.width;
+  const height = width / imageAspect;
+
+  return {
+    x: box.x + (box.width - width) / 2,
+    y: box.y + (box.height - height) / 2,
+    width,
+    height,
+  };
+}

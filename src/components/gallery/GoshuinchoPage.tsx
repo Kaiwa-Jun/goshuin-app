@@ -23,6 +23,12 @@ type GoshuinchoPageProps = {
   width: number;
   isCurrent: boolean;
   onPress: () => void;
+  /** 詳細へ連続的に繋ぐために、写真と文字の位置を測れるようにする（Issue #202） */
+  registerNode?: (part: 'image' | 'text', node: View | null) => void;
+  /** 読み込んだ写真の実寸。飛ぶ先の大きさを決めるのに使う */
+  onImageLoad?: (width: number, height: number) => void;
+  /** 飛んでいる最中は隠す。出したままだと同じ御朱印が二重に見える */
+  hidden?: boolean;
 } & (
   | {
       variant: 'stamp';
@@ -35,7 +41,7 @@ type GoshuinchoPageProps = {
 );
 
 export function GoshuinchoPage(props: GoshuinchoPageProps) {
-  const { width, isCurrent, onPress } = props;
+  const { width, isCurrent, onPress, registerNode, onImageLoad, hidden } = props;
   const testID = props.variant === 'blank' ? 'flip-blank-page' : `flip-page-${props.stampId}`;
 
   return (
@@ -46,8 +52,11 @@ export function GoshuinchoPage(props: GoshuinchoPageProps) {
       style={[styles.page, { width }, !isCurrent && styles.peek]}
     >
       <View
+        ref={node => {
+          registerNode?.('image', node);
+        }}
         testID={props.variant === 'blank' ? undefined : `flip-page-surface-${props.stampId}`}
-        style={[styles.surface, { height: width * PAGE_ASPECT_RATIO }]}
+        style={[styles.surface, { height: width * PAGE_ASPECT_RATIO }, hidden && styles.hidden]}
       >
         {props.variant === 'blank' ? (
           <View style={styles.blankSlot}>
@@ -59,13 +68,19 @@ export function GoshuinchoPage(props: GoshuinchoPageProps) {
             testID={`flip-page-image-${props.stampId}`}
             source={{ uri: props.imageUrl }}
             resizeMode="contain"
+            onLoad={e => onImageLoad?.(e.nativeEvent.source.width, e.nativeEvent.source.height)}
             style={styles.image}
           />
         )}
       </View>
 
       {props.variant === 'stamp' && (
-        <View style={styles.footer}>
+        <View
+          ref={node => {
+            registerNode?.('text', node);
+          }}
+          style={[styles.footer, hidden && styles.hidden]}
+        >
           <Text
             testID={`flip-page-spot-name-${props.stampId}`}
             style={styles.spotName}
@@ -92,6 +107,9 @@ function PageDate({ stampId, visitedAt }: { stampId: string; visitedAt: string }
 }
 
 const styles = StyleSheet.create({
+  hidden: {
+    opacity: 0,
+  },
   page: {
     alignItems: 'center',
   },

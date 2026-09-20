@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import type { View } from 'react-native';
-import type { Rect } from '@utils/heroTransition';
+import { containedRect, type Rect } from '@utils/heroTransition';
 
 /** タイルのどの部分か。画像と文字は別々に飛ぶ */
 type TilePart = 'image' | 'text';
@@ -17,6 +17,12 @@ export interface HeroFlightState {
   spotName: string;
   visitedAt: string;
   memo: string | null;
+  /**
+   * 元の見せ方。一覧のタイルは cover（枠＝写真）だが、蛇腹のページは contain で
+   * 枠が 1:1.5、写真が 3:4 なので上下に余白ができる。枠のまま飛ばすと
+   * 余白のぶん大きいところから始まってしまう（Issue #202）
+   */
+  fit: 'cover' | 'contain';
 }
 
 /**
@@ -33,6 +39,12 @@ interface StartParams {
   spotName: string;
   visitedAt: string;
   memo: string | null;
+  /**
+   * 元の見せ方。一覧のタイルは cover（枠＝写真）だが、蛇腹のページは contain で
+   * 枠が 1:1.5、写真が 3:4 なので上下に余白ができる。枠のまま飛ばすと
+   * 余白のぶん大きいところから始まってしまう（Issue #202）
+   */
+  fit: 'cover' | 'contain';
 }
 
 /**
@@ -102,15 +114,15 @@ export function useHeroTransition() {
           settle(null);
           return;
         }
-        const sourceRect: Rect = { x, y, width, height };
+
+        const aspect = aspects.get(params.stampId) ?? null;
+        const measured: Rect = { x, y, width, height };
+        // contain は枠と写真がずれる。写真が実際に占めているところから飛ばす
+        const sourceRect: Rect =
+          params.fit === 'contain' && aspect ? containedRect(measured, aspect) : measured;
 
         const finish = (sourceTextRect: Rect | null) =>
-          settle({
-            ...params,
-            sourceRect,
-            sourceTextRect,
-            imageAspect: aspects.get(params.stampId) ?? null,
-          });
+          settle({ ...params, sourceRect, sourceTextRect, imageAspect: aspect });
 
         if (!entry.text) {
           finish(null);
