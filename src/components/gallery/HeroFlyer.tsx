@@ -294,6 +294,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     // 角丸は入れない。外枠を非等倍で拡大すると角が楕円に歪む（Issue #192）
     overflow: 'hidden',
+    // 写真がまだ届いていなくても枠は見える。詳細の枠と同じ地にして、
+    // 飛んでいる最中から「ここに写真が来る」が分かるようにする
+    backgroundColor: colors.gray[100],
   },
   text: {
     position: 'absolute',
