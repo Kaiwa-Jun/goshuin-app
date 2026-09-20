@@ -16,6 +16,7 @@ export interface HeroFlightState {
   imageAspect: number | null;
   spotName: string;
   visitedAt: string;
+  memo: string | null;
 }
 
 /**
@@ -31,6 +32,7 @@ interface StartParams {
   imageUrl: string;
   spotName: string;
   visitedAt: string;
+  memo: string | null;
 }
 
 /**

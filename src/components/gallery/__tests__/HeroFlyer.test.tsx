@@ -21,6 +21,7 @@ function renderFlyer(props: Partial<React.ComponentProps<typeof HeroFlyer>> = {}
       sourceTextRect={SOURCE_TEXT}
       spotName="小網神社"
       visitedAt="2026/01/02"
+      memo={null}
       direction="in"
       onStart={onStart}
       onDone={onDone}

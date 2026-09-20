@@ -102,4 +102,38 @@ describe('ImageGalleryModal', () => {
     expect(getByText('2 / 3')).toBeTruthy();
     expect(getByText('2024/07/20')).toBeTruthy();
   });
+
+  // 御朱印帳からは、一覧のタイルと1対1で繋がる動きで開く。途中で別の1枚に
+  // 移るとその結びつきが切れるので、横スワイプを外している（Issue #192）
+  describe('横に移れない設定（swipeable=false）', () => {
+    it('件数を出さない', () => {
+      const { queryByTestId } = render(<ImageGalleryModal {...defaultProps} swipeable={false} />);
+
+      expect(queryByTestId('gallery-counter')).toBeNull();
+    });
+
+    it('件数は既定では出る', () => {
+      const { getByTestId } = render(<ImageGalleryModal {...defaultProps} />);
+
+      expect(getByTestId('gallery-counter')).toBeTruthy();
+    });
+
+    // 並べるのは今の1枚だけ。隣を先に読み込まないぶん、今の1枚が早く出る
+    it('今の1枚だけを置く', () => {
+      const { getByTestId } = render(
+        <ImageGalleryModal {...defaultProps} initialIndex={1} swipeable={false} />
+      );
+
+      const strip = getByTestId('gallery-gesture-area');
+      expect(strip.props.children).toHaveLength(1);
+    });
+
+    it('指定された1枚を出す', () => {
+      const { getByText } = render(
+        <ImageGalleryModal {...defaultProps} initialIndex={1} swipeable={false} />
+      );
+
+      expect(getByText('2024/07/20')).toBeTruthy();
+    });
+  });
 });

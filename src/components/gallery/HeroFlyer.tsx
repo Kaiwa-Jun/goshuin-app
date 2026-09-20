@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Image, StyleSheet, Text, View } from 'react-native';
 import { useReduceMotion } from '@hooks/useReduceMotion';
-import { heroFlight, topLeftDelta, type Rect } from '@utils/heroTransition';
+import { heroFlight, anchorDelta, type Rect } from '@utils/heroTransition';
 import { GALLERY_INFO_BOTTOM, GALLERY_INFO_LEFT } from '@components/common/ImageGalleryModal';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
@@ -17,6 +17,8 @@ export interface HeroFlyerProps {
   sourceTextRect: Rect | null;
   spotName: string;
   visitedAt: string;
+  /** 詳細に出るメモ。行の構成を詳細とそろえるために受け取る */
+  memo: string | null;
   /** 'in' = 一覧から詳細へ / 'out' = 詳細から一覧へ */
   direction: 'in' | 'out';
   /**
@@ -62,6 +64,7 @@ export function HeroFlyer({
   sourceTextRect,
   spotName,
   visitedAt,
+  memo,
   direction,
   onStart,
   resting = false,
@@ -159,16 +162,27 @@ export function HeroFlyer({
     if (container && !flight && !resting) onDoneRef.current();
   }, [container, flight, resting]);
 
-  const textTarget: Rect | null =
+  /*
+   * 文字は左端と下端をそろえて動かす。
+   *
+   * 上端でそろえていたときは、一覧の行（名前も訪問日も caption）と詳細の行
+   * （名前が body、メモが入ることもある）で高さが違うぶん、着いた後に文字が
+   * 8pt ほど跳ね上がっていた。下端をそろえれば、行が何行あっても動かない
+   */
+  const textTargetAnchor =
     container && sourceTextRect
       ? {
           x: container.x + GALLERY_INFO_LEFT,
-          y: container.y + container.height - GALLERY_INFO_BOTTOM - sourceTextRect.height,
-          width: container.width - GALLERY_INFO_LEFT * 2,
-          height: sourceTextRect.height,
+          y: container.y + container.height - GALLERY_INFO_BOTTOM,
         }
       : null;
-  const textDelta = sourceTextRect && textTarget ? topLeftDelta(sourceTextRect, textTarget) : null;
+  const textDelta =
+    sourceTextRect && textTargetAnchor
+      ? anchorDelta(
+          { x: sourceTextRect.x, y: sourceTextRect.y + sourceTextRect.height },
+          textTargetAnchor
+        )
+      : null;
 
   const between = (from: number, to: number) =>
     progress.interpolate({ inputRange: [0, 1], outputRange: [from, to] });
@@ -216,14 +230,13 @@ export function HeroFlyer({
           </Animated.View>
         )}
 
-        {textDelta && textTarget && (
+        {textDelta && container && (
           <Animated.View
             style={[
               styles.text,
               {
-                left: textTarget.x - (container?.x ?? 0),
-                top: textTarget.y - (container?.y ?? 0),
-                width: textTarget.width,
+                left: GALLERY_INFO_LEFT,
+                width: container.width - GALLERY_INFO_LEFT * 2,
                 transform: [
                   { translateX: between(textDelta.translateX, 0) },
                   { translateY: between(textDelta.translateY, 0) },
@@ -231,17 +244,20 @@ export function HeroFlyer({
               },
             ]}
           >
-            {/* 色は transform では動かせないので、2枚を重ねて入れ替える */}
+            {/* 文字の大きさも色も transform では動かせない。一覧の見た目と
+                詳細の見た目を重ねて入れ替える。どちらも下端をそろえてある */}
             <Animated.View style={{ opacity: between(1, 0) }}>
               <Text style={styles.gridName} numberOfLines={1}>
                 {spotName}
               </Text>
               <Text style={styles.gridDate}>{visitedAt}</Text>
             </Animated.View>
-            <Animated.View style={[StyleSheet.absoluteFill, { opacity: between(0, 1) }]}>
+            {/* 詳細側と同じ並び・同じ行間にする。ここがずれると着地で跳ねる */}
+            <Animated.View style={[styles.detailText, { opacity: between(0, 1) }]}>
               <Text style={styles.detailName} numberOfLines={1}>
                 {spotName}
               </Text>
+              {memo ? <Text style={styles.detailMemo}>{memo}</Text> : null}
               <Text style={styles.detailDate}>{visitedAt}</Text>
             </Animated.View>
           </Animated.View>
@@ -264,6 +280,16 @@ const styles = StyleSheet.create({
   },
   text: {
     position: 'absolute',
+    // 下端を詳細の情報行とそろえる。上端で合わせると行数の違いで跳ねる
+    bottom: GALLERY_INFO_BOTTOM,
+  },
+  detailText: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    // 詳細の情報行と同じ行間
+    gap: spacing.xs,
   },
   gridName: {
     ...typography.caption,
@@ -278,7 +304,10 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.gray[800],
     fontWeight: '600',
-    marginTop: spacing.xs,
+  },
+  detailMemo: {
+    ...typography.bodySmall,
+    color: colors.gray[600],
   },
   detailDate: {
     ...typography.caption,

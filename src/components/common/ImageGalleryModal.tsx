@@ -47,6 +47,24 @@ interface ImageGalleryModalProps {
    * 一覧から飛んできた1枚を、いつ引っ込めてよいかの合図に使う（#192）
    */
   onImageReady?: (index: number) => void;
+  /**
+   * 横スワイプで隣の1枚へ移れるか。件数の表示もこれに従う。
+   *
+   * 御朱印帳は off。一覧のタイルと詳細が1対1で繋がる動きにしているので、
+   * 途中で別の1枚に移ると、その結びつきが切れて元のタイルへ戻れなくなる。
+   * 順に見る動線は蛇腹めくりが持っている（Issue #192）。
+   * スポット詳細は on。あちらは1つのスポットの御朱印をまとめて見せる場で、
+   * 連続遷移もしていない
+   */
+  swipeable?: boolean;
+  /**
+   * 下スワイプで写真が指についてくるか。閉じること自体はどちらでも起きる。
+   *
+   * 御朱印帳は off。指で写真を下へずらしてから離すと、そこから一覧へ戻る
+   * 連続的な動きが始められない（写真がもう元の位置にいない）。
+   * 写真は動かさず、離した時点で元の位置から戻す（Issue #192）
+   */
+  dismissFollowsFinger?: boolean;
 }
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -76,6 +94,8 @@ export function ImageGalleryModal({
   useModal = true,
   onIndexChange,
   onImageReady,
+  swipeable = true,
+  dismissFollowsFinger = true,
 }: ImageGalleryModalProps) {
   // currentIndex is only used for info display (userName, memo, counter)
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
@@ -83,6 +103,10 @@ export function ImageGalleryModal({
   onIndexChangeRef.current = onIndexChange;
   const onImageReadyRef = useRef(onImageReady);
   onImageReadyRef.current = onImageReady;
+  const swipeableRef = useRef(swipeable);
+  swipeableRef.current = swipeable;
+  const followsFingerRef = useRef(dismissFollowsFinger);
+  followsFingerRef.current = dismissFollowsFinger;
   const [imageHeights, setImageHeights] = useState<Record<string, number>>({});
 
   // Single animated value for the entire strip position
@@ -180,7 +204,8 @@ export function ImageGalleryModal({
       },
       onPanResponderMove: (_, gs) => {
         if (!directionLocked.current) {
-          if (Math.abs(gs.dx) > Math.abs(gs.dy)) {
+          // 横に移れない設定なら、横の動きは無視して縦だけ見る
+          if (swipeableRef.current && Math.abs(gs.dx) > Math.abs(gs.dy)) {
             directionLocked.current = 'horizontal';
           } else if (gs.dy > 0) {
             directionLocked.current = 'vertical';
@@ -189,7 +214,7 @@ export function ImageGalleryModal({
 
         if (directionLocked.current === 'horizontal') {
           stripX.setValue(baseX.current + gs.dx);
-        } else if (directionLocked.current === 'vertical') {
+        } else if (directionLocked.current === 'vertical' && followsFingerRef.current) {
           panY.setValue(Math.max(0, gs.dy));
           opacity.setValue(Math.max(0, 1 - gs.dy / SCREEN_HEIGHT));
         }
@@ -202,6 +227,8 @@ export function ImageGalleryModal({
           Math.abs(gs.dy) < TAP_MAX_DISTANCE;
 
         if (isTap) {
+          // 横に移れない設定では、左右のタップでも移らない
+          if (!swipeableRef.current) return;
           // Tap handling - use refs for latest values
           const idx = settledIndex.current;
           const len = imagesLengthRef.current;
@@ -229,7 +256,17 @@ export function ImageGalleryModal({
           }
         } else if (directionLocked.current === 'vertical') {
           // Vertical swipe dismiss
-          if (gs.dy > DISMISS_THRESHOLD || gs.vy > VELOCITY_THRESHOLD) {
+          const dismissing = gs.dy > DISMISS_THRESHOLD || gs.vy > VELOCITY_THRESHOLD;
+
+          // 写真を動かさない設定では、閉じる合図を出すだけ。戻る動きは
+          // 呼び出し側が元の位置から始める（Issue #192）
+          if (!followsFingerRef.current) {
+            if (dismissing) onCloseRef.current();
+            directionLocked.current = null;
+            return;
+          }
+
+          if (dismissing) {
             Animated.parallel([
               Animated.timing(panY, {
                 toValue: SCREEN_HEIGHT,
@@ -273,32 +310,43 @@ export function ImageGalleryModal({
         <Animated.View
           style={[
             styles.stripContainer,
-            {
-              width: images.length * SCREEN_WIDTH,
-              transform: [{ translateX: stripX }, { translateY: panY }],
-            },
+            swipeable
+              ? {
+                  width: images.length * SCREEN_WIDTH,
+                  transform: [{ translateX: stripX }, { translateY: panY }],
+                }
+              : { width: SCREEN_WIDTH, transform: [{ translateY: panY }] },
           ]}
           {...panResponder.panHandlers}
           testID="gallery-gesture-area"
         >
-          {images.map((img, index) => (
-            <View key={img.id} style={styles.imageSlot}>
-              {/* 見えている前後だけ描く。全枚数を一度に置くと、そのぶんの取得が
-                  同時に走って画像ローダーが詰まる（Issue #192） */}
-              {Math.abs(index - currentIndex) <= NEIGHBORS && (
-                <Image
-                  source={{ uri: img.imageUrl }}
-                  style={[styles.image, { height: imageHeights[img.id] ?? SCREEN_WIDTH }]}
-                  resizeMode="contain"
-                  onLoad={e => {
-                    rememberHeight(img.id, e.nativeEvent.source.width, e.nativeEvent.source.height);
-                    if (index === currentIndex) onImageReadyRef.current?.(index);
-                  }}
-                  testID={index === currentIndex ? 'gallery-image' : undefined}
-                />
-              )}
-            </View>
-          ))}
+          {/* 横に移れないなら今の1枚だけ置く。隣を先に読み込まないぶん、
+              今の1枚が早く出る（Issue #192） */}
+          {(swipeable ? images : [currentImage]).map((img, slot) => {
+            const index = swipeable ? slot : currentIndex;
+            return (
+              <View key={img.id} style={styles.imageSlot}>
+                {/* 見えている前後だけ描く。全枚数を一度に置くと、そのぶんの取得が
+                    同時に走って画像ローダーが詰まる（Issue #192） */}
+                {Math.abs(index - currentIndex) <= NEIGHBORS && (
+                  <Image
+                    source={{ uri: img.imageUrl }}
+                    style={[styles.image, { height: imageHeights[img.id] ?? SCREEN_WIDTH }]}
+                    resizeMode="contain"
+                    onLoad={e => {
+                      rememberHeight(
+                        img.id,
+                        e.nativeEvent.source.width,
+                        e.nativeEvent.source.height
+                      );
+                      if (index === currentIndex) onImageReadyRef.current?.(index);
+                    }}
+                    testID={index === currentIndex ? 'gallery-image' : undefined}
+                  />
+                )}
+              </View>
+            );
+          })}
         </Animated.View>
 
         <View style={styles.infoContainer} pointerEvents="none">
@@ -324,11 +372,14 @@ export function ImageGalleryModal({
           )}
         </View>
 
-        <View style={styles.counterContainer} pointerEvents="none">
-          <Text style={styles.counter} testID="gallery-counter">
-            {currentIndex + 1} / {images.length}
-          </Text>
-        </View>
+        {/* 件数は「並びの何番目か」の目印。横に移れないなら数えるものが無い */}
+        {swipeable && (
+          <View style={styles.counterContainer} pointerEvents="none">
+            <Text style={styles.counter} testID="gallery-counter">
+              {currentIndex + 1} / {images.length}
+            </Text>
+          </View>
+        )}
 
         <View style={styles.topBar}>
           <View style={styles.topBarActions}>

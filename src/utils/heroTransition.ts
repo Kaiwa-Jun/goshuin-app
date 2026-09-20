@@ -55,10 +55,15 @@ export function heroFlight(source: Rect, target: Rect, imageAspect: number): Her
   };
 }
 
-/** 文字は左端をそろえて動かす。中心をそろえると、幅の違う行が横にずれる */
-export function topLeftDelta(
-  source: Rect,
-  target: Rect
+/**
+ * 2つの基準点の差。文字を動かすのに使う。
+ *
+ * 文字は左端と下端をそろえる。中心をそろえると幅の違う行が横にずれるし、
+ * 上端をそろえると、一覧と詳細で行の高さが違うぶん最後に跳ねる
+ */
+export function anchorDelta(
+  source: { x: number; y: number },
+  target: { x: number; y: number }
 ): { translateX: number; translateY: number } {
   return { translateX: source.x - target.x, translateY: source.y - target.y };
 }

@@ -1,4 +1,4 @@
-import { heroFlight, topLeftDelta } from '@utils/heroTransition';
+import { heroFlight, anchorDelta } from '@utils/heroTransition';
 
 /** 実測値。詳細の画像は全幅 393pt、御朱印の写真は 3:4 だった（Issue #192） */
 const TARGET = { x: 0, y: 122, width: 393, height: 524 };
@@ -64,20 +64,13 @@ describe('heroFlight', () => {
   });
 });
 
-describe('topLeftDelta', () => {
-  // 文字は左端をそろえて動かす。中心をそろえると、幅の違う行が横にずれる
-  it('左上どうしの差を返す', () => {
-    const d = topLeftDelta(
-      { x: 16, y: 430, width: 124, height: 32 },
-      {
-        x: 16,
-        y: 700,
-        width: 361,
-        height: 40,
-      }
-    );
+describe('anchorDelta', () => {
+  // 文字は左端と下端をそろえる。上端でそろえると、一覧と詳細で行の高さが
+  // 違うぶん、着いた後に跳ねる
+  it('基準点どうしの差を返す', () => {
+    const d = anchorDelta({ x: 16, y: 462 }, { x: 16, y: 721 });
 
     expect(d.translateX).toBe(0);
-    expect(d.translateY).toBe(-270);
+    expect(d.translateY).toBe(-259);
   });
 });

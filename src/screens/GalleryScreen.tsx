@@ -66,8 +66,6 @@ export function GalleryScreen({ navigation }: Props) {
   const showsGallery = isAuthenticated || isPreview;
 
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
-  /** 詳細で今どの1枚を見ているか。横スワイプで変わる。閉じるときの行き先になる */
-  const [viewingIndex, setViewingIndex] = useState<number | null>(null);
   const hero = useHeroTransition();
   /** 今まさに飛んでいる御朱印。一覧のタイルはこれを見て隠れる */
   const [flyingStampId, setFlyingStampId] = useState<string | null>(null);
@@ -141,7 +139,6 @@ export function GalleryScreen({ navigation }: Props) {
 
   /** 押したタイルから詳細へ飛ばす。測れなければ演出を諦めて開く（Issue #192） */
   const openStamp = (index: number, stamp: StampWithSpot) => {
-    setViewingIndex(index);
     hero.start(
       {
         stampId: stamp.id,
@@ -150,6 +147,7 @@ export function GalleryScreen({ navigation }: Props) {
         imageUrl: imageUrlOf(stamp),
         spotName: stamp.spots.name,
         visitedAt: formatDate(stamp.visited_at),
+        memo: stamp.memo ?? null,
       },
       // 開かないのが一番まずい。飛べないときはそのまま出す
       started => {
@@ -160,12 +158,12 @@ export function GalleryScreen({ navigation }: Props) {
 
   /**
    * 閉じる。行きに飛ばした1枚をそのまま持っているので、向き直すだけで帰れる。
-   *
    * 作り直すと写真の読み込みからやり直しになり、間に合わずに空の枠が飛ぶ。
-   * 横スワイプで別の1枚に移っていたら、その1枚は持っていないので素直に閉じる
+   *
+   * 詳細では横に移れないので、帰り先は必ず来たタイル。例外の分岐が要らない
    */
   const closeStamp = () => {
-    if (resting && hero.flight && viewingIndex === hero.flight.index) {
+    if (resting && hero.flight) {
       setResting(false);
       hero.turnBack();
       return;
@@ -366,8 +364,14 @@ export function GalleryScreen({ navigation }: Props) {
         initialIndex={selectedImageIndex ?? 0}
         onEdit={handleEdit}
         onDelete={handleDeletePress}
-        onIndexChange={setViewingIndex}
         onImageReady={handleDetailImageReady}
+        // 一覧のタイルと詳細を1対1で繋いでいる。途中で別の1枚に移ると
+        // その結びつきが切れて元のタイルへ戻れない。順に見る動線は
+        // 蛇腹めくりが持っている（Issue #192）
+        swipeable={false}
+        // 指で写真を下へずらしてから離すと、そこから一覧へ戻る連続的な動きが
+        // 始められない。閉じる合図だけ受け取って、写真は元の位置から戻す
+        dismissFollowsFinger={false}
         useModal={false}
       />
 
@@ -381,6 +385,7 @@ export function GalleryScreen({ navigation }: Props) {
           sourceTextRect={hero.flight.sourceTextRect}
           spotName={hero.flight.spotName}
           visitedAt={hero.flight.visitedAt}
+          memo={hero.flight.memo}
           direction={hero.flight.direction}
           resting={resting}
           onStart={handleFlightStart}
