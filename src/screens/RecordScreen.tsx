@@ -7,6 +7,7 @@ import {
   TextInput,
   TouchableOpacity,
   Platform,
+  Keyboard,
   KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,6 +17,7 @@ import { Button } from '@components/common/Button';
 import { Header } from '@components/common/Header';
 import { SpotSelector } from '@components/record/SpotSelector';
 import { PhotoSection } from '@components/record/PhotoSection';
+import { SavingOverlay } from '@components/record/SavingOverlay';
 import { usePhotoPicker } from '@hooks/usePhotoPicker';
 import { useRecordForm } from '@hooks/useRecordForm';
 import { useNearbySpots } from '@hooks/useNearbySpots';
@@ -62,6 +64,14 @@ export function RecordScreen({ navigation, route }: Props) {
   const isSavingRef = useRef(false);
 
   const [showDatePicker, setShowDatePicker] = useState(false);
+  /**
+   * 保存中の覆いをどこから敷くか。ヘッダーは覆わない（Issue #190）。
+   *
+   * 高さではなく下端を持つ。絶対配置の基準は SafeAreaView の外枠で、
+   * セーフエリアの余白はその内側にある。高さだけだとステータスバーのぶん
+   * 足りず、覆いがヘッダーに乗る（実測: y=59 / height=65）
+   */
+  const [headerBottom, setHeaderBottom] = useState(0);
   /** 一部だけ保存できたときの知らせ。全部成功なら完了画面へ行くので出番はない */
   const [partialNotice, setPartialNotice] = useState<string | null>(null);
 
@@ -118,6 +128,9 @@ export function RecordScreen({ navigation, route }: Props) {
       showField(invalid[0]);
       return;
     }
+
+    // 覆いがキーボードの下に潜らないように。メモを書いている途中で押される
+    Keyboard.dismiss();
 
     isSavingRef.current = true;
     setPartialNotice(null);
@@ -222,7 +235,15 @@ export function RecordScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <Header title="御朱印を記録" variant="modal" onClose={() => navigation.goBack()} />
+      <View
+        onLayout={e => {
+          const { y, height } = e.nativeEvent.layout;
+          setHeaderBottom(y + height);
+        }}
+        testID="header-block"
+      >
+        <Header title="御朱印を記録" variant="modal" onClose={() => navigation.goBack()} />
+      </View>
 
       <KeyboardAvoidingView
         style={styles.scrollView}
@@ -375,6 +396,16 @@ export function RecordScreen({ navigation, route }: Props) {
           disabled={form.isSubmitting}
         />
       </View>
+
+      {/* 覆いの仕事は演出だけではない。これが無いと保存中にスポットを選び直したり
+          写真を消したりできてしまう。ただしヘッダーは覆わない: アップロードに
+          タイムアウトが無いので、✕ を塞ぐと回線が死んだとき逃げ道が消える */}
+      <SavingOverlay
+        visible={form.isSubmitting}
+        total={form.imageUris.length}
+        saved={form.savedCount}
+        top={headerBottom}
+      />
     </SafeAreaView>
   );
 }

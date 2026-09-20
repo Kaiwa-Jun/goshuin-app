@@ -54,6 +54,8 @@ interface UseRecordFormReturn {
   spotError: string | null;
   imageError: string | null;
   isSubmitting: boolean;
+  /** 保存できた枚数。保存中の覆いが、写真1枚ぶんずつ進み具合を出すのに使う */
+  savedCount: number;
   submitError: string | null;
   selectSpot: (spot: Spot) => void;
   addImages: (uris: string[]) => void;
@@ -80,6 +82,7 @@ export function useRecordForm(params?: UseRecordFormParams): UseRecordFormReturn
   const [isPublic, setIsPublic] = useState(false);
   const [defaultPublic, setDefaultPublic] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [savedCount, setSavedCount] = useState(0);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -172,6 +175,9 @@ export function useRecordForm(params?: UseRecordFormParams): UseRecordFormReturn
 
     setIsSubmitting(true);
     setSubmitError(null);
+    // 数え直す。一部だけ失敗したあとのやり直しでは残った写真しか送らないので、
+    // 前回の数を引きずると「4 / 1枚」のような表示になる
+    setSavedCount(0);
 
     const saved: Stamp[] = [];
     const failed: string[] = [];
@@ -191,16 +197,17 @@ export function useRecordForm(params?: UseRecordFormParams): UseRecordFormReturn
           const imagePath = await uploadStampImage(userId, uri);
 
           stage = 'create';
-          saved.push(
-            await createStamp({
-              userId,
-              spotId: selectedSpot!.id,
-              imagePath,
-              visitedAt: visitedAt.toISOString(),
-              memo,
-              isPublic: isPublic,
-            })
-          );
+          const stamp = await createStamp({
+            userId,
+            spotId: selectedSpot!.id,
+            imagePath,
+            visitedAt: visitedAt.toISOString(),
+            memo,
+            isPublic: isPublic,
+          });
+          saved.push(stamp);
+          // 1枚ぶん進んだことを、全部終わるのを待たずに画面へ渡す
+          setSavedCount(saved.length);
         } catch (error) {
           // 1枚で止めない。壊れた写真が1枚あっても残りを巻き添えにしない
           failed.push(uri);
@@ -248,6 +255,7 @@ export function useRecordForm(params?: UseRecordFormParams): UseRecordFormReturn
     setImageError(null);
     setSubmitError(null);
     setIsSubmitting(false);
+    setSavedCount(0);
   }, [defaultPublic]);
 
   return {
@@ -260,6 +268,7 @@ export function useRecordForm(params?: UseRecordFormParams): UseRecordFormReturn
     spotError,
     imageError,
     isSubmitting,
+    savedCount,
     submitError,
     selectSpot,
     addImages,
