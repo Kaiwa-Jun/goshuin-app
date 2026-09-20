@@ -903,7 +903,7 @@ service*role キー（`sb_secret*...`）: `npx supabase@latest projects api-keys
 - **`mode: 'all'` では Instagram を先に走らせる**: web パスを先にすると `RUN_BUDGET_MS` を使い切って Instagram が恒久的に飢える
 - **cron の再登録を忘れない**: 既存 job は body に `mode` を持たない状態で登録済み。`cron.unschedule` → 再 `cron.schedule` しないと SQL ファイルの変更が本番に反映されない（I-23 で検出する）
 - **cron 式は UTC**: `'30 17 * * 1,4'` = 月・木 17:30 UTC = 火・金 02:30 JST
-- **トークン期限 2026-10-02**: 失効すると Instagram パスが全滅する。10 月初旬に[アクセストークンデバッガー](https://developers.facebook.com/tools/debug/accesstoken/)の GUI 手順で延長し `npx supabase@latest secrets set META_ACCESS_TOKEN=...` で更新する
+- **トークン期限**（⚠ 最新の期限と更新手順は `supabase/cron/schedule_crawl_spot_sources.sql` が正。ここの日付は起票時点のもの）: 失効すると Instagram パスが全滅する。10 月初旬に[アクセストークンデバッガー](https://developers.facebook.com/tools/debug/accesstoken/)の GUI 手順で延長し `npx supabase@latest secrets set META_ACCESS_TOKEN=...` で更新する
 - **強制再抽出**: `spot_info_sources.content_hash` を null に PATCH してから `{"mode":"instagram","spot_id":"..."}` で叩く（hash 一致だと Claude を呼ばずスキップされる）
 - **60 日の窓は意図的に「消える」設計**: 窓から外れた投稿由来のアイテムは次回巡回で DB から消える。バグ報告として扱わない（判断 3）
 - **文言は AC と一字一句合わせる**: `Instagramの投稿を見る` / `公式サイトで確認` / `【今日の日付】` / `【アカウント】` / `【投稿数】` / `【投稿日】` / `【本文】` / `（本文なし）` / `--- 投稿 {index} ---` はテキスト一致で判定する。実装で言い回しを変えたい場合は本ファイルを先に更新する

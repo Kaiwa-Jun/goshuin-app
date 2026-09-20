@@ -390,7 +390,7 @@ PR #124 の auto-review が「`MapScreen` が `useWishlist`（ID の Set）と `
 
 - ~~**App Store 審査結果**（build 13）~~ → **2026-08-12 に却下（4回目）**。先頭の節を参照。⚠️ **build 11 は提出 8/2 → 却下 8/6 で約4日**かかっているので 48時間で焦らなくてよい。**通過したら手動リリースの操作が要る**（リリース設定が「このバージョンを手動でリリースする」）
 - ~~8/11(火)朝: cron 実行確認~~ → **確認済み（2026-08-11）**。jobid 2（02:00 JST）/ jobid 3（02:30 JST）とも succeeded、古い jobid 1 は削除済みで重複なし。**次回は 8/14(金) 02:00 / 02:30 JST**（`0 17 * * 1,4` / `30 17 * * 1,4` はどちらも active を確認済み）
-- **10月初旬: Meta アクセストークン更新**（期限 2026-10-02）
+- **Meta アクセストークン更新**（2026-09-21 に更新済み・次は 2026-11-20 ごろ。最新は `supabase/cron/schedule_crawl_spot_sources.sql` を見る）
 
 **ユーザー作業待ち**:
 
@@ -489,7 +489,7 @@ tmux capture-pane -pt goshuin-dev -S -300 | grep -A 5 "submit failed at"
 Issue #111 / PR #112 マージ済み・本番投入完了（passes: true）。Meta セットアップ〜実装〜検証〜運用投入までの全経緯。
 
 - ✅ Meta セットアップ完了: FB ページ「御朱印さんぽ」（Page ID `1301682473018397`）、Instagram `goshuinsampo`（ビジネスアカウント化済み）、FB⇔IG 連携、Meta developer アプリ `goshuin-sampo-watcher`（App ID `1559445438958824`）。IG User ID = `17841439672371375`
-- ✅ 長期アクセストークン発行済み（**期限: 2026-10-02**）。Supabase secrets に `META_ACCESS_TOKEN` / `META_IG_USER_ID` 登録済み。**10月初旬に更新要**: [アクセストークンデバッガー](https://developers.facebook.com/tools/debug/accesstoken/)にトークンを貼って「デバッグ」→「アクセストークンを延長」→ `npx supabase@latest secrets set META_ACCESS_TOKEN=<延長後トークン> --project-ref tvnozkpxncmnehyomoff`
+- ✅ 長期アクセストークン発行済み（**期限は `supabase/cron/schedule_crawl_spot_sources.sql` が正**。2026-09-21 に更新し、本番で疎通確認済み）。Supabase secrets に `META_ACCESS_TOKEN` / `META_IG_USER_ID` 登録済み。**10月初旬に更新要**: [アクセストークンデバッガー](https://developers.facebook.com/tools/debug/accesstoken/)にトークンを貼って「デバッグ」→「アクセストークンを延長」→ `npx supabase@latest secrets set META_ACCESS_TOKEN=<延長後トークン> --project-ref tvnozkpxncmnehyomoff`
 - ✅ 実装完了・Evaluator PASS 75/75。PR #112 マージ済み（`crawl-spot-sources` に Instagram パス追加、`mode` パラメータで web/instagram を制御）
 - ✅ **本番デプロイ済み**。実クロール検証で23アカウント中19件で Claude 抽出成功、2件は個人アカウント判定でスキップ、failed 0件
 - ⚠️ **重要な落とし穴（本番投入時に発見・解決済み）**: Meta developer アプリが **Business Portfolio にリンクされていない**と、`business_discovery` が `OAuthException code 200 "API access blocked"` で全滅する。8/3 のセットアップ時点では未リンクでも一時的に動いていたが、8/8 の本番検証時には完全にブロックされていた（Standard Access アプリの猶予期間切れとみられる）。**対処**: Meta for Developers → アプリ設定 → ベーシック → 「ビジネスポートフォリオ」を「御朱印さんぽ」にリンク（Unverified 状態のままで解消する）。今後同様のエラーが出たらまずこれを疑う
