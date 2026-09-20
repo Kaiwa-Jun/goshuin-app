@@ -1,0 +1,336 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Easing, Image, StyleSheet, Text, View } from 'react-native';
+import { useReduceMotion } from '@hooks/useReduceMotion';
+import { heroFlight, anchorDelta, type Rect } from '@utils/heroTransition';
+import { TYPICAL_STAMP_ASPECT } from '@/constants/stampImage';
+import { GALLERY_INFO_BOTTOM, GALLERY_INFO_LEFT } from '@components/common/ImageGalleryModal';
+import { colors } from '@theme/colors';
+import { typography } from '@theme/typography';
+import { spacing } from '@theme/spacing';
+
+export interface HeroFlyerProps {
+  imageUrl: string;
+  /** 写真の 横 ÷ 縦。まだ測れていなければ null */
+  imageAspect: number | null;
+  /** 一覧のタイル（画像部分）の画面座標 */
+  sourceRect: Rect;
+  /** 一覧のタイルの、名前と日付の行の画面座標 */
+  sourceTextRect: Rect | null;
+  spotName: string;
+  visitedAt: string;
+  /** 詳細に出るメモ。行の構成を詳細とそろえるために受け取る */
+  memo: string | null;
+  /** 'in' = 一覧から詳細へ / 'out' = 詳細から一覧へ */
+  direction: 'in' | 'out';
+  /**
+   * 実際に動き出した合図。飛ぶと決めた時ではなくここで呼ぶ。
+   * 写真の読み込みを待つぶん間があり、その間に元を隠すと穴があき、
+   * 隠さないまま飛び始めると同じ御朱印が二重に見える
+   */
+  onStart?: () => void;
+  /**
+   * 詳細を開いたまま待機しているか。姿は消すが、この1枚は持ったままにする。
+   * 作り直すと写真の読み込みからやり直しになり、閉じるときに間に合わない
+   */
+  resting?: boolean;
+  onDone: () => void;
+}
+
+const DURATION = 320;
+/**
+ * 写真が出てくるのを待つ上限。飛ぶ1枚は新しい <Image> なので、一覧に出ていても
+ * 読み込み直しが要る。待たずに飛ばすと最初の数フレームが空になる（実機で確認）
+ */
+const IMAGE_WAIT_MS = 200;
+/**
+ * 着いたあと、詳細に受け渡すまでに溶かす時間。
+ * ぱっと消すと、詳細側の画像がまだ出ていない瞬間が見えるし、
+ * 文字の行の高さもわずかに違うので、その差が瞬きとして見える
+ */
+const HANDOVER_MS = 180;
+
+/**
+ * 一覧のタイルと詳細の画像をつなぐ、飛んでいる最中だけの1枚（Issue #192）。
+ *
+ * 位置はタップのたびに `measureInWindow` で測る。だから左列でも右列でも、
+ * スクロールして上下どこにあっても同じように繋がる。固定値は持たない。
+ *
+ * 動かすのは transform と opacity だけ。width / height はネイティブドライバに
+ * 載らず、飛んでいる最中に JS スレッドが詰まると跳ねる
+ */
+export function HeroFlyer({
+  imageUrl,
+  imageAspect,
+  sourceRect,
+  sourceTextRect,
+  spotName,
+  visitedAt,
+  memo,
+  direction,
+  onStart,
+  resting = false,
+  onDone,
+}: HeroFlyerProps) {
+  const reduceMotion = useReduceMotion();
+  const progress = useRef(new Animated.Value(direction === 'in' ? 0 : 1)).current;
+  /** 受け渡しの溶け具合。1 = 出ている / 0 = 詳細に渡し終えた */
+  const handover = useRef(new Animated.Value(1)).current;
+  const [container, setContainer] = useState<Rect | null>(null);
+  /** 写真が出せる状態か。出る前に飛ぶと、空の枠だけが動く */
+  const [imageReady, setImageReady] = useState(false);
+  /** 飛ぶ1枚自身が読み込めたときに分かる縦横比。一覧がまだ読めていない場合の受け皿 */
+  const [loadedAspect, setLoadedAspect] = useState<number | null>(null);
+  const containerRef = useRef<View>(null);
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
+  const onStartRef = useRef(onStart);
+  onStartRef.current = onStart;
+
+  // 待機に入ったら溶かして消す。姿は消すが、この1枚は持ったままにする
+  useEffect(() => {
+    if (!resting) {
+      handover.setValue(1);
+      return;
+    }
+    const anim = Animated.timing(handover, {
+      toValue: 0,
+      duration: reduceMotion ? 0 : HANDOVER_MS,
+      useNativeDriver: true,
+    });
+    anim.start();
+    return () => anim.stop();
+  }, [resting, reduceMotion, handover]);
+
+  // 写真を待つのは飛び始めだけ。いつまでも待つと詳細が開かない
+  useEffect(() => {
+    const timer = setTimeout(() => setImageReady(true), IMAGE_WAIT_MS);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!container || !imageReady || resting) return;
+
+    const to = direction === 'in' ? 1 : 0;
+    onStartRef.current?.();
+
+    // 動きを消す設定のときは、飛ばさずに着いた状態へ渡す。
+    // 出るものは出る（詳細は開く）。演出だけ落とす
+    if (reduceMotion) {
+      progress.setValue(to);
+      onDoneRef.current();
+      return;
+    }
+
+    const anim = Animated.timing(progress, {
+      toValue: to,
+      duration: DURATION,
+      easing: Easing.bezier(0.2, 0, 0, 1),
+      useNativeDriver: true,
+    });
+    anim.start(({ finished }) => {
+      if (finished) onDoneRef.current();
+    });
+
+    return () => anim.stop();
+  }, [container, imageReady, direction, resting, reduceMotion, progress]);
+
+  /**
+   * 飛ぶ枠の位置。タイルは画面座標で測っているので、こちらも画面座標で欲しい。
+   * measureInWindow は返ってこないことがあるので、onLayout で取れた枠を先に置き、
+   * 画面座標が来たら上書きする。先に置いておかないと、測れない環境で
+   * 何も描かれないまま終わる
+   */
+  const measure = (fallback: Rect) => {
+    setContainer(prev => prev ?? fallback);
+    containerRef.current?.measureInWindow((x, y, width, height) => {
+      if (width > 0 && height > 0) setContainer({ x, y, width, height });
+    });
+  };
+
+  /*
+   * 縦横比は、分かっているものから順に使う。
+   *
+   * 一覧がまだ写真を読めていないと比が取れず、以前はそこで飛ぶのをやめていた。
+   * 押したのに何も起きないのが一番情報が少ない。よくある形を仮に置いて必ず飛ばし、
+   * 本当の比が分かったら差し替える（Issue #192）
+   */
+  const aspect = imageAspect ?? loadedAspect ?? TYPICAL_STAMP_ASPECT;
+
+  // 目的地は詳細と同じ置き方にする。全幅で、枠の中央
+  const targetHeight = container ? container.width / aspect : 0;
+  const target: Rect | null = container
+    ? {
+        x: container.x,
+        y: container.y + (container.height - targetHeight) / 2,
+        width: container.width,
+        height: targetHeight,
+      }
+    : null;
+
+  const flight = target ? heroFlight(sourceRect, target, aspect) : null;
+
+  // 大きさが取れていなければ飛ばしようがない。詰まらせずに先へ進める
+  useEffect(() => {
+    if (container && !flight && !resting) onDoneRef.current();
+  }, [container, flight, resting]);
+
+  /*
+   * 文字は左端と下端をそろえて動かす。
+   *
+   * 上端でそろえていたときは、一覧の行（名前も訪問日も caption）と詳細の行
+   * （名前が body、メモが入ることもある）で高さが違うぶん、着いた後に文字が
+   * 8pt ほど跳ね上がっていた。下端をそろえれば、行が何行あっても動かない
+   */
+  const textTargetAnchor =
+    container && sourceTextRect
+      ? {
+          x: container.x + GALLERY_INFO_LEFT,
+          y: container.y + container.height - GALLERY_INFO_BOTTOM,
+        }
+      : null;
+  const textDelta =
+    sourceTextRect && textTargetAnchor
+      ? anchorDelta(
+          { x: sourceTextRect.x, y: sourceTextRect.y + sourceTextRect.height },
+          textTargetAnchor
+        )
+      : null;
+
+  const between = (from: number, to: number) =>
+    progress.interpolate({ inputRange: [0, 1], outputRange: [from, to] });
+
+  return (
+    <View
+      ref={containerRef}
+      // 詳細の地は zIndex 1000 を持っている。飛ぶ1枚はその上に出す
+      style={[StyleSheet.absoluteFill, { zIndex: 2000 }]}
+      onLayout={e => measure(e.nativeEvent.layout)}
+      pointerEvents="none"
+      testID="hero-flyer"
+    >
+      <Animated.View style={[StyleSheet.absoluteFill, { opacity: handover }]}>
+        <Animated.View
+          style={[styles.backdrop, { opacity: between(0, 1) }]}
+          testID="hero-backdrop"
+        />
+
+        {flight && target && (
+          <Animated.View
+            style={[
+              styles.box,
+              {
+                left: target.x - (container?.x ?? 0),
+                top: target.y - (container?.y ?? 0),
+                width: target.width,
+                height: target.height,
+                transform: [
+                  { translateX: between(flight.translateX, 0) },
+                  { translateY: between(flight.translateY, 0) },
+                  { scaleX: between(flight.boxScaleX, 1) },
+                  { scaleY: between(flight.boxScaleY, 1) },
+                ],
+              },
+            ]}
+          >
+            <Image
+              source={{ uri: imageUrl }}
+              style={{ width: target.width, height: target.height }}
+              resizeMode="cover"
+              onLoad={e => {
+                // 一覧がまだ読めていなくても、ここで本当の縦横比が分かる
+                const { width, height } = e.nativeEvent.source;
+                if (height > 0) setLoadedAspect(width / height);
+                setImageReady(true);
+              }}
+              testID="hero-image"
+            />
+          </Animated.View>
+        )}
+
+        {textDelta && container && (
+          <Animated.View
+            style={[
+              styles.text,
+              {
+                left: GALLERY_INFO_LEFT,
+                width: container.width - GALLERY_INFO_LEFT * 2,
+                transform: [
+                  { translateX: between(textDelta.translateX, 0) },
+                  { translateY: between(textDelta.translateY, 0) },
+                ],
+              },
+            ]}
+          >
+            {/* 文字の大きさも色も transform では動かせない。一覧の見た目と
+                詳細の見た目を重ねて入れ替える。どちらも下端をそろえてある */}
+            <Animated.View style={{ opacity: between(1, 0) }}>
+              <Text style={styles.gridName} numberOfLines={1}>
+                {spotName}
+              </Text>
+              <Text style={styles.gridDate}>{visitedAt}</Text>
+            </Animated.View>
+            {/* 詳細側と同じ並び・同じ行間にする。ここがずれると着地で跳ねる */}
+            <Animated.View style={[styles.detailText, { opacity: between(0, 1) }]}>
+              <Text style={styles.detailName} numberOfLines={1}>
+                {spotName}
+              </Text>
+              {memo ? <Text style={styles.detailMemo}>{memo}</Text> : null}
+              <Text style={styles.detailDate}>{visitedAt}</Text>
+            </Animated.View>
+          </Animated.View>
+        )}
+      </Animated.View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    // 詳細の地と同じ色。違う色だと、着いた瞬間に地が切り替わって見える
+    backgroundColor: colors.background,
+  },
+  box: {
+    position: 'absolute',
+    // 角丸は入れない。外枠を非等倍で拡大すると角が楕円に歪む（Issue #192）
+    overflow: 'hidden',
+    // 写真がまだ届いていなくても枠は見える。詳細の枠と同じ地にして、
+    // 飛んでいる最中から「ここに写真が来る」が分かるようにする
+    backgroundColor: colors.gray[100],
+  },
+  text: {
+    position: 'absolute',
+    // 下端を詳細の情報行とそろえる。上端で合わせると行数の違いで跳ねる
+    bottom: GALLERY_INFO_BOTTOM,
+  },
+  detailText: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    // 詳細の情報行と同じ行間
+    gap: spacing.xs,
+  },
+  gridName: {
+    ...typography.caption,
+    color: colors.gray[800],
+    marginTop: spacing.xs,
+  },
+  gridDate: {
+    ...typography.caption,
+    color: colors.gray[400],
+  },
+  detailName: {
+    ...typography.body,
+    color: colors.gray[800],
+    fontWeight: '600',
+  },
+  detailMemo: {
+    ...typography.bodySmall,
+    color: colors.gray[600],
+  },
+  detailDate: {
+    ...typography.caption,
+    color: colors.gray[500],
+  },
+});

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -22,6 +22,8 @@ import { getStampImageUrl } from '@services/stamps';
 import { Button } from '@components/common/Button';
 import { ImageGalleryModal, GalleryImage } from '@components/common/ImageGalleryModal';
 import { GoshuinchoFlipView } from '@components/gallery/GoshuinchoFlipView';
+import { HeroFlyer } from '@components/gallery/HeroFlyer';
+import { useHeroTransition } from '@hooks/useHeroTransition';
 import { ViewModeToggle } from '@components/gallery/ViewModeToggle';
 import { getWebPreviewStamps, previewImageUrl } from '@components/gallery/webPreview';
 import { EditStampModal } from '@components/stamp-detail/EditStampModal';
@@ -36,6 +38,9 @@ const NUM_COLUMNS = 3;
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const ITEM_MARGIN = spacing.xs;
 const ITEM_SIZE = (SCREEN_WIDTH - spacing.lg * 2 - ITEM_MARGIN * (NUM_COLUMNS - 1)) / NUM_COLUMNS;
+
+/** 詳細から「写真が出せる」合図が来なかったときに、飛ぶ1枚を諦めて引っ込めるまで */
+const HANDOVER_FALLBACK_MS = 800;
 
 const GUEST_PREVIEW_ITEMS = [
   { icon: 'photo-camera', label: '写真で御朱印を残す' },
@@ -61,6 +66,11 @@ export function GalleryScreen({ navigation }: Props) {
   const showsGallery = isAuthenticated || isPreview;
 
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
+  const hero = useHeroTransition();
+  /** 今まさに飛んでいる御朱印。一覧のタイルはこれを見て隠れる */
+  const [flyingStampId, setFlyingStampId] = useState<string | null>(null);
+  /** 詳細を開いたまま、飛ぶ1枚を持ったままにしているか（Issue #192） */
+  const [resting, setResting] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
 
@@ -82,6 +92,7 @@ export function GalleryScreen({ navigation }: Props) {
       displayStamps.map(s => ({
         id: s.id,
         imageUrl: isPreview ? previewImageUrl(s) : getStampImageUrl(s.image_path),
+        spotName: s.spots.name,
         memo: s.memo,
         visitedAt: s.visited_at,
       })),
@@ -123,25 +134,126 @@ export function GalleryScreen({ navigation }: Props) {
 
   const formatDate = (dateStr: string) => dateStr.replace(/-/g, '/');
 
+  const imageUrlOf = (stamp: StampWithSpot) =>
+    isPreview ? previewImageUrl(stamp) : getStampImageUrl(stamp.image_path);
+
+  /** 押したタイルから詳細へ飛ばす。測れなければ演出を諦めて開く（Issue #192） */
+  const openStamp = (index: number, stamp: StampWithSpot) => {
+    hero.start(
+      {
+        stampId: stamp.id,
+        index,
+        direction: 'in',
+        imageUrl: imageUrlOf(stamp),
+        spotName: stamp.spots.name,
+        visitedAt: formatDate(stamp.visited_at),
+        memo: stamp.memo ?? null,
+      },
+      // 開かないのが一番まずい。飛べないときはそのまま出す
+      started => {
+        if (!started) setSelectedImageIndex(index);
+      }
+    );
+  };
+
+  /**
+   * 閉じる。行きに飛ばした1枚をそのまま持っているので、向き直すだけで帰れる。
+   * 作り直すと写真の読み込みからやり直しになり、間に合わずに空の枠が飛ぶ。
+   *
+   * 詳細では横に移れないので、帰り先は必ず来たタイル。例外の分岐が要らない
+   */
+  const closeStamp = () => {
+    if (resting && hero.flight) {
+      setResting(false);
+      hero.turnBack();
+      return;
+    }
+
+    setSelectedImageIndex(null);
+    setFlyingStampId(null);
+    setResting(false);
+    hero.end();
+  };
+
+  /**
+   * 動き出した合図。飛ぶと決めた時ではなくここで元を隠す。
+   * 写真の読み込みを待つぶん間があり、その間に隠すと穴があき、
+   * 隠さないまま飛び始めると同じ御朱印が二重に見える
+   */
+  /**
+   * 詳細側の写真が出せるようになった合図。ここで初めて飛ぶ1枚を溶かす。
+   * 合図が来ないことがあるので、少し待って諦める
+   */
+  const handleDetailImageReady = useCallback(() => setResting(true), []);
+
+  useEffect(() => {
+    if (selectedImageIndex === null || resting) return;
+    const timer = setTimeout(() => setResting(true), HANDOVER_FALLBACK_MS);
+    return () => clearTimeout(timer);
+  }, [selectedImageIndex, resting]);
+
+  const handleFlightStart = () => {
+    if (!hero.flight) return;
+    setFlyingStampId(hero.flight.stampId);
+    // 戻るときは、飛ぶ1枚が出てから詳細を外す。先に外すと地が一瞬素になる
+    if (hero.flight.direction === 'out') setSelectedImageIndex(null);
+  };
+
+  const handleFlightDone = () => {
+    // 行きはここで終わりにしない。同じ1枚を持ったまま詳細の裏で待たせる。
+    // ⚠️ ここで引っ込めないこと。詳細の画像はまだ読み込み中で、切り替えた
+    // 瞬間に写真が消えて見える。詳細から「出せる」合図が来てから溶かす
+    if (hero.flight?.direction === 'in') {
+      setSelectedImageIndex(hero.flight.index);
+      return;
+    }
+
+    setFlyingStampId(null);
+    setResting(false);
+    hero.end();
+  };
+
   const renderItem = ({ item, index }: { item: StampWithSpot; index: number }) => {
     const isMiddleColumn = index % NUM_COLUMNS === 1;
-    const imageUrl = isPreview ? previewImageUrl(item) : getStampImageUrl(item.image_path);
+    const imageUrl = imageUrlOf(item);
+    // 飛んでいる間は隠す。出したままだと同じ御朱印が一覧と空中で二重に見える
+    const isFlying = flyingStampId === item.id;
 
     return (
       <TouchableOpacity
         style={[styles.gridItem, isMiddleColumn && styles.gridItemMiddle]}
-        onPress={() => setSelectedImageIndex(index)}
+        onPress={() => openStamp(index, item)}
         testID={`gallery-item-${item.id}`}
       >
-        <Image
-          source={{ uri: imageUrl }}
-          style={styles.stampImage}
-          testID={`stamp-image-${item.id}`}
-        />
-        <Text style={styles.itemSpotName} numberOfLines={1}>
-          {item.spots.name}
-        </Text>
-        {sortOrder === 'date' && <Text style={styles.itemDate}>{formatDate(item.visited_at)}</Text>}
+        <View
+          ref={node => {
+            hero.registerTile(item.id, 'image', node);
+          }}
+          style={isFlying && styles.flying}
+        >
+          <Image
+            source={{ uri: imageUrl }}
+            style={styles.stampImage}
+            // 読み込んだついでに縦横比を控える。飛ぶ先の高さがこれで決まる
+            onLoad={e =>
+              hero.rememberAspect(item.id, e.nativeEvent.source.width, e.nativeEvent.source.height)
+            }
+            testID={`stamp-image-${item.id}`}
+          />
+        </View>
+        <View
+          ref={node => {
+            hero.registerTile(item.id, 'text', node);
+          }}
+          style={isFlying && styles.flying}
+        >
+          <Text style={styles.itemSpotName} numberOfLines={1}>
+            {item.spots.name}
+          </Text>
+          {sortOrder === 'date' && (
+            <Text style={styles.itemDate}>{formatDate(item.visited_at)}</Text>
+          )}
+        </View>
       </TouchableOpacity>
     );
   };
@@ -247,13 +359,39 @@ export function GalleryScreen({ navigation }: Props) {
       </SafeAreaView>
       <ImageGalleryModal
         visible={selectedImageIndex !== null}
-        onClose={() => setSelectedImageIndex(null)}
+        onClose={closeStamp}
         images={galleryImages}
         initialIndex={selectedImageIndex ?? 0}
         onEdit={handleEdit}
         onDelete={handleDeletePress}
+        onImageReady={handleDetailImageReady}
+        // 一覧のタイルと詳細を1対1で繋いでいる。途中で別の1枚に移ると
+        // その結びつきが切れて元のタイルへ戻れない。順に見る動線は
+        // 蛇腹めくりが持っている（Issue #192）
+        swipeable={false}
+        // 指で写真を下へずらしてから離すと、そこから一覧へ戻る連続的な動きが
+        // 始められない。閉じる合図だけ受け取って、写真は元の位置から戻す
+        dismissFollowsFinger={false}
         useModal={false}
       />
+
+      {hero.flight && (
+        <HeroFlyer
+          // 向きでは作り直さない。同じ1枚を行きと帰りで使い回す
+          key={hero.flight.stampId}
+          imageUrl={hero.flight.imageUrl}
+          imageAspect={hero.flight.imageAspect}
+          sourceRect={hero.flight.sourceRect}
+          sourceTextRect={hero.flight.sourceTextRect}
+          spotName={hero.flight.spotName}
+          visitedAt={hero.flight.visitedAt}
+          memo={hero.flight.memo}
+          direction={hero.flight.direction}
+          resting={resting}
+          onStart={handleFlightStart}
+          onDone={handleFlightDone}
+        />
+      )}
     </View>
   );
 }
@@ -297,6 +435,9 @@ const styles = StyleSheet.create({
   },
   gridItemMiddle: {
     marginHorizontal: ITEM_MARGIN,
+  },
+  flying: {
+    opacity: 0,
   },
   stampImage: {
     width: ITEM_SIZE,
