@@ -19,7 +19,9 @@ import { decode, Image } from 'https://deno.land/x/imagescript@1.2.17/mod.ts';
 import libheif from 'https://esm.sh/libheif-js@1.18.2/wasm-bundle';
 
 import {
+  MAX_BAKES,
   MAX_PATHS,
+  THUMB_DIR,
   THUMB_WIDTH,
   extractBearerToken,
   isOwnedBy,
@@ -42,7 +44,65 @@ const QUALITY = 70;
  * expo-image-picker の複数選択は元のファイルをそのまま返すので、iPhone の
  * 写真は HEIC のまま上がってくる。iOS は表示できるので今まで表に出ていなかった
  */
-async function decodeHeic(bytes: Uint8Array): Promise<Image> {
+/**
+ * RGBA をそのまま目的の大きさまで縮める。
+ *
+ * ImageScript の resize に渡すと、いったん原寸の Image を作ってから縮めることに
+ * なる。3000×4000 なら RGBA だけで 48MB を確保したうえで補間を1周するので、
+ * 大きい写真では Edge Function の CPU 上限に当たって途中で殺される（実際
+ * 1.3MB を超える10件だけが最後まで焼けなかった）。
+ * ここでは元を1周して区画ごとの平均を取るだけにする。確保するのは小さい方だけ
+ */
+function downscaleRgba(
+  rgba: Uint8ClampedArray,
+  srcWidth: number,
+  srcHeight: number,
+  dstWidth: number
+): { data: Uint8ClampedArray; width: number; height: number } {
+  const dstHeight = Math.max(1, Math.round((srcHeight * dstWidth) / srcWidth));
+  const out = new Uint8ClampedArray(dstWidth * dstHeight * 4);
+  const blockX = srcWidth / dstWidth;
+  const blockY = srcHeight / dstHeight;
+
+  for (let y = 0; y < dstHeight; y++) {
+    const y0 = Math.floor(y * blockY);
+    const y1 = Math.max(y0 + 1, Math.min(srcHeight, Math.floor((y + 1) * blockY)));
+
+    for (let x = 0; x < dstWidth; x++) {
+      const x0 = Math.floor(x * blockX);
+      const x1 = Math.max(x0 + 1, Math.min(srcWidth, Math.floor((x + 1) * blockX)));
+
+      let r = 0;
+      let g = 0;
+      let b = 0;
+      let a = 0;
+      let count = 0;
+
+      for (let sy = y0; sy < y1; sy++) {
+        let offset = (sy * srcWidth + x0) * 4;
+        for (let sx = x0; sx < x1; sx++) {
+          r += rgba[offset];
+          g += rgba[offset + 1];
+          b += rgba[offset + 2];
+          a += rgba[offset + 3];
+          offset += 4;
+          count++;
+        }
+      }
+
+      const d = (y * dstWidth + x) * 4;
+      out[d] = r / count;
+      out[d + 1] = g / count;
+      out[d + 2] = b / count;
+      out[d + 3] = a / count;
+    }
+  }
+
+  return { data: out, width: dstWidth, height: dstHeight };
+}
+
+/** HEIC を開いて、その場で目的の大きさまで縮めた Image を返す */
+async function heicThumbnail(bytes: Uint8Array, dstWidth: number): Promise<Image> {
   const decoder = new libheif.HeifDecoder();
   const images = decoder.decode(bytes);
   if (!images || images.length === 0) throw new Error('HEIC に画像が入っていない');
@@ -60,20 +120,26 @@ async function decodeHeic(bytes: Uint8Array): Promise<Image> {
     });
   });
 
-  const image = new Image(width, height);
-  image.bitmap.set(rgba);
+  const small = downscaleRgba(rgba, width, height, Math.min(dstWidth, width));
+  const image = new Image(small.width, small.height);
+  image.bitmap.set(small.data);
   return image;
 }
 
-/** まず素直に読む。読めなければ HEIC として開き直す */
-async function decodeToImage(bytes: Uint8Array): Promise<Image> {
+/**
+ * 縮めたものを返す。まず素直に読み、読めなければ HEIC として開き直す。
+ * HEIC は開いた時点で縮めるので、原寸の Image を作らない
+ */
+async function makeThumbnail(bytes: Uint8Array, dstWidth: number): Promise<Image> {
   try {
     const decoded = await decode(bytes);
-    if (decoded instanceof Image) return decoded;
+    if (decoded instanceof Image) {
+      return decoded.resize(Math.min(dstWidth, decoded.width), Image.RESIZE_AUTO);
+    }
   } catch {
     // ImageScript が読めない形式。HEIC の可能性がある
   }
-  return decodeHeic(bytes);
+  return heicThumbnail(bytes, dstWidth);
 }
 
 function json(body: unknown, status: number): Response {
@@ -121,6 +187,14 @@ Deno.serve(async req => {
     const admin = createClient(supabaseUrl, serviceKey);
     const storage = admin.storage.from(BUCKET);
 
+    // 既にあるものを1回の list でまとめて知る。1枚ずつ download で確かめると
+    // 焼く前に往復と転送で予算を使ってしまう
+    const existing = new Set<string>();
+    if (!force) {
+      const listed = await storage.list(`${userId}/${THUMB_DIR}`, { limit: 1000 });
+      for (const entry of listed.data ?? []) existing.add(entry.name);
+    }
+
     let created = 0;
     let skipped = 0;
     /** 失敗は理由つきで返す。関数のログは CLI から読めないので、呼び出し側で追えるようにする */
@@ -132,17 +206,16 @@ Deno.serve(async req => {
 
     for (const imagePath of paths) {
       const thumbPath = thumbPathFor(imagePath);
-      try {
-        // 既にあるなら焼き直さない。force のときだけ上書きする
-        // （壊れたサムネを作ってしまったときの焼き直し用）
-        if (!force) {
-          const existing = await storage.download(thumbPath);
-          if (!existing.error && existing.data) {
-            skipped++;
-            continue;
-          }
-        }
+      // 既にあるなら焼き直さない。force のときだけ上書きする
+      // （壊れたサムネを作ってしまったときの焼き直し用）
+      if (existing.has(thumbPath.slice(thumbPath.lastIndexOf('/') + 1))) {
+        skipped++;
+        continue;
+      }
+      // 予算を使い切る前に切り上げる。残りは次の呼び出しで焼かれる
+      if (created >= MAX_BAKES) break;
 
+      try {
         const original = await storage.download(imagePath);
         if (original.error || !original.data) {
           fail(imagePath, `download: ${original.error?.message ?? 'no data'}`);
@@ -150,11 +223,7 @@ Deno.serve(async req => {
         }
 
         const bytes = new Uint8Array(await original.data.arrayBuffer());
-        const decoded = await decodeToImage(bytes);
-
-        // 元が既に小さいなら拡大しない
-        const width = Math.min(THUMB_WIDTH, decoded.width);
-        const resized = decoded.resize(width, Image.RESIZE_AUTO);
+        const resized = await makeThumbnail(bytes, THUMB_WIDTH);
         const jpeg = await resized.encodeJPEG(QUALITY);
 
         const uploaded = await storage.upload(thumbPath, jpeg, {
