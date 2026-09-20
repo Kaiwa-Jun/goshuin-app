@@ -882,17 +882,8 @@ describe('最寄りスポットの既定選択（Issue #130 / S-4）', () => {
       expect(result.current.imageError).toBe('御朱印の写真を追加してください');
     });
   });
+  // ずれは「端末が UTC より進んでいる」ときだけ出る。JST の固定は jest.config.js 側
   describe('訪問日のタイムゾーン（Issue #204）', () => {
-    const ORIGINAL_TZ = process.env.TZ;
-
-    // ずれは「端末が UTC より進んでいる」ときだけ出る。CI は UTC なので JST に固定する
-    beforeAll(() => {
-      process.env.TZ = 'Asia/Tokyo';
-    });
-    afterAll(() => {
-      process.env.TZ = ORIGINAL_TZ;
-    });
-
     it('深夜に登録しても、画面に出ている日付をそのまま createStamp へ渡す', async () => {
       mockUploadStampImage.mockResolvedValue('user-1/12345.jpg');
       mockCreateStamp.mockResolvedValue(fakeStamp);

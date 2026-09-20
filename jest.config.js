@@ -1,3 +1,16 @@
+/**
+ * テストは JST で走らせる（Issue #204）。
+ *
+ * 訪問日のずれのように「端末が UTC より進んでいる」ときだけ出る不具合は、
+ * CI（UTC）では再現せずテストが素通りしてしまう。利用者の端末と同じ
+ * タイムゾーンで見るために、ここで固定する。
+ *
+ * ⚠️ テストファイルの中で `process.env.TZ` を書き換えても Linux では効かない
+ *    （Node が起動時に読んだものを使うため）。worker が fork される前の
+ *    ここで入れておくと、worker は起動時から JST になる
+ */
+process.env.TZ = 'Asia/Tokyo';
+
 module.exports = {
   preset: 'jest-expo',
   testEnvironment: 'node',

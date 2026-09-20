@@ -2,18 +2,9 @@ import { toLocalDateString } from '../localDate';
 
 /**
  * 訪問日のずれは「端末のタイムゾーンが UTC より進んでいる」ときに出る（Issue #204）。
- * CI が UTC で動くと再現しないので、この観点だけは JST に固定して見る。
+ * CI が UTC のままだと再現しないため、JST の固定は jest.config.js でしている。
  */
-const ORIGINAL_TZ = process.env.TZ;
-
 describe('toLocalDateString', () => {
-  beforeAll(() => {
-    process.env.TZ = 'Asia/Tokyo';
-  });
-  afterAll(() => {
-    process.env.TZ = ORIGINAL_TZ;
-  });
-
   it('深夜に登録しても、端末に見えている日付をそのまま返す', () => {
     const date = new Date(2026, 8, 20, 0, 30);
     // toISOString() を通すと前日になる。ここがずれの原因だった
