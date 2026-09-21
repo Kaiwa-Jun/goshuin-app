@@ -18,9 +18,10 @@ import { Button } from '@components/common/Button';
 import { Card } from '@components/common/Card';
 import { JapanMap } from '@components/collection/JapanMap';
 import { RecentVisits } from '@components/collection/RecentVisits';
+import { TsukimairiList } from '@components/collection/TsukimairiList';
 import { useAuth } from '@hooks/useAuth';
 import { useCollectionStats } from '@hooks/useCollectionStats';
-import { getAllBadges } from '@services/badges';
+import { getAllBadges, isEarned } from '@services/badges';
 import { JAPAN_MAP_HEIGHT, JAPAN_MAP_WIDTH } from '@/constants/japanMap';
 import { colors } from '@theme/colors';
 import { shadows } from '@theme/shadows';
@@ -36,8 +37,15 @@ type Props = CollectionStackScreenProps<'CollectionList'>;
 
 export function CollectionScreen({ navigation }: Props) {
   const { isAuthenticated } = useAuth();
-  const { spotCount, stampCount, regionStats, recentStamps, pilgrimageProgress, isLoading } =
-    useCollectionStats();
+  const {
+    stampCount,
+    regionStats,
+    recentStamps,
+    badgeProgress,
+    tsukimairi,
+    pilgrimageProgress,
+    isLoading,
+  } = useCollectionStats();
 
   const [showAllPilgrimages, setShowAllPilgrimages] = useState(false);
   /*
@@ -65,6 +73,10 @@ export function CollectionScreen({ navigation }: Props) {
     navigation.navigate('PrefectureDetail', { prefecture });
   };
 
+  const handlePressTsukimairi = (spotId: string) => {
+    navigation.getParent()?.navigate('MapTab', { screen: 'Map', params: { focusSpotId: spotId } });
+  };
+
   const handleSeeAllStamps = () => {
     navigation.getParent()?.navigate('GalleryTab', { screen: 'Gallery' });
   };
@@ -72,7 +84,7 @@ export function CollectionScreen({ navigation }: Props) {
   const badges = getAllBadges();
   const badgesWithStatus = badges.map(badge => ({
     ...badge,
-    earned: spotCount >= badge.condition.threshold,
+    earned: isEarned(badge.condition, badgeProgress),
   }));
 
   const topPilgrimage = pilgrimageProgress.length > 0 ? pilgrimageProgress[0] : null;
@@ -157,35 +169,48 @@ export function CollectionScreen({ navigation }: Props) {
             </View>
 
             <RecentVisits stamps={recentStamps} onSeeAll={handleSeeAllStamps} />
+            <TsukimairiList entries={tsukimairi} onPressSpot={handlePressTsukimairi} />
           </>
         )}
 
         {/* Badge Section */}
         <Text style={styles.sectionTitle}>獲得バッジ</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.badgeScrollView}
-          contentContainerStyle={styles.badgeScrollContent}
-        >
-          {badgesWithStatus.map(badge => (
-            <View key={badge.id} style={styles.badgeItem}>
-              <View
-                style={[
-                  styles.badgeCircle,
-                  badge.earned ? styles.badgeEarned : styles.badgeUnearned,
-                ]}
-              >
-                <MaterialIcons
-                  name={badge.earned ? 'military-tech' : 'lock'}
-                  size={28}
-                  color={badge.earned ? colors.white : colors.gray[400]}
-                />
+        {/* 軸で分ける。訪問数だけだと物語が1本しかない（提案③） */}
+        {BADGE_AXES.map(axis => {
+          const inAxis = badgesWithStatus.filter(badge => badge.axis === axis.key);
+          if (inAxis.length === 0) return null;
+          return (
+            <View key={axis.key} testID={`badge-axis-${axis.key}`}>
+              <View style={styles.axisHeader}>
+                <Text style={styles.axisTitle}>{axis.label}</Text>
+                <Text style={styles.axisNote}>{axis.note}</Text>
               </View>
-              <Text style={styles.badgeName}>{badge.name}</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.badgeScrollView}
+                contentContainerStyle={styles.badgeScrollContent}
+              >
+                {inAxis.map(badge => (
+                  <View key={badge.id} style={styles.badgeItem} testID={`badge-${badge.id}`}>
+                    <View
+                      style={[
+                        styles.badgeCircle,
+                        badge.earned ? styles.badgeEarned : styles.badgeUnearned,
+                      ]}
+                    >
+                      {/* 未獲得を鍵で塞がない。そのバッジの絵のまま、薄く出す */}
+                      <Text style={[styles.badgeIcon, !badge.earned && styles.badgeIconOff]}>
+                        {badge.icon}
+                      </Text>
+                    </View>
+                    <Text style={styles.badgeName}>{badge.name}</Text>
+                  </View>
+                ))}
+              </ScrollView>
             </View>
-          ))}
-        </ScrollView>
+          );
+        })}
 
         {/* Pilgrimage Challenge Section */}
         <Text style={styles.sectionTitle}>巡礼チャレンジ</Text>
@@ -272,6 +297,13 @@ export function CollectionScreen({ navigation }: Props) {
 
 const MAP_CARD_PADDING = 14;
 
+/** バッジの軸。性質で分ける */
+const BADGE_AXES = [
+  { key: 'practice', label: '作法', note: '神社や寺に、もとからあるもの' },
+  { key: 'journey', label: '旅のしかた', note: '出かける理由を増やす' },
+  { key: 'count', label: '訪問数', note: 'これまでどおり' },
+] as const;
+
 function LegendItem({ color, text }: { color: string; text: string }) {
   return (
     <View style={styles.legendItem}>
@@ -315,6 +347,11 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.gray[200],
   },
+  axisHeader: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm, marginBottom: 2 },
+  axisTitle: { ...typography.caption, fontWeight: '700', color: colors.gray[600] },
+  axisNote: { fontSize: 11, color: colors.gray[400] },
+  badgeIcon: { fontSize: 24 },
+  badgeIconOff: { opacity: 0.42 },
   legendItem: { flexDirection: 'row', alignItems: 'center' },
   legendSwatch: { width: 9, height: 9, borderRadius: 2, marginRight: spacing.xs },
   legendText: { ...typography.caption, fontSize: 11, color: colors.gray[600] },

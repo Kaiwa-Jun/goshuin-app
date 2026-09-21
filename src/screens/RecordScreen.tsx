@@ -28,11 +28,12 @@ import { pickAutoSelectableSpot } from '@utils/autoSelectSpot';
 import { MAX_PHOTOS_PER_RECORD } from '@/constants/record';
 import { scrollTargetToReveal, scrollTargetToShow } from '@utils/revealInScrollView';
 import { getStampImageUrl, fetchVisitedSpotIds } from '@services/stamps';
-import { fetchRegionStats, type RegionStat } from '@services/collection';
+import { fetchRegionStats, fetchVisitLog, type RegionStat } from '@services/collection';
+import { buildBadgeProgress } from '@utils/badgeProgress';
 import { buildMapParams } from '@utils/completeMapParams';
 import { useAuth } from '@hooks/useAuth';
 import { isNetworkError } from '@/utils/errorClassifier';
-import { evaluateNewBadge } from '@services/badges';
+import { evaluateNewBadges } from '@services/badges';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { spacing, borderRadius } from '@theme/spacing';
@@ -161,9 +162,13 @@ export function RecordScreen({ navigation, route }: Props) {
      * ここも表示用なので、失敗しても記録は止めない（Issue #133 と同じ扱い）
      */
     let regionStats: RegionStat[] | null = null;
+    let visitLog: { spot_id: string; visited_at: string }[] | null = null;
     if (user) {
       try {
-        regionStats = await fetchRegionStats(user.id);
+        [regionStats, visitLog] = await Promise.all([
+          fetchRegionStats(user.id),
+          fetchVisitLog(user.id),
+        ]);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         console.warn(`[record] fetchRegionStats failed: ${message}`);
@@ -215,16 +220,28 @@ export function RecordScreen({ navigation, route }: Props) {
       return;
     }
 
-    // バッジの判定だけに使う。完了画面が出す数字は通算の枚数（提案②）
-    const previousCount = visitedSpotIds.size;
-    const isNewSpot = form.selectedSpot ? !visitedSpotIds.has(form.selectedSpot.id) : false;
-    const currentCount = isNewSpot ? previousCount + 1 : previousCount;
-    const badge = evaluateNewBadge(previousCount, currentCount);
+    /*
+     * 記録した前後でバッジの条件を見比べる。**複数返る**ことがある
+     * （満願と「1日に3箇所」が同じ日に揃うなど）
+     */
+    const today = toLocalDateString(form.visitedAt);
+    const before = buildBadgeProgress(visitLog ?? [], today);
+    const after = buildBadgeProgress(
+      [
+        ...(visitLog ?? []),
+        ...result.stamps.map(() => ({
+          spot_id: form.selectedSpot?.id ?? '',
+          visited_at: today,
+        })),
+      ],
+      today
+    );
+    const badges = evaluateNewBadges(before, after);
 
     // push ではなく置き換える。記録済みのフォームを履歴に残すと、完了画面の
     // 「もう1枚記録する」から戻ったとき ✕ が完了画面へ帰ってしまい、しかも
     // 押すたびに履歴が2つずつ伸びる（Issue #188）
-    navigation.replace('RecordComplete', { ...completeParams, badge });
+    navigation.replace('RecordComplete', { ...completeParams, badges });
   };
 
   const remainingSlots = MAX_PHOTOS_PER_RECORD - form.imageUris.length;

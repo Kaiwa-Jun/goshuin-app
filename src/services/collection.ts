@@ -110,3 +110,41 @@ export async function fetchSpotCountByPrefecture(prefecture: string): Promise<nu
   }
   return count ?? 0;
 }
+
+/**
+ * 月参りとバッジの判定に要る、参拝の記録だけ。
+ *
+ * 画像のパスやメモは要らないので、御朱印帳の取得（fetchAllStamps）は使わない。
+ * この1本で、あゆみの月参り一覧とバッジの進み具合の両方が出せる。
+ */
+export interface VisitLogRow {
+  spot_id: string;
+  visited_at: string;
+  spotName: string;
+  spotType: string;
+}
+
+export async function fetchVisitLog(userId: string): Promise<VisitLogRow[]> {
+  const { data, error } = await supabase
+    .from('stamps')
+    .select('spot_id, visited_at, spots!inner(name, type)')
+    .eq('user_id', userId);
+
+  if (error) {
+    console.warn('fetchVisitLog error:', error.message);
+    return [];
+  }
+
+  const rows = data as unknown as {
+    spot_id: string;
+    visited_at: string;
+    spots: { name: string; type: string };
+  }[];
+
+  return rows.map(row => ({
+    spot_id: row.spot_id,
+    visited_at: row.visited_at,
+    spotName: row.spots.name,
+    spotType: row.spots.type,
+  }));
+}
