@@ -8,8 +8,13 @@ import { typography } from '@theme/typography';
 
 export const SEAL_MS = 500;
 
-/** 御朱印の上に押される印。記録として下に並ぶものより大きく、傾いている */
-const SEAL_SIZE = 120;
+/**
+ * 御朱印の上に押される印。記録として下に並ぶもの（50）より大きく、傾いている。
+ *
+ * 御朱印の枠は 150 幅。-8度 傾けると対角がおよそ size×1.14 まで広がるので、
+ * 120 だと枠からはみ出す。88 なら回しても 100 に収まり、御朱印の墨も両脇に残る
+ */
+const SEAL_SIZE = 88;
 
 interface Props {
   spotName: string;

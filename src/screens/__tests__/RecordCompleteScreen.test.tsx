@@ -226,10 +226,42 @@ describe('RecordCompleteScreen', () => {
      */
     const seal = within(getByTestId('mangan-seal'));
     expect(seal.queryByText('満願')).toBeNull();
-    expect(seal.getByTestId('seal-frame')).toBeTruthy();
+    expect(seal.getByTestId('seal-frame').props.d).toBeTruthy();
     expect(seal.UNSAFE_getByType(Svg).props.opacity).toBe(0.9);
+
+    /*
+     * 記録として下に残る印も、枠のある本物の印であること。
+     * mark を渡し忘れると何も描かれない印になるが、testID だけは
+     * 付くので「あるかどうか」の確認では気づけない
+     */
+    const badge = within(getByTestId('new-badge-mangan'));
+    expect(badge.getByTestId('seal-frame').props.d).toBeTruthy();
+    expect(badge.getByTestId('seal-mark').props.children).toBeTruthy();
     // ご褒美はアプリの外にある、を文言として持つ
     expect(getByTestId('mangan-note')).toBeTruthy();
+  });
+
+  /*
+   * 朱印は御朱印の上に押される。以前はプレースホルダの分岐の中にあり、
+   * **写真を撮った人には一度も出なかった**（テストが写真なしの道しか
+   * 通っていなかったので気づけなかった）
+   */
+  it('御朱印の写真があっても、その上に朱印を押す', () => {
+    const route = {
+      key: 'test',
+      name: 'RecordComplete' as const,
+      params: {
+        spotName: '湯島天満宮',
+        stampImageUrl: 'https://example.com/goshuin.jpg',
+        badges: [{ id: 'mangan', name: '満願', description: '12ヶ月', mark: 'mangan' as const }],
+      },
+    };
+    const { getByTestId } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={route} />
+    );
+
+    expect(getByTestId('stamp-image')).toBeTruthy();
+    expect(getByTestId('mangan-seal')).toBeTruthy();
   });
 
   it('満願でなければ、朱印も注記も出さない', () => {
