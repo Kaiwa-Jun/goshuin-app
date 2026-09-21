@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -124,6 +124,28 @@ export function GoshuinchoFlipView({
     },
     [layout.snapInterval, pages.length]
   );
+
+  /*
+   * **最後に書いてもらったページから開く**。
+   *
+   * 綴じる順（古い→新しい）は実物の御朱印帳どおりで変えない。変えるのは
+   * 開く場所だけ。人に見せるとき1ページ目からめくる人はいないし、
+   * 「最近の参拝」から来た人を本の一番遠い端に降ろすことになる。
+   *
+   * 末尾の白紙（記録の入口）ではなく、その1つ手前＝最後の御朱印を出す。
+   *
+   * **最初の1回だけ**。御朱印帳は画面に戻るたびに取り直すので、毎回
+   * 飛ばすと、途中まで見て他のタブへ行って戻った人の位置が失われる
+   */
+  const openedAtLatest = useRef(false);
+  useEffect(() => {
+    if (openedAtLatest.current || stamps.length === 0) return;
+    openedAtLatest.current = true;
+
+    const lastStamp = stamps.length - 1;
+    setCurrentIndex(lastStamp);
+    listRef.current?.scrollToIndex({ index: lastStamp, animated: false });
+  }, [stamps.length]);
 
   const goToPage = useCallback((index: number) => {
     setCurrentIndex(index);

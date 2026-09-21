@@ -150,15 +150,25 @@ describe('GoshuinchoFlipView', () => {
   });
 
   describe('ページ番号', () => {
-    it('初期表示で 1 ／ N を出す', () => {
+    /*
+     * 綴じる順は古い→新しいのまま、**開く場所だけ最後の御朱印**にした。
+     * 1ページ目から開くと、「最近の参拝」から来た人が本の一番遠い端に降りる
+     */
+    it('最後の御朱印から開く', () => {
       const { getByTestId } = renderFlipView();
+      expect(getByTestId('flip-page-counter').props.children).toBe('3 ／ 3');
+    });
+
+    it('1ページ目まで戻すと 1 ／ N になる', () => {
+      const { getByTestId } = renderFlipView();
+      scrollTo(getByTestId, 0);
       expect(getByTestId('flip-page-counter').props.children).toBe('1 ／ 3');
     });
 
-    it('3ページ目までスクロールすると 3 ／ N になる', () => {
+    it('2ページ目まで戻すと 2 ／ N になる', () => {
       const { getByTestId } = renderFlipView();
-      scrollTo(getByTestId, 2);
-      expect(getByTestId('flip-page-counter').props.children).toBe('3 ／ 3');
+      scrollTo(getByTestId, 1);
+      expect(getByTestId('flip-page-counter').props.children).toBe('2 ／ 3');
     });
 
     it('白紙ページでは N+1枚目 を出す', () => {
@@ -177,7 +187,8 @@ describe('GoshuinchoFlipView', () => {
     it('中央の御朱印ページをタップすると onPressStamp が呼ばれる', () => {
       const onPressStamp = jest.fn();
       const { getByTestId } = renderFlipView({ onPressStamp });
-      fireEvent.press(getByTestId('flip-page-oldest'));
+      // 開いた場所（最後の御朱印）が中央
+      fireEvent.press(getByTestId('flip-page-newest'));
       expect(onPressStamp).toHaveBeenCalledTimes(1);
     });
 
@@ -185,14 +196,14 @@ describe('GoshuinchoFlipView', () => {
       const onPressStamp = jest.fn();
       const { getByTestId } = renderFlipView({ onPressStamp });
 
-      // 表示 1 ページ目 = oldest = 昇順配列では index 0
-      fireEvent.press(getByTestId('flip-page-oldest'));
-      expect(onPressStamp).toHaveBeenCalledWith(0);
-
-      // 表示 3 ページ目 = newest = 昇順配列では index 2
-      scrollTo(getByTestId, 2);
+      // 開いた場所 = 表示 3 ページ目 = newest = 昇順配列では index 2
       fireEvent.press(getByTestId('flip-page-newest'));
       expect(onPressStamp).toHaveBeenCalledWith(2);
+
+      // 1 ページ目まで戻すと oldest = 昇順配列では index 0
+      scrollTo(getByTestId, 0);
+      fireEvent.press(getByTestId('flip-page-oldest'));
+      expect(onPressStamp).toHaveBeenCalledWith(0);
     });
 
     it('中央の白紙ページをタップすると onPressBlank が呼ばれる', () => {
@@ -289,5 +300,24 @@ describe('GoshuinchoFlipView', () => {
       expect(style.color).toBe(colors.gray[500]);
       expect(style.fontSize).toBe(typography.caption.fontSize);
     });
+  });
+});
+
+describe('GoshuinchoFlipView 開く位置', () => {
+  /*
+   * 戻るたびに飛ばすと、途中まで見て他のタブへ行って戻った人の位置が失われる。
+   * 飛ばすのは最初の1回だけ
+   */
+  it('一度めくったあとは、描き直しても開く位置に戻さない', () => {
+    const { getByTestId, rerender } = renderFlipView();
+    expect(getByTestId('flip-page-counter').props.children).toBe('3 ／ 3');
+
+    scrollTo(getByTestId, 0);
+    expect(getByTestId('flip-page-counter').props.children).toBe('1 ／ 3');
+
+    rerender(
+      <GoshuinchoFlipView stamps={ASC_STAMPS} onPressStamp={jest.fn()} onPressBlank={jest.fn()} />
+    );
+    expect(getByTestId('flip-page-counter').props.children).toBe('1 ／ 3');
   });
 });
