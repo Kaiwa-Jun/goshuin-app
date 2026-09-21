@@ -209,7 +209,12 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.primary[500],
   },
+  /*
+   * 絶対配置にしないと、地図（Svg）の**下に**並んでしまう。
+   * 波紋と同じく地図に重ねる
+   */
   me: {
+    position: 'absolute',
     width: 20,
     height: 20,
     borderRadius: 10,
