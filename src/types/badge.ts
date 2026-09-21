@@ -1,3 +1,5 @@
+import type { SealMark } from '@components/common/Seal';
+
 /** バッジの軸。獲得画面のグループ分けにも使う */
 export type BadgeAxis = 'practice' | 'journey' | 'count';
 
@@ -21,9 +23,18 @@ export interface Badge {
   id: string;
   name: string;
   description: string;
-  icon: string;
+  /** 彫られた印。もとは絵文字1文字だった（@components/common/Seal） */
+  mark: SealMark;
   axis: BadgeAxis;
   condition: BadgeCondition;
+}
+
+/** 条件までの道のり。「あと16箇所」を出すのに要る */
+export interface BadgeDistance {
+  current: number;
+  target: number;
+  /** 数えているものの単位。「あと2ヶ月」「あと1つ」 */
+  unit: string;
 }
 
 export interface EarnedBadge {

@@ -1,11 +1,11 @@
-import type { Badge, BadgeCondition, BadgeProgress } from '@/types/badge';
+import type { Badge, BadgeCondition, BadgeDistance, BadgeProgress } from '@/types/badge';
 
 export const BADGE_DEFINITIONS: Badge[] = [
   {
     id: 'first-stamp',
     name: '初めての御朱印',
     description: '初めての御朱印を記録しました',
-    icon: '🎊',
+    mark: 'ichi',
     axis: 'count',
     condition: { type: 'visit_count', threshold: 1 },
   },
@@ -13,7 +13,7 @@ export const BADGE_DEFINITIONS: Badge[] = [
     id: 'visit-5',
     name: '5箇所達成',
     description: '5箇所の神社仏閣を訪れました',
-    icon: '⛩️',
+    mark: 'go',
     axis: 'count',
     condition: { type: 'visit_count', threshold: 5 },
   },
@@ -21,7 +21,7 @@ export const BADGE_DEFINITIONS: Badge[] = [
     id: 'visit-10',
     name: '10箇所達成',
     description: '10箇所の神社仏閣を訪れました',
-    icon: '🏆',
+    mark: 'juu',
     axis: 'count',
     condition: { type: 'visit_count', threshold: 10 },
   },
@@ -29,7 +29,7 @@ export const BADGE_DEFINITIONS: Badge[] = [
     id: 'visit-30',
     name: '30箇所達成',
     description: '30箇所の神社仏閣を訪れました',
-    icon: '🌟',
+    mark: 'sanjuu',
     axis: 'count',
     condition: { type: 'visit_count', threshold: 30 },
   },
@@ -37,7 +37,7 @@ export const BADGE_DEFINITIONS: Badge[] = [
     id: 'visit-50',
     name: '50箇所達成',
     description: '50箇所の神社仏閣を訪れました',
-    icon: '🗾',
+    mark: 'gojuu',
     axis: 'count',
     condition: { type: 'visit_count', threshold: 50 },
   },
@@ -45,7 +45,7 @@ export const BADGE_DEFINITIONS: Badge[] = [
     id: 'visit-100',
     name: '100箇所達成',
     description: '100箇所の神社仏閣を訪れました',
-    icon: '👑',
+    mark: 'hyaku',
     axis: 'count',
     condition: { type: 'visit_count', threshold: 100 },
   },
@@ -53,7 +53,7 @@ export const BADGE_DEFINITIONS: Badge[] = [
     id: 'mangan',
     name: '満願',
     description: 'ひとつの寺社に12ヶ月、毎月おまいりしました',
-    icon: '⛩',
+    mark: 'mangan',
     axis: 'practice',
     condition: { type: 'tsukimairi', threshold: 12 },
   },
@@ -61,7 +61,7 @@ export const BADGE_DEFINITIONS: Badge[] = [
     id: 'four-seasons',
     name: '四季を巡る',
     description: '春・夏・秋・冬、それぞれの季節に参拝しました',
-    icon: '🌸',
+    mark: 'shiki',
     axis: 'journey',
     condition: { type: 'four_seasons' },
   },
@@ -69,7 +69,7 @@ export const BADGE_DEFINITIONS: Badge[] = [
     id: 'same-day-3',
     name: '1日に3箇所',
     description: '同じ日に3つの寺社を回りました',
-    icon: '👣',
+    mark: 'mitsu',
     axis: 'journey',
     condition: { type: 'same_day_visits', threshold: 3 },
   },
@@ -108,4 +108,43 @@ export function evaluateNewBadges(before: BadgeProgress, after: BadgeProgress): 
 
 export function getAllBadges(): Badge[] {
   return BADGE_DEFINITIONS;
+}
+
+/**
+ * その条件までの道のり。
+ *
+ * `isEarned` は取れたかどうかしか返さない。あゆみで「あと16箇所」を出すのに、
+ * 同じ条件から current と target を読めるようにする
+ */
+export function distanceOf(condition: BadgeCondition, progress: BadgeProgress): BadgeDistance {
+  switch (condition.type) {
+    case 'visit_count':
+      return { current: progress.visitCount, target: condition.threshold, unit: '箇所' };
+    case 'tsukimairi':
+      return { current: progress.longestTsukimairi, target: condition.threshold, unit: 'ヶ月' };
+    case 'four_seasons':
+      return { current: progress.seasonCount, target: 4, unit: 'つ' };
+    case 'same_day_visits':
+      return { current: progress.maxSameDayVisits, target: condition.threshold, unit: 'つ' };
+  }
+}
+
+/**
+ * 未獲得のうち、いちばん近い1つ。無ければ null。
+ *
+ * **進捗は1つにだけ出す。** 未獲得すべてに「あと98箇所」と並べると、
+ * 集めた記録を見に来た画面が、やっていないことの催促になる。
+ * 近さは「どれだけ進んだか」の割合で見る（100箇所の残り70と
+ * 5箇所の残り3を、そのままの数では比べられない）
+ */
+export function nearestUnearned(progress: BadgeProgress): Badge | null {
+  const yet = BADGE_DEFINITIONS.filter(badge => !isEarned(badge.condition, progress));
+  if (yet.length === 0) return null;
+
+  const ratio = (badge: Badge) => {
+    const { current, target } = distanceOf(badge.condition, progress);
+    return current / target;
+  };
+  // 同率なら定義順が先のものを残す（毎回おなじものが出るように）
+  return yet.reduce((a, b) => (ratio(a) >= ratio(b) ? a : b));
 }
