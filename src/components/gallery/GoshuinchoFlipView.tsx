@@ -145,7 +145,14 @@ export function GoshuinchoFlipView({
     const lastStamp = stamps.length - 1;
     setCurrentIndex(lastStamp);
     listRef.current?.scrollToIndex({ index: lastStamp, animated: false });
-  }, [stamps.length]);
+    /*
+     * 折れ角は scrollX から引いている。飛ばしただけだと scrollX が 0 の
+     * ままになることがあり、**開いたページが折れたまま（斜めに）描かれる**。
+     * 飛ばした先を scrollX にも教える。
+     * このあと onScroll が届けばそれで上書きされるので、二重でも困らない
+     */
+    scrollX.setValue(lastStamp * layout.snapInterval);
+  }, [stamps.length, layout.snapInterval, scrollX]);
 
   const goToPage = useCallback((index: number) => {
     setCurrentIndex(index);

@@ -304,6 +304,31 @@ describe('GoshuinchoFlipView', () => {
 });
 
 describe('GoshuinchoFlipView 開く位置', () => {
+  type StyledNode = { props: { style?: unknown }; parent: StyledNode | null };
+
+  /** 折り紙の包み（Animated.View）の rotateY を読む */
+  const rotateOf = (page: { parent: StyledNode | null }) => {
+    let node: StyledNode | null = page.parent;
+    for (let i = 0; i < 6 && node; i++) {
+      const flat = StyleSheet.flatten(node.props.style) as
+        | { transform?: { rotateY?: { __getValue?: () => string } | string }[] }
+        | undefined;
+      const spin = flat?.transform?.find(t => 'rotateY' in t)?.rotateY;
+      if (spin) return typeof spin === 'string' ? spin : (spin.__getValue?.() ?? '');
+      node = node.parent;
+    }
+    return '';
+  };
+
+  /*
+   * 折れ角は scrollX から引いている。飛ばしただけで scrollX を教えないと、
+   * **開いたページが折れたまま（斜めに）描かれる**
+   */
+  it('開いたページは折れていない', () => {
+    const { getByTestId } = renderFlipView();
+    expect(rotateOf(getByTestId('flip-page-newest'))).toBe('0deg');
+  });
+
   /*
    * 戻るたびに飛ばすと、途中まで見て他のタブへ行って戻った人の位置が失われる。
    * 飛ばすのは最初の1回だけ
