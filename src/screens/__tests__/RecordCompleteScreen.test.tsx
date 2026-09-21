@@ -262,6 +262,17 @@ describe('RecordCompleteScreen', () => {
 
     expect(getByTestId('stamp-image')).toBeTruthy();
     expect(getByTestId('mangan-seal')).toBeTruthy();
+
+    /*
+     * 傾けて押すので、印は枠より小さいだけでは足りない。
+     * -8度 回すと対角は size×(cos8+sin8) ≒ size×1.13 まで広がる。
+     * 御朱印からはみ出す印は、押されたのではなく貼られたように見える
+     */
+    const frameWidth = StyleSheet.flatten(getByTestId('stamp-frame').props.style).width;
+    const sealWidth = within(getByTestId('mangan-seal')).UNSAFE_getByType(Svg).props.width;
+    const rotated = sealWidth * (Math.cos(Math.PI / 22.5) + Math.sin(Math.PI / 22.5));
+
+    expect(rotated).toBeLessThanOrEqual(frameWidth);
   });
 
   it('満願でなければ、朱印も注記も出さない', () => {
