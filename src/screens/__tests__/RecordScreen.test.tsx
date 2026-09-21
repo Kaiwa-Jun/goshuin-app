@@ -315,7 +315,9 @@ describe('RecordScreen', () => {
       updated_at: '2024-06-01T00:00:00Z',
     };
 
-    const mockBadges = [{ id: 'first-stamp', name: '初めての御朱印', description: '', icon: '🎊' }];
+    const mockBadges = [
+      { id: 'first-stamp', name: '初めての御朱印', description: '', mark: 'ichi' as const },
+    ];
     (evaluateNewBadges as jest.Mock).mockReturnValue(mockBadges);
 
     mockFormState.selectedSpot = fakeSpot;
@@ -1247,7 +1249,9 @@ describe('訪問済みスポットの取得に成功したとき（Issue #133 �
   });
 
   it('evaluateNewBadges の返り値をそのまま badges に渡す', async () => {
-    const badges = [{ id: 'first-stamp', name: '初めての御朱印', description: '', icon: '🎊' }];
+    const badges = [
+      { id: 'first-stamp', name: '初めての御朱印', description: '', mark: 'ichi' as const },
+    ];
     (evaluateNewBadges as jest.Mock).mockReturnValue(badges);
     mockFetchVisitedSpotIds.mockResolvedValue(new Set());
 

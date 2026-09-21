@@ -112,7 +112,7 @@ describe('RecordCompleteScreen', () => {
             id: 'b',
             name: '初めての御朱印',
             description: '最初の御朱印を記録しました',
-            icon: '⛩️',
+            mark: 'go' as const,
           },
         ],
       },
@@ -177,8 +177,13 @@ describe('RecordCompleteScreen', () => {
       name: 'RecordComplete' as const,
       params: {
         badges: [
-          { id: 'mangan', name: '満願', description: '12ヶ月', icon: '⛩' },
-          { id: 'same-day-3', name: '1日に3箇所', description: '3つ回った', icon: '👣' },
+          { id: 'mangan', name: '満願', description: '12ヶ月', mark: 'mangan' as const },
+          {
+            id: 'same-day-3',
+            name: '1日に3箇所',
+            description: '3つ回った',
+            mark: 'mitsu' as const,
+          },
         ],
       },
     };
@@ -204,7 +209,7 @@ describe('RecordCompleteScreen', () => {
       name: 'RecordComplete' as const,
       params: {
         spotName: '湯島天満宮',
-        badges: [{ id: 'mangan', name: '満願', description: '12ヶ月', icon: '⛩' }],
+        badges: [{ id: 'mangan', name: '満願', description: '12ヶ月', mark: 'mangan' as const }],
       },
     };
     const { getByTestId } = render(
@@ -221,7 +226,9 @@ describe('RecordCompleteScreen', () => {
     const route = {
       key: 'test',
       name: 'RecordComplete' as const,
-      params: { badges: [{ id: 'visit-5', name: '5箇所達成', description: '', icon: '⛩️' }] },
+      params: {
+        badges: [{ id: 'visit-5', name: '5箇所達成', description: '', mark: 'go' as const }],
+      },
     };
     const { queryByTestId } = render(
       <RecordCompleteScreen navigation={mockNavigation} route={route} />
@@ -287,7 +294,7 @@ describe('RecordCompleteScreen', () => {
             id: 'b',
             name: '初めての御朱印',
             description: '初めての御朱印を記録しました',
-            icon: '⛩️',
+            mark: 'go' as const,
           },
         ],
       },

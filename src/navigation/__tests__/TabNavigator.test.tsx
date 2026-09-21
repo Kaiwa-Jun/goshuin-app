@@ -82,6 +82,8 @@ jest.mock('@hooks/useCollectionStats', () => ({
 
 jest.mock('@services/badges', () => ({
   getAllBadges: () => [],
+  // バッジが無ければ、いちばん近い未獲得も無い
+  nearestUnearned: () => null,
 }));
 
 jest.mock('@services/pilgrimages', () => ({

@@ -1,11 +1,15 @@
 import { useEffect, useRef } from 'react';
 import { AccessibilityInfo, Animated, Easing, StyleSheet, Text, View } from 'react-native';
 
+import { Seal } from '@components/common/Seal';
 import { colors } from '@theme/colors';
 import { borderRadius, spacing } from '@theme/spacing';
 import { typography } from '@theme/typography';
 
 export const SEAL_MS = 500;
+
+/** 御朱印の上に押される印。記録として下に並ぶものより大きく、傾いている */
+const SEAL_SIZE = 120;
 
 interface Props {
   spotName: string;
@@ -72,7 +76,8 @@ export function ManganSeal({ spotName, delayMs = 0 }: Props) {
         accessible
         accessibilityLabel={`${spotName}、満願`}
       >
-        <Text style={styles.sealText}>満願</Text>
+        {/* 下の墨が少し透ける。紙に押した朱肉は下を塗りつぶさない */}
+        <Seal mark="mangan" earned size={SEAL_SIZE} opacity={0.9} />
       </Animated.View>
     </>
   );
@@ -94,15 +99,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     alignSelf: 'center',
     top: '30%',
-    width: 96,
-    height: 96,
-    borderRadius: 5,
-    borderWidth: 5,
-    borderColor: colors.shrine[600],
-    alignItems: 'center',
-    justifyContent: 'center',
   },
-  sealText: { fontSize: 32, fontWeight: '900', color: colors.shrine[600], letterSpacing: 2 },
   note: {
     backgroundColor: colors.backgroundGrouped,
     borderRadius: borderRadius.lg,

@@ -7,6 +7,9 @@ import { JapanMap } from '@components/collection/JapanMap';
 import { colors } from '@theme/colors';
 import type { CollectionStackScreenProps } from '@/navigation/types';
 
+/* react-native-svg は fill を ARGB の数値に正規化する（JapanMap.test.tsx と同じ） */
+const asPayload = (hex: string) => 0xff000000 + parseInt(hex.slice(1), 16);
+
 jest.mock('react-native-safe-area-context', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
   const RN = require('react-native');
@@ -85,12 +88,22 @@ jest.mock('@services/wishlist', () => ({
 jest.mock('@services/badges', () => ({
   isEarned: (condition: { threshold?: number }, progress: { visitCount: number }) =>
     progress.visitCount >= (condition.threshold ?? 0),
+  distanceOf: (condition: { threshold?: number }, progress: { visitCount: number }) => ({
+    current: progress.visitCount,
+    target: condition.threshold ?? 0,
+    unit: '箇所',
+  }),
+  // 未獲得は満願(12)と全国制覇(100)。近いのは満願
+  nearestUnearned: () => ({
+    id: 'mangan',
+    condition: { type: 'tsukimairi', threshold: 12 },
+  }),
   getAllBadges: () => [
     {
       id: 'first-stamp',
       name: '初めての御朱印',
       description: '初めての御朱印を記録しました',
-      icon: '🎊',
+      mark: 'ichi',
       axis: 'count',
       condition: { type: 'visit_count', threshold: 1 },
     },
@@ -98,7 +111,7 @@ jest.mock('@services/badges', () => ({
       id: 'visit-5',
       name: '5箇所達成',
       description: '5箇所の神社仏閣を訪れました',
-      icon: '⛩️',
+      mark: 'go',
       axis: 'count',
       condition: { type: 'visit_count', threshold: 5 },
     },
@@ -106,7 +119,7 @@ jest.mock('@services/badges', () => ({
       id: 'visit-10',
       name: '10箇所達成',
       description: '10箇所の神社仏閣を訪れました',
-      icon: '🏆',
+      mark: 'juu',
       axis: 'count',
       condition: { type: 'visit_count', threshold: 10 },
     },
@@ -114,7 +127,7 @@ jest.mock('@services/badges', () => ({
       id: 'mangan',
       name: '満願',
       description: 'ひとつの寺社に12ヶ月',
-      icon: '⛩',
+      mark: 'mangan',
       axis: 'practice',
       condition: { type: 'tsukimairi', threshold: 12 },
     },
@@ -122,7 +135,7 @@ jest.mock('@services/badges', () => ({
       id: 'visit-100',
       name: '全国制覇',
       description: '100箇所の神社仏閣を訪れました',
-      icon: '👑',
+      mark: 'hyaku',
       axis: 'count',
       condition: { type: 'visit_count', threshold: 100 },
     },
@@ -311,7 +324,7 @@ describe('CollectionScreen', () => {
     const { getByText } = render(
       <CollectionScreen navigation={mockNavigation} route={mockRoute} />
     );
-    expect(getByText('獲得バッジ')).toBeTruthy();
+    expect(getByText('印')).toBeTruthy();
     expect(getByText('初めての御朱印')).toBeTruthy();
     expect(getByText('5箇所達成')).toBeTruthy();
     expect(getByText('10箇所達成')).toBeTruthy();
@@ -335,17 +348,43 @@ describe('CollectionScreen', () => {
   });
 
   // 未獲得を鍵で塞ぐと、何を目指せばいいか分からなくなる
-  it('未獲得のバッジも、その絵のまま薄く出す', () => {
+  it('未獲得も同じ印のまま、「まだ押されていない」色で出す', () => {
     const { getByTestId } = render(
       <CollectionScreen navigation={mockNavigation} route={mockRoute} />
     );
-    const iconStyle = (id: string, icon: string) =>
-      StyleSheet.flatten(within(getByTestId(`badge-${id}`)).getByText(icon).props.style);
+    const markFill = (id: string) =>
+      within(getByTestId(`badge-${id}`)).getByTestId('seal-mark').props.fill?.payload;
 
-    // 満願は未獲得。鍵ではなく⛩のまま、薄く出す
-    expect(iconStyle('mangan', '⛩').opacity).toBe(0.42);
-    // 獲得済みは薄くしない
-    expect(iconStyle('first-stamp', '🎊').opacity).toBeUndefined();
+    // 満願は未獲得。鍵に差し替えず、満願の印のまま薄く出す
+    expect(markFill('mangan')).toBe(asPayload(colors.sealEmpty));
+    expect(markFill('first-stamp')).toBe(asPayload(colors.seal));
+  });
+
+  /*
+   * 9個しかないのに横スクロールが3本あって、スクロールの先は
+   * 見えていないのと同じだった
+   */
+  it('印は横スクロールせず、ぜんぶ並べる', () => {
+    const { getAllByTestId, getByText } = render(
+      <CollectionScreen navigation={mockNavigation} route={mockRoute} />
+    );
+
+    // 縦スクロール1本だけ。バッジ用の横スクロールは無い
+    expect(getAllByTestId('ayumi-scroll')).toHaveLength(1);
+    // モックの5個ぜんぶが出ている
+    expect(getAllByTestId(/^badge-(?!axis|remaining)/)).toHaveLength(5);
+    expect(getByText('3 / 5')).toBeTruthy();
+  });
+
+  // 未獲得ぜんぶに残りを並べると、記録を見に来た画面が催促になる
+  it('「あと何回」は、いちばん近い1つにだけ出す', () => {
+    const { getAllByTestId, getByTestId, getByText } = render(
+      <CollectionScreen navigation={mockNavigation} route={mockRoute} />
+    );
+
+    expect(getAllByTestId(/^badge-remaining-/)).toHaveLength(1);
+    expect(getByTestId('badge-remaining-mangan')).toBeTruthy();
+    expect(getByText('あと2箇所')).toBeTruthy();
   });
 
   it('巡礼チャレンジセクションが表示される', () => {
@@ -408,7 +447,7 @@ describe('CollectionScreen', () => {
       const { getByText } = render(
         <CollectionScreen navigation={mockNavigation} route={mockRoute} />
       );
-      expect(getByText('獲得バッジ')).toBeTruthy();
+      expect(getByText('印')).toBeTruthy();
       expect(getByText('巡礼チャレンジ')).toBeTruthy();
     });
   });
@@ -461,7 +500,7 @@ describe('CollectionScreen', () => {
       );
       // 未ログインでは地図を出さない（ゲストカードが受ける）
       expect(queryByTestId('ayumi-map-card')).toBeNull();
-      expect(getByText('獲得バッジ')).toBeTruthy();
+      expect(getByText('印')).toBeTruthy();
       expect(getByText('巡礼チャレンジに挑戦してみましょう')).toBeTruthy();
     });
   });

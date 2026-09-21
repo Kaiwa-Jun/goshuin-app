@@ -21,7 +21,8 @@ import { RecentVisits } from '@components/collection/RecentVisits';
 import { TsukimairiList } from '@components/collection/TsukimairiList';
 import { useAuth } from '@hooks/useAuth';
 import { useCollectionStats } from '@hooks/useCollectionStats';
-import { getAllBadges, isEarned } from '@services/badges';
+import { Seal } from '@components/common/Seal';
+import { distanceOf, getAllBadges, isEarned, nearestUnearned } from '@services/badges';
 import { JAPAN_MAP_HEIGHT, JAPAN_MAP_WIDTH } from '@/constants/japanMap';
 import { colors } from '@theme/colors';
 import { shadows } from '@theme/shadows';
@@ -86,6 +87,13 @@ export function CollectionScreen({ navigation }: Props) {
     ...badge,
     earned: isEarned(badge.condition, badgeProgress),
   }));
+  const earnedCount = badgesWithStatus.filter(badge => badge.earned).length;
+
+  /* 進捗は「いちばん近い1つ」にだけ出す。全部に出すと催促になる */
+  const nearest = nearestUnearned(badgeProgress);
+  const nearestDistance = nearest ? distanceOf(nearest.condition, badgeProgress) : null;
+  const remaining = nearestDistance ? nearestDistance.target - nearestDistance.current : 0;
+  const nearestUnit = nearestDistance?.unit ?? '';
 
   const topPilgrimage = pilgrimageProgress.length > 0 ? pilgrimageProgress[0] : null;
   const otherPilgrimages = pilgrimageProgress.slice(1);
@@ -173,44 +181,46 @@ export function CollectionScreen({ navigation }: Props) {
           </>
         )}
 
-        {/* Badge Section */}
-        <Text style={styles.sectionTitle}>獲得バッジ</Text>
-        {/* 軸で分ける。訪問数だけだと物語が1本しかない（提案③） */}
-        {BADGE_AXES.map(axis => {
-          const inAxis = badgesWithStatus.filter(badge => badge.axis === axis.key);
-          if (inAxis.length === 0) return null;
-          return (
-            <View key={axis.key} testID={`badge-axis-${axis.key}`}>
-              <View style={styles.axisHeader}>
+        {/* 印 */}
+        <Card style={styles.sealCard}>
+          <View style={styles.sealHeader}>
+            <Text style={styles.sealTitle}>印</Text>
+            <Text style={styles.sealCount} testID="seal-count">
+              {earnedCount} / {badges.length}
+            </Text>
+          </View>
+          {/* 軸で分ける。訪問数だけだと物語が1本しかない（提案③） */}
+          {BADGE_AXES.map(axis => {
+            const inAxis = badgesWithStatus.filter(badge => badge.axis === axis.key);
+            if (inAxis.length === 0) return null;
+            return (
+              <View key={axis.key} style={styles.axis} testID={`badge-axis-${axis.key}`}>
                 <Text style={styles.axisTitle}>{axis.label}</Text>
-                <Text style={styles.axisNote}>{axis.note}</Text>
-              </View>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.badgeScrollView}
-                contentContainerStyle={styles.badgeScrollContent}
-              >
-                {inAxis.map(badge => (
-                  <View key={badge.id} style={styles.badgeItem} testID={`badge-${badge.id}`}>
-                    <View
-                      style={[
-                        styles.badgeCircle,
-                        badge.earned ? styles.badgeEarned : styles.badgeUnearned,
-                      ]}
-                    >
-                      {/* 未獲得を鍵で塞がない。そのバッジの絵のまま、薄く出す */}
-                      <Text style={[styles.badgeIcon, !badge.earned && styles.badgeIconOff]}>
-                        {badge.icon}
+                {/*
+                 * 横スクロール3本をやめて3列に並べる。スクロールの先にあると
+                 * 見えていないのと同じで、9個しかないのに存在に気づけなかった
+                 */}
+                <View style={styles.sealGrid}>
+                  {inAxis.map(badge => (
+                    <View key={badge.id} style={styles.sealItem} testID={`badge-${badge.id}`}>
+                      {/* 未獲得を鍵で塞がない。同じ印を、まだ押されていない色で出す */}
+                      <Seal mark={badge.mark} earned={badge.earned} size={SEAL_SIZE} />
+                      <Text style={[styles.sealName, !badge.earned && styles.sealNameOff]}>
+                        {badge.name}
                       </Text>
+                      {badge.id === nearest?.id && (
+                        <Text style={styles.sealRemaining} testID={`badge-remaining-${badge.id}`}>
+                          あと{remaining}
+                          {nearestUnit}
+                        </Text>
+                      )}
                     </View>
-                    <Text style={styles.badgeName}>{badge.name}</Text>
-                  </View>
-                ))}
-              </ScrollView>
-            </View>
-          );
-        })}
+                  ))}
+                </View>
+              </View>
+            );
+          })}
+        </Card>
 
         {/* Pilgrimage Challenge Section */}
         <Text style={styles.sectionTitle}>巡礼チャレンジ</Text>
@@ -299,10 +309,13 @@ const MAP_CARD_PADDING = 14;
 
 /** バッジの軸。性質で分ける */
 const BADGE_AXES = [
-  { key: 'practice', label: '作法', note: '神社や寺に、もとからあるもの' },
-  { key: 'journey', label: '旅のしかた', note: '出かける理由を増やす' },
-  { key: 'count', label: '訪問数', note: 'これまでどおり' },
+  { key: 'practice', label: '作法' },
+  { key: 'journey', label: '旅のしかた' },
+  { key: 'count', label: '訪問数' },
 ] as const;
+
+/** 印の大きさ。3列に並べたときに、12個の丸の環が潰れない下限 */
+const SEAL_SIZE = 58;
 
 function LegendItem({ color, text }: { color: string; text: string }) {
   return (
@@ -347,11 +360,13 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.gray[200],
   },
-  axisHeader: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm, marginBottom: 2 },
-  axisTitle: { ...typography.caption, fontWeight: '700', color: colors.gray[600] },
-  axisNote: { fontSize: 11, color: colors.gray[400] },
-  badgeIcon: { fontSize: 24 },
-  badgeIconOff: { opacity: 0.42 },
+  axisTitle: {
+    ...typography.caption,
+    fontWeight: '700',
+    color: colors.gray[400],
+    letterSpacing: 0.6,
+    marginBottom: spacing.sm,
+  },
   legendItem: { flexDirection: 'row', alignItems: 'center' },
   legendSwatch: { width: 9, height: 9, borderRadius: 2, marginRight: spacing.xs },
   legendText: { ...typography.caption, fontSize: 11, color: colors.gray[600] },
@@ -400,36 +415,31 @@ const styles = StyleSheet.create({
     color: colors.gray[800],
     marginBottom: spacing.md,
   },
-  badgeScrollView: {
+  sealCard: {
     marginBottom: spacing.xl,
   },
-  badgeScrollContent: {
-    gap: spacing.lg,
-    paddingHorizontal: spacing.xs,
+  sealHeader: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
   },
-  badgeItem: {
-    alignItems: 'center',
-    width: 80,
-  },
-  badgeCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badgeEarned: {
-    backgroundColor: colors.warning,
-  },
-  badgeUnearned: {
-    backgroundColor: colors.gray[200],
-  },
-  badgeName: {
+  sealTitle: { ...typography.h3, color: colors.gray[800] },
+  sealCount: { ...typography.caption, color: colors.gray[400] },
+  axis: { marginBottom: spacing.lg },
+  /* 3列。9個ぜんぶが1画面に入る */
+  sealGrid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: spacing.lg },
+  sealItem: { width: '33.33%', alignItems: 'center' },
+  sealName: {
     ...typography.caption,
+    fontSize: 11,
+    fontWeight: '700',
     color: colors.gray[600],
     marginTop: spacing.xs,
     textAlign: 'center',
   },
+  sealNameOff: { fontWeight: '400', color: colors.gray[400] },
+  sealRemaining: { fontSize: 10, fontWeight: '700', color: colors.seal, marginTop: 1 },
   pilgrimageCard: {
     marginBottom: spacing.sm,
   },
