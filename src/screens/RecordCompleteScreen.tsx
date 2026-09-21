@@ -138,9 +138,14 @@ export function RecordCompleteScreen({ navigation, route }: Props) {
             ) : (
               <View style={styles.imagePlaceholder} testID="stamp-image-placeholder">
                 <MaterialIcons name="photo" size={44} color={colors.gray[300]} />
-                {isMangan && <ManganSeal spotName={spotName ?? ''} delayMs={MANGAN_DELAY_MS} />}
               </View>
             )}
+            {/*
+             * 朱印は**御朱印の上に**押される。写真があるときこそ本番なので、
+             * 画像とプレースホルダの両方に重ねる（分岐の中に入れると、
+             * 写真を撮った人には一度も出ない）
+             */}
+            {isMangan && <ManganSeal spotName={spotName ?? ''} delayMs={MANGAN_DELAY_MS} />}
           </View>
 
           {!countUnavailable && totalStampCount !== undefined && (

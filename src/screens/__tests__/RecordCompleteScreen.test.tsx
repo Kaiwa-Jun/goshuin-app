@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet } from 'react-native';
-import { render, fireEvent, act } from '@testing-library/react-native';
+import { render, fireEvent, act, within } from '@testing-library/react-native';
+import { Svg } from 'react-native-svg';
 import { RecordCompleteScreen } from '@screens/RecordCompleteScreen';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
@@ -112,7 +113,7 @@ describe('RecordCompleteScreen', () => {
             id: 'b',
             name: '初めての御朱印',
             description: '最初の御朱印を記録しました',
-            icon: '⛩️',
+            mark: 'go' as const,
           },
         ],
       },
@@ -177,8 +178,13 @@ describe('RecordCompleteScreen', () => {
       name: 'RecordComplete' as const,
       params: {
         badges: [
-          { id: 'mangan', name: '満願', description: '12ヶ月', icon: '⛩' },
-          { id: 'same-day-3', name: '1日に3箇所', description: '3つ回った', icon: '👣' },
+          { id: 'mangan', name: '満願', description: '12ヶ月', mark: 'mangan' as const },
+          {
+            id: 'same-day-3',
+            name: '1日に3箇所',
+            description: '3つ回った',
+            mark: 'mitsu' as const,
+          },
         ],
       },
     };
@@ -204,7 +210,7 @@ describe('RecordCompleteScreen', () => {
       name: 'RecordComplete' as const,
       params: {
         spotName: '湯島天満宮',
-        badges: [{ id: 'mangan', name: '満願', description: '12ヶ月', icon: '⛩' }],
+        badges: [{ id: 'mangan', name: '満願', description: '12ヶ月', mark: 'mangan' as const }],
       },
     };
     const { getByTestId } = render(
@@ -213,15 +219,69 @@ describe('RecordCompleteScreen', () => {
 
     expect(getByTestId('mangan-seal')).toBeTruthy();
     expect(getByTestId('new-badge-mangan')).toBeTruthy();
+
+    /*
+     * 朱印は彫った印であって、明朝の「満願」という文字ではない。
+     * 下の墨が少し透ける（紙に押した朱肉は下を塗りつぶさない）
+     */
+    const seal = within(getByTestId('mangan-seal'));
+    expect(seal.queryByText('満願')).toBeNull();
+    expect(seal.getByTestId('seal-frame').props.d).toBeTruthy();
+    expect(seal.UNSAFE_getByType(Svg).props.opacity).toBe(0.9);
+
+    /*
+     * 記録として下に残る印も、枠のある本物の印であること。
+     * mark を渡し忘れると何も描かれない印になるが、testID だけは
+     * 付くので「あるかどうか」の確認では気づけない
+     */
+    const badge = within(getByTestId('new-badge-mangan'));
+    expect(badge.getByTestId('seal-frame').props.d).toBeTruthy();
+    expect(badge.getByTestId('seal-mark').props.children).toBeTruthy();
     // ご褒美はアプリの外にある、を文言として持つ
     expect(getByTestId('mangan-note')).toBeTruthy();
+  });
+
+  /*
+   * 朱印は御朱印の上に押される。以前はプレースホルダの分岐の中にあり、
+   * **写真を撮った人には一度も出なかった**（テストが写真なしの道しか
+   * 通っていなかったので気づけなかった）
+   */
+  it('御朱印の写真があっても、その上に朱印を押す', () => {
+    const route = {
+      key: 'test',
+      name: 'RecordComplete' as const,
+      params: {
+        spotName: '湯島天満宮',
+        stampImageUrl: 'https://example.com/goshuin.jpg',
+        badges: [{ id: 'mangan', name: '満願', description: '12ヶ月', mark: 'mangan' as const }],
+      },
+    };
+    const { getByTestId } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={route} />
+    );
+
+    expect(getByTestId('stamp-image')).toBeTruthy();
+    expect(getByTestId('mangan-seal')).toBeTruthy();
+
+    /*
+     * 傾けて押すので、印は枠より小さいだけでは足りない。
+     * -8度 回すと対角は size×(cos8+sin8) ≒ size×1.13 まで広がる。
+     * 御朱印からはみ出す印は、押されたのではなく貼られたように見える
+     */
+    const frameWidth = StyleSheet.flatten(getByTestId('stamp-frame').props.style).width;
+    const sealWidth = within(getByTestId('mangan-seal')).UNSAFE_getByType(Svg).props.width;
+    const rotated = sealWidth * (Math.cos(Math.PI / 22.5) + Math.sin(Math.PI / 22.5));
+
+    expect(rotated).toBeLessThanOrEqual(frameWidth);
   });
 
   it('満願でなければ、朱印も注記も出さない', () => {
     const route = {
       key: 'test',
       name: 'RecordComplete' as const,
-      params: { badges: [{ id: 'visit-5', name: '5箇所達成', description: '', icon: '⛩️' }] },
+      params: {
+        badges: [{ id: 'visit-5', name: '5箇所達成', description: '', mark: 'go' as const }],
+      },
     };
     const { queryByTestId } = render(
       <RecordCompleteScreen navigation={mockNavigation} route={route} />
@@ -287,7 +347,7 @@ describe('RecordCompleteScreen', () => {
             id: 'b',
             name: '初めての御朱印',
             description: '初めての御朱印を記録しました',
-            icon: '⛩️',
+            mark: 'go' as const,
           },
         ],
       },

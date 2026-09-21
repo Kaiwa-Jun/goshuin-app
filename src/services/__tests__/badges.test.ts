@@ -1,4 +1,10 @@
-import { evaluateNewBadges, getAllBadges, isEarned } from '@services/badges';
+import {
+  distanceOf,
+  evaluateNewBadges,
+  getAllBadges,
+  isEarned,
+  nearestUnearned,
+} from '@services/badges';
 import type { BadgeProgress } from '@/types/badge';
 
 const progress = (p: Partial<BadgeProgress> = {}): BadgeProgress => ({
@@ -83,13 +89,98 @@ describe('getAllBadges', () => {
     ]);
   });
 
+  // 同じ印が2つあると、並べたときにどちらか分からない
+  it('印はバッジごとに違う', () => {
+    const marks = getAllBadges().map(b => b.mark);
+    expect(new Set(marks).size).toBe(marks.length);
+  });
+
   it('どのバッジも必要な項目を持つ', () => {
     for (const badge of getAllBadges()) {
       expect(badge.id).toBeTruthy();
       expect(badge.name).toBeTruthy();
       expect(badge.description).toBeTruthy();
-      expect(badge.icon).toBeTruthy();
+      expect(badge.mark).toBeTruthy();
       expect(['practice', 'journey', 'count']).toContain(badge.axis);
     }
+  });
+});
+
+describe('distanceOf', () => {
+  it('4種類の条件ぜんぶから、current と target を読める', () => {
+    const p = progress({
+      visitCount: 7,
+      longestTsukimairi: 5,
+      seasonCount: 3,
+      maxSameDayVisits: 2,
+    });
+
+    expect(distanceOf({ type: 'visit_count', threshold: 10 }, p)).toEqual({
+      current: 7,
+      target: 10,
+      unit: '箇所',
+    });
+    expect(distanceOf({ type: 'tsukimairi', threshold: 12 }, p)).toEqual({
+      current: 5,
+      target: 12,
+      unit: 'ヶ月',
+    });
+    expect(distanceOf({ type: 'four_seasons' }, p)).toEqual({
+      current: 3,
+      target: 4,
+      unit: 'つ',
+    });
+    expect(distanceOf({ type: 'same_day_visits', threshold: 3 }, p)).toEqual({
+      current: 2,
+      target: 3,
+      unit: 'つ',
+    });
+  });
+});
+
+describe('nearestUnearned', () => {
+  /*
+   * 残りの数ではなく割合で見る。34箇所の人にとって
+   * 「50箇所まであと16」は「100箇所まであと66」より近い
+   */
+  it('残り数ではなく、進んだ割合がいちばん大きいものを返す', () => {
+    const near = nearestUnearned(
+      progress({ visitCount: 34, longestTsukimairi: 12, seasonCount: 4, maxSameDayVisits: 3 })
+    );
+    expect(near?.id).toBe('visit-50');
+  });
+
+  it('割合で見るので、残りが少なくても遠いほうは選ばない', () => {
+    // 四季はあと1つ(3/4=0.75)、50箇所はあと2箇所(48/50=0.96)
+    const near = nearestUnearned(
+      progress({ visitCount: 48, longestTsukimairi: 12, seasonCount: 3, maxSameDayVisits: 3 })
+    );
+    expect(near?.id).toBe('visit-50');
+  });
+
+  it('ぜんぶ取っていたら null', () => {
+    expect(
+      nearestUnearned(
+        progress({
+          visitCount: 100,
+          longestTsukimairi: 12,
+          seasonCount: 4,
+          maxSameDayVisits: 3,
+        })
+      )
+    ).toBeNull();
+  });
+
+  it('何もしていなければ、いちばん手前の1つ', () => {
+    expect(nearestUnearned(progress())?.id).toBe('first-stamp');
+  });
+
+  // 同率で揺れると、画面を開くたびに違うものが出てしまう
+  it('比が同率なら、定義順が先のほうを返す', () => {
+    // 訪問0・季節0・同日0 はすべて比 0。定義順の先頭は first-stamp
+    expect(nearestUnearned(progress())?.id).toBe('first-stamp');
+    // 満願(6/12) と 四季(2/4) を同率 0.5 にそろえる
+    const tied = progress({ longestTsukimairi: 6, seasonCount: 2 });
+    expect(nearestUnearned(tied)?.id).toBe('mangan');
   });
 });

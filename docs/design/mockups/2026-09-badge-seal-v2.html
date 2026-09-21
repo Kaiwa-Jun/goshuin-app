@@ -1,0 +1,275 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8">
+<title>印を彫る</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root{
+  --seal:#C2342B; --ink:#111827; --ink2:#4B5563; --ink3:#9CA3AF;
+  --yet:#D3D6DC; --rule:#E5E7EB; --paper:#F2F2F7;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:#4B5563;font-family:"Noto Sans JP",-apple-system,sans-serif;color:var(--ink);
+  display:flex;flex-direction:column;align-items:center;gap:14px;padding:22px 12px 40px}
+.switch{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;max-width:460px}
+.switch button{font:inherit;font-size:13px;font-weight:700;padding:9px 16px;border-radius:999px;
+  border:none;cursor:pointer;background:#374151;color:#D1D5DB}
+.switch button.on{background:#FDBA74;color:#7C2D12}
+.hint{color:#E5E7EB;font-size:13px;text-align:center;max-width:450px;line-height:1.8}
+.hint b{color:#FDBA74}
+.phone{width:390px;height:844px;background:var(--paper);border-radius:34px;overflow:hidden;
+  position:relative;box-shadow:0 18px 60px rgba(0,0,0,.45)}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;background:var(--paper);
+  opacity:0;pointer-events:none;transition:opacity .2s}
+.screen.on{opacity:1;pointer-events:auto}
+.statusbar{height:44px;flex:none;display:flex;align-items:center;justify-content:space-between;
+  padding:0 20px;font-size:13px;font-weight:700}
+.body{flex:1;overflow-y:auto;padding:0 16px 30px}
+h1{font-size:28px;font-weight:700;padding:4px 16px 12px}
+.card{background:#fff;border-radius:16px;padding:16px 14px;margin-bottom:12px;
+  box-shadow:0 2px 4px rgba(0,0,0,.06)}
+.card.stub{opacity:.4}
+.sechead{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px}
+.sechead h2{font-size:16px;font-weight:700}
+.sechead .n{font-size:12px;color:var(--ink3);font-weight:500}
+.axis{margin-bottom:18px}.axis:last-child{margin-bottom:0}
+.axlabel{font-size:11px;font-weight:700;color:var(--ink3);letter-spacing:.06em;margin-bottom:10px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px 8px}
+.cell{display:flex;flex-direction:column;align-items:center;gap:7px}
+.cell svg{width:58px;height:58px;display:block}
+.cell .nm{font-size:11px;font-weight:700;color:var(--ink2);text-align:center;line-height:1.35}
+.cell.is-yet .nm{color:var(--ink3);font-weight:500}
+.cell .pg{font-size:10px;color:var(--seal);font-weight:700;margin-top:-2px}
+
+/* 彫りを見る */
+.bench{background:#fff;border-radius:18px;padding:22px;display:grid;
+  grid-template-columns:repeat(2,1fr);gap:22px;width:390px}
+.bench .b{display:flex;flex-direction:column;align-items:center;gap:8px}
+.bench svg{width:150px;height:150px}
+.bench .nm{font-size:11px;color:var(--ink2);font-weight:700}
+
+/* 保存直後 */
+.rc{padding:0 16px}
+.goshuin{height:330px;border-radius:14px;background:#EFEAE0;position:relative;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(0,0,0,.1);margin-bottom:16px}
+.goshuin .ph{font-family:"Hiragino Mincho ProN",serif;font-size:56px;color:#3C3226;opacity:.45;letter-spacing:8px}
+.bigseal{position:absolute;top:24%;left:50%;width:120px;margin-left:-60px;opacity:0}
+.bigseal svg{width:120px;height:120px;opacity:.9}
+.rc h3{font-size:19px;font-weight:700;text-align:center;margin-bottom:4px}
+.rc .sub{font-size:13px;color:var(--ink2);text-align:center;margin-bottom:20px}
+.newrow{display:flex;justify-content:center;flex-wrap:wrap;gap:22px;margin-bottom:20px}
+.newrow .cell{opacity:0}.newrow .cell svg{width:50px;height:50px}
+.note{background:var(--paper);border-radius:12px;padding:13px 16px;font-size:13px;
+  color:var(--ink2);text-align:center;line-height:1.75}
+@keyframes stamp{0%{opacity:0;transform:scale(2.3) rotate(-13deg)}
+  55%{opacity:1;transform:scale(.93) rotate(-7deg)}100%{opacity:1;transform:scale(1) rotate(-7deg)}}
+@keyframes stampSmall{0%{opacity:0;transform:scale(2.1) rotate(-8deg)}
+  55%{opacity:1;transform:scale(.93) rotate(-2deg)}100%{opacity:1;transform:scale(1) rotate(0)}}
+.bigseal.go{animation:stamp .5s cubic-bezier(.25,1,.5,1) both}
+.newrow .cell.go{animation:stampSmall .42s cubic-bezier(.25,1,.5,1) both}
+.replay{position:absolute;right:14px;bottom:14px;background:rgba(17,24,39,.82);color:#fff;
+  border:none;border-radius:999px;padding:9px 16px;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+</style></head><body>
+
+<div class="switch">
+  <button data-scr="a" class="on">あゆみ</button>
+  <button data-scr="bench">彫りを見る</button>
+  <button data-scr="r">保存直後</button>
+</div>
+<div class="switch">
+  <button data-state="new" class="on">はじめたばかり</button>
+  <button data-state="keep">続けている</button>
+</div>
+
+<div id="stage"></div>
+<div class="hint" id="hint"></div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   印を彫る。フォントは使わない。すべて SVG の path / rect / circle。
+   viewBox は 100×100。そのまま react-native-svg に渡せる形。
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── 枠。手彫りなので直線でも左右対称でもない ──
+   外周と内周を1つの d に入れて fillRule=evenodd で帯にする。
+   3本を使い回す。9個ぜんぶ同じ枠だと、また機械で作った顔になる */
+const FRAMES = [
+  'M4.0 5.2 L50 3.4 L96.0 5.0 L97.4 50 L95.8 96.2 L50 97.4 L4.6 95.6 L3.0 50 Z' +
+  'M11.6 12.4 L50 10.8 L88.8 12.6 L90.4 50 L88.6 88.2 L50 90.6 L11.2 88.6 L9.8 50 Z',
+
+  /* 右の縁が少し欠けている */
+  'M3.2 4.0 L50 5.0 L96.8 3.6 L97.2 24 L93.4 29 L97.0 34 L96.2 96.4 L50 95.2 L4.4 96.8 L3.6 50 Z' +
+  'M10.2 11.0 L50 12.4 L89.4 10.6 L90.8 50 L89.0 89.6 L50 87.8 L11.4 90.2 L12.6 50 Z',
+
+  /* 上の内側が彫り込まれて、帯が細くなっている */
+  'M4.8 3.6 L50 4.8 L95.2 3.2 L96.8 50 L95.0 95.0 L50 96.8 L4.2 95.4 L3.4 50 Z' +
+  'M10.6 12.8 L34 10.2 L40 13.8 L50 10.0 L89.8 11.4 L88.4 50 L90.6 89.0 L50 91.0 L12.0 88.8 L10.8 50 Z',
+];
+
+const r = (x,y,w,h) => `<rect x="${x}" y="${y}" width="${w}" height="${h}"/>`;
+const c = (cx,cy,rr) => `<circle cx="${cx}" cy="${cy}" r="${rr}"/>`;
+
+/* ── 字。篆刻のように、太さの揃った角のある画で組む ──
+   1文字ぶんを 100×100 で彫って、2文字の印は transform で横に2つ並べる。
+   縦横を別倍率にするのは角印の組み方（2文字は細長く彫る） */
+const GLYPH1 = {
+  ichi: () => r(22,44,56,12),
+
+  /* 五。2画目は中の横棒を「突き抜けて」下の棒まで届く。
+     途中で止めると互になる（実際そう見えたので直した） */
+  go: () => r(28,22,44,9)
+          + '<polygon points="37.6,29.9 46.4,32.1 37.4,69.1 28.6,66.9"/>'
+          + r(33,46,40,9) + r(64,55,9,13) + r(22,68,56,9.5),
+
+  juu: () => r(22,45,56,10) + r(45,22,10,56),
+
+  /* 三。真ん中がいちばん短い */
+  san: () => r(24,28,52,9) + r(30,45.5,40,9) + r(21,63,58,9),
+
+  /* 百。一 のあと 白。左上の払いは横棒に食い込ませる */
+  hyaku: () => r(24,20,52,8.5)
+             + '<polygon points="33.8,26.7 40.2,31.4 32.2,42.4 25.8,37.7"/>'
+             + r(33,36,36,7.5) + r(33,71.5,36,7.5) + r(33,36,7.5,43) + r(61.5,36,7.5,43)
+             + r(33,53.7,36,7.5),
+};
+
+/** 2文字を横に並べる。縦に積むと1文字に見えてしまう（三十が丰になる） */
+const pair = (a,b) =>
+  `<g transform="translate(9,7) scale(0.46,0.86)">${GLYPH1[a]()}</g>` +
+  `<g transform="translate(45,7) scale(0.46,0.86)">${GLYPH1[b]()}</g>`;
+
+const GLYPH = {
+  ichi: GLYPH1.ichi, go: GLYPH1.go, juu: GLYPH1.juu, hyaku: GLYPH1.hyaku,
+  sanjuu: () => pair('san','juu'),
+  gojuu:  () => pair('go','juu'),
+
+  /* ── 作法・旅のしかたは字を彫らずに紋にする ──
+     軸が違うものは、見た目でも違っていい */
+
+  /* 満願 = 12ヶ月の環が閉じた形。月参りカードの12個の丸と同じ数 */
+  mangan: () => Array.from({length:12}, (_,i) => {
+    const a = -Math.PI/2 + i*Math.PI/6;
+    return c((50+25.5*Math.cos(a)).toFixed(2), (50+25.5*Math.sin(a)).toFixed(2), 6.6);
+  }).join(''),
+
+  /* 四季 = 四弁（木瓜紋の組み方）。4つの円の重なりで1つの花になる */
+  shiki: () => c(50,32.5,19) + c(50,67.5,19) + c(32.5,50,19) + c(67.5,50,19),
+
+  /* 三社 = 三つ巴。神社の太鼓と瓦にある紋そのもの */
+  mitsu: () => {
+    const R=34, r2=R/2, cx=50, cy=50, out=[];
+    const P = t => [cx + R*Math.cos(t), cy - R*Math.sin(t)];
+    for (let k=0;k<3;k++){
+      const t0 = Math.PI/2 + k*2*Math.PI/3;
+      const [ax,ay]=P(t0), [bx,by]=P(t0 + 2*Math.PI/3);
+      out.push(`<path d="M${ax.toFixed(2)} ${ay.toFixed(2)}`
+        + ` A${R} ${R} 0 0 0 ${bx.toFixed(2)} ${by.toFixed(2)}`
+        + ` A${r2} ${r2} 0 0 1 ${cx} ${cy}`
+        + ` A${r2} ${r2} 0 0 1 ${ax.toFixed(2)} ${ay.toFixed(2)} Z"/>`);
+    }
+    return out.join('');
+  },
+};
+
+const BADGES = [
+  {id:'mangan',       axis:'practice', g:'mangan', f:0, nm:'満願',       key:'months', target:12},
+  {id:'four-seasons', axis:'journey',  g:'shiki',  f:1, nm:'四季を巡る', key:'seasons',target:4},
+  {id:'same-day-3',   axis:'journey',  g:'mitsu',  f:2, nm:'1日に3箇所', key:'sameDay',target:3},
+  {id:'first-stamp',  axis:'count',    g:'ichi',   f:1, nm:'初めての',   key:'visits', target:1},
+  {id:'visit-5',      axis:'count',    g:'go',     f:2, nm:'5箇所',      key:'visits', target:5},
+  {id:'visit-10',     axis:'count',    g:'juu',    f:0, nm:'10箇所',     key:'visits', target:10},
+  {id:'visit-30',     axis:'count',    g:'sanjuu', f:2, nm:'30箇所',     key:'visits', target:30},
+  {id:'visit-50',     axis:'count',    g:'gojuu',  f:0, nm:'50箇所',     key:'visits', target:50},
+  {id:'visit-100',    axis:'count',    g:'hyaku',  f:1, nm:'100箇所',    key:'visits', target:100},
+];
+const AXES = [{key:'practice',label:'作法'},{key:'journey',label:'旅のしかた'},{key:'count',label:'訪問数'}];
+const UNIT = {visits:'箇所', months:'ヶ月', seasons:'つ', sameDay:'つ'};
+const STATES = {new:{visits:7,months:7,seasons:3,sameDay:2}, keep:{visits:34,months:12,seasons:4,sameDay:3}};
+let state='new', scr='a';
+
+/* 朱文 — 字も枠も朱、地は白 */
+function seal(b, got){
+  const fill = got ? 'var(--seal)' : 'var(--yet)';
+  return `<svg viewBox="0 0 100 100" fill="${fill}">`
+    + `<path fill-rule="evenodd" d="${FRAMES[b.f]}"/>`
+    + `<g>${GLYPH[b.g]()}</g></svg>`;
+}
+const got = (b,p) => p[b.key] >= b.target;
+function nearestYet(p){
+  const yet = BADGES.filter(b=>!got(b,p));
+  if(!yet.length) return null;
+  return yet.reduce((a,b)=> (p[a.key]/a.target >= p[b.key]/b.target ? a : b)).id;
+}
+
+const stub = `<div class="card stub"><div class="sechead"><h2>日本地図</h2></div><div style="height:200px"></div></div>
+  <div class="card stub"><div class="sechead"><h2>最近の参拝</h2></div><div style="height:110px"></div></div>
+  <div class="card stub"><div class="sechead"><h2>月参り</h2></div><div style="height:80px"></div></div>`;
+
+function viewAyumi(){
+  const p = STATES[state], near = nearestYet(p);
+  const n = BADGES.filter(b=>got(b,p)).length;
+  const axes = AXES.map(ax=>{
+    const cells = BADGES.filter(b=>b.axis===ax.key).map(b=>{
+      const g = got(b,p);
+      const rest = b.target - p[b.key];
+      return `<div class="cell ${g?'':'is-yet'}">${seal(b,g)}<div class="nm">${b.nm}</div>`
+        + (b.id===near?`<div class="pg">あと${rest}${UNIT[b.key]}</div>`:'') + `</div>`;
+    }).join('');
+    return `<div class="axis"><div class="axlabel">${ax.label}</div><div class="grid">${cells}</div></div>`;
+  }).join('');
+  return `<div class="phone"><div class="screen on"><div class="statusbar"><span>9:41</span><span>●●●</span></div>
+    <h1>あゆみ</h1><div class="body">${stub}
+    <div class="card"><div class="sechead"><h2>印</h2><span class="n">${n} / 9</span></div>${axes}</div>
+    <div class="card stub"><div class="sechead"><h2>巡礼チャレンジ</h2></div><div style="height:60px"></div></div>
+    </div></div></div>`;
+}
+
+function viewBench(){
+  return `<div class="bench">` + BADGES.map(b=>
+    `<div class="b">${seal(b,true)}<div class="nm">${b.nm}</div></div>`).join('') + `</div>`;
+}
+
+const NEW_IDS=['mangan','four-seasons','same-day-3'];
+function viewRecord(){
+  const row = NEW_IDS.map(id=>{const b=BADGES.find(x=>x.id===id);
+    return `<div class="cell">${seal(b,true)}<div class="nm">${b.nm}</div></div>`}).join('');
+  const big = BADGES.find(x=>x.id==='mangan');
+  return `<div class="phone"><div class="screen on"><div class="statusbar"><span>9:41</span><span>●●●</span></div>
+    <div class="body rc" style="padding-top:12px">
+      <div class="goshuin"><span class="ph">奉拝</span>
+        <div class="bigseal" id="bigseal">${seal(big,true)}</div></div>
+      <h3>浅草寺</h3><div class="sub">12ヶ月、毎月おまいりしました</div>
+      <div class="newrow" id="newrow">${row}</div>
+      <div class="note">満願の御朱印をいただけることがあります。<br>社務所で尋ねてみてください</div>
+    </div><button class="replay" id="replay">もう一度</button></div></div>`;
+}
+
+function play(){
+  const bs=document.getElementById('bigseal'), nr=document.getElementById('newrow');
+  if(!bs) return;
+  bs.classList.remove('go'); void bs.offsetWidth;
+  bs.style.animationDelay='.25s'; bs.classList.add('go');
+  [...nr.children].forEach((el,i)=>{el.classList.remove('go'); void el.offsetWidth;
+    el.style.animationDelay=(0.95+i*0.15)+'s'; el.classList.add('go');});
+}
+
+const HINTS={
+  a:'<b>あゆみ</b>　朱文・3列。訪問数は漢数字、作法と旅のしかたは紋。軸が違うものは見た目も違う。',
+  bench:'<b>彫りを見る</b>　枠は3種類を使い回し、歪みと欠けが入っている。字はすべて SVG で、フォントは使っていない。',
+  r:'<b>保存直後</b>　大きい印は御朱印の上に傾いて押される（演出）。小さい印は下に整列して残る（記録）。',
+};
+function render(){
+  document.getElementById('stage').innerHTML =
+    scr==='a' ? viewAyumi() : scr==='bench' ? viewBench() : viewRecord();
+  document.getElementById('hint').innerHTML = HINTS[scr];
+  if(scr==='a') document.querySelectorAll('.body').forEach(b=>b.scrollTop=420);
+  if(scr==='r'){ document.getElementById('replay').onclick=play; play(); }
+}
+document.querySelectorAll('[data-scr]').forEach(btn=>btn.onclick=()=>{
+  document.querySelectorAll('[data-scr]').forEach(b=>b.classList.toggle('on',b===btn));
+  scr=btn.dataset.scr; render();});
+document.querySelectorAll('[data-state]').forEach(btn=>btn.onclick=()=>{
+  document.querySelectorAll('[data-state]').forEach(b=>b.classList.toggle('on',b===btn));
+  state=btn.dataset.state; render();});
+render();
+</script></body></html>

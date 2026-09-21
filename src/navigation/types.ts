@@ -2,6 +2,8 @@ import type { NavigatorScreenParams, CompositeScreenProps } from '@react-navigat
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 
+import type { Badge } from '@/types/badge';
+
 // --- Param Lists ---
 
 /** 記録フローの入口。完了画面の出口の行き先になる */
@@ -19,7 +21,7 @@ export type RootStackParamList = {
         stampCount?: number;
         spotName?: string;
         /** 今回の記録で新しく取れたバッジ。同じ日に複数そろうことがある */
-        badges?: { id: string; name: string; description: string; icon: string }[];
+        badges?: Pick<Badge, 'id' | 'name' | 'description' | 'mark'>[];
         /** 訪問済みスポットの取得に失敗し、件数とバッジを算出できなかった（Issue #133） */
         countUnavailable?: boolean;
         /** 記録を始めた画面。終わったらここへ返す */

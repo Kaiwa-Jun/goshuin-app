@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { AccessibilityInfo, Animated, Easing, StyleSheet, Text, View } from 'react-native';
 
+import { Seal, type SealMark } from '@components/common/Seal';
 import { colors } from '@theme/colors';
-import { borderRadius, spacing } from '@theme/spacing';
+import { spacing } from '@theme/spacing';
 import { typography } from '@theme/typography';
 
 /** 1つ前のバッジが出てから次まで */
@@ -12,8 +13,11 @@ const POP_MS = 420;
 export interface NewBadge {
   id: string;
   name: string;
-  icon: string;
+  mark: SealMark;
 }
+
+/** 記録として下に整列する印。御朱印の上に押される演出の印より小さい */
+const SEAL_SIZE = 50;
 
 interface Props {
   badges: NewBadge[];
@@ -78,9 +82,7 @@ export function NewBadgeRow({ badges, delayMs = 0 }: Props) {
           accessible
           accessibilityLabel={`バッジ獲得、${badge.name}`}
         >
-          <View style={[styles.circle, badge.id === 'mangan' && styles.manganCircle]}>
-            <Text style={styles.icon}>{badge.icon}</Text>
-          </View>
+          <Seal mark={badge.mark} earned size={SEAL_SIZE} />
           <Text style={styles.name} numberOfLines={2}>
             {badge.name}
           </Text>
@@ -98,22 +100,12 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
   },
   item: { width: 62, alignItems: 'center' },
-  circle: {
-    width: 46,
-    height: 46,
-    borderRadius: borderRadius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.xs,
-    backgroundColor: colors.primary[50],
-    borderWidth: 1,
-    borderColor: colors.primary[100],
+  name: {
+    ...typography.caption,
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.gray[600],
+    textAlign: 'center',
+    marginTop: spacing.xs,
   },
-  // 満願だけ朱に寄せる。作法の軸でいちばん重い1つ
-  manganCircle: {
-    backgroundColor: 'rgba(220, 38, 38, 0.1)',
-    borderColor: 'rgba(220, 38, 38, 0.35)',
-  },
-  icon: { fontSize: 21 },
-  name: { ...typography.caption, fontSize: 10, color: colors.gray[600], textAlign: 'center' },
 });

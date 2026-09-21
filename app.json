@@ -10,7 +10,7 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#f27f0d"
+      "backgroundColor": "#F7F3EA"
     },
     "assetBundlePatterns": ["**/*"],
     "ios": {
@@ -26,7 +26,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#f27f0d"
+        "backgroundColor": "#C2342B"
       },
       "package": "com.goshuin.app",
       "permissions": [

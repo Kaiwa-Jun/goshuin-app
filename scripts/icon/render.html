@@ -1,0 +1,64 @@
+<!doctype html><html><head><meta charset="utf-8"><title>icon render</title>
+<style>
+  *{margin:0;padding:0}
+  body{background:#888;display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start}
+  .out{display:block}
+</style></head><body>
+<script>
+/*
+ * 書き出し用。ここに描いた SVG を Playwright が実寸でスクリーンショットして
+ * assets/*.png にする。図形は src/components/common/Seal.tsx と同じもの
+ */
+const SEAL  = '#C2342B';   // colors.seal
+const PAPER = '#F7F3EA';
+
+const FRAME =
+  'M4.0 5.2 L50 3.4 L96.0 5.0 L97.4 50 L95.8 96.2 L50 97.4 L4.6 95.6 L3.0 50 Z' +
+  'M11.6 12.4 L50 10.8 L88.8 12.6 L90.4 50 L88.6 88.2 L50 90.6 L11.2 88.6 L9.8 50 Z';
+
+/** 12ヶ月の環と、真ん中のひとつ */
+const RING = (rad, r, center) =>
+  Array.from({length:12},(_,i)=>{
+    const a = -Math.PI/2 + i*Math.PI/6;
+    return `<circle cx="${(50+rad*Math.cos(a)).toFixed(3)}" cy="${(50+rad*Math.sin(a)).toFixed(3)}" r="${r}"/>`;
+  }).join('') + `<circle cx="50" cy="50" r="${center}"/>`;
+
+/*
+ * 白文。朱を地にして、枠と紋を紙の色で抜く。
+ *
+ * 印そのものは 0.82 に縮めて置く。iOS は角丸（半径22.37%）で切り抜くので、
+ * 縁いっぱいに彫ると**角印の四隅が落ちる** — たわみや欠けを入れた意味が
+ * そこで消える。0.82 なら四隅がマスクの内側に入る
+ */
+const full = size => `<svg id="icon" class="out" width="${size}" height="${size}" viewBox="0 0 100 100">
+  <rect width="100" height="100" fill="${SEAL}"/>
+  <g transform="translate(50 50) scale(0.82) translate(-50 -50)">
+    <path fill-rule="evenodd" d="${FRAME}" fill="${PAPER}"/>
+    <g fill="${PAPER}">${RING(28, 5.8, 10)}</g>
+  </g></svg>`;
+
+/*
+ * Android は丸や角丸で切り抜く。地を朱で塗りつぶし、app.json の
+ * backgroundColor も同じ朱にしておけば、どこで切られても継ぎ目が出ない。
+ * 枠は入れない — 角印の四隅は丸マスクで必ず消えるため、紋だけを
+ * 安全域（中央66%）に収める
+ */
+const adaptive = size => `<svg id="adaptive" class="out" width="${size}" height="${size}" viewBox="0 0 100 100">
+  <rect width="100" height="100" fill="${SEAL}"/>
+  <g fill="${PAPER}" transform="translate(50 50) scale(0.62) translate(-50 -50)">
+    ${RING(28, 5.8, 10)}</g></svg>`;
+
+/* 起動画面。紙の地に、印をひとつ押す */
+const splash = (w,h) => {
+  const mark = Math.round(w * 0.33);
+  return `<svg id="splash" class="out" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+    <rect width="${w}" height="${h}" fill="${PAPER}"/>
+    <g transform="translate(${(w-mark)/2} ${(h-mark)/2}) scale(${mark/100}) rotate(-5 50 50)">
+      <path fill-rule="evenodd" d="${FRAME}" fill="${SEAL}"/>
+      <g fill="${SEAL}">${RING(28, 5.8, 10)}</g>
+    </g></svg>`;
+};
+
+document.body.innerHTML =
+  full(1024) + adaptive(1024) + splash(1284, 2778) + full(196).replace('id="icon"','id="favicon"');
+</script></body></html>

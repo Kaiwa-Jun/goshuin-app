@@ -1,0 +1,131 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8">
+<title>御朱印を彫る</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap">
+<style>
+:root{ --seal:#C2342B; --sumi:#2B2622; --washi:#EFEAE0; --ink3:#9CA3AF; }
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#4B5563;font-family:"Noto Sans JP",sans-serif;color:#E5E7EB;
+  padding:26px 16px 60px;display:flex;flex-direction:column;align-items:center;gap:18px}
+h1{font-size:17px;font-weight:700;color:#fff}
+.hint{font-size:13px;color:#D1D5DB;max-width:520px;text-align:center;line-height:1.85}
+.hint b{color:#FDBA74}
+.board{background:#1F2937;border-radius:20px;padding:26px;display:flex;gap:28px;align-items:flex-end}
+.item{display:flex;flex-direction:column;align-items:center;gap:8px}
+.item .lb{font-size:11px;color:var(--ink3)}
+.g{border-radius:10px;box-shadow:0 6px 22px rgba(0,0,0,.4);display:block}
+</style></head><body>
+<h1>御朱印を彫る</h1>
+<div class="hint">オンボーディング2枚目に出るもの。実際に出る大きさは <b>168×224</b>、映っているのは約1秒。</div>
+<div class="board" id="board"></div>
+<div class="hint" id="note"></div>
+
+<script>
+const W = 240, H = 320;
+
+/**
+ * 筆の線。**直線の台形では筆に見えない**（最初そうして十字架になった）。
+ * 三次ベジェを刻んで、接線の法線方向に太さを振りながら閉じた形にする。
+ * 太さは入りで最大、抜きへ向かって細る
+ */
+function nib(p0,p1,p2,p3, wIn, wOut, N=26){
+  const at = t => {
+    const u = 1-t;
+    return [ u*u*u*p0[0] + 3*u*u*t*p1[0] + 3*u*t*t*p2[0] + t*t*t*p3[0],
+             u*u*u*p0[1] + 3*u*u*t*p1[1] + 3*u*t*t*p2[1] + t*t*t*p3[1] ];
+  };
+  const tan = t => {
+    const u = 1-t;
+    return [ 3*u*u*(p1[0]-p0[0]) + 6*u*t*(p2[0]-p1[0]) + 3*t*t*(p3[0]-p2[0]),
+             3*u*u*(p1[1]-p0[1]) + 6*u*t*(p2[1]-p1[1]) + 3*t*t*(p3[1]-p2[1]) ];
+  };
+  // 入りで少し膨らんで、抜きへ細る
+  const width = t => wOut + (wIn - wOut) * Math.pow(1 - t, 0.75);
+  const L = [], R = [];
+  for (let i=0;i<=N;i++){
+    const t = i/N, [x,y] = at(t), [dx,dy] = tan(t);
+    const len = Math.hypot(dx,dy) || 1;
+    const nx = -dy/len, ny = dx/len, w = width(t)/2;
+    L.push([x+nx*w, y+ny*w]);
+    R.push([x-nx*w, y-ny*w]);
+  }
+  const pt = ([x,y]) => `${x.toFixed(1)} ${y.toFixed(1)}`;
+  return `<path d="M${pt(L[0])} ${L.slice(1).map(q=>'L'+pt(q)).join('')}`
+       + `${R.reverse().map(q=>'L'+pt(q)).join('')} Z"/>`;
+}
+
+/** 短い点。打ち込みだけの画 */
+const tick = (x,y,dx,dy,w) => nib([x,y],[x+dx*0.3,y+dy*0.3],[x+dx*0.7,y+dy*0.7],[x+dx,y+dy], w, w*0.45, 10);
+
+const SEAL_FRAME =
+  'M4.0 5.2 L50 3.4 L96.0 5.0 L97.4 50 L95.8 96.2 L50 97.4 L4.6 95.6 L3.0 50 Z' +
+  'M11.6 12.4 L50 10.8 L88.8 12.6 L90.4 50 L88.6 88.2 L50 90.6 L11.2 88.6 L9.8 50 Z';
+const ring = (rad,rr,c)=>Array.from({length:12},(_,i)=>{const a=-Math.PI/2+i*Math.PI/6;
+  return `<circle cx="${(50+rad*Math.cos(a)).toFixed(2)}" cy="${(50+rad*Math.sin(a)).toFixed(2)}" r="${rr}"/>`;
+}).join('') + (c?`<circle cx="50" cy="50" r="${c}"/>`:'');
+
+/** 朱印。アプリの Seal.tsx と同じ彫り */
+const seal = (x,y,size,rot,mark)=>`<g transform="translate(${x} ${y}) rotate(${rot} ${size/2} ${size/2}) scale(${size/100})"
+    fill="var(--seal)" opacity=".88">
+  <path fill-rule="evenodd" d="${SEAL_FRAME}"/><g>${mark}</g></g>`;
+
+/*
+ * 墨書。**読める字にはしない**。
+ * 中央は寺社の名前が入る場所で、そこに読める字を置くと
+ * 存在しない寺社の名前を私が捏造することになる。
+ *
+ * 草書に寄せて、長く曲げて抜く運びにする。縦横の画で組むと
+ * 一文字の楷書に見えてしまい、名前を書いたように読めてしまう
+ */
+function sumi(){
+  const g = [];
+
+  /*
+   * 右の列（奉拝の位置）。速い運筆として、短い画を斜めに崩す。
+   * 縦横をそろえると小さな楷書の字に見えてしまう
+   */
+  g.push(nib([195,38],[209,42],[199,45],[215,44], 3.2, 3.6));
+  g.push(nib([207,43],[198,55],[209,60],[200,70], 4.4, 1.8));
+  g.push(nib([197,80],[212,84],[201,87],[216,86], 3.0, 3.4));
+  g.push(nib([209,85],[201,98],[212,103],[203,113], 4.2, 1.7));
+
+  /*
+   * 中央。**画を減らす**。等間隔の縦横を重ねると格子（井）に見えたので、
+   * 長さも角度もばらばらな運びを4つだけ。朱印が主役で墨は少ない、
+   * という実際の御朱印の配分にも合う
+   */
+  g.push(nib([118, 58],[136,108],[ 98,158],[110,246], 13.0, 3.4));
+  g.push(nib([ 88, 92],[124, 78],[146,112],[172,102],  8.5, 2.8));
+  g.push(nib([152,138],[140,176],[126,182],[104,218],  9.0, 2.6));
+  g.push(tick(156, 76, 9, 16, 5.0));
+
+  // 左の列（日付の位置）。細かい画を縦に
+  for (let i=0;i<4;i++){
+    g.push(tick(38, 72+i*30, 12, 3, 2.8));
+    g.push(nib([44,78+i*30],[47,86+i*30],[42,92+i*30],[46,98+i*30], 3.0, 1.6));
+  }
+  return `<g fill="var(--sumi)" opacity=".92">${g.join('')}</g>`;
+}
+
+function goshuin(){
+  return `<svg class="g" viewBox="0 0 ${W} ${H}">
+    <rect width="${W}" height="${H}" fill="var(--washi)"/>
+    <!-- 紙の陰影。刷毛目のような縦のむら -->
+    <g opacity=".025" fill="#6B5B4A">
+      ${Array.from({length:22},(_,i)=>`<rect x="${(i*11.4).toFixed(1)}" y="0" width="${(1.4+(i%5)*0.9).toFixed(1)}" height="${H}"/>`).join('')}
+    </g>
+    ${sumi()}
+    ${seal(66, 150, 108, -6, ring(25.5,6.6,0))}
+    ${seal(190, 24, 36, 5, ring(25.5,7.6,0))}
+  </svg>`;
+}
+
+const SIZES = [[240,320,'240×320（原寸）'],[168,224,'168×224（実際に出る大きさ）'],[96,128,'96×128']];
+document.getElementById('board').innerHTML = SIZES.map(([w,h,lb])=>
+  `<div class="item">${goshuin().replace('class="g"', `class="g" width="${w}" height="${h}"`)}
+   <div class="lb">${lb}</div></div>`).join('');
+document.getElementById('note').innerHTML =
+  '中央の運びは<b>読める字ではありません</b>。そこは寺社の名前が入る場所で、'
++ '読める字を置くと実在しない寺社の名前を捏造することになります。'
++ '朱印は <b>Seal.tsx と同じ彫り</b>です。';
+</script></body></html>
