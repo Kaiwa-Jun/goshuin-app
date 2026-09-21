@@ -121,8 +121,8 @@
     {
       "id": "P1-20",
       "title": "あゆみを日本地図にして、保存した県が色づくようにする（UX メモ 提案①②）",
-      "note": "Issue #209 / ブランチ feature/ayumi-map-v3（**未 push**）。要件は docs/design/2026-09-ayumi-map-spec.md と 2026-09-record-complete-spec.md（どちらもユーザー承認済み）、デザインは docs/design/mockups/2026-09-ayumi-v3-motion.html。⚠️ **#208（47マスのタイル版）は実機で差し戻しになり、develop から切り直して作り直した**（列島の再現度 / 色の意味 / シートの行き止まりの3点）。react-native-svg を1つだけ追加（dev build 焼き直し済み・build 2be6b913）。実機で①は確認済み（地図・県別画面・二本指の拡大縮小・スクロールの競合）。**②（保存直後の寄りとピン）は実機未確認**。",
-      "passes": false
+      "note": "Issue #209 / ブランチ feature/ayumi-map-v3（**未 push**）。要件は docs/design/2026-09-ayumi-map-spec.md と 2026-09-record-complete-spec.md（どちらもユーザー承認済み）、デザインは docs/design/mockups/2026-09-ayumi-v3-motion.html。⚠️ **#208（47マスのタイル版）は実機で差し戻しになり、develop から切り直して作り直した**（列島の再現度 / 色の意味 / シートの行き止まりの3点）。react-native-svg を1つだけ追加（dev build 焼き直し済み・build 2be6b913）。実機で①は確認済み（地図・県別画面・二本指の拡大縮小・スクロールの競合）。②（保存直後の寄りとピン）も実機確認済み。goshuin-evaluator は3巡目で PASS（1巡目・2巡目で実バグを2件出した: 保存直後の枚数の数え上げが逆向き / 2回目以降の県の濃さの分岐が無検証）。テスト1346件・lint 0 errors・typecheck クリーン。PR #210。",
+      "passes": true
     }
   ]
 }
