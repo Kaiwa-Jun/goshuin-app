@@ -19,5 +19,16 @@ export function useOnboarding() {
     setIsCompleted(true);
   }, []);
 
-  return { isCompleted, isLoading, completeOnboarding };
+  /**
+   * 完了の印を消す。**開発中だけ**。
+   *
+   * 一度終えるとオンボーディングは二度と出ないので、実機で見るには
+   * アプリを入れ直すしかなかった。dev build を焼き直すのは重すぎる
+   */
+  const resetOnboarding = useCallback(async () => {
+    await AsyncStorage.removeItem(STORAGE_KEY);
+    setIsCompleted(false);
+  }, []);
+
+  return { isCompleted, isLoading, completeOnboarding, resetOnboarding };
 }
