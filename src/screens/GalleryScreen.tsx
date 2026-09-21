@@ -120,6 +120,22 @@ export function GalleryScreen({ navigation }: Props) {
 
   const sortLabel = sortOrder === 'date' ? '日付順' : 'スポット順';
 
+  /*
+   * 御朱印帳は古い順に綴じる。そのまま開くと「最近の参拝」から来た人が
+   * **本の一番遠い端**に降ろされるので、開く位置だけ最新側にする。
+   *
+   * **最初の1回だけ**。この画面は戻るたびに取り直すので、毎回飛ばすと
+   * 途中まで見て他のタブへ行って戻った人の位置が失われる。
+   * 並べ替えを切り替えたときは、新しい並びの最新側へもう一度送る
+   */
+  const gridRef = useRef<FlatList<StampWithSpot>>(null);
+  const openedAt = useRef<SortOrder | null>(null);
+  const openAtLatest = () => {
+    if (openedAt.current === sortOrder || displayStamps.length === 0) return;
+    openedAt.current = sortOrder;
+    gridRef.current?.scrollToEnd({ animated: false });
+  };
+
   const handleToggleSort = () => {
     setSortOrder(prev => (prev === 'date' ? 'spot' : 'date'));
   };
@@ -399,12 +415,19 @@ export function GalleryScreen({ navigation }: Props) {
           </View>
         ) : (
           <FlatList
+            ref={gridRef}
             data={displayStamps}
             renderItem={renderItem}
             keyExtractor={item => item.id}
             numColumns={NUM_COLUMNS}
             key={sortOrder}
             contentContainerStyle={styles.listContent}
+            /*
+             * **いちばん下（最新）から開く**。綴じる順は変えない。
+             * 高さが出そろってからでないと端まで飛べないので、
+             * 中身の大きさが決まった合図で送る
+             */
+            onContentSizeChange={openAtLatest}
             testID="gallery-list"
           />
         )}
