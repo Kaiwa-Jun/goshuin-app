@@ -5,6 +5,7 @@ import {
   clampPan,
   panForPinch,
   pinchScale,
+  prefectureScreenPoint,
   touchDistance,
   zoomToPrefecture,
 } from '@utils/japanMapZoom';
@@ -115,5 +116,29 @@ describe('指で動かすときの決まり', () => {
         { pageX: 3, pageY: 4 },
       ])
     ).toBe(5);
+  });
+});
+
+describe('prefectureScreenPoint', () => {
+  /*
+   * 端の県は移動量を頭打ちにしているので、中心まで寄り切らない。
+   * ピンを枠の中心に置くと、その県から外れたところに刺さる
+   */
+  it('寄せたあとのその県の位置を返す（枠の中心とは限らない）', () => {
+    const inland = prefectureScreenPoint('岐阜県', WIDTH);
+    expect(inland.x).toBeCloseTo(WIDTH / 2, 3);
+    expect(inland.y).toBeCloseTo(HEIGHT / 2, 3);
+
+    const edge = prefectureScreenPoint('沖縄県', WIDTH);
+    expect(Math.abs(edge.x - WIDTH / 2) + Math.abs(edge.y - HEIGHT / 2)).toBeGreaterThan(1);
+  });
+
+  it('どの県でも、寄せたあと枠の中に収まる', () => {
+    for (const name of ['北海道', '沖縄県', '鹿児島県', '青森県', '東京都', '香川県']) {
+      const { x, y } = prefectureScreenPoint(name, WIDTH);
+
+      expect({ name, inX: x >= 0 && x <= WIDTH }).toEqual({ name, inX: true });
+      expect({ name, inY: y >= 0 && y <= HEIGHT }).toEqual({ name, inY: true });
+    }
   });
 });

@@ -215,7 +215,7 @@ export function RecordScreen({ navigation, route }: Props) {
       return;
     }
 
-    // まとめて登録しても訪問したスポットは1つ。件数は枚数ではなく箇所数で数える
+    // バッジの判定だけに使う。完了画面が出す数字は通算の枚数（提案②）
     const previousCount = visitedSpotIds.size;
     const isNewSpot = form.selectedSpot ? !visitedSpotIds.has(form.selectedSpot.id) : false;
     const currentCount = isNewSpot ? previousCount + 1 : previousCount;
@@ -224,11 +224,7 @@ export function RecordScreen({ navigation, route }: Props) {
     // push ではなく置き換える。記録済みのフォームを履歴に残すと、完了画面の
     // 「もう1枚記録する」から戻ったとき ✕ が完了画面へ帰ってしまい、しかも
     // 押すたびに履歴が2つずつ伸びる（Issue #188）
-    navigation.replace('RecordComplete', {
-      ...completeParams,
-      visitCount: currentCount,
-      badge,
-    });
+    navigation.replace('RecordComplete', { ...completeParams, badge });
   };
 
   const remainingSlots = MAX_PHOTOS_PER_RECORD - form.imageUris.length;

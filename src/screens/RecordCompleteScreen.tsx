@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -8,6 +8,7 @@ import { PressableScale } from '@components/common/PressableScale';
 import { SaveMapReveal } from '@components/record/SaveMapReveal';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
+import { shadows } from '@theme/shadows';
 import { spacing, borderRadius } from '@theme/spacing';
 import { formatJapaneseEraDate } from '@utils/japaneseEra';
 import type { RootStackScreenProps } from '@/navigation/types';
@@ -15,6 +16,8 @@ import type { RootStackScreenProps } from '@/navigation/types';
 type Props = RootStackScreenProps<'RecordComplete'>;
 
 const MAP_WIDTH = 210;
+/** 枚数が1つ増えるまでの間 */
+const COUNT_STEP_MS = 90;
 
 /**
  * 記録を終えた人を、来た場所に返すための出口。
@@ -83,6 +86,27 @@ export function RecordCompleteScreen({ navigation, route }: Props) {
    */
   const canShowMap = !countUnavailable && prefecture !== undefined && stampCountByPrefecture;
 
+  /*
+   * 枚数は地図が色づくのに合わせて数え上がる。いきなり最後の数字が出ていると、
+   * 「増えた」ではなく「そういう数字だった」に見える
+   */
+  const from = Math.max(0, (totalStampCount ?? 0) - stampCount);
+  const [shownCount, setShownCount] = useState(totalStampCount ?? 0);
+  const countTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  const startCountUp = useCallback(() => {
+    countTimers.current.forEach(clearTimeout);
+    countTimers.current = [];
+    if (totalStampCount === undefined || from >= totalStampCount) return;
+
+    setShownCount(from);
+    for (let n = from + 1; n <= totalStampCount; n += 1) {
+      countTimers.current.push(setTimeout(() => setShownCount(n), (n - from) * COUNT_STEP_MS));
+    }
+  }, [from, totalStampCount]);
+
+  useEffect(() => () => countTimers.current.forEach(clearTimeout), []);
+
   return (
     <LinearGradient
       colors={[colors.primary[400], colors.primary[500], colors.primary[700]]}
@@ -91,23 +115,26 @@ export function RecordCompleteScreen({ navigation, route }: Props) {
     >
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={styles.card}>
-          {stampImageUrl && !imageError ? (
-            <Image
-              source={{ uri: stampImageUrl }}
-              style={styles.stampImage}
-              resizeMode="cover"
-              testID="stamp-image"
-              onError={() => setImageError(true)}
-            />
-          ) : (
-            <View style={styles.imagePlaceholder} testID="stamp-image-placeholder">
-              <MaterialIcons name="photo" size={44} color={colors.gray[300]} />
-            </View>
-          )}
+          {/* 御朱印は主役。地から浮かせる（影は枠側に置く。Image に影は乗らない） */}
+          <View style={styles.stampFrame}>
+            {stampImageUrl && !imageError ? (
+              <Image
+                source={{ uri: stampImageUrl }}
+                style={styles.stampImage}
+                resizeMode="cover"
+                testID="stamp-image"
+                onError={() => setImageError(true)}
+              />
+            ) : (
+              <View style={styles.imagePlaceholder} testID="stamp-image-placeholder">
+                <MaterialIcons name="photo" size={44} color={colors.gray[300]} />
+              </View>
+            )}
+          </View>
 
           {!countUnavailable && totalStampCount !== undefined && (
             <View style={styles.countRow} testID="stamp-total">
-              <Text style={styles.countNumber}>{totalStampCount}</Text>
+              <Text style={styles.countNumber}>{shownCount}</Text>
               <Text style={styles.countUnit}>枚目</Text>
             </View>
           )}
@@ -117,7 +144,8 @@ export function RecordCompleteScreen({ navigation, route }: Props) {
             <Text style={styles.batch} testID="stamp-count">{`この日 ${stampCount}枚`}</Text>
           )}
 
-          {isFirstInPrefecture && prefecture && (
+          {/* 嘘の数字を祝わないのと同じ理由で、取れていないときは出さない */}
+          {canShowMap && isFirstInPrefecture && (
             <View style={styles.newChip} testID="first-in-prefecture">
               <Text style={styles.newChipText}>{`🗾 ${prefecture}、はじめて`}</Text>
             </View>
@@ -129,6 +157,7 @@ export function RecordCompleteScreen({ navigation, route }: Props) {
               stampCountByPrefecture={stampCountByPrefecture}
               spotType={spotType}
               width={MAP_WIDTH}
+              onSettled={startCountUp}
             />
           )}
 
@@ -196,17 +225,22 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     padding: spacing['2xl'],
   },
-  stampImage: {
+  stampFrame: {
     width: 150,
     aspectRatio: 3 / 4,
     borderRadius: borderRadius.md,
     backgroundColor: colors.gray[100],
+    ...shadows.lg,
+  },
+  stampImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: borderRadius.md,
   },
   imagePlaceholder: {
-    width: 150,
-    aspectRatio: 3 / 4,
+    width: '100%',
+    height: '100%',
     borderRadius: borderRadius.md,
-    backgroundColor: colors.gray[100],
     alignItems: 'center',
     justifyContent: 'center',
   },

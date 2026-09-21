@@ -18,7 +18,6 @@ export type RootStackParamList = {
         /** まとめて登録した枚数。表示できるのは先頭の1枚だけなので数だけ添える */
         stampCount?: number;
         spotName?: string;
-        visitCount?: number;
         badge?: { name: string; description: string } | null;
         /** 訪問済みスポットの取得に失敗し、件数とバッジを算出できなかった（Issue #133） */
         countUnavailable?: boolean;

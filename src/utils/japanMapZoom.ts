@@ -1,5 +1,10 @@
 import { JAPAN_MAP_HEIGHT, JAPAN_MAP_WIDTH, JAPAN_PREFECTURE_BOXES } from '@/constants/japanMap';
 
+export interface Pan {
+  x: number;
+  y: number;
+}
+
 export interface MapZoom {
   scale: number;
   /** 描画後の px。県の中心を枠の中心へ持ってくる移動量 */
@@ -40,13 +45,29 @@ export function zoomToPrefecture(prefecture: string, width: number): MapZoom {
   };
 }
 
+/**
+ * 寄せたあと、その県が画面のどこに来るか。
+ *
+ * ⚠️ **枠の真ん中とは限らない**。端の県（北海道・沖縄・鹿児島）は移動量を
+ * 頭打ちにしているので、中心まで寄り切らない。ピンを枠の中心に置くと、
+ * その県から外れたところに刺さる。
+ */
+export function prefectureScreenPoint(prefecture: string, width: number): Pan {
+  const box = JAPAN_PREFECTURE_BOXES[prefecture];
+  const height = (width * JAPAN_MAP_HEIGHT) / JAPAN_MAP_WIDTH;
+  const k = width / JAPAN_MAP_WIDTH;
+  const { scale, translateX, translateY } = zoomToPrefecture(prefecture, width);
+  const px = (box.x + box.width / 2) * k;
+  const py = (box.y + box.height / 2) * k;
+
+  return {
+    x: scale * (px - width / 2) + translateX + width / 2,
+    y: scale * (py - height / 2) + translateY + height / 2,
+  };
+}
+
 /** 指で広げられる上限。これ以上寄っても県の形が粗くなるだけ */
 export const MAX_SCALE = 8;
-
-export interface Pan {
-  x: number;
-  y: number;
-}
 
 /**
  * 拡大した地図が枠を覆ったままになるよう、移動量を頭打ちにする。

@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet } from 'react-native';
-import { render, fireEvent } from '@testing-library/react-native';
+import { render, fireEvent, act } from '@testing-library/react-native';
 import { RecordCompleteScreen } from '@screens/RecordCompleteScreen';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
@@ -47,7 +47,6 @@ const mockRouteWithParams = {
   params: {
     stampImageUrl: 'https://example.com/stamps/user-1/12345.jpg',
     spotName: '大崎八幡宮',
-    visitCount: 5,
   },
 };
 
@@ -107,7 +106,6 @@ describe('RecordCompleteScreen', () => {
       params: {
         stampImageUrl: undefined,
         spotName: undefined,
-        visitCount: 1,
         badge: { name: '初めての御朱印', description: '最初の御朱印を記録しました' },
       },
     };
@@ -156,7 +154,7 @@ describe('RecordCompleteScreen', () => {
     const routeWithNullBadge = {
       key: 'test',
       name: 'RecordComplete' as const,
-      params: { visitCount: 5, badge: null },
+      params: { badge: null },
     };
     const { queryByTestId } = render(
       <RecordCompleteScreen navigation={mockNavigation} route={routeWithNullBadge} />
@@ -169,7 +167,6 @@ describe('RecordCompleteScreen', () => {
       key: 'test',
       name: 'RecordComplete' as const,
       params: {
-        visitCount: 1,
         badge: { name: '初めての御朱印', description: '初めての御朱印を記録しました' },
       },
     };
@@ -230,7 +227,6 @@ describe('RecordCompleteScreen', () => {
       params: {
         stampImageUrl: 'https://example.com/stamps/user-1/12345.jpg',
         spotName: '大崎八幡宮',
-        visitCount: 1,
         badge: { name: '初めての御朱印', description: '初めての御朱印を記録しました' },
       },
     };
@@ -624,6 +620,60 @@ describe('保存した県が色づく', () => {
       />
     );
 
+    expect(queryByTestId('save-map')).toBeNull();
+  });
+});
+
+describe('枚数が数え上がる', () => {
+  const routeCounting = {
+    key: 'test',
+    name: 'RecordComplete' as const,
+    params: {
+      prefecture: '東京都',
+      stampCountByPrefecture: { 東京都: 1 },
+      totalStampCount: 34,
+      stampCount: 2,
+    },
+  } as never;
+
+  /*
+   * いきなり最後の数字が出ていると、「増えた」ではなく「そういう数字だった」に
+   * 見える。地図が色づくのに合わせて数え上げる
+   */
+  it('地図が色づいてから、まとめた枚数ぶん数え上がる', async () => {
+    jest.useFakeTimers();
+    const { getByTestId, UNSAFE_getByType } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={routeCounting} />
+    );
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+    const { SaveMapReveal } = require('@components/record/SaveMapReveal');
+
+    const shown = () => getByTestId('stamp-total').children[0].props.children;
+
+    act(() => UNSAFE_getByType(SaveMapReveal).props.onSettled());
+    expect(shown()).toBe(32);
+
+    act(() => jest.advanceTimersByTime(90));
+    expect(shown()).toBe(33);
+
+    act(() => jest.advanceTimersByTime(90));
+    expect(shown()).toBe(34);
+    jest.useRealTimers();
+  });
+
+  // 取得に失敗したら数字も地図もチップも出さない（嘘の数字を祝わない）
+  it('取得に失敗したら「はじめて」チップも出さない', () => {
+    const route = {
+      key: 'test',
+      name: 'RecordComplete' as const,
+      params: { countUnavailable: true, isFirstInPrefecture: true, prefecture: '東京都' },
+    } as never;
+    const { queryByTestId } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={route} />
+    );
+
+    expect(queryByTestId('first-in-prefecture')).toBeNull();
+    expect(queryByTestId('stamp-total')).toBeNull();
     expect(queryByTestId('save-map')).toBeNull();
   });
 });

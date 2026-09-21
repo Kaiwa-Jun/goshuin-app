@@ -21,7 +21,7 @@ import { RecentVisits } from '@components/collection/RecentVisits';
 import { useAuth } from '@hooks/useAuth';
 import { useCollectionStats } from '@hooks/useCollectionStats';
 import { getAllBadges } from '@services/badges';
-import { JAPAN_MAP_HEIGHT, JAPAN_MAP_WIDTH, JAPAN_PREFECTURE_NAMES } from '@/constants/japanMap';
+import { JAPAN_MAP_HEIGHT, JAPAN_MAP_WIDTH } from '@/constants/japanMap';
 import { colors } from '@theme/colors';
 import { shadows } from '@theme/shadows';
 import { borderRadius, spacing } from '@theme/spacing';
@@ -46,6 +46,8 @@ export function CollectionScreen({ navigation }: Props) {
    */
   // 地図に指が乗っている間は縦スクロールを止める（JapanMap の onInteraction 参照）
   const [scrollEnabled, setScrollEnabled] = useState(true);
+  // 塗り広がりに合わせて増やす。数字だけ最初から最終値だと噛み合わない
+  const [paintedCount, setPaintedCount] = useState(0);
   const [mapWidth, setMapWidth] = useState(
     Dimensions.get('window').width - spacing.lg * 2 - MAP_CARD_PADDING * 2
   );
@@ -53,12 +55,6 @@ export function CollectionScreen({ navigation }: Props) {
   const stampCountByPrefecture = useMemo(
     () => new Map(regionStats.map(stat => [stat.prefecture, stat.stampCount])),
     [regionStats]
-  );
-
-  // 47県のうち塗られた数。地域別の集計に出てくる表記ゆれは数に入れない
-  const visitedPrefectureCount = useMemo(
-    () => JAPAN_PREFECTURE_NAMES.filter(name => (stampCountByPrefecture.get(name) ?? 0) > 0).length,
-    [stampCountByPrefecture]
   );
 
   const handlePilgrimageDetail = (pilgrimageId: string, pilgrimageName: string) => {
@@ -127,7 +123,7 @@ export function CollectionScreen({ navigation }: Props) {
                   <ActivityIndicator testID="ayumi-map-loading" color={colors.primary[500]} />
                 ) : (
                   <View style={styles.mapHeaderLeft}>
-                    <Text style={styles.mapBigNumber}>{visitedPrefectureCount}</Text>
+                    <Text style={styles.mapBigNumber}>{paintedCount}</Text>
                     <Text style={styles.mapOf}>/ 47 都道府県</Text>
                   </View>
                 )}
@@ -145,13 +141,14 @@ export function CollectionScreen({ navigation }: Props) {
                   animate={!isLoading}
                   width={mapWidth}
                   onInteraction={active => setScrollEnabled(!active)}
+                  onRevealed={setPaintedCount}
                 />
               </View>
 
               <View style={styles.legend}>
                 <LegendItem
                   color={colors.prefectureFill.empty}
-                  text={`まだ ${47 - visitedPrefectureCount}`}
+                  text={`まだ ${47 - paintedCount}`}
                 />
                 <LegendItem color={colors.prefectureFill.tier1} text="1〜2枚" />
                 <LegendItem color={colors.prefectureFill.tier2} text="3〜5枚" />

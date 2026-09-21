@@ -70,6 +70,11 @@ interface Props {
    * 指が乗っている間だけ止めるのが定番の解き方。
    */
   onInteraction?: (active: boolean) => void;
+  /**
+   * いま何県まで塗ったか。上の数字を一緒に増やすのに使う。
+   * 数字だけ最初から最終値だと、塗り広がりと噛み合わない
+   */
+  onRevealed?: (count: number) => void;
 }
 
 /**
@@ -89,6 +94,7 @@ export function JapanMap({
   animate = false,
   width,
   onInteraction,
+  onRevealed,
 }: Props) {
   const height = (width * JAPAN_MAP_HEIGHT) / JAPAN_MAP_WIDTH;
 
@@ -101,15 +107,22 @@ export function JapanMap({
   // 塗り終わった県の数。アニメーションしないときは最初から全部
   const [revealed, setRevealed] = useState(animate ? 0 : order.length);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  /** 前に塗った県ぶれ。画面を離れて戻るたびに塗り直さないための目印 */
+  const painted = useRef<string | null>(null);
+  const signature = order.join(',');
 
   useEffect(() => {
     timers.current.forEach(clearTimeout);
     timers.current = [];
 
-    if (!animate) {
+    // 塗る県が前と同じなら、動かさず最後の状態を出す。戻るたびに
+    // 塗り広がりが再生すると、ただうるさい
+    if (!animate || painted.current === signature) {
+      painted.current = signature;
       setRevealed(order.length);
       return;
     }
+    painted.current = signature;
 
     let cancelled = false;
     setRevealed(0);
@@ -132,7 +145,13 @@ export function JapanMap({
       timers.current.forEach(clearTimeout);
       timers.current = [];
     };
-  }, [animate, order]);
+  }, [animate, order, signature]);
+
+  const revealedRef = useRef(onRevealed);
+  revealedRef.current = onRevealed;
+  useEffect(() => {
+    revealedRef.current?.(revealed);
+  }, [revealed]);
 
   const [zoomed, setZoomed] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
@@ -307,6 +326,9 @@ export function JapanMap({
                 strokeWidth={2}
                 onPress={() => onPressPrefecture(name)}
                 accessible
+                // ⚠️ accessibilityRole は react-native-svg の Path が受け付けない。
+                // 読み上げは accessible + accessibilityLabel で届くので、
+                // 「ボタン」と付かないのは既知の天井として受け入れる
                 accessibilityLabel={stampCount > 0 ? `${name}、${stampCount}枚` : `${name}、まだ`}
               />
             );

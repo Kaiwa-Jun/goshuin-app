@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Easing, StyleSheet, View } from 'react-native';
 import Svg, { Circle, Path, Polygon, G } from 'react-native-svg';
 
@@ -11,7 +11,7 @@ import {
 } from '@/constants/japanMap';
 import { colors } from '@theme/colors';
 import { borderRadius } from '@theme/spacing';
-import { zoomToPrefecture } from '@utils/japanMapZoom';
+import { prefectureScreenPoint, zoomToPrefecture } from '@utils/japanMapZoom';
 
 /** 全国が見えている間 → 寄る → ピンが落ちる */
 export const HOLD_MS = 560;
@@ -31,6 +31,8 @@ interface Props {
   /** ピンの色。記録した寺社の種別に合わせる */
   spotType?: 'shrine' | 'temple';
   width: number;
+  /** 寄り終わってピンが落ちたとき。枚数の数え上げをここに合わせる */
+  onSettled?: () => void;
 }
 
 /**
@@ -44,13 +46,26 @@ export function SaveMapReveal({
   stampCountByPrefecture,
   spotType = 'shrine',
   width,
+  onSettled,
 }: Props) {
   const height = (width * JAPAN_MAP_HEIGHT) / JAPAN_MAP_WIDTH;
   const target = useMemo(() => zoomToPrefecture(prefecture, width), [prefecture, width]);
+  /*
+   * ピンは**その県の上**に刺す。端の県は移動量を頭打ちにしていて中心まで
+   * 寄り切らないので、枠の中心に置くと県から外れる
+   */
+  const pinPoint = useMemo(() => prefectureScreenPoint(prefecture, width), [prefecture, width]);
 
   const progress = useRef(new Animated.Value(0)).current;
   const pinDrop = useRef(new Animated.Value(0)).current;
   const [settled, setSettled] = useState(false);
+  const settledRef = useRef(onSettled);
+  settledRef.current = onSettled;
+
+  const finish = useCallback(() => {
+    setSettled(true);
+    settledRef.current?.();
+  }, []);
   const running = useRef<Animated.CompositeAnimation | null>(null);
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -64,7 +79,7 @@ export function SaveMapReveal({
         if (reduce) {
           progress.setValue(1);
           pinDrop.setValue(1);
-          setSettled(true);
+          finish();
           return;
         }
         /*
@@ -89,13 +104,13 @@ export function SaveMapReveal({
               useNativeDriver: true,
             }),
           ]);
-          running.current.start(() => !cancelled && setSettled(true));
+          running.current.start(() => !cancelled && finish());
         }, HOLD_MS);
       })
       .catch(() => {
         progress.setValue(1);
         pinDrop.setValue(1);
-        setSettled(true);
+        finish();
       });
 
     /*
@@ -109,7 +124,7 @@ export function SaveMapReveal({
       running.current?.stop();
       running.current = null;
     };
-  }, [progress, pinDrop]);
+  }, [progress, pinDrop, finish]);
 
   const zoomStyle = {
     transform: [
@@ -141,12 +156,15 @@ export function SaveMapReveal({
   };
 
   const pinColor = spotType === 'temple' ? colors.pin.templeVisited : colors.pin.shrineVisited;
+  const paintedCount = JAPAN_PREFECTURE_NAMES.filter(
+    name => (stampCountByPrefecture[name] ?? 0) > 0
+  ).length;
 
   return (
     <View
       style={[styles.window, { width, height }]}
       testID="save-map"
-      accessibilityLabel={`${prefecture}が色づきました`}
+      accessibilityLabel={`${prefecture}がいま色づきました。47都道府県のうち${paintedCount}県`}
       accessible
     >
       <Animated.View style={zoomStyle}>
@@ -167,7 +185,7 @@ export function SaveMapReveal({
       <Animated.View
         style={[
           styles.pin,
-          { left: width / 2 - (PIN_W * PIN_SCALE) / 2, top: height / 2 - PIN_H * PIN_SCALE },
+          { left: pinPoint.x - (PIN_W * PIN_SCALE) / 2, top: pinPoint.y - PIN_H * PIN_SCALE },
           pinStyle,
         ]}
         pointerEvents="none"

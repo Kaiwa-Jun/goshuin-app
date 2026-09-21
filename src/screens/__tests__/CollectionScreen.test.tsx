@@ -1,8 +1,10 @@
 import React from 'react';
+import { AccessibilityInfo, StyleSheet } from 'react-native';
 import { render, fireEvent, act } from '@testing-library/react-native';
 
 import { CollectionScreen } from '../CollectionScreen';
 import { JapanMap } from '@components/collection/JapanMap';
+import { colors } from '@theme/colors';
 import type { CollectionStackScreenProps } from '@/navigation/types';
 
 jest.mock('react-native-safe-area-context', () => {
@@ -123,6 +125,8 @@ const mockRoute = {
 describe('CollectionScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // 塗り広がりは JapanMap のテストで見る。ここでは最後の状態を見たい
+    jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true as never);
     mockAuth = { user: { id: 'user-1' }, isAuthenticated: true };
     mockCollectionStats = {
       spotCount: 10,
@@ -171,10 +175,11 @@ describe('CollectionScreen', () => {
     expect(getByText('あゆみ')).toBeTruthy();
   });
 
-  it('地図が出て、塗られた県の数と通算の枚数が並ぶ', () => {
+  it('地図が出て、塗られた県の数と通算の枚数が並ぶ', async () => {
     const { getByTestId, getAllByTestId, getByText } = render(
       <CollectionScreen navigation={mockNavigation} route={mockRoute} />
     );
+    await act(async () => {});
 
     expect(getByTestId('ayumi-map-card')).toBeTruthy();
     expect(getAllByTestId(/^prefecture-/)).toHaveLength(47);
@@ -184,16 +189,26 @@ describe('CollectionScreen', () => {
   });
 
   // 色に載せる意味は枚数ひとつだけ。凡例も枚数の段にする
-  it('凡例が枚数の段になっている', () => {
+  it('凡例が枚数の段になっている', async () => {
     const { getByText, getAllByTestId } = render(
       <CollectionScreen navigation={mockNavigation} route={mockRoute} />
     );
+    await act(async () => {});
 
     expect(getByText('まだ 45')).toBeTruthy();
     expect(getByText('1〜2枚')).toBeTruthy();
     expect(getByText('3〜5枚')).toBeTruthy();
     expect(getByText('6枚〜')).toBeTruthy();
-    expect(getAllByTestId('ayumi-legend-swatch')).toHaveLength(4);
+    expect(
+      getAllByTestId('ayumi-legend-swatch').map(
+        el => StyleSheet.flatten(el.props.style).backgroundColor
+      )
+    ).toEqual([
+      colors.prefectureFill.empty,
+      colors.prefectureFill.tier1,
+      colors.prefectureFill.tier2,
+      colors.prefectureFill.tier3,
+    ]);
   });
 
   it('「いちばん新しい」を地図に出さない', () => {
@@ -253,11 +268,12 @@ describe('CollectionScreen', () => {
   });
 
   // 空の地図そのものが「これから塗る」の予告になる。説明文で埋めない
-  it('0件でも47県の地図を出し、説明文で埋めない', () => {
+  it('0件でも47県の地図を出し、説明文で埋めない', async () => {
     mockCollectionStats = { ...mockCollectionStats, regionStats: [] };
     const { getAllByTestId, getByText, queryByText } = render(
       <CollectionScreen navigation={mockNavigation} route={mockRoute} />
     );
+    await act(async () => {});
     expect(getAllByTestId(/^prefecture-/)).toHaveLength(47);
     expect(getByText('まだ 47')).toBeTruthy();
     expect(queryByText('御朱印を記録すると地域別の統計が表示されます')).toBeNull();

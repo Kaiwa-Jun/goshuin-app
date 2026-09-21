@@ -231,3 +231,50 @@ describe('親のスクロールを止める', () => {
     expect(onInteraction).toHaveBeenLastCalledWith(false);
   });
 });
+
+describe('読み上げと、塗り直しの抑制', () => {
+  it('県ごとに枚数が読み上げられる（色に頼らない）', () => {
+    const { getByTestId } = setup({ stampCountByPrefecture: new Map([['東京都', 12]]) });
+
+    expect(getByTestId('prefecture-東京都').props.accessibilityLabel).toBe('東京都、12枚');
+    expect(getByTestId('prefecture-高知県').props.accessibilityLabel).toBe('高知県、まだ');
+  });
+
+  // まとめられると、県ごとの読み上げが消える
+  it('地図のコンテナを1つの要素にまとめない', () => {
+    const { getByTestId } = setup();
+
+    expect(getByTestId('japan-map').props.accessible).toBe(false);
+  });
+
+  /*
+   * 画面を離れて戻るたびに塗り広がりが再生すると、ただうるさい。
+   * 塗る県が変わったときだけ動かす
+   */
+  it('枚数が変わっていなければ、戻っても塗り直さない', async () => {
+    jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false as never);
+    jest.useFakeTimers();
+    const counts = new Map([['沖縄県', 3]]);
+    const { getByTestId, rerender } = setup({ animate: true, stampCountByPrefecture: counts });
+    // 動きを減らす設定を見に行く約束を先に片付けてから、時間を進める
+    await act(async () => {});
+    await act(async () => {
+      jest.advanceTimersByTime(REVEAL_STEP_MS * 2);
+    });
+    expect(fillOf(getByTestId('prefecture-沖縄県'))).toBe(fill(colors.prefectureFill.tier2));
+
+    // 同じ中身の別インスタンスを渡す（取り直しのたびに新しい Map が来る）
+    rerender(
+      <JapanMap
+        stampCountByPrefecture={new Map([['沖縄県', 3]])}
+        onPressPrefecture={jest.fn()}
+        width={300}
+        animate
+      />
+    );
+
+    // 0に戻らず、塗られたまま
+    expect(fillOf(getByTestId('prefecture-沖縄県'))).toBe(fill(colors.prefectureFill.tier2));
+    jest.useRealTimers();
+  });
+});

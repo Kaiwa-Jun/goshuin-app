@@ -1,7 +1,8 @@
 import { act, render } from '@testing-library/react-native';
-import { AccessibilityInfo } from 'react-native';
+import { AccessibilityInfo, StyleSheet } from 'react-native';
 
 import { SaveMapReveal, HOLD_MS, ZOOM_MS, PIN_MS } from '@components/record/SaveMapReveal';
+import { prefectureScreenPoint } from '@utils/japanMapZoom';
 
 import { colors } from '@theme/colors';
 
@@ -46,23 +47,21 @@ describe('SaveMapReveal', () => {
     expect(fillOf(getByTestId('save-map-東京都'))).toBe(asPayload(colors.prefectureFill.tier1));
   });
 
-  it('ピンの色を寺社の種別に合わせる', async () => {
+  // 落ちてきたピンが、地図タブで見るのと同じピンになる
+  it.each([
+    ['shrine', colors.pin.shrineVisited],
+    ['temple', colors.pin.templeVisited],
+  ])('%s のピンは %s', async (spotType, expected) => {
     jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true as never);
-    const { getByTestId, rerender } = setup({ spotType: 'temple' });
+    const { getByTestId } = setup({ spotType: spotType as 'shrine' | 'temple' });
     await act(async () => {});
 
-    const polygons = getByTestId('save-map-pin').findAllByType('RNSVGPath' as never);
-    expect(polygons.length).toBeGreaterThan(0);
+    const fills = getByTestId('save-map-pin')
+      .findAllByType('RNSVGCircle' as never)
+      .map((el: { props: { fill?: { payload: number } } }) => el.props.fill?.payload);
 
-    rerender(
-      <SaveMapReveal
-        prefecture="東京都"
-        stampCountByPrefecture={{ 東京都: 1 }}
-        width={210}
-        spotType="shrine"
-      />
-    );
-    expect(getByTestId('save-map-pin')).toBeTruthy();
+    // 白フチの円と、色の円。色の方が種別に合っている
+    expect(fills).toContain(asPayload(expected));
   });
 
   it('動きを減らす設定なら、寄り終わった状態をすぐ出す', async () => {
@@ -72,5 +71,46 @@ describe('SaveMapReveal', () => {
     await act(async () => {});
 
     expect(fillOf(getByTestId('save-map-東京都'))).toBe(asPayload(colors.prefectureFill.tier1));
+  });
+});
+
+describe('ピンの位置と読み上げ', () => {
+  beforeEach(() => {
+    jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true as never);
+  });
+
+  /*
+   * 端の県は移動量を頭打ちにしていて中心まで寄り切らない。枠の中心に置くと
+   * 県から外れたところに刺さる
+   */
+  it('端の県でも、ピンがその県の上に来る', async () => {
+    const width = 210;
+    for (const prefecture of ['沖縄県', '北海道', '東京都']) {
+      const tree = render(
+        <SaveMapReveal
+          prefecture={prefecture}
+          stampCountByPrefecture={{ [prefecture]: 1 }}
+          width={width}
+        />
+      );
+      await act(async () => {});
+
+      const expected = prefectureScreenPoint(prefecture, width);
+      const placed = StyleSheet.flatten(tree.getByTestId('save-map-pin').props.style);
+
+      // 尾の先（left + 幅/2, top + 高さ）が県を指す
+      expect(placed.left + (84 * 0.34) / 2).toBeCloseTo(expected.x, 1);
+      expect(placed.top + 120 * 0.34).toBeCloseTo(expected.y, 1);
+      tree.unmount();
+    }
+  });
+
+  it('読み上げで、どの県が色づいたか分かる', async () => {
+    const { getByTestId } = setup({ stampCountByPrefecture: { 東京都: 1, 宮城県: 9 } });
+    await act(async () => {});
+
+    expect(getByTestId('save-map').props.accessibilityLabel).toBe(
+      '東京都がいま色づきました。47都道府県のうち2県'
+    );
   });
 });
