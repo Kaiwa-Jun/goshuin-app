@@ -1,0 +1,113 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8">
+<title>月参り・満願 v1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap">
+<style>
+:root{
+  --brand:#f27f0d; --brand700:#C2410C; --brand50:#FFF7ED; --brand100:#FFEDD5;
+  --seal:#DC2626; --temple:#9333EA; --teal:#0D9488;
+  --ink:#111827; --ink2:#4B5563; --ink3:#9CA3AF; --rule:#E5E7EB; --empty:#E3E4E8;
+  --paper:#F2F2F7;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:390px;height:844px;position:relative;overflow:hidden;
+  font-family:"Noto Sans JP",-apple-system,sans-serif;color:var(--ink);background:#E8EAE6}
+
+/* 背後の地図（雰囲気だけ） */
+.map{position:absolute;inset:0;background:
+  repeating-linear-gradient(28deg,#E4E7E2 0 38px,#EDEFEA 38px 76px),
+  radial-gradient(circle at 30% 24%,#DCE6DC 0 90px,transparent 90px)}
+.map::after{content:"";position:absolute;left:44%;top:20%;width:22px;height:22px;
+  border-radius:50% 50% 50% 0;background:var(--seal);transform:rotate(-45deg);
+  box-shadow:0 3px 6px rgba(0,0,0,.22)}
+.scrim{position:absolute;inset:0;background:rgba(17,24,39,.18)}
+
+/* ボトムシート */
+.sheet{position:absolute;left:0;right:0;bottom:0;top:96px;background:var(--paper);
+  border-radius:20px 20px 0 0;box-shadow:0 -6px 24px rgba(17,24,39,.18);
+  display:flex;flex-direction:column;overflow:hidden}
+.grab{width:40px;height:4px;border-radius:2px;background:#D1D5DB;margin:9px auto 4px;flex:none}
+.body{flex:1;overflow:hidden;padding:0 16px 16px}
+
+.head{padding:8px 0 12px}
+.h1{font-size:22px;font-weight:700;display:flex;align-items:center;gap:9px}
+.tag{font-size:11px;font-weight:700;color:var(--seal);background:rgba(220,38,38,.1);
+  border-radius:999px;padding:3px 9px}
+.sub{font-size:13px;color:var(--ink2);margin-top:4px}
+.infochips{display:flex;gap:7px;margin-top:10px;flex-wrap:wrap}
+.ichip{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--ink2);
+  background:#fff;border:1px solid var(--rule);border-radius:999px;padding:5px 11px}
+
+.actions{display:flex;gap:9px;margin-bottom:12px}
+.btn{flex:1;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;
+  gap:6px;font-size:15px;font-weight:700}
+.btn.p{background:var(--brand);color:#fff;flex:1.6}
+.btn.s{background:#fff;border:1px solid var(--rule);color:var(--teal)}
+
+/* 月参りカード */
+.tsuki{background:#fff;border-radius:16px;padding:16px;margin-bottom:12px;
+  border-top:3px solid var(--seal);box-shadow:0 2px 6px rgba(17,24,39,.09)}
+.tshead{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}
+.tstitle{font-size:16px;font-weight:700}
+.tschip{font-size:11px;font-weight:700;color:var(--seal);background:rgba(220,38,38,.1);
+  border-radius:999px;padding:3px 10px}
+.tssub{font-size:12px;color:var(--ink2);margin-bottom:12px}
+.dots{display:grid;grid-template-columns:repeat(12,1fr);gap:5px;margin-bottom:7px}
+.d{aspect-ratio:1;border-radius:50%;background:var(--empty)}
+.d.on{background:var(--seal)}
+.d.next{background:transparent;border:1.5px dashed var(--ink3)}
+.dlegend{display:flex;justify-content:space-between;font-size:10px;color:var(--ink3)}
+.tsgoal{margin-top:13px;padding-top:12px;border-top:1px solid var(--rule);
+  font-size:13px;color:var(--ink)}
+.tsgoal b{color:var(--seal);font-weight:700}
+
+.sectitle{font-size:14px;font-weight:700;color:var(--ink2);margin:2px 0 9px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.cell{aspect-ratio:3/4;border-radius:8px;background:linear-gradient(168deg,#FBF7EF,#F1EADC);
+  border:1px solid rgba(17,24,39,.1);position:relative}
+.cell i{position:absolute;left:50%;top:44%;width:26px;height:26px;transform:translate(-50%,-50%) rotate(-5deg);
+  border:2.5px solid rgba(220,38,38,.65);border-radius:2px}
+.cell b{position:absolute;right:6px;bottom:5px;font-size:9px;font-weight:500;color:var(--ink3)}
+</style></head><body>
+
+<div class="map"></div><div class="scrim"></div>
+
+<div class="sheet">
+  <div class="grab"></div>
+  <div class="body">
+    <div class="head">
+      <div class="h1">湯島天満宮 <span class="tag">神社</span></div>
+      <div class="sub">東京都文京区湯島3-30-1</div>
+      <div class="infochips">
+        <span class="ichip">🕘 受付 9:00〜17:00</span>
+        <span class="ichip">🚃 湯島駅 徒歩2分</span>
+      </div>
+    </div>
+
+    <div class="actions">
+      <div class="btn p">＋ 御朱印を記録する</div>
+      <div class="btn s">♡ 行きたい</div>
+    </div>
+
+    <div class="tsuki">
+      <div class="tshead"><span class="tstitle">月参り</span><span class="tschip">7ヶ月目</span></div>
+      <div class="tssub">毎月この神社へ。12ヶ月で満願です</div>
+      <div class="dots" role="img" aria-label="12ヶ月のうち7ヶ月ぶん参拝済み">
+        <i class="d on"></i><i class="d on"></i><i class="d on"></i><i class="d on"></i>
+        <i class="d on"></i><i class="d on"></i><i class="d on"></i><i class="d next"></i>
+        <i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i>
+      </div>
+      <div class="dlegend"><span>3月</span><span>満願</span></div>
+      <div class="tsgoal">満願まで、<b>あと5ヶ月</b>。</div>
+    </div>
+
+    <div class="sectitle">ここで授かった御朱印　7枚</div>
+    <div class="grid">
+      <div class="cell"><i></i><b>09/20</b></div>
+      <div class="cell"><i></i><b>08/18</b></div>
+      <div class="cell"><i></i><b>07/21</b></div>
+    </div>
+  </div>
+</div>
+</body></html>

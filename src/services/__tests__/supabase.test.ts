@@ -18,21 +18,39 @@ const mockAsyncStorage = {
 };
 jest.mock('@react-native-async-storage/async-storage', () => mockAsyncStorage);
 
+/*
+ * ⚠️ `jest.resetModules()` を素で呼ぶと、**このファイルが終わったあとも**
+ * そのワーカーのモジュール登録が壊れたままになる。
+ *
+ * 別のテストが残したアニメーションのタイマーがその状態で発火すると、
+ * react-native の Easing が中で遅延 require している bezier が undefined に
+ * なり、`_bezier is not a function` で**毎回ちがうテスト**が落ちる。
+ * 原因のファイルと落ちるファイルが一致しないので、非常に追いにくい。
+ *
+ * このファイルは「環境変数を変えて読み直す」ために登録をいじりたいだけなので、
+ * `jest.isolateModules()` でこのファイルの中に閉じ込める。
+ */
+const loadSupabase = () => {
+  let mod: typeof import('../supabase') | undefined;
+  jest.isolateModules(() => {
+    mod = require('../supabase');
+  });
+  return mod!;
+};
+
 describe('Supabase client', () => {
   beforeEach(() => {
-    jest.resetModules();
     mockCreateClient.mockClear();
     process.env.EXPO_PUBLIC_SUPABASE_URL = 'https://test.supabase.co';
     process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key';
   });
 
   it('should export a supabase client', () => {
-    const { supabase } = require('../supabase');
-    expect(supabase).toBeDefined();
+    expect(loadSupabase().supabase).toBeDefined();
   });
 
   it('should call createClient with correct URL and key', () => {
-    require('../supabase');
+    loadSupabase();
     expect(mockCreateClient).toHaveBeenCalledWith(
       'https://test.supabase.co',
       'test-anon-key',
@@ -47,19 +65,22 @@ describe('Supabase client', () => {
     );
   });
 
+  // 同じ登録の中では1度しか作らない（シングルトン）
   it('should call createClient exactly once (singleton)', () => {
-    require('../supabase');
-    require('../supabase');
+    jest.isolateModules(() => {
+      require('../supabase');
+      require('../supabase');
+    });
     expect(mockCreateClient).toHaveBeenCalledTimes(1);
   });
 
   it('should throw when EXPO_PUBLIC_SUPABASE_URL is empty', () => {
     process.env.EXPO_PUBLIC_SUPABASE_URL = '';
-    expect(() => require('../supabase')).toThrow('EXPO_PUBLIC_SUPABASE_URL is not set');
+    expect(loadSupabase).toThrow('EXPO_PUBLIC_SUPABASE_URL is not set');
   });
 
   it('should throw when EXPO_PUBLIC_SUPABASE_ANON_KEY is empty', () => {
     process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = '';
-    expect(() => require('../supabase')).toThrow('EXPO_PUBLIC_SUPABASE_ANON_KEY is not set');
+    expect(loadSupabase).toThrow('EXPO_PUBLIC_SUPABASE_ANON_KEY is not set');
   });
 });

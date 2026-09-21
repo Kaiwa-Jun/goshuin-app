@@ -114,6 +114,11 @@ jest.mock('@hooks/usePhotoPicker', () => ({
 }));
 
 const mockFetchVisitedSpotIds = jest.fn();
+const mockFetchRegionStats = jest.fn().mockResolvedValue([]);
+
+jest.mock('@services/collection', () => ({
+  fetchRegionStats: (...args: unknown[]) => mockFetchRegionStats(...args),
+}));
 
 jest.mock('@services/stamps', () => ({
   getStampImageUrl: (path: string) => `https://example.com/stamps/${path}`,
@@ -245,72 +250,51 @@ describe('RecordScreen', () => {
     });
   });
 
-  it('navigates to RecordComplete with visitCount when recording new spot', async () => {
-    const fakeStamp: Stamp = {
-      id: 'stamp-1',
-      user_id: 'user-1',
-      spot_id: 'spot-1',
-      goshuincho_id: null,
-      visited_at: '2024-06-01T00:00:00.000Z',
-      image_path: 'user-1/12345.jpg',
-      memo: '',
-      is_public: false,
-      extracted_info: null,
-      created_at: '2024-06-01T00:00:00Z',
-      updated_at: '2024-06-01T00:00:00Z',
-    };
-
+  /*
+   * 県ごとの枚数は**保存する前**に取る。完了画面が開いてから取りに行くと、
+   * 祝っている最中に地図の色が後から変わる
+   */
+  it('県ごとの枚数を、保存より前に取りに行く', async () => {
+    const order: string[] = [];
+    mockFetchRegionStats.mockImplementation(async () => {
+      order.push('fetchRegionStats');
+      return [];
+    });
     mockFormState.selectedSpot = fakeSpot;
     mockFormState.imageUris = ['file:///photo.jpg'];
-    mockSubmit.mockResolvedValue({ success: true, stamps: [fakeStamp], failedCount: 0 });
-    // spot-1 is NOT in visited set -> new spot
-    mockFetchVisitedSpotIds.mockResolvedValue(new Set(['spot-2', 'spot-3']));
-
+    mockFetchVisitedSpotIds.mockResolvedValue(new Set<string>());
+    mockSubmit.mockImplementation(async () => {
+      order.push('submit');
+      return { success: true, stamps: [{ id: 's1', image_path: 'p.jpg' }], failedCount: 0 };
+    });
     const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+
     fireEvent.press(getByText('この内容で記録する'));
 
-    await waitFor(() => {
-      expect(mockNavigation.replace).toHaveBeenCalledWith(
-        'RecordComplete',
-        expect.objectContaining({
-          visitCount: 3, // previousCount=2 + 1 new spot
-        })
-      );
-    });
+    await waitFor(() => expect(mockNavigation.replace).toHaveBeenCalled());
+    expect(order).toEqual(['fetchRegionStats', 'submit']);
   });
 
-  it('navigates to RecordComplete with visitCount when re-visiting spot', async () => {
-    const fakeStamp: Stamp = {
-      id: 'stamp-2',
-      user_id: 'user-1',
-      spot_id: 'spot-1',
-      goshuincho_id: null,
-      visited_at: '2024-06-01T00:00:00.000Z',
-      image_path: 'user-1/12345.jpg',
-      memo: '',
-      is_public: false,
-      extracted_info: null,
-      created_at: '2024-06-01T00:00:00Z',
-      updated_at: '2024-06-01T00:00:00Z',
-    };
-
+  // 表示用の前取得であって記録ではない。失敗しても保存を止めない（Issue #133）
+  it('県ごとの枚数が取れなくても、記録は止めない', async () => {
+    mockFetchRegionStats.mockRejectedValue(new Error('boom'));
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
     mockFormState.selectedSpot = fakeSpot;
     mockFormState.imageUris = ['file:///photo.jpg'];
-    mockSubmit.mockResolvedValue({ success: true, stamps: [fakeStamp], failedCount: 0 });
-    // spot-1 is already in visited set -> re-visit
-    mockFetchVisitedSpotIds.mockResolvedValue(new Set(['spot-1', 'spot-2']));
-
+    mockFetchVisitedSpotIds.mockResolvedValue(new Set<string>());
+    mockSubmit.mockResolvedValue({
+      success: true,
+      stamps: [{ id: 's1', image_path: 'p.jpg' }],
+      failedCount: 0,
+    });
     const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+
     fireEvent.press(getByText('この内容で記録する'));
 
-    await waitFor(() => {
-      expect(mockNavigation.replace).toHaveBeenCalledWith(
-        'RecordComplete',
-        expect.objectContaining({
-          visitCount: 2, // previousCount=2, no change for re-visit
-        })
-      );
-    });
+    await waitFor(() => expect(mockNavigation.replace).toHaveBeenCalled());
+    expect(mockSubmit).toHaveBeenCalled();
+    warnSpy.mockRestore();
+    mockFetchRegionStats.mockResolvedValue([]);
   });
 
   it('navigates to RecordComplete with badge when badge is earned', async () => {
@@ -1231,8 +1215,6 @@ describe('訪問済みスポットの取得に成功したとき（Issue #133 �
     await waitFor(() => {
       expect(mockNavigation.replace).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
     });
-
-    expect(paramsOfRecordComplete().visitCount).toBe(3);
     expect(evaluateNewBadge as jest.Mock).toHaveBeenCalledWith(2, 3);
   });
 
@@ -1246,8 +1228,6 @@ describe('訪問済みスポットの取得に成功したとき（Issue #133 �
     await waitFor(() => {
       expect(mockNavigation.replace).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
     });
-
-    expect(paramsOfRecordComplete().visitCount).toBe(2);
     expect(evaluateNewBadge as jest.Mock).toHaveBeenCalledWith(2, 2);
   });
 

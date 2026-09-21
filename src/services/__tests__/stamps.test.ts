@@ -3,6 +3,7 @@ import {
   fetchStampsBySpotId,
   getStampImageUrl,
   fetchAllStamps,
+  fetchStampsByPrefecture,
   fetchStampById,
   updateStamp,
   deleteStampImage,
@@ -368,5 +369,54 @@ describe('stamps service', () => {
       await expect(deleteStamp('stamp-1', 'img/1.jpg')).rejects.toThrow('db delete error');
       expect(mockRemove).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe('県別の取り出し', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  const chain = (rows: unknown[], error: { message: string } | null = null) => {
+    const limit = jest.fn().mockReturnValue({ data: rows, error });
+    const order2 = jest.fn().mockReturnValue({ data: rows, error, limit });
+    const order1 = jest.fn().mockReturnValue({ order: order2 });
+    const eq2 = jest.fn().mockReturnValue({ order: order1 });
+    const eq1 = jest.fn().mockReturnValue({ order: order1, eq: eq2 });
+    const select = jest.fn().mockReturnValue({ eq: eq1 });
+    mockFrom.mockReturnValue({ select });
+    return { select, eq1, eq2, order1, order2, limit };
+  };
+
+  it('fetchStampsByPrefecture はその県だけを、新しい順で取る', async () => {
+    const { select, eq1, eq2, order1, order2 } = chain([{ id: 's1' }]);
+
+    const result = await fetchStampsByPrefecture('user-1', '東京都');
+
+    expect(select).toHaveBeenCalledWith('*, spots!inner(name, type, prefecture)');
+    expect(eq1).toHaveBeenCalledWith('user_id', 'user-1');
+    expect(eq2).toHaveBeenCalledWith('spots.prefecture', '東京都');
+    expect(order1).toHaveBeenCalledWith('visited_at', { ascending: false });
+    expect(order2).toHaveBeenCalledWith('created_at', { ascending: false });
+    expect(result).toEqual([{ id: 's1' }]);
+  });
+
+  it('fetchStampsByPrefecture はエラーでも空配列を返す（画面を止めない）', async () => {
+    chain([], { message: 'boom' });
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    await expect(fetchStampsByPrefecture('user-1', '東京都')).resolves.toEqual([]);
+
+    expect(warnSpy).toHaveBeenCalledWith('fetchStampsByPrefecture error:', 'boom');
+    warnSpy.mockRestore();
+  });
+
+  // 御朱印帳は全件が要る。limit を既定で付けると一覧が静かに欠ける
+  it('fetchAllStamps は limit を渡したときだけ件数を絞る', async () => {
+    const withLimit = chain([{ id: 's1' }]);
+    await fetchAllStamps('user-1', 3);
+    expect(withLimit.limit).toHaveBeenCalledWith(3);
+
+    const withoutLimit = chain([{ id: 's1' }]);
+    await fetchAllStamps('user-1');
+    expect(withoutLimit.limit).not.toHaveBeenCalled();
   });
 });

@@ -148,6 +148,57 @@ describe('Theme', () => {
     });
 
     // カードが地から分かれていないと、そもそもカードに見えない
+    const fillTiers = () => {
+      const { empty, tier1, tier2, tier3 } = colors.prefectureFill;
+      return { empty, tier1, tier2, tier3 };
+    };
+    const fillPairs = () => {
+      const entries = Object.entries(fillTiers());
+      return entries.flatMap(([an, a], i) =>
+        entries.slice(i + 1).map(([bn, b]) => ({ label: `${an} × ${bn}`, a, b }))
+      );
+    };
+
+    it('県の塗りは「まだ」の灰と、ブランドの3段から採っている', () => {
+      expect(colors.prefectureFill.empty).toBe('#E3E4E8');
+      expect(colors.prefectureFill.tier1).toBe(colors.primary[300]);
+      expect(colors.prefectureFill.tier2).toBe(colors.primary[500]);
+      expect(colors.prefectureFill.tier3).toBe(colors.primary[700]);
+      expect(colors.prefectureFill.border).toBe(colors.white);
+    });
+
+    // 色に載せる意味は枚数ひとつだけ。他の意味を足すとここが増える
+    it('県の塗りに、枚数以外の意味を持つ色を足していない', () => {
+      expect(Object.keys(colors.prefectureFill).sort()).toEqual([
+        'border',
+        'empty',
+        'tier1',
+        'tier2',
+        'tier3',
+      ]);
+    });
+
+    it('4段が、どのペアも知覚上離れている', () => {
+      const tooClose = fillPairs()
+        .map(p => ({ ...p, d: distance(p.a, p.b) }))
+        .filter(p => p.d < 20)
+        .map(p => `${p.label}: ${p.d.toFixed(1)}`);
+
+      expect(tooClose).toEqual([]);
+    });
+
+    // 実測の最小は tier2 × tier3 で 通常 27.3 / deutan 24.6 / protan 28.8
+    it('4段が、色覚多様性でも分かれている', () => {
+      const tooClose = (['deutan', 'protan'] as const).flatMap(kind =>
+        fillPairs()
+          .map(p => ({ ...p, kind, d: distance(simulate(p.a, kind), simulate(p.b, kind)) }))
+          .filter(p => p.d < 18)
+          .map(p => `${p.kind} ${p.label}: ${p.d.toFixed(1)}`)
+      );
+
+      expect(tooClose).toEqual([]);
+    });
+
     it('カードを並べる地は、カード(白)と知覚上分かれている', () => {
       expect(distance(colors.backgroundGrouped, colors.white)).toBeGreaterThan(3);
     });

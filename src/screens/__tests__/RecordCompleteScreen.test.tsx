@@ -1,9 +1,10 @@
 import React from 'react';
 import { StyleSheet } from 'react-native';
-import { render, fireEvent } from '@testing-library/react-native';
+import { render, fireEvent, act } from '@testing-library/react-native';
 import { RecordCompleteScreen } from '@screens/RecordCompleteScreen';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
+import { shadows } from '@theme/shadows';
 
 jest.mock('react-native-safe-area-context', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
@@ -47,7 +48,6 @@ const mockRouteWithParams = {
   params: {
     stampImageUrl: 'https://example.com/stamps/user-1/12345.jpg',
     spotName: '大崎八幡宮',
-    visitCount: 5,
   },
 };
 
@@ -56,18 +56,26 @@ describe('RecordCompleteScreen', () => {
     jest.clearAllMocks();
   });
 
-  it('renders without crashing', () => {
-    const { getByText } = render(
+  it('御朱印が主役になっている（見出しの文字で祝わない）', () => {
+    const { queryByText, getByTestId } = render(
       <RecordCompleteScreen navigation={mockNavigation} route={mockRouteNoParams} />
     );
-    expect(getByText('登録完了！')).toBeTruthy();
+
+    expect(getByTestId('stamp-image-placeholder')).toBeTruthy();
+    expect(queryByText('登録完了！')).toBeNull();
   });
 
-  it('renders checkmark animation', () => {
-    const { getByTestId } = render(
+  /*
+   * チェックマークと紙吹雪は何のアプリでも出せる。このアプリにしか出せない
+   * 御朱印と地図を主役にしたので、汎用の演出は外した
+   */
+  it('チェックマークと紙吹雪を出さない', () => {
+    const { queryByTestId } = render(
       <RecordCompleteScreen navigation={mockNavigation} route={mockRouteNoParams} />
     );
-    expect(getByTestId('checkmark-animation')).toBeTruthy();
+
+    expect(queryByTestId('checkmark-animation')).toBeNull();
+    expect(queryByTestId('confetti-effect')).toBeNull();
   });
 
   it('renders stamp image placeholder when no params', () => {
@@ -77,11 +85,12 @@ describe('RecordCompleteScreen', () => {
     expect(getByTestId('stamp-image-placeholder')).toBeTruthy();
   });
 
-  it('renders default count text when no visitCount', () => {
-    const { getByText } = render(
+  it('枚数が渡されていなければ、数字を出さない', () => {
+    const { queryByTestId } = render(
       <RecordCompleteScreen navigation={mockNavigation} route={mockRouteNoParams} />
     );
-    expect(getByText('御朱印を記録しました！')).toBeTruthy();
+
+    expect(queryByTestId('stamp-total')).toBeNull();
   });
 
   it('does not render badge animation when no badge param', () => {
@@ -98,7 +107,6 @@ describe('RecordCompleteScreen', () => {
       params: {
         stampImageUrl: undefined,
         spotName: undefined,
-        visitCount: 1,
         badge: { name: '初めての御朱印', description: '最初の御朱印を記録しました' },
       },
     };
@@ -147,7 +155,7 @@ describe('RecordCompleteScreen', () => {
     const routeWithNullBadge = {
       key: 'test',
       name: 'RecordComplete' as const,
-      params: { visitCount: 5, badge: null },
+      params: { badge: null },
     };
     const { queryByTestId } = render(
       <RecordCompleteScreen navigation={mockNavigation} route={routeWithNullBadge} />
@@ -160,7 +168,6 @@ describe('RecordCompleteScreen', () => {
       key: 'test',
       name: 'RecordComplete' as const,
       params: {
-        visitCount: 1,
         badge: { name: '初めての御朱印', description: '初めての御朱印を記録しました' },
       },
     };
@@ -186,35 +193,32 @@ describe('RecordCompleteScreen', () => {
       expect(getByText('大崎八幡宮')).toBeTruthy();
     });
 
-    it('renders visit count text when visitCount is provided', () => {
-      const { getByText } = render(
-        <RecordCompleteScreen navigation={mockNavigation} route={mockRouteWithParams} />
-      );
-      expect(getByText('5箇所目の御朱印！')).toBeTruthy();
-    });
-
-    it('renders "1箇所目の御朱印！" for visitCount=1', () => {
-      const routeCount1 = {
+    // 地図を出さないときは数え上げの合図が来ないので、最終値のまま出す
+    it('地図が無いときは、通算の枚数をそのまま大きく出す', () => {
+      const route = {
         key: 'test',
         name: 'RecordComplete' as const,
-        params: { visitCount: 1 },
+        params: { totalStampCount: 34 },
       };
       const { getByText } = render(
-        <RecordCompleteScreen navigation={mockNavigation} route={routeCount1} />
+        <RecordCompleteScreen navigation={mockNavigation} route={route} />
       );
-      expect(getByText('1箇所目の御朱印！')).toBeTruthy();
+
+      expect(getByText('34')).toBeTruthy();
+      expect(getByText('枚目')).toBeTruthy();
     });
 
-    it('renders "33箇所目の御朱印！" for visitCount=33', () => {
-      const routeCount33 = {
+    it('参拝日を和暦で出す（DATE のまま渡す）', () => {
+      const route = {
         key: 'test',
         name: 'RecordComplete' as const,
-        params: { visitCount: 33 },
+        params: { spotName: '湯島天満宮', visitedAt: '2026-09-20' },
       };
-      const { getByText } = render(
-        <RecordCompleteScreen navigation={mockNavigation} route={routeCount33} />
+      const { getByTestId } = render(
+        <RecordCompleteScreen navigation={mockNavigation} route={route} />
       );
-      expect(getByText('33箇所目の御朱印！')).toBeTruthy();
+
+      expect(getByTestId('visited-at').props.children).toContain('9月20日');
     });
   });
 
@@ -225,7 +229,6 @@ describe('RecordCompleteScreen', () => {
       params: {
         stampImageUrl: 'https://example.com/stamps/user-1/12345.jpg',
         spotName: '大崎八幡宮',
-        visitCount: 1,
         badge: { name: '初めての御朱印', description: '初めての御朱印を記録しました' },
       },
     };
@@ -249,11 +252,11 @@ describe('RecordCompleteScreen', () => {
       });
     });
 
-    it('renders both badge animation and visit count when both are provided', () => {
-      const { getByTestId, getByText } = render(
+    it('バッジは御朱印と地図のあとに出す', () => {
+      const { getByTestId } = render(
         <RecordCompleteScreen navigation={mockNavigation} route={mockRouteWithBadge} />
       );
-      expect(getByText('1箇所目の御朱印！')).toBeTruthy();
+
       expect(getByTestId('badge-animation')).toBeTruthy();
     });
   });
@@ -311,12 +314,18 @@ describe('記録数を算出できなかったときの注記（Issue #133）', 
   });
 
   // C-5: 件数を出せない代わりに、記録できたことは既存のフォールバック文言が伝える
-  it('visitCount が無ければ既存のフォールバック文言を出す', () => {
-    const { getByTestId } = render(
+  /*
+   * 嘘の数字を祝わない。保存はできているので画面は出すが、数字と地図は出さない
+   * （Issue #133）
+   */
+  it('取得に失敗したら、数字も地図も出さない', () => {
+    const { queryByTestId, getByTestId } = render(
       <RecordCompleteScreen navigation={mockNavigation} route={routeCountUnavailable} />
     );
 
-    expect(getByTestId('visit-count').props.children).toBe('御朱印を記録しました！');
+    expect(queryByTestId('stamp-total')).toBeNull();
+    expect(queryByTestId('save-map')).toBeNull();
+    expect(getByTestId('visit-count-unavailable')).toBeTruthy();
   });
 
   // C-6: 判定材料が無い以上、獲得済みバッジを再発火させない
@@ -335,27 +344,8 @@ describe('記録数を算出できなかったときの注記（Issue #133）', 
     );
     const style = StyleSheet.flatten(getByTestId('visit-count-unavailable').props.style);
 
-    expect(style.color).toBe(colors.white);
+    expect(style.color).toBe(colors.gray[500]);
     expect(style.fontSize).toBe(typography.caption.fontSize);
-  });
-
-  // C-8: 何の件数が出ていないのかが分かるよう、件数テキストの直下に置く
-  it('注記は件数テキストの直後に描画される', () => {
-    const { toJSON } = render(
-      <RecordCompleteScreen navigation={mockNavigation} route={routeCountUnavailable} />
-    );
-
-    const tracked = ['spot-name', 'visit-count', 'visit-count-unavailable'];
-    const order: string[] = [];
-    const walk = (node: any) => {
-      if (!node || typeof node !== 'object') return;
-      const id = node.props?.testID;
-      if (id && tracked.includes(id)) order.push(id);
-      (node.children ?? []).forEach(walk);
-    };
-    walk(toJSON());
-
-    expect(order).toEqual(tracked);
   });
 });
 
@@ -514,15 +504,17 @@ describe('まとめて登録したときの枚数表示', () => {
   });
 
   // 5枚もらっても訪問した場所は1つ。件数は箇所数のまま
-  it('枚数を出しても箇所数の文言は変わらない', () => {
+  it('まとめ枚数と通算の枚数を混ぜない', () => {
     const route = routeWith(5);
-    route.params.visitCount = 3;
+    route.params.totalStampCount = 34;
 
-    const { getByTestId } = render(
+    const { getByTestId, getByText } = render(
       <RecordCompleteScreen navigation={mockNavigation} route={route} />
     );
 
-    expect(getByTestId('visit-count').props.children).toBe('3箇所目の御朱印！');
+    expect(getByTestId('stamp-count').props.children).toBe('この日 5枚');
+    // 地図が無い経路なので、通算はそのまま出る
+    expect(getByText('34')).toBeTruthy();
   });
 });
 
@@ -578,4 +570,128 @@ describe('この画面を履歴に残さない', () => {
       params: { screen: 'Map' },
     });
   });
+});
+
+describe('保存した県が色づく', () => {
+  const routeWithMap = (params: Record<string, unknown> = {}) =>
+    ({
+      key: 'test',
+      name: 'RecordComplete' as const,
+      params: {
+        prefecture: '東京都',
+        stampCountByPrefecture: { 東京都: 1, 宮城県: 9 },
+        totalStampCount: 34,
+        spotName: '湯島天満宮',
+        ...params,
+      },
+    }) as never;
+
+  it('地図を出して、その県へ寄る', () => {
+    const { getByTestId } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={routeWithMap()} />
+    );
+
+    expect(getByTestId('save-map')).toBeTruthy();
+    expect(getByTestId('save-map-pin')).toBeTruthy();
+  });
+
+  it('その県が初めてのときだけチップを出す', () => {
+    const { getByTestId } = render(
+      <RecordCompleteScreen
+        navigation={mockNavigation}
+        route={routeWithMap({ isFirstInPrefecture: true })}
+      />
+    );
+    expect(getByTestId('first-in-prefecture').props.children.props.children).toBe(
+      '🗾 東京都、はじめて'
+    );
+
+    const { queryByTestId } = render(
+      <RecordCompleteScreen
+        navigation={mockNavigation}
+        route={routeWithMap({ isFirstInPrefecture: false })}
+      />
+    );
+    expect(queryByTestId('first-in-prefecture')).toBeNull();
+  });
+
+  it('県が分からなければ地図を出さない', () => {
+    const { queryByTestId } = render(
+      <RecordCompleteScreen
+        navigation={mockNavigation}
+        route={routeWithMap({ prefecture: undefined })}
+      />
+    );
+
+    expect(queryByTestId('save-map')).toBeNull();
+  });
+});
+
+describe('枚数が数え上がる', () => {
+  const routeCounting = {
+    key: 'test',
+    name: 'RecordComplete' as const,
+    params: {
+      prefecture: '東京都',
+      stampCountByPrefecture: { 東京都: 1 },
+      totalStampCount: 34,
+      stampCount: 2,
+    },
+  } as never;
+
+  /*
+   * いきなり最後の数字が出ていると、「増えた」ではなく「そういう数字だった」に
+   * 見える。地図が色づくのに合わせて数え上げる
+   */
+  it('地図が色づいてから、まとめた枚数ぶん数え上がる', async () => {
+    jest.useFakeTimers();
+    const { getByTestId, UNSAFE_getByType } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={routeCounting} />
+    );
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+    const { SaveMapReveal } = require('@components/record/SaveMapReveal');
+
+    const shown = () => getByTestId('stamp-total').children[0].props.children;
+
+    // 合図が来る前から、数え始めの値が出ている（最終値を先に出さない）
+    expect(shown()).toBe(32);
+
+    act(() => UNSAFE_getByType(SaveMapReveal).props.onSettled());
+    expect(shown()).toBe(32);
+
+    act(() => jest.advanceTimersByTime(90));
+    expect(shown()).toBe(33);
+
+    act(() => jest.advanceTimersByTime(90));
+    expect(shown()).toBe(34);
+    jest.useRealTimers();
+  });
+
+  // 取得に失敗したら数字も地図もチップも出さない（嘘の数字を祝わない）
+  it('取得に失敗したら「はじめて」チップも出さない', () => {
+    const route = {
+      key: 'test',
+      name: 'RecordComplete' as const,
+      params: { countUnavailable: true, isFirstInPrefecture: true, prefecture: '東京都' },
+    } as never;
+    const { queryByTestId } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={route} />
+    );
+
+    expect(queryByTestId('first-in-prefecture')).toBeNull();
+    expect(queryByTestId('stamp-total')).toBeNull();
+    expect(queryByTestId('save-map')).toBeNull();
+  });
+});
+
+// 御朱印は主役。地から浮かせる（影は枠側。Image に影は乗らない）
+it('御朱印が影で浮いている（トークン由来）', () => {
+  const { getByTestId } = render(
+    <RecordCompleteScreen navigation={mockNavigation} route={mockRouteWithParams} />
+  );
+  const style = StyleSheet.flatten(getByTestId('stamp-frame').props.style);
+
+  expect(style.shadowOpacity).toBe(shadows.lg.shadowOpacity);
+  expect(style.shadowRadius).toBe(shadows.lg.shadowRadius);
+  expect(style.elevation).toBe(shadows.lg.elevation);
 });

@@ -1,10 +1,11 @@
-interface RegionBlockDef {
-  key: string;
-  label: string;
-  prefectures: string[];
-}
-
-export const REGION_BLOCKS: RegionBlockDef[] = [
+/**
+ * 47都道府県の正式名の出どころ。DB の `spots.prefecture` と同じ表記で、
+ * `src/constants/japanMap.ts` の県名とも一致する（テストで固定）。
+ *
+ * ブロックごとの集計（groupByRegionBlock）は、あゆみが地図になったときに
+ * 役目を終えて消した（Issue #209）。地図が同じことを県単位で見せている。
+ */
+export const REGION_BLOCKS: { key: string; label: string; prefectures: string[] }[] = [
   {
     key: 'hokkaido_tohoku',
     label: '北海道・東北',
@@ -56,60 +57,3 @@ export const REGION_BLOCKS: RegionBlockDef[] = [
     prefectures: ['福岡県', '佐賀県', '長崎県', '熊本県', '大分県', '宮崎県', '鹿児島県', '沖縄県'],
   },
 ];
-
-export interface PrefectureInBlock {
-  prefecture: string;
-  visitedCount: number;
-  totalCount: number;
-  hasVisited: boolean;
-}
-
-export interface GroupedRegion {
-  key: string;
-  label: string;
-  visitedPrefCount: number;
-  totalPrefCount: number;
-  prefectures: PrefectureInBlock[];
-}
-
-interface RegionStat {
-  prefecture: string;
-  visitedCount: number;
-  totalCount: number;
-}
-
-export function groupByRegionBlock(regionStats: RegionStat[]): GroupedRegion[] {
-  const statMap = new Map<string, RegionStat>();
-  for (const stat of regionStats) {
-    statMap.set(stat.prefecture, stat);
-  }
-
-  return REGION_BLOCKS.map(block => {
-    const prefectures: PrefectureInBlock[] = block.prefectures.map(pref => {
-      const stat = statMap.get(pref);
-      return {
-        prefecture: pref,
-        visitedCount: stat?.visitedCount ?? 0,
-        totalCount: stat?.totalCount ?? 0,
-        hasVisited: (stat?.visitedCount ?? 0) > 0,
-      };
-    });
-
-    // 訪問済みを上、未訪問を下
-    prefectures.sort((a, b) => {
-      if (a.hasVisited && !b.hasVisited) return -1;
-      if (!a.hasVisited && b.hasVisited) return 1;
-      return 0;
-    });
-
-    const visitedPrefCount = prefectures.filter(p => p.hasVisited).length;
-
-    return {
-      key: block.key,
-      label: block.label,
-      visitedPrefCount,
-      totalPrefCount: block.prefectures.length,
-      prefectures,
-    };
-  });
-}

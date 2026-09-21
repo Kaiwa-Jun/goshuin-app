@@ -103,8 +103,8 @@ describe('fetchRegionStats', () => {
     expect(mockFrom).toHaveBeenCalledWith('stamps');
     expect(result).toEqual(
       expect.arrayContaining([
-        { prefecture: '宮城県', visitedCount: 2, totalCount: 0 },
-        { prefecture: '東京都', visitedCount: 1, totalCount: 0 },
+        expect.objectContaining({ prefecture: '宮城県', visitedCount: 2, totalCount: 0 }),
+        expect.objectContaining({ prefecture: '東京都', visitedCount: 1, totalCount: 0 }),
       ])
     );
     expect(result).toHaveLength(2);
@@ -126,7 +126,9 @@ describe('fetchRegionStats', () => {
 
     const result = await fetchRegionStats('user-1');
 
-    expect(result).toEqual([{ prefecture: '宮城県', visitedCount: 2, totalCount: 0 }]);
+    expect(result).toEqual([
+      expect.objectContaining({ prefecture: '宮城県', visitedCount: 2, totalCount: 0 }),
+    ]);
   });
 
   it('prefecture が null のデータは除外する', async () => {
@@ -144,7 +146,9 @@ describe('fetchRegionStats', () => {
 
     const result = await fetchRegionStats('user-1');
 
-    expect(result).toEqual([{ prefecture: '宮城県', visitedCount: 1, totalCount: 0 }]);
+    expect(result).toEqual([
+      expect.objectContaining({ prefecture: '宮城県', visitedCount: 1, totalCount: 0 }),
+    ]);
   });
 
   it('エラー時は空配列を返す', async () => {
@@ -197,9 +201,13 @@ describe('fetchRegionStats', () => {
 
     expect(result).toHaveLength(2);
     const miyagi = result.find(r => r.prefecture === '宮城県');
-    expect(miyagi).toEqual({ prefecture: '宮城県', visitedCount: 2, totalCount: 5 });
+    expect(miyagi).toEqual(
+      expect.objectContaining({ prefecture: '宮城県', visitedCount: 2, totalCount: 5 })
+    );
     const tokyo = result.find(r => r.prefecture === '東京都');
-    expect(tokyo).toEqual({ prefecture: '東京都', visitedCount: 1, totalCount: 3 });
+    expect(tokyo).toEqual(
+      expect.objectContaining({ prefecture: '東京都', visitedCount: 1, totalCount: 3 })
+    );
   });
 
   it('訪問なしの県も totalCount 付きで返される', async () => {
@@ -230,8 +238,74 @@ describe('fetchRegionStats', () => {
 
     expect(result).toHaveLength(2);
     const miyagi = result.find(r => r.prefecture === '宮城県');
-    expect(miyagi).toEqual({ prefecture: '宮城県', visitedCount: 1, totalCount: 2 });
+    expect(miyagi).toEqual(
+      expect.objectContaining({ prefecture: '宮城県', visitedCount: 1, totalCount: 2 })
+    );
     const tokyo = result.find(r => r.prefecture === '東京都');
-    expect(tokyo).toEqual({ prefecture: '東京都', visitedCount: 0, totalCount: 3 });
+    expect(tokyo).toEqual(
+      expect.objectContaining({ prefecture: '東京都', visitedCount: 0, totalCount: 3 })
+    );
+  });
+});
+
+describe('fetchRegionStats — 県の濃さ', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  const mockStampsThenSpots = (stampRows: unknown[], spotRows: unknown[]) => {
+    const stampsEq = jest.fn().mockReturnValue({ data: stampRows, error: null });
+    const stampsSelect = jest.fn().mockReturnValue({ eq: stampsEq });
+    const spotsNot = jest.fn().mockReturnValue({ data: spotRows, error: null });
+    const spotsEq = jest.fn().mockReturnValue({ not: spotsNot });
+    const spotsSelect = jest.fn().mockReturnValue({ eq: spotsEq });
+    mockFrom
+      .mockReturnValueOnce({ select: stampsSelect })
+      .mockReturnValueOnce({ select: spotsSelect });
+    return { stampsSelect };
+  };
+
+  /*
+   * 箇所数と枚数は別物。地図の濃さは枚数で決めるので、同じ寺社に2回通った県が
+   * 「1」に潰れてはいけない
+   */
+  it('同じ寺社に2回通うと、箇所数は2でも枚数は3になる', async () => {
+    mockStampsThenSpots(
+      [
+        { spot_id: 'a', spots: { prefecture: '東京都' } },
+        { spot_id: 'a', spots: { prefecture: '東京都' } },
+        { spot_id: 'b', spots: { prefecture: '東京都' } },
+      ],
+      [{ prefecture: '東京都' }, { prefecture: '東京都' }]
+    );
+
+    const [tokyo] = await fetchRegionStats('user-1');
+
+    expect(tokyo).toEqual({
+      prefecture: '東京都',
+      visitedCount: 2,
+      stampCount: 3,
+      totalCount: 2,
+    });
+  });
+
+  it('御朱印が1枚も無い県は、分母だけ返る', async () => {
+    mockStampsThenSpots([], [{ prefecture: '高知県' }, { prefecture: '高知県' }]);
+
+    const [kochi] = await fetchRegionStats('user-1');
+
+    expect(kochi).toEqual({
+      prefecture: '高知県',
+      visitedCount: 0,
+      stampCount: 0,
+      totalCount: 2,
+    });
+  });
+
+  // 地図から「いちばん新しい」を外したので、日付は取りに行かない
+  it('使わない列を取りに行かない', async () => {
+    const { stampsSelect } = mockStampsThenSpots([], []);
+
+    await fetchRegionStats('user-1');
+
+    expect(stampsSelect).toHaveBeenCalledWith('spot_id, spots!inner(prefecture)');
   });
 });

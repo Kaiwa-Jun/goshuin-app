@@ -82,3 +82,81 @@ mcp__stitch__get_screen(
 - テーマシステム（`src/theme/`）の値を使って色・余白を指定する
 - Rive対応予定のコンポーネント（登録完了演出、バッジ、FABボタン等）は、独立したコンポーネントとして切り出す
 - Expo プロジェクトの技術スタック（React Native + TypeScript）に適合させる
+
+---
+
+## 2026-09: SDK 経由でデザインを起こす（現行の手順）
+
+「あゆみを地図にする」以降の提案（UX メモ `HdRsemF7phLZVYPG1CjNu6`）を実装する前に、Stitch で画面の実物を作って合意を取るための手順。
+
+### MCP ではなく SDK を使う
+
+`.mcp.json` に Stitch の HTTP MCP を置いてあるが、**セッションに読み込まれていないと `mcp__stitch__*` が生えない**（追加直後は Claude Code の再起動 + `/mcp` での承認が要る）。
+その間は **`@google/stitch-sdk` が同じ API を叩く**ので、こちらで進められる。`STITCH_API_KEY` は `~/.zshrc` に設定済み。
+
+```bash
+mkdir -p /tmp/stitch && cd /tmp/stitch && npm i @google/stitch-sdk
+# gen.mjs（下記）を置いて実行
+node gen.mjs <プロンプトの .md へのフルパス>
+```
+
+```js
+// gen.mjs
+import { stitch } from '@google/stitch-sdk';
+import { readFileSync, writeFileSync } from 'node:fs';
+const PROJECT = '9044469756277541238';
+const DS = 'assets/13553185452205907849'; // 下記の design system
+const prompt = readFileSync(process.argv[2], 'utf8');
+const res = await stitch.callTool('generate_screen_from_text', {
+  projectId: PROJECT,
+  prompt,
+  deviceType: 'MOBILE',
+  designSystem: DS,
+});
+const s = res.outputComponents.flatMap(c => c.design?.screens ?? [])[0];
+console.log(s.id, s.title);
+writeFileSync('out.html', await (await fetch(s.htmlCode.downloadUrl)).text());
+```
+
+### 落とし穴（実地で踏んだもの）
+
+| 症状                                            | 原因・対処                                                                                                                                                                                                  |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `generate_screen_from_text` が invalid argument | **`modelId` を渡すと落ちる**（`GEMINI_3_1_PRO` でも）。**modelId は省く**。既定モデルで通る                                                                                                                 |
+| `project.getScreen(id)` が invalid argument     | SDK のこのメソッドは通らない。`project.screens()` を取って `find` する                                                                                                                                      |
+| 生成した画面が `screens()` に出てこない         | 反映が遅れる。**生成レスポンスの `outputComponents[].design.screens[]` から id と URL を拾う**                                                                                                              |
+| `screenshot.downloadUrl` が粗い                 | 512px のサムネイル。**`htmlCode.downloadUrl` を落として `python3 -m http.server` + Playwright（幅400）で撮る**方が読める                                                                                    |
+| 試し打ちのゴミ画面が溜まる                      | **`generate_screen_from_text` は呼ぶたびに画面が残る**（引数の検証だけのつもりでも）。**delete のツールは MCP にも SDK にも無い**ので、消すには Stitch の UI を開くしかない。捨てるつもりの呼び出しをしない |
+
+### design system
+
+`assets/13553185452205907849` —「御朱印さんぽ 2026-09（実装トークン準拠）」
+
+| 項目        | 値                                                                                                                          |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------- |
+| 元ネタ      | **`docs/design/DESIGN.md`** を `theme.designMd` にそのまま流し込んでいる                                                    |
+| customColor | `#f27f0d`（`colorVariant: FIDELITY` で種の色を保つ）                                                                        |
+| フォント    | `NOTO_SANS`（**enum に日本語対応フォントが Noto しかない**。Plus Jakarta Sans は CJK グリフを持たないので旧テーマから変更） |
+| 角丸        | `ROUND_TWELVE`（実装のカードが 12〜16。旧テーマの「角丸フル」は pill になりすぎ）                                           |
+
+旧 design system「Amber Meridian」は既存9画面が参照しているので**更新せず、新規に作った**。
+
+### プロンプト
+
+`docs/design/stitch-prompts/` に1画面1ファイルで置く。中身は「アプリの説明 → いまの実装 → 作ってほしい画面 → スタイル（実 hex）」の順。
+
+| ファイル                | 画面               | 状態                                                 |
+| ----------------------- | ------------------ | ---------------------------------------------------- |
+| `01-ayumi-map.md`       | あゆみ（地図化）   | 生成済み → screen `07c053a651704b8995a148a9adf64583` |
+| `02-record-complete.md` | 登録完了の作り込み | 未生成                                               |
+| `04-tsukimairi.md`      | 月参り・満願       | 未生成                                               |
+
+生成結果は `docs/design/mockups/2026-09-*.{png,html}` に置く。
+
+### 書くときのコツ
+
+- **「日本地図」とだけ書くと地理的な輪郭を描こうとして崩れる**。「47都道府県を正方形タイルのグリッドに並べたカルトグラム」と書く
+- 色は必ず hex で書く。トークン名（primary[500] 等）は伝わらない
+- 「UIの文字はすべて日本語です」を先頭に書く
+- **地図の「形」は Stitch で詰めない**。「47都道府県のグリッド」と書いても Stitch は日本列島の配置を作れない（階段状になる）。**どのマスがどの県かの表は実装側の仕様**（UX メモの `grid-area` の並びがそのまま使える）。Stitch に見てもらうのは器（カード・余白・密度・凡例）の方
+- **旧 Stitch 画面は IA が古い**（タブが「コレクション」・中央に FAB のある5タブ）。プロンプトで現行の4タブを明示し、`edit_screens` ではなく新規生成する

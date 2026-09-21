@@ -127,7 +127,6 @@ jest.mock('@hooks/useSpotStamps', () => ({
   useSpotStamps: () => ({
     stamps: [],
     publicStamps: [],
-    visitCount: 0,
     latestVisitDate: null,
     isLoading: false,
   }),
