@@ -1,0 +1,154 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8">
+<title>あゆみ v2 — 都道府県タイルマップ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap">
+<style>
+:root{
+  --brand:#f27f0d; --brand700:#C2410C; --brand300:#FDBA74; --brand50:#FFF7ED;
+  --seal:#DC2626; --temple:#9333EA;
+  --ink:#111827; --ink2:#4B5563; --ink3:#9CA3AF; --rule:#E5E7EB;
+  --paper:#F2F2F7; --card:#FFFFFF; --empty:#E3E4E8;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:390px;background:var(--paper);color:var(--ink);
+  font-family:"Noto Sans JP",-apple-system,sans-serif;padding-bottom:8px}
+.statusbar{height:44px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 20px;font-size:13px;font-weight:700}
+h1{font-size:28px;font-weight:700;line-height:34px;padding:4px 16px 12px}
+.card{background:var(--card);border-radius:16px;margin:0 16px 12px;
+  box-shadow:0 1px 2px rgba(0,0,0,.05),0 2px 4px rgba(0,0,0,.06)}
+
+/* 地図カード */
+.mapcard{padding:14px 14px 12px}
+.maphead{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px}
+.maphead .n{font-size:34px;font-weight:900;line-height:1;letter-spacing:-.02em}
+.maphead .of{font-size:13px;color:var(--ink3);margin-left:4px}
+.maphead .r{font-size:13px;color:var(--ink2)}
+.maphead .r b{font-size:20px;font-weight:900;color:var(--ink);margin-right:2px}
+
+.grid{gap:3px}
+.grid::before{content:"";grid-area:1/1;padding-bottom:100%;width:0}
+.pf{border-radius:4px;background:var(--empty);display:grid;place-items:center;
+  font-size:9px;font-weight:400;color:#4B5563;aspect-ratio:1;letter-spacing:-.04em;
+  line-height:1;text-align:center}
+.pf.v1{background:var(--brand300);color:#111827;font-weight:500}
+.pf.v2{background:var(--brand);color:#111827;font-weight:700}
+.pf.v3{background:var(--brand700);color:#fff;font-weight:700}
+.pf.now{background:var(--seal);color:#fff;font-weight:700;
+  box-shadow:0 0 0 2px #fff,0 0 0 4px rgba(220,38,38,.35)}
+
+.legend{display:flex;gap:12px;margin-top:12px;padding-top:11px;border-top:1px solid var(--rule);
+  font-size:11px;color:var(--ink2);align-items:center}
+.legend i{width:9px;height:9px;border-radius:2px;display:inline-block;margin-right:4px;vertical-align:-1px}
+
+/* タイムライン */
+.sec{padding:14px 16px}
+.sechead{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px}
+.sechead h2{font-size:16px;font-weight:700}
+.sechead a{font-size:12px;color:var(--ink3);text-decoration:none}
+.tl{display:flex;flex-direction:column}
+.tlrow{display:grid;grid-template-columns:16px 1fr auto;gap:10px;align-items:center;padding:7px 0}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--seal);justify-self:center;position:relative}
+.tlrow.temple .dot{background:var(--temple)}
+.dot::after{content:"";position:absolute;left:50%;top:11px;width:1px;height:20px;
+  background:var(--rule);transform:translateX(-50%)}
+.tlrow:last-child .dot::after{display:none}
+.nm{font-size:14px;font-weight:700}
+.nm span{font-size:10px;font-weight:500;color:var(--seal);background:rgba(220,38,38,.1);
+  border-radius:999px;padding:2px 7px;margin-left:7px;vertical-align:1px}
+.tlrow.temple .nm span{color:var(--temple);background:rgba(147,51,234,.1)}
+.dt{font-size:12px;color:var(--ink3)}
+
+/* バッジ */
+.badges{display:flex;gap:10px;padding:2px 0}
+.b{flex:1;text-align:center}
+.b .circle{width:46px;height:46px;border-radius:50%;margin:0 auto 6px;display:grid;
+  place-items:center;font-size:20px;background:var(--brand50);border:1px solid #FFEDD5}
+.b.off .circle{background:#F3F4F6;border-color:var(--rule);opacity:.45}
+.b .t{font-size:10px;color:var(--ink2);line-height:1.3}
+.b.off .t{color:var(--ink3)}
+
+/* 巡礼 */
+.pil{padding:14px 16px}
+.pilhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.pillabel{font-size:12px;color:var(--ink2)}
+.chip{font-size:10px;font-weight:700;color:var(--brand700);background:var(--brand50);
+  border:1px solid #FFEDD5;border-radius:999px;padding:3px 9px}
+.pilname{font-size:17px;font-weight:700;margin-bottom:8px}
+.pilstats{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px}
+.pilpct{font-size:20px;font-weight:900;color:var(--brand)}
+.pilcnt{font-size:13px;color:var(--ink2)}
+.bar{height:8px;border-radius:999px;background:var(--rule);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--brand);border-radius:999px}
+
+/* タブ */
+.tabs{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--rule);
+  background:#fff;padding:8px 0 20px;margin-top:8px}
+.tab{text-align:center;font-size:10px;color:var(--ink3)}
+.tab .ic{font-size:22px;display:block;line-height:1.2;filter:grayscale(1) opacity(.45)}
+.tab.on{color:var(--brand);font-weight:700}
+.tab.on .ic{filter:none}
+</style></head><body>
+
+<div class="statusbar"><span>9:41</span><span>●●● ▮</span></div>
+<h1>あゆみ</h1>
+
+<div class="card mapcard">
+  <div class="maphead">
+    <div><span class="n" id="cnt-big">12</span><span class="of">/ 47 都道府県</span></div>
+    <div class="r"><b>34</b>枚</div>
+  </div>
+  <div class="grid" id="grid" role="img" aria-label="47都道府県のうち12県が色づいた日本地図"></div>
+  <div class="legend">
+    <span><i style="background:var(--seal)"></i>いちばん新しい</span>
+    <span><i style="background:var(--brand)"></i>訪問済み <span id="cnt-visited">12</span></span>
+    <span><i style="background:var(--empty)"></i>まだ <span id="cnt-rest">35</span></span>
+  </div>
+</div>
+
+<div class="card sec">
+  <div class="sechead"><h2>最近の参拝</h2><a>すべて見る ›</a></div>
+  <div class="tl">
+    <div class="tlrow"><i class="dot"></i><span class="nm">湯島天満宮<span>神社</span></span><span class="dt">09/20</span></div>
+    <div class="tlrow temple"><i class="dot"></i><span class="nm">浅草寺<span>寺院</span></span><span class="dt">09/14</span></div>
+    <div class="tlrow"><i class="dot"></i><span class="nm">大崎八幡宮<span>神社</span></span><span class="dt">08/31</span></div>
+  </div>
+</div>
+
+<div class="card sec">
+  <div class="sechead"><h2>獲得バッジ</h2><a>すべて見る ›</a></div>
+  <div class="badges">
+    <div class="b"><div class="circle">🎊</div><div class="t">はじめての<br>御朱印</div></div>
+    <div class="b"><div class="circle">⛩️</div><div class="t">5箇所<br>達成</div></div>
+    <div class="b"><div class="circle">🏆</div><div class="t">10箇所<br>達成</div></div>
+    <div class="b off"><div class="circle">🌟</div><div class="t">30箇所<br>達成</div></div>
+    <div class="b off"><div class="circle">🗾</div><div class="t">50箇所<br>達成</div></div>
+  </div>
+</div>
+
+<div class="card pil">
+  <div class="pilhead"><span class="pillabel">現在の目標</span><span class="chip">挑戦中</span></div>
+  <div class="pilname">仙台三十三観音</div>
+  <div class="pilstats"><span class="pilpct">36%</span><span class="pilcnt">12 / 33 箇所</span></div>
+  <div class="bar"><i style="width:36%"></i></div>
+</div>
+
+<div class="tabs">
+  <div class="tab"><span class="ic">🧭</span>地図</div>
+  <div class="tab"><span class="ic">📖</span>御朱印帳</div>
+  <div class="tab on"><span class="ic">📈</span>あゆみ</div>
+  <div class="tab"><span class="ic">⚙️</span>設定</div>
+</div>
+
+<script src="japan-tiles.js"></script>
+<script>
+const FILL = {"東京都":"v3","京都府":"v3","宮城県":"v2","神奈川県":"v2","千葉県":"v1","埼玉県":"v1",
+  "栃木県":"v1","大阪府":"v1","奈良県":"v1","山形県":"v1","北海道":"v1"};
+renderJapan(document.getElementById("grid"), { fill: FILL, now: "静岡県" });
+const visited = Object.keys(FILL).length + 1;
+document.getElementById("cnt-visited").textContent = visited;
+document.getElementById("cnt-rest").textContent = 47 - visited;
+document.getElementById("cnt-big").textContent = visited;
+</script>
+</body></html>
