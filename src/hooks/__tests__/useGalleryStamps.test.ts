@@ -112,6 +112,40 @@ describe('useGalleryStamps', () => {
     expect(names).toEqual(['伊勢神宮', '金閣寺', '浅草寺']);
   });
 
+  // 同じ日に同じ場所でまとめて登録した1組は、選んだ順で読めないと
+  // 見開きや順路が崩れる。API は visited_at DESC, created_at DESC で返す
+  const sameDayBatch = [
+    makeStampWithSpot({ id: 'p3', created_at: '2024-06-01T10:00:02Z' }),
+    makeStampWithSpot({ id: 'p2', created_at: '2024-06-01T10:00:01Z' }),
+    makeStampWithSpot({ id: 'p1', created_at: '2024-06-01T10:00:00Z' }),
+  ];
+
+  it('日付順: 同じ日にまとめて登録した分は登録順に並ぶ', async () => {
+    mockUser = { id: 'user-1' };
+    mockFetchAllStamps.mockResolvedValue(sameDayBatch);
+
+    const { result } = renderHook(() => useGalleryStamps('date'));
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.stamps.map(s => s.id)).toEqual(['p1', 'p2', 'p3']);
+  });
+
+  it('スポット順: 同じスポットの中も登録順に並ぶ', async () => {
+    mockUser = { id: 'user-1' };
+    mockFetchAllStamps.mockResolvedValue(sameDayBatch);
+
+    const { result } = renderHook(() => useGalleryStamps('spot'));
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.stamps.map(s => s.id)).toEqual(['p1', 'p2', 'p3']);
+  });
+
   it('20件超: 全件返却、totalCount は全件数', async () => {
     mockUser = { id: 'user-1' };
     const stamps = Array.from({ length: 25 }, (_, i) => makeStampWithSpot({ id: `stamp-${i}` }));

@@ -2,7 +2,7 @@
   "expo": {
     "name": "御朱印さんぽ",
     "slug": "goshuin-app",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "scheme": "com.goshuin.app",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -10,7 +10,7 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#f27f0d"
+      "backgroundColor": "#F7F3EA"
     },
     "assetBundlePatterns": ["**/*"],
     "ios": {
@@ -26,10 +26,14 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#f27f0d"
+        "backgroundColor": "#C2342B"
       },
       "package": "com.goshuin.app",
       "permissions": [
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.CAMERA",
@@ -66,12 +70,19 @@
             "useFrameworks": "static"
           }
         }
-      ]
+      ],
+      "@maplibre/maplibre-react-native"
     ],
     "extra": {
       "eas": {
         "projectId": "af009af9-0638-469e-aa68-0b6ce445f8db"
       }
+    },
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/af009af9-0638-469e-aa68-0b6ce445f8db"
     }
   }
 }

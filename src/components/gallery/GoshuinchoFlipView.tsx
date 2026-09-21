@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -76,6 +76,12 @@ interface GoshuinchoFlipViewProps {
   onPressBlank: () => void;
   /** 省略時は getStampImageUrl。web プレビューが data URI を差し込むために使う */
   resolveImageUrl?: (stamp: StampWithSpot) => string;
+  /** 詳細へ連続的に繋ぐために、ページの位置を測れるようにする（Issue #202） */
+  registerNode?: (stampId: string, part: 'image' | 'text', node: View | null) => void;
+  /** 読み込んだ写真の実寸 */
+  onImageLoad?: (stampId: string, width: number, height: number) => void;
+  /** 飛んでいる最中の1枚。出したままだと同じ御朱印が二重に見える */
+  hiddenStampId?: string | null;
 }
 
 // Animated.FlatList の型は総称を保てないので、ここで Page 版として与え直す
@@ -88,6 +94,9 @@ export function GoshuinchoFlipView({
   onPressStamp,
   onPressBlank,
   resolveImageUrl,
+  registerNode,
+  onImageLoad,
+  hiddenStampId,
 }: GoshuinchoFlipViewProps) {
   const { width } = useWindowDimensions();
   const layout = useMemo(() => computePageLayout(width || Dimensions.get('window').width), [width]);
@@ -115,6 +124,35 @@ export function GoshuinchoFlipView({
     },
     [layout.snapInterval, pages.length]
   );
+
+  /*
+   * **最後に書いてもらったページから開く**。
+   *
+   * 綴じる順（古い→新しい）は実物の御朱印帳どおりで変えない。変えるのは
+   * 開く場所だけ。人に見せるとき1ページ目からめくる人はいないし、
+   * 「最近の参拝」から来た人を本の一番遠い端に降ろすことになる。
+   *
+   * 末尾の白紙（記録の入口）ではなく、その1つ手前＝最後の御朱印を出す。
+   *
+   * **最初の1回だけ**。御朱印帳は画面に戻るたびに取り直すので、毎回
+   * 飛ばすと、途中まで見て他のタブへ行って戻った人の位置が失われる
+   */
+  const openedAtLatest = useRef(false);
+  useEffect(() => {
+    if (openedAtLatest.current || stamps.length === 0) return;
+    openedAtLatest.current = true;
+
+    const lastStamp = stamps.length - 1;
+    setCurrentIndex(lastStamp);
+    listRef.current?.scrollToIndex({ index: lastStamp, animated: false });
+    /*
+     * 折れ角は scrollX から引いている。飛ばしただけだと scrollX が 0 の
+     * ままになることがあり、**開いたページが折れたまま（斜めに）描かれる**。
+     * 飛ばした先を scrollX にも教える。
+     * このあと onScroll が届けばそれで上書きされるので、二重でも困らない
+     */
+    scrollX.setValue(lastStamp * layout.snapInterval);
+  }, [stamps.length, layout.snapInterval, scrollX]);
 
   const goToPage = useCallback((index: number) => {
     setCurrentIndex(index);
@@ -195,6 +233,9 @@ export function GoshuinchoFlipView({
               isCurrent={isCurrent}
               onPress={onPress}
               stampId={item.stamp.id}
+              registerNode={(part, node) => registerNode?.(item.stamp.id, part, node)}
+              onImageLoad={(w, h) => onImageLoad?.(item.stamp.id, w, h)}
+              hidden={hiddenStampId === item.stamp.id}
               imageUrl={
                 resolveImageUrl
                   ? resolveImageUrl(item.stamp)
@@ -214,9 +255,12 @@ export function GoshuinchoFlipView({
     [
       currentIndex,
       handlePressPage,
+      hiddenStampId,
       layout.pageWidth,
       layout.snapInterval,
+      onImageLoad,
       pages.length,
+      registerNode,
       resolveImageUrl,
       scrollX,
     ]

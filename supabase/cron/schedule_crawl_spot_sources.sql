@@ -5,12 +5,51 @@
 --
 -- 【Instagram パスのトークン運用（Issue #111）】
 -- Edge Function の secrets に META_ACCESS_TOKEN（Meta 長期ユーザートークン）と
--- META_IG_USER_ID を登録済み。長期トークンの期限は 2026-10-02（60日ごとに手動更新）。
--- 更新手順: https://developers.facebook.com/tools/debug/accesstoken/ に現トークンを貼って
--- 「デバッグ」→「アクセストークンを延長」→ 延長後のトークンを
--- `npx supabase@latest secrets set META_ACCESS_TOKEN=<延長後トークン> --project-ref tvnozkpxncmnehyomoff`
--- で登録し直す。失効すると Instagram パスのレスポンスに instagram.token_invalid = true が出る
+-- META_IG_USER_ID を登録済み。**トークンの期限はここが唯一の正**（60日ごとに手動更新）。
+--
+--   現在の期限: 2026-11-20 ごろ（2026-09-21 に更新。本番で疎通確認済み）
+--
+-- 更新したらこの行の日付を直すこと。他のドキュメントは日付を持たずここを指している。
+-- 【更新手順】古いトークンは要らない。新しく作る方が早い（2026-09-21 に実際にこれでやった）:
+--   1. https://developers.facebook.com/tools/explorer/ で goshuin-sampo-watcher を選び、
+--      権限4つ（pages_show_list / instagram_basic / instagram_manage_insights /
+--      pages_read_engagement）が入った状態で Generate Access Token
+--      → ⚠ ここで出るのは**1〜2時間で切れる短命トークン**。これをそのまま入れないこと
+--   2. https://developers.facebook.com/tools/debug/accesstoken/ に貼って
+--      「デバッグ」→「アクセストークンを延長」→ **ここで出た方**が60日トークン
+--      有効期限が「約2か月後」になっていることを必ず目で確認する
+--   3. Supabase Dashboard → Edge Functions → Secrets の META_ACCESS_TOKEN を差し替え
+--      （`npx supabase@latest secrets set META_ACCESS_TOKEN=<値> --project-ref tvnozkpxncmnehyomoff` でも可）
+--
+-- 【更新後の確認】秘密情報に触れずに本番で確かめられる。下を SQL Editor で実行し、
+-- token_invalid = false / processed >= 1 を見る（dry_run なので Claude は呼ばれず、
+-- 書き込みは対象1件の last_crawled_at だけ）:
+--
+--   select net.http_post(
+--     url := 'https://tvnozkpxncmnehyomoff.supabase.co/functions/v1/crawl-spot-sources',
+--     headers := jsonb_build_object('Content-Type','application/json',
+--       'Authorization','Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'service_role_key')),
+--     body := jsonb_build_object('mode','instagram','limit',1,'dry_run',true),
+--     timeout_milliseconds := 120000) as request_id;
+--   -- 数秒待ってから（上で出た id を使う）
+--   select (content::jsonb->'instagram'->>'token_invalid') as token_invalid,
+--          (content::jsonb->'instagram'->>'processed')     as processed
+--   from net._http_response where id = <request_id>;
+--
+-- 失効すると Instagram パスのレスポンスに instagram.token_invalid = true が出る
 -- （web パスは影響を受けない）。
+--
+-- 【無期限にはできない（2026-09-21 調査済み・再調査不要）】
+-- 「長期ページアクセストークンは無期限」という逃げ道があるが、**この構成では使えない**。
+-- グラフAPIエクスプローラで確認した結果:
+--   ・pages_show_list は granted（me/permissions で確認）
+--   ・にもかかわらず me/accounts は {"data": []} ＝ 紐づく Facebook ページが無い
+-- ページが無い以上ページトークンは発行できないため、60日ごとの手動更新は避けられない。
+-- business_discovery 自体は現トークンで正常動作することも同日に確認済み。
+--
+-- 自動更新（fb_exchange_token で延ばし続ける）は見送った。Edge Function は自分の
+-- secrets を書き換えられないため、トークンを DB か Vault に移して更新ジョブを持つ必要があり、
+-- 年6回・2分の作業のために新しい壊れどころを作ることになる。
 
 -- 事前準備（初回のみ）
 create extension if not exists pg_cron;

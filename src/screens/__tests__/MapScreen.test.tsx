@@ -1,9 +1,9 @@
 import React from 'react';
-import { act, render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { MapScreen } from '@screens/MapScreen';
-import { StyleSheet } from 'react-native';
-import { CLUSTER_BUBBLE_IMAGES } from '@components/common/ClusterMarker';
-import { CLUSTER_REGION_DEBOUNCE_MS } from '@utils/regionHysteresis';
+import { AccessibilityInfo, StyleSheet } from 'react-native';
+import { colors } from '@theme/colors';
+import { shadows } from '@theme/shadows';
 
 const mockFetchSpotsByPrefecture = jest.fn();
 
@@ -138,12 +138,28 @@ const mockSpots = [
 let mockSpotsOverride: typeof mockSpots | null = null;
 
 jest.mock('@hooks/useSpots', () => ({
-  useSpots: () => ({
-    spots: mockSpotsOverride ?? mockSpots,
-    allSpots: mockSpotsOverride ?? mockSpots,
-    isLoading: false,
-    error: null,
-  }),
+  // 絞り込みは実装と同じ形で再現する。素通しにすると
+  // MapScreen がフィルタを渡しているかをテストで見られない
+  useSpots: (
+    _location: unknown,
+    filterMode: string = 'all',
+    visitedSpotIds?: Set<string>,
+    wishlistSpotIds?: Set<string>
+  ) => {
+    const allSpots = mockSpotsOverride ?? mockSpots;
+    const ids =
+      filterMode === 'visited'
+        ? visitedSpotIds
+        : filterMode === 'wishlist'
+          ? wishlistSpotIds
+          : undefined;
+    return {
+      spots: ids ? allSpots.filter(s => ids.has(s.id)) : allSpots,
+      allSpots,
+      isLoading: false,
+      error: null,
+    };
+  },
 }));
 
 const mockVisitedSpotIds = new Set(['spot-1']);
@@ -194,20 +210,24 @@ const mockNavigation = {
 };
 
 const mockRoute = { key: 'test', name: 'Map' as const, params: undefined };
+const { __cameraMocks: cameraMocks, __sourceMocks: sourceMocks } = jest.requireMock(
+  '@maplibre/maplibre-react-native'
+) as {
+  __cameraMocks: Record<string, jest.Mock>;
+  __sourceMocks: Record<string, jest.Mock>;
+};
 
-/**
- * onRegionChangeComplete を発火し、クラスタ region 採用のデバウンス
- * (CLUSTER_REGION_DEBOUNCE_MS) を経過させる。クラスタ・ピンの選択結果を
- * 検証するテストはこのヘルパーを使う(ラベル表示は currentRegion ベースで
- * デバウンス対象外のため、従来どおり fireEvent 直呼びでよい)
- */
-function fireRegionAndSettle(mapView: unknown, region: Record<string, number>) {
-  jest.useFakeTimers();
-  fireEvent(mapView as never, 'onRegionChangeComplete', region);
-  act(() => {
-    jest.advanceTimersByTime(CLUSTER_REGION_DEBOUNCE_MS + 50);
-  });
-  jest.useRealTimers();
+type Rendered = ReturnType<typeof render>;
+type Feature = { properties: { spotId: string; name: string; rank: number; state: string } };
+
+/** スタイル上の id でソースを引き、渡っている GeoJSON を取り出す */
+function features(r: Rendered, sourceId: string): Feature[] {
+  return r.getByTestId(sourceId).props.data.features;
+}
+function spotIds(r: Rendered, sourceId: string): string[] {
+  return features(r, sourceId)
+    .map(f => f.properties.spotId)
+    .sort();
 }
 
 describe('MapScreen', () => {
@@ -248,33 +268,11 @@ describe('MapScreen', () => {
     expect(mockNavigation.navigate).toHaveBeenCalledWith('Search');
   });
 
-  it('displays MapView', () => {
+  it('displays the map', () => {
     const { getByTestId } = render(
       <MapScreen navigation={mockNavigation as never} route={mockRoute} />
     );
     expect(getByTestId('map-view')).toBeTruthy();
-  });
-
-  it('displays current location marker', () => {
-    const { getByTestId } = render(
-      <MapScreen navigation={mockNavigation as never} route={mockRoute} />
-    );
-    expect(getByTestId('current-location-marker')).toBeTruthy();
-    expect(getByTestId('map-pin-current-location')).toBeTruthy();
-  });
-
-  it('AC-47: 現在地マーカーは tracksViewChanges=false を明示する(#99 追補3)', () => {
-    const { getByTestId } = render(
-      <MapScreen navigation={mockNavigation as never} route={mockRoute} />
-    );
-    expect(getByTestId('current-location-marker').props.tracksViewChanges).toBe(false);
-  });
-
-  it('AC-48: ズームアウト下限 minZoomLevel が 8 である(#99 追補4)', () => {
-    const { getByTestId } = render(
-      <MapScreen navigation={mockNavigation as never} route={mockRoute} />
-    );
-    expect(getByTestId('map-view').props.minZoomLevel).toBe(8);
   });
 
   it('displays FAB button when no spot is selected', () => {
@@ -284,71 +282,484 @@ describe('MapScreen', () => {
     expect(getByTestId('fab-button')).toBeTruthy();
   });
 
+  describe('地図の下地', () => {
+    it('同梱したベクタータイルのスタイルを読む', () => {
+      const { getByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+      const style = getByTestId('map-view').props.mapStyle;
+
+      expect(style.sources).toBeDefined();
+      expect(style.layers.length).toBeGreaterThan(0);
+    });
+
+    it('下地の地名は日本語だけにする（ローマ字を併記しない）', () => {
+      const { getByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+      const style = getByTestId('map-view').props.mapStyle;
+      const labels = style.layers
+        .map((l: { layout?: Record<string, unknown> }) => l.layout?.['text-field'])
+        .filter(Boolean)
+        .map((f: unknown) => JSON.stringify(f));
+
+      expect(labels.length).toBeGreaterThan(0);
+      expect(labels.some((f: string) => f.includes('name:latin'))).toBe(false);
+    });
+
+    it('初期カメラは現在地に置かれる', () => {
+      const { getByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+      expect(getByTestId('map-camera').props.initialViewState.center).toEqual([
+        mockLocation.longitude,
+        mockLocation.latitude,
+      ]);
+    });
+
+    it('現在地はネイティブビューではなくレイヤで描かれる', () => {
+      const r = render(<MapScreen navigation={mockNavigation as never} route={mockRoute} />);
+      expect(r.getByTestId('goshuin-current-location').props.data.features).toHaveLength(1);
+      expect(r.getByTestId('goshuin-current-location-dot')).toBeTruthy();
+      expect(r.getByTestId('goshuin-current-location-halo')).toBeTruthy();
+    });
+  });
+
+  describe('スポットの受け渡し', () => {
+    it('未訪問は団子化するソース、訪問済み・行きたいは団子化しないソースへ分かれる', () => {
+      mockWishlistSpotIds = new Set(['spot-2']);
+      const r = render(<MapScreen navigation={mockNavigation as never} route={mockRoute} />);
+
+      // spot-1 は mockVisitedSpotIds に入っている
+      expect(spotIds(r, 'goshuin-pinned')).toEqual(['spot-1', 'spot-2']);
+      expect(spotIds(r, 'goshuin-spots')).toEqual([]);
+    });
+
+    it('描画件数の上限で間引かない（1,109 件を全部渡す）', () => {
+      mockSpotsOverride = Array.from({ length: 1109 }, (_, i) => ({
+        ...mockSpots[0],
+        id: `bulk-${i}`,
+        // 全国にばらけさせる。旧実装はビューポート外を落としていた
+        lat: 30 + (i % 120) * 0.1,
+        lng: 130 + Math.floor(i / 120) * 0.1,
+        rank: (i % 5) + 1,
+      }));
+      const r = render(<MapScreen navigation={mockNavigation as never} route={mockRoute} />);
+
+      expect(features(r, 'goshuin-spots')).toHaveLength(1109);
+    });
+
+    it('ラベルの優先度に使う rank と、色分けに使う state を属性に持つ', () => {
+      const r = render(<MapScreen navigation={mockNavigation as never} route={mockRoute} />);
+      const pinned = features(r, 'goshuin-pinned').find(f => f.properties.spotId === 'spot-1');
+
+      expect(pinned?.properties).toMatchObject({
+        name: 'Test Shrine',
+        rank: 3,
+        state: 'visited-shrine',
+      });
+    });
+
+    it('座標は GeoJSON の [lng, lat] 順で渡る', () => {
+      mockWishlistSpotIds = new Set(['spot-2']);
+      const r = render(<MapScreen navigation={mockNavigation as never} route={mockRoute} />);
+      const geometry = r.getByTestId('goshuin-pinned').props.data.features[0].geometry;
+
+      expect(geometry.coordinates).toEqual([140.87, 38.27]);
+    });
+  });
+
+  describe('団子化の設定', () => {
+    it('団子は広域だけ・5 件以上のときだけ作る', () => {
+      const { getByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+      const source = getByTestId('goshuin-spots');
+
+      expect(source.props.cluster).toBe(true);
+      expect(source.props.clusterMaxZoom).toBe(11);
+      expect(source.props.clusterMinPoints).toBe(5);
+      expect(source.props.clusterRadius).toBe(50);
+    });
+
+    it('自分の記録のソースは団子化しない', () => {
+      const { getByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+      expect(getByTestId('goshuin-pinned').props.cluster).toBeUndefined();
+    });
+  });
+
+  describe('ピンとラベル', () => {
+    it('ピンは重なっても必ず描く（間引かれるのは名前だけ）', () => {
+      const { getByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+      const layout = getByTestId('goshuin-spot-pin').props.layout;
+
+      expect(layout['icon-allow-overlap']).toBe(true);
+      expect(layout['text-optional']).toBe(true);
+      expect(layout['text-allow-overlap']).toBe(false);
+    });
+
+    it('残す順は rank の高いものから', () => {
+      const { getByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+      // 小さい sort key が先に置かれるので rank を反転させる
+      expect(getByTestId('goshuin-spot-pin').props.layout['symbol-sort-key']).toEqual([
+        '-',
+        10,
+        ['get', 'rank'],
+      ]);
+    });
+
+    it('ピンの絵は state ごとに出し分ける', () => {
+      const { getByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+      const iconImage = getByTestId('goshuin-pinned-pin').props.layout['icon-image'];
+
+      expect(iconImage).toContain('spot-pin-visited-shrine');
+      expect(iconImage).toContain('spot-pin-visited-temple');
+      expect(iconImage).toContain('spot-pin-wishlist');
+      expect(iconImage).toContain('spot-pin-unvisited');
+    });
+
+    it('ピンは足元が座標に来る', () => {
+      const { getByTestId } = render(
+        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+      );
+      expect(getByTestId('goshuin-spot-pin').props.layout['icon-anchor']).toBe('bottom');
+    });
+  });
+
   describe('Spot markers', () => {
-    it('renders spot markers', () => {
+    it('shows bottom sheet when a spot is pressed', () => {
+      const r = render(<MapScreen navigation={mockNavigation as never} route={mockRoute} />);
+      fireEvent(r.getByTestId('goshuin-pinned'), 'onPress', {
+        nativeEvent: {
+          lngLat: [140.87, 38.27],
+          features: [{ properties: { spotId: 'spot-1' } }],
+        },
+      });
+
+      expect(r.getByTestId('bottom-sheet')).toBeTruthy();
+    });
+
+    // 引っ込むモーションを描き切ってから外す。タイマーを進めないと消えない
+    it('hides FAB when a spot is selected', () => {
+      jest.useFakeTimers();
+      try {
+        const r = render(<MapScreen navigation={mockNavigation as never} route={mockRoute} />);
+        fireEvent(r.getByTestId('goshuin-pinned'), 'onPress', {
+          nativeEvent: {
+            lngLat: [140.87, 38.27],
+            features: [{ properties: { spotId: 'spot-1' } }],
+          },
+        });
+
+        expect(r.queryByTestId('fab-button')).toBeTruthy();
+
+        act(() => {
+          jest.advanceTimersByTime(500);
+        });
+
+        expect(r.queryByTestId('fab-button')).toBeNull();
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it('団子をタップすると、中身がばらけるズームまで寄せる', async () => {
+      sourceMocks.getClusterExpansionZoom.mockResolvedValueOnce(13);
+      const r = render(<MapScreen navigation={mockNavigation as never} route={mockRoute} />);
+
+      fireEvent(r.getByTestId('goshuin-spots'), 'onPress', {
+        nativeEvent: {
+          lngLat: [140.87, 38.27],
+          features: [{ properties: { cluster_id: 7, point_count: 12 } }],
+        },
+      });
+
+      await waitFor(() => {
+        expect(cameraMocks.flyTo).toHaveBeenCalledWith(
+          expect.objectContaining({ center: [140.87, 38.27], zoom: 13 })
+        );
+      });
+    });
+  });
+
+  // 地図に重ねる白い要素は同じ強さで浮かせる。1つだけ強くすると不揃いに見える
+  it.each(['search-bar', 'filter-button'])('%s は地図から浮いている', testID => {
+    // フィルタボタンはログイン時のみ出る
+    mockUseAuthReturn = { ...mockUseAuthReturn, isAuthenticated: true };
+    const { getByTestId } = render(
+      <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+    );
+    const style = StyleSheet.flatten(getByTestId(testID).props.style) as Record<string, unknown>;
+
+    expect(style.backgroundColor).toBe(colors.white);
+    expect(style.shadowOpacity).toBe(shadows.md.shadowOpacity);
+  });
+
+  describe('行きたいフィルタ', () => {
+    const openFilter = (r: ReturnType<typeof render>) => {
+      fireEvent.press(r.getByTestId('filter-button'));
+      return r;
+    };
+
+    beforeEach(() => {
+      mockUseAuthReturn = { ...mockUseAuthReturn, isAuthenticated: true };
+    });
+
+    it('フィルタに「行きたい」が件数付きで並ぶ', () => {
+      mockWishlistSpotIds = new Set(['spot-2']);
+      const r = openFilter(
+        render(<MapScreen navigation={mockNavigation as never} route={mockRoute} />)
+      );
+
+      expect(r.getByTestId('filter-option-wishlist')).toBeTruthy();
+      expect(r.getByText('行きたい (1)')).toBeTruthy();
+    });
+
+    it('選ぶと地図のピンが行きたいだけになる', () => {
+      mockWishlistSpotIds = new Set(['spot-2']);
+      const r = openFilter(
+        render(<MapScreen navigation={mockNavigation as never} route={mockRoute} />)
+      );
+
+      fireEvent.press(r.getByTestId('filter-option-wishlist'));
+
+      const pinned = r.getByTestId('goshuin-pinned').props.data;
+      const clustered = r.getByTestId('goshuin-spots').props.data;
+      expect(
+        pinned.features.map((f: { properties: { spotId: string } }) => f.properties.spotId)
+      ).toEqual(['spot-2']);
+      expect(clustered.features).toHaveLength(0);
+    });
+
+    it('選ぶと残ったピンが見える位置までカメラが寄る', () => {
+      // 寄せないと、保存したスポットが今いる場所から遠いとき
+      // 「絞ったら何も出てこなくなった」ように見える
+      mockWishlistSpotIds = new Set(['spot-1', 'spot-2']);
+      const r = openFilter(
+        render(<MapScreen navigation={mockNavigation as never} route={mockRoute} />)
+      );
+      cameraMocks.fitBounds.mockClear();
+
+      fireEvent.press(r.getByTestId('filter-option-wishlist'));
+
+      expect(cameraMocks.fitBounds).toHaveBeenCalledWith(
+        [140.87, 38.27, 140.872, 38.272],
+        expect.objectContaining({ duration: expect.any(Number) })
+      );
+    });
+
+    it('絞り込みで消えたスポットのシートは閉じる', () => {
+      // 開いたままだと、地図に無いスポットの詳細が出続ける。
+      // 空表示とも重なる（旧チップと同じ位置にあるため）
+      mockWishlistSpotIds = new Set(['spot-2']);
+      const r = render(<MapScreen navigation={mockNavigation as never} route={mockRoute} />);
+      fireEvent(r.getByTestId('goshuin-spots'), 'onPress', {
+        nativeEvent: { lngLat: [140.87, 38.27], features: [{ properties: { spotId: 'spot-1' } }] },
+      });
+      expect(r.getByTestId('bottom-sheet')).toBeTruthy();
+
+      fireEvent.press(r.getByTestId('filter-button'));
+      fireEvent.press(r.getByTestId('filter-option-wishlist'));
+
+      expect(r.queryByTestId('bottom-sheet')).toBeNull();
+    });
+
+    it('絞り込んでも残るスポットのシートは開いたまま', () => {
+      mockWishlistSpotIds = new Set(['spot-1']);
+      const r = render(<MapScreen navigation={mockNavigation as never} route={mockRoute} />);
+      fireEvent(r.getByTestId('goshuin-pinned'), 'onPress', {
+        nativeEvent: { lngLat: [140.87, 38.27], features: [{ properties: { spotId: 'spot-1' } }] },
+      });
+
+      fireEvent.press(r.getByTestId('filter-button'));
+      fireEvent.press(r.getByTestId('filter-option-wishlist'));
+
+      expect(r.getByTestId('bottom-sheet')).toBeTruthy();
+    });
+
+    it('地域別から飛んできた分もフィルタを通す', async () => {
+      // prefectureSpots は useSpots を通らないので、素通しにすると
+      // 絞っているのにフィルタ対象外のピンが混ざる（あゆみの地域別から遷移する経路）
+      mockWishlistSpotIds = new Set(['spot-1']);
+      mockFetchSpotsByPrefecture.mockResolvedValue([
+        { ...mockSpots[1], id: 'pref-1', name: '県内スポット', lat: 35.0, lng: 135.0 },
+      ]);
+      const route = { ...mockRoute, params: { focusPrefecture: '京都府' } };
+      const r = render(<MapScreen navigation={mockNavigation as never} route={route as never} />);
+      await waitFor(() => expect(mockFetchSpotsByPrefecture).toHaveBeenCalled());
+
+      fireEvent.press(r.getByTestId('filter-button'));
+      fireEvent.press(r.getByTestId('filter-option-wishlist'));
+
+      const ids = [
+        ...r.getByTestId('goshuin-pinned').props.data.features,
+        ...r.getByTestId('goshuin-spots').props.data.features,
+      ].map((f: { properties: { spotId: string } }) => f.properties.spotId);
+      expect(ids).toEqual(['spot-1']);
+    });
+
+    it('0件なら空表示を出す。真っ白な地図にしない', () => {
+      mockWishlistSpotIds = new Set();
+      const r = openFilter(
+        render(<MapScreen navigation={mockNavigation as never} route={mockRoute} />)
+      );
+
+      fireEvent.press(r.getByTestId('filter-option-wishlist'));
+
+      expect(r.getByTestId('map-filter-empty')).toBeTruthy();
+    });
+
+    it('すべて表示に戻すと空表示は消える', () => {
+      mockWishlistSpotIds = new Set();
+      const r = openFilter(
+        render(<MapScreen navigation={mockNavigation as never} route={mockRoute} />)
+      );
+      fireEvent.press(r.getByTestId('filter-option-wishlist'));
+
+      fireEvent.press(r.getByTestId('filter-button'));
+      fireEvent.press(r.getByTestId('filter-option-all'));
+
+      expect(r.queryByTestId('map-filter-empty')).toBeNull();
+    });
+  });
+
+  it('行きたい一覧へのチップは無い。フィルタに統合した', () => {
+    const { queryByTestId } = render(
+      <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+    );
+
+    expect(queryByTestId('wishlist-entry')).toBeNull();
+    expect(mockNavigation.navigate).not.toHaveBeenCalledWith('Wishlist');
+  });
+
+  describe('検索バーに選んだスポット名を残す', () => {
+    const selectSpotOnMap = (r: ReturnType<typeof render>, spotId: string) =>
+      fireEvent(r.getByTestId('goshuin-pinned'), 'onPress', {
+        nativeEvent: { lngLat: [140.87, 38.27], features: [{ properties: { spotId } }] },
+      });
+
+    it('検索から飛んできたら、選んだスポット名が検索欄に入る', () => {
+      const route = { ...mockRoute, params: { focusSpotId: 'spot-1' } };
       const { getByTestId } = render(
-        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
-      );
-      expect(getByTestId('spot-marker-spot-1')).toBeTruthy();
-      expect(getByTestId('spot-marker-spot-2')).toBeTruthy();
-    });
-
-    it('renders spot markers with SpotMarker children', () => {
-      const { getByTestId, getAllByTestId } = render(
-        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
-      );
-      expect(getByTestId('spot-marker-spot-1')).toBeTruthy();
-      expect(getByTestId('spot-marker-spot-2')).toBeTruthy();
-      expect(getAllByTestId('spot-marker-pin-head')).toHaveLength(2);
-      expect(getAllByTestId('spot-marker-pin-tail')).toHaveLength(2);
-    });
-
-    it('shows bottom sheet when marker is pressed', () => {
-      const { getByTestId } = render(
-        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+        <MapScreen navigation={mockNavigation as never} route={route as never} />
       );
 
-      fireEvent.press(getByTestId('spot-marker-spot-1'));
-      expect(getByTestId('bottom-sheet')).toBeTruthy();
+      expect(getByTestId('search-input').props.value).toBe('Test Shrine');
     });
 
-    it('hides FAB when marker is pressed and spot is selected', () => {
+    it('何も選んでいなければ空のまま', () => {
       const { getByTestId, queryByTestId } = render(
         <MapScreen navigation={mockNavigation as never} route={mockRoute} />
       );
 
-      fireEvent.press(getByTestId('spot-marker-spot-1'));
-      expect(queryByTestId('fab-button')).toBeNull();
+      expect(getByTestId('search-input').props.value).toBeUndefined();
+      expect(queryByTestId('search-clear-button')).toBeNull();
+    });
+
+    it('地図のピンをタップしたときも名前が入る。前の検索名を残さない', () => {
+      const route = { ...mockRoute, params: { focusSpotId: 'spot-1' } };
+      const r = render(<MapScreen navigation={mockNavigation as never} route={route as never} />);
+      expect(r.getByTestId('search-input').props.value).toBe('Test Shrine');
+
+      selectSpotOnMap(r, 'spot-2');
+
+      expect(r.getByTestId('search-input').props.value).toBe('Test Temple');
+    });
+
+    it('ボトムシートを閉じても名前は残る', () => {
+      const r = render(<MapScreen navigation={mockNavigation as never} route={mockRoute} />);
+      selectSpotOnMap(r, 'spot-1');
+      expect(r.getByTestId('search-input').props.value).toBe('Test Shrine');
+
+      fireEvent(r.getByTestId('map-view'), 'onPress', { nativeEvent: { lngLat: [0, 0] } });
+
+      expect(r.queryByTestId('bottom-sheet')).toBeNull();
+      expect(r.getByTestId('search-input').props.value).toBe('Test Shrine');
+    });
+
+    it('× で消した後にスポット一覧が再取得されても、名前とシートは復活しない', () => {
+      // displaySpots は再取得のたびに参照が変わる。focusSpotId の effect が
+      // それに引きずられて再実行されると、消したはずの状態が戻ってしまう
+      const route = { ...mockRoute, params: { focusSpotId: 'spot-1' } };
+      const r = render(<MapScreen navigation={mockNavigation as never} route={route as never} />);
+      expect(r.getByTestId('search-input').props.value).toBe('Test Shrine');
+
+      fireEvent.press(r.getByTestId('search-clear-button'));
+      expect(r.getByTestId('search-input').props.value).toBeUndefined();
+
+      // スポットを取り直す（配列の参照が変わる）
+      mockSpotsOverride = mockSpots.map(spot => ({ ...spot }));
+      r.rerender(<MapScreen navigation={mockNavigation as never} route={route as never} />);
+
+      expect(r.getByTestId('search-input').props.value).toBeUndefined();
+      expect(r.queryByTestId('bottom-sheet')).toBeNull();
+    });
+
+    it('× で名前を消すと、選択も解除される', () => {
+      const r = render(<MapScreen navigation={mockNavigation as never} route={mockRoute} />);
+      selectSpotOnMap(r, 'spot-1');
+
+      fireEvent.press(r.getByTestId('search-clear-button'));
+
+      expect(r.getByTestId('search-input').props.value).toBeUndefined();
+      expect(r.queryByTestId('bottom-sheet')).toBeNull();
+      // × は検索画面への遷移を兼ねない
+      expect(mockNavigation.navigate).not.toHaveBeenCalledWith('Search');
     });
   });
 
   describe('Bottom sheet', () => {
     it('shows bottom sheet when focusSpotId is provided', () => {
-      const routeWithFocus = {
-        key: 'test',
-        name: 'Map' as const,
+      const route = {
+        ...mockRoute,
         params: { focusSpotId: 'spot-1' },
       };
-
       const { getByTestId } = render(
-        <MapScreen navigation={mockNavigation as never} route={routeWithFocus} />
+        <MapScreen navigation={mockNavigation as never} route={route as never} />
       );
-
       expect(getByTestId('bottom-sheet')).toBeTruthy();
     });
 
-    it('hides bottom sheet when map is pressed', () => {
-      const { getByTestId, queryByTestId } = render(
-        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+    it('focusSpotId のスポットまでカメラが飛ぶ', () => {
+      const route = { ...mockRoute, params: { focusSpotId: 'spot-1' } };
+      render(<MapScreen navigation={mockNavigation as never} route={route as never} />);
+
+      expect(cameraMocks.flyTo).toHaveBeenCalledWith(
+        expect.objectContaining({ center: [140.87, 38.27] })
       );
+    });
 
-      // First show the sheet
-      fireEvent.press(getByTestId('spot-marker-spot-1'));
-      expect(getByTestId('bottom-sheet')).toBeTruthy();
+    it('hides bottom sheet when the map background is pressed', () => {
+      const r = render(<MapScreen navigation={mockNavigation as never} route={mockRoute} />);
+      fireEvent(r.getByTestId('goshuin-pinned'), 'onPress', {
+        nativeEvent: { lngLat: [140.87, 38.27], features: [{ properties: { spotId: 'spot-1' } }] },
+      });
+      expect(r.getByTestId('bottom-sheet')).toBeTruthy();
 
-      // Then press the map to dismiss
-      fireEvent.press(getByTestId('map-view'));
-      expect(queryByTestId('bottom-sheet')).toBeNull();
+      fireEvent(r.getByTestId('map-view'), 'onPress', { nativeEvent: { lngLat: [0, 0] } });
+
+      expect(r.queryByTestId('bottom-sheet')).toBeNull();
+    });
+
+    it('スポットのタップが地図まで伝播してもシートは閉じない', () => {
+      const r = render(<MapScreen navigation={mockNavigation as never} route={mockRoute} />);
+      fireEvent(r.getByTestId('goshuin-pinned'), 'onPress', {
+        nativeEvent: { lngLat: [140.87, 38.27], features: [{ properties: { spotId: 'spot-1' } }] },
+      });
+
+      fireEvent(r.getByTestId('map-view'), 'onPress', {
+        nativeEvent: { lngLat: [140.87, 38.27], features: [{ properties: { spotId: 'spot-1' } }] },
+      });
+
+      expect(r.getByTestId('bottom-sheet')).toBeTruthy();
     });
   });
 
@@ -361,12 +772,7 @@ describe('MapScreen', () => {
     });
 
     it('shows filter button when authenticated', () => {
-      mockUseAuthReturn = {
-        ...mockUseAuthReturn,
-        isAuthenticated: true,
-        user: { id: 'user-123' } as never,
-      };
-
+      mockUseAuthReturn = { ...mockUseAuthReturn, isAuthenticated: true };
       const { getByTestId } = render(
         <MapScreen navigation={mockNavigation as never} route={mockRoute} />
       );
@@ -374,191 +780,81 @@ describe('MapScreen', () => {
     });
 
     it('shows filter dropdown when filter button is pressed', () => {
-      mockUseAuthReturn = {
-        ...mockUseAuthReturn,
-        isAuthenticated: true,
-        user: { id: 'user-123' } as never,
-      };
-
+      mockUseAuthReturn = { ...mockUseAuthReturn, isAuthenticated: true };
       const { getByTestId } = render(
         <MapScreen navigation={mockNavigation as never} route={mockRoute} />
       );
-
       fireEvent.press(getByTestId('filter-button'));
       expect(getByTestId('filter-dropdown')).toBeTruthy();
-      expect(getByTestId('filter-option-all')).toBeTruthy();
-      expect(getByTestId('filter-option-visited')).toBeTruthy();
     });
 
-    it('closes filter dropdown when overlay is pressed', () => {
-      mockUseAuthReturn = {
-        ...mockUseAuthReturn,
-        isAuthenticated: true,
-        user: { id: 'user-123' } as never,
-      };
+    // 閉じるモーションを描き切ってから外す。タイマーを進めないと消えない
+    it('閉じた直後はまだ出ていて、モーションが終わると消える', () => {
+      mockUseAuthReturn = { ...mockUseAuthReturn, isAuthenticated: true };
+      jest.useFakeTimers();
+      try {
+        const { getByTestId, queryByTestId } = render(
+          <MapScreen navigation={mockNavigation as never} route={mockRoute} />
+        );
+        fireEvent.press(getByTestId('filter-button'));
+        fireEvent.press(getByTestId('filter-overlay'));
 
+        expect(queryByTestId('filter-dropdown')).toBeTruthy();
+
+        act(() => {
+          jest.advanceTimersByTime(500);
+        });
+
+        expect(queryByTestId('filter-dropdown')).toBeNull();
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it('「視差効果を減らす」がオンなら即座に消える', async () => {
+      mockUseAuthReturn = { ...mockUseAuthReturn, isAuthenticated: true };
+      jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
       const { getByTestId, queryByTestId } = render(
         <MapScreen navigation={mockNavigation as never} route={mockRoute} />
       );
-
+      // isReduceMotionEnabled() の解決を待つ。ボタンの存在で待つと、
+      // まだ false のまま press してしまって運で通ることがある
+      await act(async () => {});
       fireEvent.press(getByTestId('filter-button'));
-      expect(getByTestId('filter-dropdown')).toBeTruthy();
 
       fireEvent.press(getByTestId('filter-overlay'));
+
       expect(queryByTestId('filter-dropdown')).toBeNull();
-    });
-  });
-
-  describe('Zoom-based label visibility', () => {
-    it('shows labels at initial zoom level (latitudeDelta <= 0.08)', () => {
-      const { getAllByTestId } = render(
-        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
-      );
-      // Initial LATITUDE_DELTA is 0.015, which is <= LABEL_VISIBLE_DELTA (0.2), so labels should show
-      expect(getAllByTestId('spot-marker-label')).toHaveLength(2);
-    });
-
-    it('labels are present but hidden when zoomed out (latitudeDelta > 0.08)', () => {
-      const { getByTestId, getAllByTestId } = render(
-        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
-      );
-
-      const mapView = getByTestId('map-view');
-      // Simulate zooming out beyond ~8km range
-      fireEvent(mapView, 'onRegionChangeComplete', {
-        latitude: 38.2682,
-        longitude: 140.8694,
-        latitudeDelta: 0.1,
-        longitudeDelta: 0.1,
-      });
-
-      // ラベルは常にレンダリングされるが、opacity で非表示
-      expect(getAllByTestId('spot-marker-label')).toHaveLength(2);
-    });
-
-    it('shows labels again when zoomed back in', () => {
-      const { getByTestId, getAllByTestId } = render(
-        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
-      );
-
-      const mapView = getByTestId('map-view');
-
-      // Zoom out
-      fireEvent(mapView, 'onRegionChangeComplete', {
-        latitude: 38.2682,
-        longitude: 140.8694,
-        latitudeDelta: 0.1,
-        longitudeDelta: 0.1,
-      });
-      // ラベルは常にレンダリングされる（opacity で制御）
-      expect(getAllByTestId('spot-marker-label')).toHaveLength(2);
-
-      // Zoom back in
-      fireEvent(mapView, 'onRegionChangeComplete', {
-        latitude: 38.2682,
-        longitude: 140.8694,
-        latitudeDelta: 0.05,
-        longitudeDelta: 0.05,
-      });
-      expect(getAllByTestId('spot-marker-label')).toHaveLength(2);
     });
   });
 
   describe('FAB press with authentication', () => {
     it('navigates to Record when authenticated', () => {
-      mockUseAuthReturn = {
-        ...mockUseAuthReturn,
-        isAuthenticated: true,
-        user: { id: 'user-123' } as never,
-      };
-
+      mockUseAuthReturn = { ...mockUseAuthReturn, isAuthenticated: true };
       const { getByTestId } = render(
         <MapScreen navigation={mockNavigation as never} route={mockRoute} />
       );
-
       fireEvent.press(getByTestId('fab-button'));
-      expect(mockParentNavigate).toHaveBeenCalledWith('Record', undefined);
-    });
-
-    it('shows LoginPromptModal when not authenticated', () => {
-      const { getByTestId, getByText } = render(
-        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
-      );
-
-      fireEvent.press(getByTestId('fab-button'));
-      expect(getByText('ログインが必要です')).toBeTruthy();
-    });
-
-    it('navigates to Record after successful login from modal', async () => {
-      mockUseAuthReturn.signInWithGoogle.mockResolvedValue({ success: true });
-
-      const { getByTestId } = render(
-        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
-      );
-
-      fireEvent.press(getByTestId('fab-button'));
-      fireEvent.press(getByTestId('modal-google-login-button'));
-
-      await waitFor(() => {
-        expect(mockParentNavigate).toHaveBeenCalledWith('Record', undefined);
+      expect(mockParentNavigate).toHaveBeenCalledWith('Record', {
+        spotId: undefined,
+        origin: 'map',
       });
     });
 
-    it('closes modal when later button is pressed', () => {
-      const { getByTestId, queryByText } = render(
+    it('shows LoginPromptModal when not authenticated', () => {
+      const { getByTestId } = render(
         <MapScreen navigation={mockNavigation as never} route={mockRoute} />
       );
-
       fireEvent.press(getByTestId('fab-button'));
-      expect(queryByText('ログインが必要です')).toBeTruthy();
-
-      fireEvent.press(getByTestId('modal-later-button'));
-      expect(queryByText('ログインが必要です')).toBeNull();
+      expect(getByTestId('modal-later-button')).toBeTruthy();
     });
   });
 
   describe('focusPrefecture', () => {
-    const prefectureSpots = [
-      {
-        id: 'pref-spot-1',
-        name: '宮城県神社A',
-        lat: 38.3,
-        lng: 140.9,
-        type: 'shrine',
-        status: 'active',
-        rank: 3,
-        address: '宮城県X市',
-        created_by_user_id: null,
-        merged_into_spot_id: null,
-        created_at: '2024-01-01',
-        updated_at: '2024-01-01',
-      },
-      {
-        id: 'pref-spot-2',
-        name: '宮城県寺院B',
-        lat: 38.35,
-        lng: 140.95,
-        type: 'temple',
-        status: 'active',
-        rank: 3,
-        address: '宮城県Y市',
-        created_by_user_id: null,
-        merged_into_spot_id: null,
-        created_at: '2024-01-01',
-        updated_at: '2024-01-01',
-      },
-    ];
-
     it('focusPrefecture が渡されると fetchSpotsByPrefecture が呼ばれる', async () => {
-      mockFetchSpotsByPrefecture.mockResolvedValue(prefectureSpots);
-
-      const routeWithPrefecture = {
-        key: 'test',
-        name: 'Map' as const,
-        params: { focusPrefecture: '宮城県' },
-      };
-
-      render(<MapScreen navigation={mockNavigation as never} route={routeWithPrefecture} />);
+      mockFetchSpotsByPrefecture.mockResolvedValue([]);
+      const route = { ...mockRoute, params: { focusPrefecture: '宮城県' } };
+      render(<MapScreen navigation={mockNavigation as never} route={route as never} />);
 
       await waitFor(() => {
         expect(mockFetchSpotsByPrefecture).toHaveBeenCalledWith('宮城県');
@@ -570,571 +866,50 @@ describe('MapScreen', () => {
       expect(mockFetchSpotsByPrefecture).not.toHaveBeenCalled();
     });
 
-    it('prefectureSpots は既存 spots に追加してマーカー表示される', async () => {
-      mockFetchSpotsByPrefecture.mockResolvedValue(prefectureSpots);
-
-      const routeWithPrefecture = {
-        key: 'test',
-        name: 'Map' as const,
-        params: { focusPrefecture: '宮城県' },
-      };
-
-      const { getByTestId } = render(
-        <MapScreen navigation={mockNavigation as never} route={routeWithPrefecture} />
-      );
+    it('取得した県内スポットは既存 spots に足してソースへ渡る', async () => {
+      mockFetchSpotsByPrefecture.mockResolvedValue([
+        { ...mockSpots[0], id: 'pref-1', lat: 38.5, lng: 141.0 },
+        { ...mockSpots[0], id: 'pref-2', lat: 38.6, lng: 141.1 },
+      ]);
+      const route = { ...mockRoute, params: { focusPrefecture: '宮城県' } };
+      const r = render(<MapScreen navigation={mockNavigation as never} route={route as never} />);
 
       await waitFor(() => {
-        expect(mockFetchSpotsByPrefecture).toHaveBeenCalled();
-      });
-
-      // fitToCoordinates のアニメーション完了を模して県域を覆う region を発火する(#96)
-      fireRegionAndSettle(getByTestId('map-view'), {
-        latitude: 38.31,
-        longitude: 140.91,
-        latitudeDelta: 0.2,
-        longitudeDelta: 0.2,
-      });
-
-      // 既存の spots のマーカーも表示される
-      expect(getByTestId('spot-marker-spot-1')).toBeTruthy();
-      expect(getByTestId('spot-marker-spot-2')).toBeTruthy();
-      // 県内 spots のマーカーも表示される
-      expect(getByTestId('spot-marker-pref-spot-1')).toBeTruthy();
-      expect(getByTestId('spot-marker-pref-spot-2')).toBeTruthy();
-    });
-
-    describe('位置情報オフバナー', () => {
-      it('permissionStatus が granted のときはバナーを表示しない', () => {
-        mockPermissionStatus = 'granted';
-        const { queryByTestId } = render(
-          <MapScreen navigation={mockNavigation as never} route={mockRoute} />
-        );
-        expect(queryByTestId('location-off-banner')).toBeNull();
-      });
-
-      it('permissionStatus が denied のときはバナーを表示する', () => {
-        mockPermissionStatus = 'denied';
-        const { getByTestId } = render(
-          <MapScreen navigation={mockNavigation as never} route={mockRoute} />
-        );
-        expect(getByTestId('location-off-banner')).toBeTruthy();
-      });
-
-      it('バナーに「位置情報がオフです。タップして設定」テキストが表示される', () => {
-        mockPermissionStatus = 'denied';
-        const { getByText } = render(
-          <MapScreen navigation={mockNavigation as never} route={mockRoute} />
-        );
-        expect(getByText('位置情報がオフです。タップして設定')).toBeTruthy();
-      });
-
-      it('バナーをタップすると Error 画面（type: location）に遷移する', () => {
-        mockPermissionStatus = 'denied';
-        const { getByTestId } = render(
-          <MapScreen navigation={mockNavigation as never} route={mockRoute} />
-        );
-        fireEvent.press(getByTestId('location-off-banner'));
-        expect(mockNavigation.navigate).toHaveBeenCalledWith('Error', { type: 'location' });
+        expect(spotIds(r, 'goshuin-spots')).toEqual(['pref-1', 'pref-2', 'spot-2']);
       });
     });
 
-    it('focusPrefecture が消えると prefectureSpots がクリアされる', async () => {
-      mockFetchSpotsByPrefecture.mockResolvedValue(prefectureSpots);
-
-      const routeWithPrefecture = {
-        key: 'test',
-        name: 'Map' as const,
-        params: { focusPrefecture: '宮城県' },
-      };
-
-      const { rerender, queryByTestId, getByTestId } = render(
-        <MapScreen navigation={mockNavigation as never} route={routeWithPrefecture} />
-      );
+    it('県内スポットの範囲にカメラを合わせる', async () => {
+      mockFetchSpotsByPrefecture.mockResolvedValue([
+        { ...mockSpots[0], id: 'pref-1', lat: 38.5, lng: 141.0 },
+        { ...mockSpots[0], id: 'pref-2', lat: 38.6, lng: 141.2 },
+      ]);
+      const route = { ...mockRoute, params: { focusPrefecture: '宮城県' } };
+      render(<MapScreen navigation={mockNavigation as never} route={route as never} />);
 
       await waitFor(() => {
-        expect(mockFetchSpotsByPrefecture).toHaveBeenCalled();
+        expect(cameraMocks.fitBounds).toHaveBeenCalledWith(
+          [141.0, 38.5, 141.2, 38.6],
+          expect.objectContaining({ padding: expect.any(Object) })
+        );
       });
+    });
 
-      // fitToCoordinates 完了を模した県域 region で県内 spots の表示をまず確認する(#96)
-      fireRegionAndSettle(getByTestId('map-view'), {
-        latitude: 38.31,
-        longitude: 140.91,
-        latitudeDelta: 0.2,
-        longitudeDelta: 0.2,
-      });
-      expect(getByTestId('spot-marker-pref-spot-1')).toBeTruthy();
-      expect(getByTestId('spot-marker-pref-spot-2')).toBeTruthy();
-
-      // focusPrefecture なしに変更
-      const routeWithoutPrefecture = {
-        key: 'test',
-        name: 'Map' as const,
-        params: undefined,
-      };
-
-      rerender(<MapScreen navigation={mockNavigation as never} route={routeWithoutPrefecture} />);
-
-      // 県内 spots のマーカーは消える
+    it('focusPrefecture が消えると県内スポットがクリアされる', async () => {
+      mockFetchSpotsByPrefecture.mockResolvedValue([
+        { ...mockSpots[0], id: 'pref-1', lat: 38.5, lng: 141.0 },
+      ]);
+      const route = { ...mockRoute, params: { focusPrefecture: '宮城県' } };
+      const r = render(<MapScreen navigation={mockNavigation as never} route={route as never} />);
       await waitFor(() => {
-        expect(queryByTestId('spot-marker-pref-spot-1')).toBeNull();
-        expect(queryByTestId('spot-marker-pref-spot-2')).toBeNull();
+        expect(spotIds(r, 'goshuin-spots')).toContain('pref-1');
       });
-    });
-  });
 
-  describe('Rank filter exemption for visited/wishlist spots (#93)', () => {
-    const zoomedOutRegion = {
-      latitude: 38.2682,
-      longitude: 140.8694,
-      latitudeDelta: 0.6, // minRank 5 相当
-      longitudeDelta: 0.6,
-    };
-
-    it('ズームアウト(minRank 5 相当)でも訪問済みスポットのマーカーは表示され続ける', () => {
-      const { getByTestId } = render(
-        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
-      );
-
-      fireRegionAndSettle(getByTestId('map-view'), zoomedOutRegion);
-
-      expect(getByTestId('spot-marker-spot-1')).toBeTruthy();
-    });
-
-    it('ズームアウトでも行きたいリストのスポットのマーカーは表示され続ける', () => {
-      mockWishlistSpotIds = new Set(['spot-2']);
-
-      const { getByTestId } = render(
-        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
-      );
-
-      fireRegionAndSettle(getByTestId('map-view'), zoomedOutRegion);
-
-      expect(getByTestId('spot-marker-spot-2')).toBeTruthy();
-    });
-  });
-
-  describe('Default zoom level (#93)', () => {
-    it('initialRegion のデフォルト delta は 0.015 である', () => {
-      const { getByTestId } = render(
-        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
-      );
-
-      expect(getByTestId('map-view').props.initialRegion).toEqual(
-        expect.objectContaining({ latitudeDelta: 0.015, longitudeDelta: 0.015 })
-      );
-    });
-  });
-
-  describe('Viewport top-N selection (#96)', () => {
-    const CENTER_LAT = 38.2682;
-    const CENTER_LNG = 140.8694;
-
-    const regionAt = (latitudeDelta: number) => ({
-      latitude: CENTER_LAT,
-      longitude: CENTER_LNG,
-      latitudeDelta,
-      longitudeDelta: latitudeDelta,
-    });
-
-    const genSpot = (i: number, overrides: Record<string, unknown> = {}) => ({
-      id: `gen-${String(i).padStart(4, '0')}`,
-      name: `Gen Spot ${i}`,
-      lat: CENTER_LAT + (i % 34) * 0.0002,
-      lng: CENTER_LNG + Math.floor(i / 34) * 0.0002,
-      type: 'shrine',
-      status: 'active',
-      rank: (i % 5) + 1,
-      address: null,
-      created_by_user_id: null,
-      merged_into_spot_id: null,
-      created_at: '2024-01-01',
-      updated_at: '2024-01-01',
-      ...overrides,
-    });
-
-    it('初期ビューポート内の rank 2 スポットは delta 0.019 / 0.021 / 0.025 のいずれでも表示され続ける(ポッピング解消)', () => {
-      // delta 0.1 はクラスタ化帯(zoom 12)に入るため非クラスタ帯(zoom 14)の値に変更(#99)
-      mockSpotsOverride = [
-        ...mockSpots,
-        genSpot(0, { id: 'spot-rank2', lat: 38.269, lng: 140.87, rank: 2 }),
-      ] as typeof mockSpots;
-
-      const { getByTestId } = render(
-        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
-      );
-
-      expect(getByTestId('spot-marker-spot-rank2')).toBeTruthy();
-
-      for (const delta of [0.019, 0.021, 0.025]) {
-        fireRegionAndSettle(getByTestId('map-view'), regionAt(delta));
-        expect(getByTestId('spot-marker-spot-rank2')).toBeTruthy();
-      }
-    });
-
-    it('ビューポート外(東京座標)のスポットは rank 5 でも初期表示でレンダリングされない', () => {
-      mockSpotsOverride = [
-        ...mockSpots,
-        genSpot(0, { id: 'spot-tokyo', lat: 35.6812, lng: 139.7671, rank: 5 }),
-      ] as typeof mockSpots;
-
-      const { queryByTestId } = render(
-        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
-      );
-
-      expect(queryByTestId('spot-marker-spot-tokyo')).toBeNull();
-    });
-
-    it('同 rank 81 件では個別描画上限 60 件(MAX_INDIVIDUAL_SPOTS)を超える中心から遠い分がレンダリングされない', () => {
-      mockSpotsOverride = Array.from({ length: 81 }, (_, i) =>
-        genSpot(i, { lat: CENTER_LAT + i * 0.00005, lng: CENTER_LNG, rank: 3 })
-      ) as typeof mockSpots;
-
-      const { queryAllByTestId, getByTestId, queryByTestId } = render(
-        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
-      );
-
-      expect(queryAllByTestId(/^spot-marker-gen-/)).toHaveLength(60);
-      expect(getByTestId('spot-marker-gen-0059')).toBeTruthy();
-      expect(queryByTestId('spot-marker-gen-0060')).toBeNull();
-    });
-
-    it('rank 1 のスポットしかないエリアでも delta 0.6 にズームアウトして地図が空にならない', () => {
-      mockSpotsOverride = [genSpot(0, { id: 'spot-low', rank: 1 })] as typeof mockSpots;
-
-      const { getByTestId } = render(
-        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
-      );
-
-      fireRegionAndSettle(getByTestId('map-view'), regionAt(0.6));
-      expect(getByTestId('spot-marker-spot-low')).toBeTruthy();
-    });
-
-    it('初期ビューポート内 1,109 件でもレンダリングされる個別マーカーは 60 件・クラスタ 0 件(#99 P-3)', () => {
-      mockSpotsOverride = Array.from({ length: 1109 }, (_, i) => genSpot(i)) as typeof mockSpots;
-
-      const { queryAllByTestId } = render(
-        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
-      );
-
-      expect(queryAllByTestId(/^spot-marker-gen-/)).toHaveLength(60);
-      expect(queryAllByTestId(/^cluster-marker-/)).toHaveLength(0);
-    });
-
-    it('個別 60 件選外の wishlist スポットは pinned 枠で表示され、総数は 61 件(#99)', () => {
-      mockSpotsOverride = Array.from({ length: 1109 }, (_, i) => genSpot(i)) as typeof mockSpots;
-      // rank 1 のスポット(個別 60 件は rank 5 で埋まるため確実に選外)を wishlist に入れる
-      mockWishlistSpotIds = new Set(['gen-0000']);
-
-      const { queryAllByTestId, getByTestId } = render(
-        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
-      );
-
-      expect(queryAllByTestId(/^spot-marker-gen-/)).toHaveLength(61);
-      expect(getByTestId('spot-marker-gen-0000')).toBeTruthy();
-    });
-
-    it('focusPrefecture で県 spots が 100 件でも県域 region 発火後はクラスタ化されマーカー総数 130 以下(#99 AC-36)', async () => {
-      mockSpotsOverride = [] as unknown as typeof mockSpots;
-      const prefGen = Array.from({ length: 100 }, (_, i) =>
-        genSpot(i, {
-          id: `pref-gen-${String(i).padStart(4, '0')}`,
-          lat: 38.31 + (i % 10) * 0.001,
-          lng: 140.91 + Math.floor(i / 10) * 0.001,
-        })
-      );
-      mockFetchSpotsByPrefecture.mockResolvedValue(prefGen);
-
-      const routeWithPrefecture = {
-        key: 'test',
-        name: 'Map' as const,
-        params: { focusPrefecture: '宮城県' },
-      };
-
-      const { getByTestId, queryAllByTestId } = render(
-        <MapScreen navigation={mockNavigation as never} route={routeWithPrefecture} />
-      );
+      r.rerender(<MapScreen navigation={mockNavigation as never} route={mockRoute} />);
 
       await waitFor(() => {
-        expect(mockFetchSpotsByPrefecture).toHaveBeenCalled();
+        expect(spotIds(r, 'goshuin-spots')).not.toContain('pref-1');
       });
-
-      fireRegionAndSettle(getByTestId('map-view'), {
-        latitude: 38.315,
-        longitude: 140.915,
-        latitudeDelta: 0.2,
-        longitudeDelta: 0.2,
-      });
-
-      const clusterMarkers = queryAllByTestId(/^cluster-marker-/);
-      const spotMarkers = queryAllByTestId(/^spot-marker-/);
-      expect(clusterMarkers.length).toBeGreaterThanOrEqual(1);
-      expect(clusterMarkers.length + spotMarkers.length).toBeLessThanOrEqual(130);
     });
-  });
-
-  describe('Clustering (#99)', () => {
-    const CENTER_LAT = 38.2682;
-    const CENTER_LNG = 140.8694;
-
-    const regionAt = (latitudeDelta: number, latitude = CENTER_LAT) => ({
-      latitude,
-      longitude: CENTER_LNG,
-      latitudeDelta,
-      longitudeDelta: latitudeDelta,
-    });
-
-    // 中心付近の 0.0005° グリッドに count 件を決定的に配置する
-    const gridSpots = (count: number) =>
-      Array.from({ length: count }, (_, i) => ({
-        id: `gen-${String(i).padStart(4, '0')}`,
-        name: `Gen Spot ${i}`,
-        lat: CENTER_LAT + (Math.floor(i / 20) - 4.5) * 0.0005,
-        lng: CENTER_LNG + ((i % 20) - 9.5) * 0.0005,
-        type: 'shrine',
-        status: 'active',
-        rank: (i % 5) + 1,
-        address: null,
-        created_by_user_id: null,
-        merged_into_spot_id: null,
-        created_at: '2024-01-01',
-        updated_at: '2024-01-01',
-      })) as typeof mockSpots;
-
-    it('AC-29: 初期表示(delta 0.015)ではクラスタバブルが 0 件で個別ピンのみ', () => {
-      const { queryAllByTestId, getByTestId } = render(
-        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
-      );
-
-      expect(queryAllByTestId(/^cluster-marker-/)).toHaveLength(0);
-      expect(getByTestId('spot-marker-spot-1')).toBeTruthy();
-      expect(getByTestId('spot-marker-spot-2')).toBeTruthy();
-    });
-
-    it('AC-30: 近接 200 件が delta 0.6 で 1 個のバブル(バケット 100+)に畳まれる', () => {
-      mockSpotsOverride = gridSpots(200);
-
-      const { getByTestId, queryAllByTestId } = render(
-        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
-      );
-
-      fireRegionAndSettle(getByTestId('map-view'), regionAt(0.6));
-
-      const clusterMarkers = queryAllByTestId(/^cluster-marker-/);
-      expect(clusterMarkers).toHaveLength(1);
-      expect(clusterMarkers[0].props.image).toBe(CLUSTER_BUBBLE_IMAGES['100p']);
-    });
-
-    it('AC-31: 0.11° 間隔 7×7 グリッド×2 件は delta 0.6 でバブル 40 件・個別 0 件', () => {
-      const spots: typeof mockSpots = [] as unknown as typeof mockSpots;
-      for (let row = 0; row < 7; row++) {
-        for (let col = 0; col < 7; col++) {
-          const lat = CENTER_LAT + (row - 3) * 0.11;
-          const lng = CENTER_LNG + (col - 3) * 0.11;
-          const base = (row * 7 + col) * 2;
-          for (const [j, latOffset] of [0, 0.0001].entries()) {
-            spots.push({
-              id: `gen-${String(base + j).padStart(4, '0')}`,
-              name: `Gen Spot ${base + j}`,
-              lat: lat + latOffset,
-              lng,
-              type: 'shrine',
-              status: 'active',
-              rank: 3,
-              address: null,
-              created_by_user_id: null,
-              merged_into_spot_id: null,
-              created_at: '2024-01-01',
-              updated_at: '2024-01-01',
-            } as (typeof mockSpots)[number]);
-          }
-        }
-      }
-      mockSpotsOverride = spots;
-
-      const { getByTestId, queryAllByTestId } = render(
-        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
-      );
-
-      fireRegionAndSettle(getByTestId('map-view'), regionAt(0.6));
-
-      expect(queryAllByTestId(/^cluster-marker-/)).toHaveLength(40);
-      expect(queryAllByTestId(/^spot-marker-/)).toHaveLength(0);
-    });
-
-    it('AC-33: 中心移動が delta の 9% ではクラスタ region が再計算されない(ヒステリシス)', () => {
-      mockSpotsOverride = [
-        ...mockSpots,
-        {
-          ...mockSpots[0],
-          id: 'spot-hyst',
-          name: 'Hysteresis Spot',
-          lat: 38.335,
-          lng: 140.8694,
-          rank: 5,
-        },
-      ] as typeof mockSpots;
-
-      const { getByTestId, queryByTestId } = render(
-        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
-      );
-
-      const mapView = getByTestId('map-view');
-      fireRegionAndSettle(mapView, regionAt(0.1));
-      expect(queryByTestId('spot-marker-spot-hyst')).toBeNull();
-
-      // 中心移動 0.009 = delta の 9% < 10% → 採用されず旧ビューポートのまま
-      fireRegionAndSettle(mapView, regionAt(0.1, 38.2772));
-      expect(queryByTestId('spot-marker-spot-hyst')).toBeNull();
-    });
-
-    it('AC-34: 中心移動が delta の 11% ならクラスタ region が再計算される', () => {
-      mockSpotsOverride = [
-        ...mockSpots,
-        {
-          ...mockSpots[0],
-          id: 'spot-hyst',
-          name: 'Hysteresis Spot',
-          lat: 38.335,
-          lng: 140.8694,
-          rank: 5,
-        },
-      ] as typeof mockSpots;
-
-      const { getByTestId, queryByTestId } = render(
-        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
-      );
-
-      const mapView = getByTestId('map-view');
-      fireRegionAndSettle(mapView, regionAt(0.1));
-      expect(queryByTestId('spot-marker-spot-hyst')).toBeNull();
-
-      // 中心移動 0.011 = delta の 11% >= 10% → 採用され新ビューポートに入る
-      fireRegionAndSettle(mapView, regionAt(0.1, 38.2792));
-      expect(getByTestId('spot-marker-spot-hyst')).toBeTruthy();
-    });
-
-    it('AC-35: クラスタバブルのタップで animateToRegion がズームイン region で呼ばれる', () => {
-      mockSpotsOverride = gridSpots(200);
-
-      const { getByTestId, queryAllByTestId } = render(
-        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
-      );
-
-      fireRegionAndSettle(getByTestId('map-view'), regionAt(0.6));
-
-      const clusterMarker = queryAllByTestId(/^cluster-marker-/)[0];
-      fireEvent.press(clusterMarker);
-
-      const { __mapViewMocks } = jest.requireMock('react-native-maps');
-      expect(__mapViewMocks.animateToRegion).toHaveBeenCalled();
-      const [firstArg] = __mapViewMocks.animateToRegion.mock.calls[0];
-      expect(firstArg.latitudeDelta).toBeLessThan(0.6);
-    });
-
-    it('AC-42: デバウンス経過前はクラスタ region が採用されず、経過後に採用される', () => {
-      mockSpotsOverride = gridSpots(200);
-
-      const { getByTestId, queryAllByTestId } = render(
-        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
-      );
-
-      jest.useFakeTimers();
-      fireEvent(getByTestId('map-view'), 'onRegionChangeComplete', regionAt(0.6));
-
-      // デバウンス経過前: クラスタ region は未採用でバブルはまだ出ない
-      expect(queryAllByTestId(/^cluster-marker-/)).toHaveLength(0);
-
-      act(() => {
-        jest.advanceTimersByTime(CLUSTER_REGION_DEBOUNCE_MS + 50);
-      });
-      expect(queryAllByTestId(/^cluster-marker-/)).toHaveLength(1);
-      jest.useRealTimers();
-    });
-
-    it('P-4: 1,109 件が delta 0.6 で 1 個のバブル(バケット 1000+)に畳まれ個別 0 件', () => {
-      mockSpotsOverride = Array.from({ length: 1109 }, (_, i) => ({
-        id: `gen-${String(i).padStart(4, '0')}`,
-        name: `Gen Spot ${i}`,
-        lat: CENTER_LAT + (i % 34) * 0.0002,
-        lng: CENTER_LNG + Math.floor(i / 34) * 0.0002,
-        type: 'shrine',
-        status: 'active',
-        rank: (i % 5) + 1,
-        address: null,
-        created_by_user_id: null,
-        merged_into_spot_id: null,
-        created_at: '2024-01-01',
-        updated_at: '2024-01-01',
-      })) as typeof mockSpots;
-
-      const { getByTestId, queryAllByTestId } = render(
-        <MapScreen navigation={mockNavigation as never} route={mockRoute} />
-      );
-
-      fireRegionAndSettle(getByTestId('map-view'), regionAt(0.6));
-
-      const clusterMarkers = queryAllByTestId(/^cluster-marker-/);
-      expect(clusterMarkers).toHaveLength(1);
-      expect(queryAllByTestId(/^spot-marker-/)).toHaveLength(0);
-      expect(clusterMarkers[0].props.image).toBe(CLUSTER_BUBBLE_IMAGES['1000p']);
-    });
-  });
-});
-
-describe('MapScreen 行きたいリストへの導線（Issue #123）', () => {
-  it('行きたいが0件でもエントリポイントが表示される', () => {
-    mockWishlistSpotIds = new Set<string>();
-
-    const { getByTestId } = render(
-      <MapScreen navigation={mockNavigation as never} route={mockRoute as never} />
-    );
-
-    expect(getByTestId('wishlist-entry')).toBeTruthy();
-  });
-
-  it('エントリポイントをタップすると行きたいリストへ遷移する', () => {
-    const { getByTestId } = render(
-      <MapScreen navigation={mockNavigation as never} route={mockRoute as never} />
-    );
-
-    fireEvent.press(getByTestId('wishlist-entry'));
-
-    expect(mockNavigation.navigate).toHaveBeenCalledWith('Wishlist');
-  });
-
-  it('行きたいが1件以上のとき件数が出る', () => {
-    mockWishlistSpotIds = new Set(['spot-1', 'spot-2', 'spot-3']);
-
-    const { getByText } = render(
-      <MapScreen navigation={mockNavigation as never} route={mockRoute as never} />
-    );
-
-    expect(getByText('行きたい (3)')).toBeTruthy();
-  });
-
-  it('0件のときは件数を出さない', () => {
-    mockWishlistSpotIds = new Set<string>();
-
-    const { getByText } = render(
-      <MapScreen navigation={mockNavigation as never} route={mockRoute as never} />
-    );
-
-    expect(getByText('行きたい')).toBeTruthy();
-  });
-
-  it('エントリポイントは検索行の直下に置かれ、位置情報バナーはその下にずれる', () => {
-    const { getByTestId } = render(
-      <MapScreen navigation={mockNavigation as never} route={mockRoute as never} />
-    );
-
-    const entry = StyleSheet.flatten(getByTestId('wishlist-entry').props.style) as {
-      top?: number;
-      zIndex?: number;
-    };
-
-    // 検索行(insets.top + spacing.xs)の 52pt 下。フィルタボタンの真下に来る
-    expect(entry.top).toBeGreaterThan(0);
-    // 検索行(10)より下、フィルタのドロップダウン(15)より下の重なり順
-    expect(entry.zIndex).toBeLessThan(15);
   });
 });

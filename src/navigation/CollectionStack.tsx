@@ -2,6 +2,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { CollectionScreen } from '@screens/CollectionScreen';
 import { PilgrimageDetailScreen } from '@screens/PilgrimageDetailScreen';
+import { PrefectureDetailScreen } from '@screens/PrefectureDetailScreen';
 import type { CollectionStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<CollectionStackParamList>();
@@ -12,6 +13,11 @@ export function CollectionStack() {
       <Stack.Screen
         name="CollectionList"
         component={CollectionScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="PrefectureDetail"
+        component={PrefectureDetailScreen}
         options={{ headerShown: false }}
       />
       <Stack.Screen

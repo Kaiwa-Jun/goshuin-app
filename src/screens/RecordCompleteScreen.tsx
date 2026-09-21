@@ -1,162 +1,229 @@
-import React, { useState } from 'react';
-import { Alert, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Image, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
-import { deleteStamp } from '@services/stamps';
-import { CheckmarkAnimation } from '@components/animated/CheckmarkAnimation';
-import { BadgeAnimation } from '@components/animated/BadgeAnimation';
-import { ConfettiEffect } from '@components/animated/ConfettiEffect';
+import { NewBadgeRow } from '@components/record/NewBadgeRow';
+import { ManganNote, ManganSeal } from '@components/record/ManganSeal';
+import { PressableScale } from '@components/common/PressableScale';
+import { SaveMapReveal } from '@components/record/SaveMapReveal';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
+import { shadows } from '@theme/shadows';
 import { spacing, borderRadius } from '@theme/spacing';
+import { formatJapaneseEraDate } from '@utils/japaneseEra';
 import type { RootStackScreenProps } from '@/navigation/types';
 
 type Props = RootStackScreenProps<'RecordComplete'>;
 
+const MAP_WIDTH = 210;
+/** 枚数が1つ増えるまでの間 */
+const COUNT_STEP_MS = 90;
+/** 地図が落ち着いてから朱印を押す */
+const MANGAN_DELAY_MS = 1700;
+
+/**
+ * 記録を終えた人を、来た場所に返すための出口。
+ *
+ * 行き先はタブバーと同じアイコンで示す。文字だけだと、どのタブに飛ぶのかが
+ * 読まないと分からない。
+ */
+const EXITS = {
+  map: {
+    label: '地図に戻る',
+    icon: 'explore',
+    target: { screen: 'MapTab', params: { screen: 'Map' } },
+  },
+  gallery: {
+    label: '御朱印帳に戻る',
+    icon: 'menu-book',
+    target: { screen: 'GalleryTab', params: { screen: 'Gallery' } },
+  },
+} as const;
+
+/**
+ * 保存した直後。感情のピークはここ。
+ *
+ * 以前はチェックマークと紙吹雪で祝っていたが、それは何のアプリでも出せる。
+ * **このアプリにしか出せないのは、いま授かった御朱印そのものと、色づく県**なので、
+ * その2つを主役にした（docs/design/2026-09-record-complete-spec.md）。
+ */
 export function RecordCompleteScreen({ navigation, route }: Props) {
   const stampImageUrl = route.params?.stampImageUrl;
+  const stampCount = route.params?.stampCount ?? 1;
   const spotName = route.params?.spotName;
-  const visitCount = route.params?.visitCount;
-  const badge = route.params?.badge;
-  const stampId = route.params?.stampId;
-  const imagePath = route.params?.imagePath;
+  const spotType = route.params?.spotType;
+  const visitedAt = route.params?.visitedAt;
+  const badges = route.params?.badges ?? [];
+  // 満願は、御朱印の上に朱印として押す。バッジの行にも出す（朱印は演出、行は記録）
+  const isMangan = badges.some(badge => badge.id === 'mangan');
   const countUnavailable = route.params?.countUnavailable;
+  const prefecture = route.params?.prefecture;
+  const isFirstInPrefecture = route.params?.isFirstInPrefecture;
+  const stampCountByPrefecture = route.params?.stampCountByPrefecture;
+  const totalStampCount = route.params?.totalStampCount;
   const [imageError, setImageError] = useState(false);
-  const [isUndoing, setIsUndoing] = useState(false);
 
-  // 確認モーダルを廃した（D-3）ぶんの受け皿。誤登録はここで回復する。
-  // 両方揃っていないと deleteStamp を呼べないので、その場合はボタン自体を出さない
-  const canUndo = Boolean(stampId && imagePath);
+  // 記録画面は地図と御朱印帳の両方から開ける。どちらから来たか分からない
+  // ときは地図に返す（入口として多く、迷子になりにくい）
+  const origin = route.params?.origin;
+  const exit = EXITS[origin ?? 'map'];
 
+  /*
+   * navigate ではなく replace / popTo を使う。
+   *
+   * React Navigation v7 の navigate は、同じ名前の画面が履歴にあっても戻らず
+   * push する（StackRouter の NAVIGATE は payload.pop のときだけ戻る）。
+   * navigate のままだと「もう1枚」で記録画面が完了画面の上に積まれ、記録画面の
+   * ✕ がここへ帰ってきてしまう（Issue #188）
+   */
   const handleRecordAnother = () => {
-    navigation.navigate('Record');
+    navigation.replace('Record', { origin });
   };
 
-  const handleViewMap = () => {
-    navigation.navigate('MainTabs', { screen: 'MapTab', params: { screen: 'Map' } });
+  const handleExit = () => {
+    navigation.popTo('MainTabs', exit.target);
   };
 
-  // 呼び出し元が canUndo のボタンだけとは限らなくなっても壊れないよう、
-  // ここでも揃っていることを確かめてから消す
-  const runUndo = async (id: string, path: string) => {
-    setIsUndoing(true);
-    try {
-      await deleteStamp(id, path);
-      navigation.navigate('MainTabs', { screen: 'MapTab', params: { screen: 'Map' } });
-    } catch (error) {
-      // 消せていないのに消えた顔をしない。原文を出して画面に留まる
-      const message = error instanceof Error ? error.message : String(error);
-      Alert.alert('取り消せませんでした', message);
-    } finally {
-      setIsUndoing(false);
+  /*
+   * 数字と地図は、取得に失敗したときは出さない。保存はできているので画面は
+   * 出すが、嘘の数字を祝わない（Issue #133）
+   */
+
+  /*
+   * 枚数は地図が色づくのに合わせて数え上がる。いきなり最後の数字が出ていると、
+   * 「増えた」ではなく「そういう数字だった」に見える
+   */
+  const canShowMap = !countUnavailable && prefecture !== undefined && stampCountByPrefecture;
+
+  const from = Math.max(0, (totalStampCount ?? 0) - stampCount);
+  /*
+   * 数え始めの値から出す。最終値を先に出すと、寄り終わった瞬間に戻って数え直す。
+   * ただし**地図を出さないときは数え上げの合図が来ない**ので、最終値のまま出す
+   */
+  const [shownCount, setShownCount] = useState(canShowMap ? from : (totalStampCount ?? 0));
+  const countTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  const startCountUp = useCallback(() => {
+    countTimers.current.forEach(clearTimeout);
+    countTimers.current = [];
+    if (totalStampCount === undefined || from >= totalStampCount) return;
+
+    setShownCount(from);
+    for (let n = from + 1; n <= totalStampCount; n += 1) {
+      countTimers.current.push(setTimeout(() => setShownCount(n), (n - from) * COUNT_STEP_MS));
     }
-  };
+  }, [from, totalStampCount]);
 
-  // 取り消しは非可逆（redo は無い）ので、ここだけは確認を挟む。
-  // 主導線ではないためタップ数の目標には影響しない
-  const handleUndoPress = () => {
-    if (!stampId || !imagePath) return;
-
-    Alert.alert('この記録を取り消しますか？', '御朱印の写真ごと削除されます。元には戻せません。', [
-      { text: 'やめる', style: 'cancel' },
-      { text: '取り消す', style: 'destructive', onPress: () => runUndo(stampId, imagePath) },
-    ]);
-  };
-
-  const handleViewCollection = () => {
-    navigation.navigate('MainTabs', {
-      screen: 'CollectionTab',
-      params: { screen: 'CollectionList' },
-    });
-  };
+  useEffect(() => () => countTimers.current.forEach(clearTimeout), []);
 
   return (
     <LinearGradient
-      colors={[colors.primary[400], colors.primary[500]]}
+      colors={[colors.primary[400], colors.primary[500], colors.primary[700]]}
       style={styles.gradient}
       testID="gradient-background"
     >
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-        <ConfettiEffect trigger={true} />
+        <View style={styles.card}>
+          {/* 御朱印は主役。地から浮かせる（影は枠側に置く。Image に影は乗らない） */}
+          <View style={styles.stampFrame} testID="stamp-frame">
+            {stampImageUrl && !imageError ? (
+              <Image
+                source={{ uri: stampImageUrl }}
+                style={styles.stampImage}
+                resizeMode="cover"
+                testID="stamp-image"
+                onError={() => setImageError(true)}
+              />
+            ) : (
+              <View style={styles.imagePlaceholder} testID="stamp-image-placeholder">
+                <MaterialIcons name="photo" size={44} color={colors.gray[300]} />
+              </View>
+            )}
+            {/*
+             * 朱印は**御朱印の上に**押される。写真があるときこそ本番なので、
+             * 画像とプレースホルダの両方に重ねる（分岐の中に入れると、
+             * 写真を撮った人には一度も出ない）
+             */}
+            {isMangan && <ManganSeal spotName={spotName ?? ''} delayMs={MANGAN_DELAY_MS} />}
+          </View>
 
-        <View style={styles.content}>
-          <CheckmarkAnimation size={80} />
-
-          <Text style={styles.title}>登録完了！</Text>
-
-          {stampImageUrl && !imageError ? (
-            <Image
-              source={{ uri: stampImageUrl }}
-              style={styles.stampImage}
-              resizeMode="cover"
-              testID="stamp-image"
-              onError={() => setImageError(true)}
-            />
-          ) : (
-            <View style={styles.imagePlaceholder} testID="stamp-image-placeholder">
-              <MaterialIcons name="photo" size={48} color="rgba(255,255,255,0.5)" />
+          {!countUnavailable && totalStampCount !== undefined && (
+            <View style={styles.countRow} testID="stamp-total">
+              <Text style={styles.countNumber}>{shownCount}</Text>
+              <Text style={styles.countUnit}>枚目</Text>
             </View>
           )}
 
-          {spotName && (
-            <Text style={styles.spotName} testID="spot-name">
-              {spotName}
-            </Text>
+          {/* まとめて登録しても出せるのは先頭の1枚。残りがあることは枚数で示す */}
+          {stampCount > 1 && (
+            <Text style={styles.batch} testID="stamp-count">{`この日 ${stampCount}枚`}</Text>
           )}
 
-          <Text style={styles.countText} testID="visit-count">
-            {visitCount ? `${visitCount}箇所目の御朱印！` : '御朱印を記録しました！'}
-          </Text>
+          {/* 嘘の数字を祝わないのと同じ理由で、取れていないときは出さない */}
+          {canShowMap && isFirstInPrefecture && (
+            <View style={styles.newChip} testID="first-in-prefecture">
+              <Text style={styles.newChipText}>{`🗾 ${prefecture}、はじめて`}</Text>
+            </View>
+          )}
 
-          {/* 記録は保存できている。黙って件数を消すと壊れていることに気づけないので
-              理由だけを控えめに添える（Issue #133 / D-3） */}
+          {canShowMap && (
+            <SaveMapReveal
+              prefecture={prefecture}
+              stampCountByPrefecture={stampCountByPrefecture}
+              addedCount={stampCount}
+              spotType={spotType}
+              width={MAP_WIDTH}
+              onSettled={startCountUp}
+            />
+          )}
+
           {countUnavailable && (
             <Text style={styles.countUnavailableText} testID="visit-count-unavailable">
               通信エラーのため記録数を表示できません
             </Text>
           )}
 
-          {badge && <BadgeAnimation badge={badge} />}
+          {spotName && (
+            <View style={styles.spot}>
+              <Text style={styles.spotName} testID="spot-name">
+                {spotName}
+              </Text>
+              {/* DATE のまま渡す。new Date() を挟むと Issue #204 と同じ1日ずれを踏む */}
+              {visitedAt && (
+                <Text style={styles.visitedAt} testID="visited-at">
+                  {formatJapaneseEraDate(visitedAt)}
+                </Text>
+              )}
+            </View>
+          )}
+
+          {isMangan && <ManganNote />}
+
+          <NewBadgeRow badges={badges} />
         </View>
 
+        {/* 続ける / 終わる の2択だけ置く。お祝いの場に選択肢を並べない */}
         <View style={styles.actions}>
-          <TouchableOpacity
-            style={styles.buttonRecordAnother}
+          <PressableScale
+            style={[styles.button, styles.buttonRecordAnother]}
             onPress={handleRecordAnother}
+            accessibilityRole="button"
             testID="button-record-another"
           >
+            <MaterialIcons name="add-a-photo" size={20} color={colors.primary[700]} />
             <Text style={styles.buttonRecordAnotherText}>もう1枚記録する</Text>
-          </TouchableOpacity>
+          </PressableScale>
 
-          <TouchableOpacity
-            style={styles.buttonViewMap}
-            onPress={handleViewMap}
-            testID="button-view-map"
+          <PressableScale
+            style={[styles.button, styles.buttonExit]}
+            onPress={handleExit}
+            accessibilityRole="button"
+            testID="button-exit"
           >
-            <Text style={styles.buttonViewMapText}>地図を見る</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.buttonViewCollection}
-            onPress={handleViewCollection}
-            testID="button-view-collection"
-          >
-            <Text style={styles.buttonViewCollectionText}>あつめるを見る</Text>
-          </TouchableOpacity>
-
-          {canUndo && (
-            <TouchableOpacity
-              style={styles.buttonUndo}
-              onPress={handleUndoPress}
-              disabled={isUndoing}
-              testID="button-undo-record"
-            >
-              <Text style={styles.buttonUndoText}>
-                {isUndoing ? '取り消しています...' : '記録を取り消す'}
-              </Text>
-            </TouchableOpacity>
-          )}
+            <MaterialIcons name={exit.icon} size={20} color={colors.white} />
+            <Text style={styles.buttonExitText}>{exit.label}</Text>
+          </PressableScale>
         </View>
       </SafeAreaView>
     </LinearGradient>
@@ -164,95 +231,64 @@ export function RecordCompleteScreen({ navigation, route }: Props) {
 }
 
 const styles = StyleSheet.create({
-  gradient: {
+  gradient: { flex: 1 },
+  container: { flex: 1 },
+  card: {
     flex: 1,
-  },
-  container: {
-    flex: 1,
-  },
-  content: {
-    flex: 1,
+    margin: spacing.lg,
+    marginBottom: 0,
+    backgroundColor: colors.white,
+    borderRadius: borderRadius['3xl'],
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: spacing['2xl'],
-    gap: spacing.xl,
+    gap: spacing.md,
+    padding: spacing['2xl'],
   },
-  title: {
-    ...typography.h1,
-    color: colors.white,
+  stampFrame: {
+    width: 150,
+    aspectRatio: 3 / 4,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.gray[100],
+    ...shadows.lg,
   },
   stampImage: {
-    width: 160,
-    height: 200,
-    borderRadius: borderRadius.lg,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    width: '100%',
+    height: '100%',
+    borderRadius: borderRadius.md,
   },
   imagePlaceholder: {
-    width: 160,
-    height: 200,
-    borderRadius: borderRadius.lg,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    width: '100%',
+    height: '100%',
+    borderRadius: borderRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  spotName: {
-    ...typography.h3,
-    color: colors.white,
+  countRow: { flexDirection: 'row', alignItems: 'baseline' },
+  countNumber: { fontSize: 36, fontWeight: '900', color: colors.gray[900] },
+  countUnit: { ...typography.h3, color: colors.gray[900], marginLeft: 2 },
+  batch: { ...typography.bodySmall, color: colors.gray[600] },
+  newChip: {
+    backgroundColor: 'rgba(220, 38, 38, 0.1)',
+    borderRadius: borderRadius.full,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
   },
-  countText: {
-    ...typography.h3,
-    color: colors.white,
-  },
-  // お祝いの場なのでエラー画面には飛ばさず、注記として控えめに置く
-  countUnavailableText: {
-    ...typography.caption,
-    color: colors.white,
-    opacity: 0.7,
-    textAlign: 'center',
-  },
-  actions: {
-    paddingHorizontal: spacing['2xl'],
-    paddingBottom: spacing['2xl'],
-    gap: spacing.md,
-  },
-  buttonRecordAnother: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingVertical: spacing.md,
+  newChipText: { ...typography.bodySmall, fontWeight: '700', color: colors.shrine[600] },
+  countUnavailableText: { ...typography.caption, color: colors.gray[500], textAlign: 'center' },
+  spot: { alignItems: 'center' },
+  spotName: { ...typography.h3, color: colors.gray[900] },
+  visitedAt: { ...typography.bodySmall, color: colors.gray[600], marginTop: 2 },
+  actions: { padding: spacing.lg, gap: spacing.md },
+  button: {
+    height: 52,
     borderRadius: borderRadius.lg,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
   },
-  buttonRecordAnotherText: {
-    ...typography.button,
-    color: colors.white,
-  },
-  buttonViewMap: {
-    backgroundColor: colors.white,
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.lg,
-    alignItems: 'center',
-  },
-  buttonViewMapText: {
-    ...typography.button,
-    color: colors.primary[500],
-  },
-  buttonViewCollection: {
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-  },
-  buttonViewCollectionText: {
-    ...typography.button,
-    color: 'rgba(255,255,255,0.8)',
-  },
-  // 主導線の3ボタンより控えめに、かつ間隔を空けて誤タップを避ける
-  buttonUndo: {
-    paddingVertical: spacing.md,
-    marginTop: spacing.lg,
-    alignItems: 'center',
-  },
-  buttonUndoText: {
-    ...typography.caption,
-    color: colors.white,
-    opacity: 0.7,
-    textDecorationLine: 'underline',
-  },
+  buttonRecordAnother: { backgroundColor: colors.white },
+  buttonRecordAnotherText: { ...typography.button, color: colors.primary[700] },
+  buttonExit: { borderWidth: 1.5, borderColor: 'rgba(255, 255, 255, 0.65)' },
+  buttonExitText: { ...typography.button, color: colors.white },
 });

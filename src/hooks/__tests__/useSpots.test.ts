@@ -91,4 +91,36 @@ describe('useSpots', () => {
 
     expect(result.current.spots).toHaveLength(2);
   });
+
+  it('行きたいフィルタで、保存したスポットだけに絞る', async () => {
+    const spots = [makeFakeSpot(), makeFakeSpot({ id: 'spot-2' }), makeFakeSpot({ id: 'spot-3' })];
+    mockFetchAllActiveSpots.mockResolvedValue(spots);
+
+    const { result } = renderHook(() =>
+      useSpots(
+        { latitude: 38.2682, longitude: 140.8694 },
+        'wishlist',
+        new Set(['spot-2']),
+        new Set(['spot-1', 'spot-3'])
+      )
+    );
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    // 訪問済みの Set は無視され、行きたいの Set だけが効く
+    expect(result.current.spots.map(s => s.id)).toEqual(['spot-1', 'spot-3']);
+    expect(result.current.allSpots).toHaveLength(3);
+  });
+
+  it('行きたいが0件なら空になる。全件に戻さない', async () => {
+    mockFetchAllActiveSpots.mockResolvedValue([makeFakeSpot()]);
+
+    const { result } = renderHook(() =>
+      useSpots({ latitude: 38.2682, longitude: 140.8694 }, 'wishlist', undefined, new Set())
+    );
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.spots).toEqual([]);
+  });
 });

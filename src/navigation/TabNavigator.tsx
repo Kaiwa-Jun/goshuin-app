@@ -1,5 +1,6 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { MaterialIcons } from '@expo/vector-icons';
+
+import { TabBarIcon } from '@components/animated/TabBarIcon';
 
 import { MapStack } from '@/navigation/MapStack';
 import { GalleryStack } from '@/navigation/GalleryStack';
@@ -23,7 +24,15 @@ export function TabNavigator() {
         component={MapStack}
         options={{
           title: '地図',
-          tabBarIcon: ({ color }) => <MaterialIcons name="explore" size={24} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon
+              name="explore"
+              routeName="MapTab"
+              motion="spin"
+              color={color}
+              focused={focused}
+            />
+          ),
         }}
       />
       <Tab.Screen
@@ -31,24 +40,48 @@ export function TabNavigator() {
         component={GalleryStack}
         options={{
           title: '御朱印帳',
-          tabBarIcon: ({ color }) => <MaterialIcons name="menu-book" size={24} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon
+              name="menu-book"
+              routeName="GalleryTab"
+              motion="open-book"
+              color={color}
+              focused={focused}
+            />
+          ),
         }}
       />
       <Tab.Screen
         name="CollectionTab"
         component={CollectionStack}
         options={{
-          title: 'あつめる',
+          title: 'あゆみ',
           headerShown: false,
-          tabBarIcon: ({ color }) => <MaterialIcons name="emoji-events" size={24} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon
+              name="timeline"
+              routeName="CollectionTab"
+              motion="draw"
+              color={color}
+              focused={focused}
+            />
+          ),
         }}
       />
       <Tab.Screen
         name="Settings"
         component={SettingsScreen}
         options={{
-          title: '自分',
-          tabBarIcon: ({ color }) => <MaterialIcons name="person" size={24} color={color} />,
+          title: '設定',
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon
+              name="settings"
+              routeName="Settings"
+              motion="gear"
+              color={color}
+              focused={focused}
+            />
+          ),
         }}
       />
     </Tab.Navigator>

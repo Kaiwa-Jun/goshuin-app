@@ -1,52 +1,204 @@
-# セッション引き継ぎ（最終更新: 2026-08-15）
+# セッション引き継ぎ（最終更新: 2026-08-16）
 
-## ▶ 再開したらここから（2026-08-15 時点）
+## ▶ 再開したらここから（2026-08-16 未明 時点）
 
-**⚠️ build 13 は却下された（2026-08-12・却下4回目）。build 14 の準備中。**
+**⚠️ build 14 も却下された（2026-08-15・5回目）。ただし内容は前2回と性質が違う。**
 
-却下は**新規の2件**で、前回の3件（5.1.1(iv) / 5.1.1(v) / 2.1(a)）は通っている。
-Submission ID: `761a38c9-2eb8-4341-8603-252b161be183` / 審査環境: iPhone 17 Pro Max。
+Submission ID `040dc6c7-fc7e-454d-9cb6-e787c538bf54` / ASC は `REJECTED`。
 
-| ガイドライン           | 内容                                 | 対応                                                           |
-| ---------------------- | ------------------------------------ | -------------------------------------------------------------- |
-| **4.8 Login Services** | 第三者ログインと同等の選択肢が無い   | **PR #148**（Issue #146）— ログイン促進モーダルに Apple を追加 |
-| **1.2 UGC**            | 通報・ブロック・EULA・フィルタが無い | **PR #149**（Issue #147）— 公開機能を v1.0 から外す            |
+### ✅ 前回の指摘2件は再指摘されていない
+
+build 13 で指摘された **4.8（ログインサービス）/ 1.2（UGC）は今回のメールに出てこない**。
+PR #148 / #149 の対応は受け入れられたとみてよい。
+
+### 今回の指摘は Guideline 2.1（情報要求）の1件だけ
+
+**バグではなく、新規アプリの審査で審査員が理解を深めるための情報要求。**
+**コード修正は不要で、ビルド14をそのまま使える**（再ビルド不要）。
+
+**回答一式は `docs/project/app-review-2.1-response.md`**（カット割りは 2026-08-16 未明に改訂）。
+
+### 🆕 ASC は API から操作できる（2026-08-16 未明に確立）
+
+**`scripts/asc-review.mjs` を追加した。** 「ASC の画面操作は Claude に代行させない」は
+**ブラウザ UI の話**で、**API 経由なら Notes 更新も添付も通る**。ブラウザが要るのは
+**Resolution Center への返信と「審査へ提出」の2つだけ**（返信の API は公開されていない）。
+
+```bash
+node scripts/asc-review.mjs status        # 現況（読み取りのみ・安全）
+node scripts/asc-review.mjs testflight    # 内部テストグループを作って build 14 を配布
+node scripts/asc-review.mjs notes --ios 26.5
+node scripts/asc-review.mjs attach ~/Downloads/<録画>.mov
+```
+
+⚠️ **auto mode では ASC への書き込みが分類器に止められる**（読み取りは通る）。
+**書き込み系はユーザーが手で叩く**。
+
+### ✅ 撮影の前に詰まる箇所 → 解消済み（2026-09-19）
+
+TestFlight のグループもテスターも0件だったが、**`node scripts/asc-review.mjs testflight` を実行して解消**。
+内部グループ `Internal`（`8d83cc22-a73c-4d1c-bfd8-e2219df06dc6`）を作成し、build 14 を配布対象に追加、
+`kj.11235813213455@gmail.com` をテスターに登録済み（`status` で `testflight Internal` を確認）。
 
 ### 次にやること（順番どおりに）
 
-1. ~~実機で Apple サインインと公開機能の撤去を確認~~ → **2026-08-15 に確認して OK**
-2. ~~PR #148 / #149 をマージ~~ → **マージ済み**
-3. **release PR（develop → main）** ← いまここ。前回は PR #137 が同じ形
-4. **production ビルド → submit** — 手順は下記「App Store 審査対応の履歴」の submit の節。
-   ⚠️ **`buildNumber` を手で上げる必要は無い**。`eas.json` が `appVersionSource: "remote"` +
-   production の `autoIncrement: true` なので **EAS が自動で 14 を採番する**（`app.json` に buildNumber の記述は無い）
-5. **App Review へ返信** — ドラフトは **`~/Downloads/asc-reply-build14.txt`**（実機確認の結果まで反映済み）。⚠️ ASC の画面操作は Claude に代行させない
+**2026-09-19 の進捗**: TestFlight 配布 ✅ / 実機録画 ✅ / Notes 更新 ✅（実機 **iPhone 16 / iOS 26.7**）。
 
-### ⚠️ 4.8 の原因は「実装漏れ」ではなく「導線漏れ」だった
+## 🔴🔴 提出はストップ。録画の 0:49 で build 14 がクラッシュしている
 
-最初は `LoginScreen` に Apple ボタンがあることを確認して「審査側の誤りでは」と考えたが、**ログイン導線を全部数えたら本当の違反が見つかった**。
+2026-09-19 の録画を全編検証したところ、**地図をパン／ピンチしている最中（0:49）にアプリが落ち、
+ホーム画面に戻り、再起動後に TestFlight の「"御朱印さんぽ" がクラッシュしました」ダイアログが
+0:55〜0:57 に映っている**。
 
-`LoginPromptModal`（`MapScreen.tsx:470` から出る）が `signInWithGoogle` を直接呼び、**Google しか置いていなかった**。審査員の経路はここ:
+- **この動画は提出できない**（審査員がクラッシュを目撃する = 2.1 の再却下がほぼ確実）
+- **添付は ASC から削除済み**（`7822019a-…` を削除。手元の `~/Downloads/goshuin-build14-demo.mp4` は残っている）
+- **Notes（3806文字）は正しい内容なのでそのまま置いてある**
+- 動画の他の部分に問題は無い（起動・オンボーディング・地図・検索・ログイン・記録・御朱印帳・
+  あつめる・アカウント削除まで全部映っている）
+
+### クラッシュの状況（録画から読み取れる範囲）
+
+| 時刻       | 何が起きたか                                                             |
+| ---------- | ------------------------------------------------------------------------ |
+| 0:40〜0:49 | 地図をパン／ピンチ（調布〜三鷹あたり。ピンとクラスタが再計算される動き） |
+| 0:49       | **落ちてホーム画面**                                                     |
+| 0:52〜0:54 | ユーザーが再起動（アイコン → スプラッシュ）                              |
+| 0:55〜0:57 | TestFlight のクラッシュ報告ダイアログ                                    |
+
+### 原因は特定済み（`~/Downloads/app-2026-09-19-022606.ips`）
 
 ```
-オンボーディング → 「続ける」 → 位置情報ダイアログ → 地図（未ログイン）
-  → FAB「+」 → LoginPromptModal（Google のみ）
+NSRangeException *** -[__NSArrayM insertObject:atIndex:]: index 3 beyond bounds [0 .. 1]
+  -[RCTLegacyViewManagerInteropComponentView finalizeUpdates:]
+  → AIRMap insertReactSubview (AIRMap.m:138)  → SIGABRT
+端末 iPhone17,3 (iPhone 16) / iPhone OS 26.6.2 (23G90) / build 14
 ```
 
-**Guideline 5.1.1(iv) 対応（PR #135）でオンボーディングの脱出口を「続ける」1本にした副作用**で、審査員は `LoginScreen` に到達しないまま 4.8 と判定される導線になっていた。
+**react-native-maps 1.20.1 は iOS 側が全部 legacy view manager（`codegenConfig` を持たない）ため、
+New Architecture では `RCTLegacyViewManagerInteropComponentView` 経由でマウントされる。**
+この interop は insert を `finalizeUpdates` まで遅延させるので、**1トランザクションに
+「マーカーの削除 + 挿入」がまとまって入ると `atIndex` が現在の要素数を超えて渡ってくる**。
+クラスタ再計算（`onRegionChangeComplete` → `useSpotClusters`）がまさにその形。
+upstream 未修正（**1.29.2 でも同じ行のまま**）: react-native-maps#5345 / #5080 / expo#34614
 
-📌 **教訓: 「機能が実装されているか」ではなく「その機能に到達する導線がすべて揃っているか」を数える。** 前回の審査対応が次の却下を作っていた。
+⚠️ **`.ips` の OS は 26.6.2。ユーザー申告の「iOS 26.7」と食い違う。**
+ASC の Notes には 26.7 で入れてあるので、**撮り直しの前にもう一度実機で確認する**。
 
-### 1.2 は公開機能を外して回避した（v1.1 で戻す）
+### 対処（コミット済み・ブランチ `fix/map-marker-interop-crash`）
 
-公開機能はスポット詳細のギャラリーと**ボトムシートのサムネイル**（見落としやすい）に他ユーザーの写真・メモ・表示名を出していた。1.2 を満たすには EULA + 通報 + ブロック + フィルタ + **24時間以内対応の運用の約束**が要るため、v1.0 からは外す判断（2026-08-14 ユーザー決定）。
+`scripts/patch-airmap.mjs` を postinstall に登録し、`AIRMap.m:138` を範囲丸め + nil ガードに書き換える。
+react-native-maps は **Expo SDK 54 のピンのまま 1.20.1**（1.29.2 への更新も試したが、同じ行が
+未修正なうえ Expo のピンから9マイナー離れるので採らなかった）。`npm ci` で postinstall が走ることを実測確認済み
+＝ EAS ビルドでも適用される。機械検証: lint 0 errors / typecheck clean / **92 suite 1137 件パス**。
 
-**絞り口は2つだけ**にしてある（復帰しやすくするため）:
+⚠️ **手元の Dev Client（2026-04 ビルド）にはこのネイティブ修正は入っていない。検証には新しいビルドが要る。**
 
-- 公開する側: `RecordScreen` のトグル / `SettingsScreen` の公開設定 / `useDefaultPublicSetting` の配線を外した
-- 表示する側: `useSpotStamps` が `fetchPublicStampsBySpotId` を呼ばない（`publicStamps` は常に空配列）
+### その後の段取り（クラッシュが直ってから）
 
-`services` の関数・各コンポーネントの props・DB・migration・RLS は**意図的に無変更**。v1.1 の復帰は hook 1つの revert で済む。
+1. 原因特定 → 修正 → build 15 を出す
+2. TestFlight で build 15 を入れる（**入れる前にアプリを削除**）
+3. **撮り直し**（カット割りは下記のまま使える。⚠️ 検索は「靖國」ではヒットしない。旧字体の問題。
+   録画では `見つかりませんでした` が2回映っている。**新字体「靖国」で引くか、別スポットにする**）
+4. 添付 → 返信 → 審査へ提出
+
+- 録画: `~/Downloads/ScreenRecording_09-19-2026 02-25-12_1.MP4`（5:57 / 436MB / HEVC 1180x2556）
+  圧縮済みの提出版が `~/Downloads/goshuin-build14-demo.mp4`（17.4MB / H.264 1280p / 無音）
+- ASC の添付は `goshuin-build14-demo.mp4`（`7822019a-de7a-4cf0-a94c-047ea7fc8784`）に差し替え済み。
+  build 13 の `goshuin-account-deletion-build13.mov` は削除した（添付は1件しか持てない）
+- ⚠️ **録画は本アカウント `kj.11235813213455@gmail.com` でログインし、最後に削除まで実行している。**
+  録画時点で記録0件（完了画面が「1箇所目」）だったので失うものは無かったが、**撮り直すなら別アカウントで**
+- 🔴 **iOS の画面収録は位置情報・カメラの権限アラートを記録しない**（別プロセス描画）。暗転しか残らない。
+  返信本文でその旨を明記する方針に変更済み（`app-review-2.1-response.md` の該当節）
+
+1. ~~Notes を置き換える~~ → **完了（3806 文字 / iPhone 16 / iOS 26.7）**。
+   旧 Notes は `~/asc-notes-backup-2026-09-18174235.txt` に退避済み
+2. **ASC のブラウザで App Review へ返信** → 本文は `app-review-2.1-response.md` の「返信本文」
+   （タイムスタンプ索引つき。**動画はギャラリー経路なのでカメラの話を書かない**）
+3. **ASC のブラウザで「審査へ提出」**
+
+### その他の残タスク
+
+- **ストア掲載画像**: 6枚中3枚を撮影済み（下記）。残り3枚はシミュレータでのログイン待ち。
+  ⚠️ **2.1 の再提出が済むまで差し替えない**（切り分けが濁る）
+- **Issue #132**: 次に参拝/地図を触るときの実機チェック3件
+- **P1-01 Maestro E2E** / **P1-11 オンボーディング**（⏸ 絵のテイスト待ち）/ P1-04 / P1-07
+- 小物: `ImageGalleryModal` のレンダー中 `setValue` / `mention-response` の権限縮小 / `ui-design.md` のピン表示ルール表の古い記述
+
+### 審査の履歴（5回却下）
+
+| build  | 提出     | 結果                                                                                         |
+| ------ | -------- | -------------------------------------------------------------------------------------------- |
+| 11     | 8/2      | 却下 — 5.1.1 マイク権限のプレースホルダー（PR #113）                                         |
+| 12     | 8/8      | 却下 — 5.1.1(v) アカウント削除 / 2.1(a) カメラ / 5.1.1(iv) 位置情報（PR #121 / #135 / #136） |
+| 13     | 8/11     | 却下 — 4.8 ログイン導線 / 1.2 UGC（PR #148 / #149）                                          |
+| **14** | **8/14** | **却下 — 2.1 情報要求のみ。コード修正は不要**                                                |
+
+📌 **通過したら手動リリースの操作が要る**（リリース設定は「このバージョンを手動でリリースする」）。
+
+### 🔧 作業中: ストア掲載画像の撮り直し（2026-08-15 深夜）
+
+**素材3枚を撮影済み。** 保存先: `goshuin-app-artifacts/store-shots-2026-08/`（1290×2796）
+
+| #   | 見出し                       | 素材                     | 状態                                               |
+| --- | ---------------------------- | ------------------------ | -------------------------------------------------- |
+| ①   | 集めるたび、地図が旅になる   | `01-map.png`             | ✅ **15ピン + 神社名ラベル + 皇居**。狙いどおり    |
+| ②   | 写真を撮るだけで、記録できる | —                        | ⏸ **ログインが必要**                               |
+| ③   | 御朱印帳を、めくる           | —                        | ⏸ **ログインが必要**                               |
+| ④   | 限定御朱印を、見逃さない     | `04-limited-goshuin.png` | ✅ 靖國神社の本番データ3件（期間・出典リンク付き） |
+| ⑤   | 集めた証が、バッジになる     | —                        | ⏸ **ログインが必要**                               |
+| ⑥   | 全国1,000スポット以上        | `06-wide-clusters.png`   | ✅ クラスタのバブルが網羅性を語る                  |
+
+**構成モック（ユーザー承認済み）**: https://claude.ai/code/artifact/fc1b6b3d-87f6-4a30-a818-577457d681e2
+
+### 次にやること（ストア画像）
+
+1. **⚠️ シミュレータでログインする**（ユーザー作業）。②③⑤ はログイン後でないと中身が出ない。
+   Google / Apple サインインがシミュレータで通るかは**未検証**。通らなければ Web プレビュー
+   （`http://localhost:8081/?preview=goshuincho`・860×1864）の流用か構成の見直し
+2. 残り3枚を撮る（フローは未作成）
+3. HTML テンプレートに見出しを乗せて 1290×2796 で書き出し
+4. **⚠️ アップロードのタイミング** — いまバージョンは `REJECTED` で審査キューには載っていないので、**差し替えても審査に影響しない**。ただし 2.1 の再提出と同時に触ると切り分けが濁るので、**再提出の前か後かを決めてから**にする
+
+### ⚠️ 撮影の手順と、はまった点（次回のため）
+
+**必ず `preview-simulator` を使う。** development build では撮れない — `clearState: true` が
+dev client の保存済み Metro URL を消してランチャー画面に落ち、さらに開発者メニューのシートが
+繰り返し出る（元の `store-screenshots.yaml` のヘッダに同じ前提が書いてあった）。
+
+```bash
+# 1. ⚠️ 撮影用パッチ（コミットしないこと。pre-push のテストが検出して止めてくれる）
+#    src/screens/MapScreen.tsx:
+#      LATITUDE_DELTA  = 0.06
+#      LONGITUDE_DELTA = 0.02768
+# 2. ビルド（パッチを焼き込む）
+npx eas-cli@latest build --profile preview-simulator --platform ios --non-interactive --no-wait
+# 3. インストールと環境設定
+xcrun simctl install <udid> <app.app>
+xcrun simctl privacy <udid> grant location com.goshuin.app
+xcrun simctl location <udid> set 35.6786,139.7442
+xcrun simctl status_bar <udid> override --time "9:41" --cellularBars 4 --batteryLevel 100 --wifiBars 3
+# 4. 撮影
+~/.maestro/bin/maestro test e2e/flows/store-shots-public.yaml
+~/.maestro/bin/maestro test e2e/flows/store-shot-limited.yaml
+# 5. ⚠️ パッチを戻す
+git checkout src/screens/MapScreen.tsx
+```
+
+**⚠️ ズームの決めごと（ここでいちばん時間を使った）**:
+
+1. **経度デルタは緯度デルタと同じ値にしてはいけない。** 縦長画面（1290×2796）では
+   `longitudeDelta` が広いと緯度方向が `lng / 0.461` まで引き伸ばされる。0.066 を両方に入れたら
+   緯度が 0.14 相当まで広がり、zoom 12 に落ちて**個別ピンがクラスタのバブルになった**
+2. **`lngDelta < 0.0311` が個別ピンの境界**（`getZoomFromRegion` が 14 を返す条件。
+   `CLUSTER_MAX_ZOOM = 13`）。採用値 0.02768 は余裕11%
+3. `LABEL_VISIBLE_DELTA = 0.2` なのでこの範囲ならピンに神社名ラベルが出る（絵として重要）
+4. `MAX_VISIBLE_SPOTS = 80` なので15件は全部描画される
+
+**⚠️ Maestro の細かい点**:
+
+- 検索バーの placeholder「神社・寺院を検索」は**テキスト照合で拾えない**。座標 `50%,10%` で押す
+- 限定御朱印は compact のシートでは中身が見えない。**ハンドル（画面の 73% 付近）をタップ**して展開する。
+  スワイプだと地図のパンになる
 
 ### ⚠️ ストアのスクショ6枚が古い（2.3.3 のリスク・未対応）
 
@@ -238,7 +390,7 @@ PR #124 の auto-review が「`MapScreen` が `useWishlist`（ID の Set）と `
 
 - ~~**App Store 審査結果**（build 13）~~ → **2026-08-12 に却下（4回目）**。先頭の節を参照。⚠️ **build 11 は提出 8/2 → 却下 8/6 で約4日**かかっているので 48時間で焦らなくてよい。**通過したら手動リリースの操作が要る**（リリース設定が「このバージョンを手動でリリースする」）
 - ~~8/11(火)朝: cron 実行確認~~ → **確認済み（2026-08-11）**。jobid 2（02:00 JST）/ jobid 3（02:30 JST）とも succeeded、古い jobid 1 は削除済みで重複なし。**次回は 8/14(金) 02:00 / 02:30 JST**（`0 17 * * 1,4` / `30 17 * * 1,4` はどちらも active を確認済み）
-- **10月初旬: Meta アクセストークン更新**（期限 2026-10-02）
+- **Meta アクセストークン更新**（2026-09-21 に更新済み・次は 2026-11-20 ごろ。最新は `supabase/cron/schedule_crawl_spot_sources.sql` を見る）
 
 **ユーザー作業待ち**:
 
@@ -250,15 +402,26 @@ PR #124 の auto-review が「`MapScreen` が `useWishlist`（ID の Set）と `
 
 ### 実機の動かし方
 
-dev サーバーは tmux `goshuin-dev` で動いている。**まず生きているか確認してから**。
+**2026-09-19 から tmux は使っていない。** cloudflared と Expo は Claude Code のセッション配下の
+バックグラウンドプロセスで動かす（`scripts/dev.sh` / `/dev` は tmux 前提のままなので未使用）。
+**セッションを閉じると両方落ちる。**
 
 ```bash
 curl -s -o /dev/null -w "%{http_code}\n" --max-time 10 http://localhost:8081/status
 cat .dev-tunnel/url.txt
 ```
 
+立ち上げ直す手順（この2本をバックグラウンドで）:
+
+```bash
+cloudflared tunnel --url http://127.0.0.1:8081 > .dev-tunnel/cloudflared.log 2>&1   # ログから URL を拾って .dev-tunnel/url.txt へ
+EXPO_PACKAGER_PROXY_URL="$(cat .dev-tunnel/url.txt)" npx expo start --dev-client --port 8081 > .dev-tunnel/expo.log 2>&1
+```
+
+- ⚠️ **`CI=1` を付けない**（watch mode が切れてリロードしなくなる）
 - 200 が返れば Dev Client を Reload するだけでよい
-- ⚠️ **つながらない場合だけ `/dev` を叩き直す**。trycloudflare の quick tunnel は無保証で切れる。叩き直すと URL が変わるので `./scripts/dev.sh qr` で QR を出して読み直すこと
+- trycloudflare の quick tunnel は無保証で切れる。**立ち上げ直すと URL が変わる**ので、
+  Dev Client の "Enter URL manually" に新しい URL を入れ直すこと
 
 ### 記録が失敗したときの拾い方（#118 で入れた仕込み）
 
@@ -326,7 +489,7 @@ tmux capture-pane -pt goshuin-dev -S -300 | grep -A 5 "submit failed at"
 Issue #111 / PR #112 マージ済み・本番投入完了（passes: true）。Meta セットアップ〜実装〜検証〜運用投入までの全経緯。
 
 - ✅ Meta セットアップ完了: FB ページ「御朱印さんぽ」（Page ID `1301682473018397`）、Instagram `goshuinsampo`（ビジネスアカウント化済み）、FB⇔IG 連携、Meta developer アプリ `goshuin-sampo-watcher`（App ID `1559445438958824`）。IG User ID = `17841439672371375`
-- ✅ 長期アクセストークン発行済み（**期限: 2026-10-02**）。Supabase secrets に `META_ACCESS_TOKEN` / `META_IG_USER_ID` 登録済み。**10月初旬に更新要**: [アクセストークンデバッガー](https://developers.facebook.com/tools/debug/accesstoken/)にトークンを貼って「デバッグ」→「アクセストークンを延長」→ `npx supabase@latest secrets set META_ACCESS_TOKEN=<延長後トークン> --project-ref tvnozkpxncmnehyomoff`
+- ✅ 長期アクセストークン発行済み（**期限は `supabase/cron/schedule_crawl_spot_sources.sql` が正**。2026-09-21 に更新し、本番で疎通確認済み）。Supabase secrets に `META_ACCESS_TOKEN` / `META_IG_USER_ID` 登録済み。**10月初旬に更新要**: [アクセストークンデバッガー](https://developers.facebook.com/tools/debug/accesstoken/)にトークンを貼って「デバッグ」→「アクセストークンを延長」→ `npx supabase@latest secrets set META_ACCESS_TOKEN=<延長後トークン> --project-ref tvnozkpxncmnehyomoff`
 - ✅ 実装完了・Evaluator PASS 75/75。PR #112 マージ済み（`crawl-spot-sources` に Instagram パス追加、`mode` パラメータで web/instagram を制御）
 - ✅ **本番デプロイ済み**。実クロール検証で23アカウント中19件で Claude 抽出成功、2件は個人アカウント判定でスキップ、failed 0件
 - ⚠️ **重要な落とし穴（本番投入時に発見・解決済み）**: Meta developer アプリが **Business Portfolio にリンクされていない**と、`business_discovery` が `OAuthException code 200 "API access blocked"` で全滅する。8/3 のセットアップ時点では未リンクでも一時的に動いていたが、8/8 の本番検証時には完全にブロックされていた（Standard Access アプリの猶予期間切れとみられる）。**対処**: Meta for Developers → アプリ設定 → ベーシック → 「ビジネスポートフォリオ」を「御朱印さんぽ」にリンク（Unverified 状態のままで解消する）。今後同様のエラーが出たらまずこれを疑う
@@ -421,7 +584,7 @@ Issue #111 / PR #112 マージ済み・本番投入完了（passes: true）。Me
   - ASC API Key は **`~/.appstoreconnect/AuthKey_D9CP6Y4YA3.p8`**（権限 600 / フォルダ 700。同フォルダの `README.md` に Key ID・Issuer ID・submit 手順あり）。**Apple から再ダウンロードできない**ので、失うとキーを失効させて作り直すことになる。`~/Downloads` にも同じものが残っているが、そちらは掃除で消える前提で扱う
   - `eas.json` の submit プロファイルに ascAppId / appleTeamId 設定済み。`ascApiKeyPath` 等は個人パスのためコミットしていない（submit 時に一時的に足す。手順は上記「App Store 審査対応」参照）
 - **Android: 未着手・優先度を下げた（2026-08-11 ユーザー判断）**。まず iOS のリリースを通すことに集中する。Google Play の本人確認が審査中 + Android 実機での Play Console ログインが未完了
-- **main ブランチ**: develop をマージ済み（**最新は PR #137 / 2026-08-11**。それ以前は #101）。GitHub Pages の法務ページも「御朱印さんぽ」に更新済み
+- **main ブランチ**: develop をマージ済み（**最新は PR #150 / 2026-08-15 = build 14 の中身**。それ以前は #137 / #101）。GitHub Pages の法務ページも「御朱印さんぽ」に更新済み
 
 ## これまでの経緯（2026-08-02、時系列）
 

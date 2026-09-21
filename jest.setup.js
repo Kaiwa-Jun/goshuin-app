@@ -86,35 +86,51 @@ jest.mock('react-native-safe-area-context', () => {
   };
 });
 
-// react-native-maps mock
-jest.mock('react-native-maps', () => {
+// @maplibre/maplibre-react-native mock
+jest.mock('@maplibre/maplibre-react-native', () => {
   const React = require('react');
   const { View } = require('react-native');
   // imperative handle はモックファクトリスコープの安定オブジェクトにする。
   // 毎レンダー新しい jest.fn() を作るとテストから呼び出しを検証できない
-  const mapViewMocks = {
-    animateToRegion: jest.fn(),
-    animateCamera: jest.fn(),
-    fitToCoordinates: jest.fn(),
+  const cameraMocks = {
+    setStop: jest.fn(),
+    jumpTo: jest.fn(),
+    easeTo: jest.fn(),
+    flyTo: jest.fn(),
+    fitBounds: jest.fn(),
+    zoomTo: jest.fn(),
   };
-  const MockMapView = React.forwardRef((props, ref) => {
-    React.useImperativeHandle(ref, () => mapViewMocks);
-    return React.createElement(
-      View,
-      { ...props, testID: props.testID || 'map-view' },
-      props.children
-    );
-  });
-  MockMapView.displayName = 'MapView';
-  const MockMarker = props =>
-    React.createElement(View, { ...props, testID: props.testID || 'marker' }, props.children);
-  MockMarker.displayName = 'Marker';
+  const sourceMocks = {
+    getClusterExpansionZoom: jest.fn(async () => 12),
+    getClusterLeaves: jest.fn(async () => ({ type: 'FeatureCollection', features: [] })),
+    getClusterChildren: jest.fn(async () => ({ type: 'FeatureCollection', features: [] })),
+  };
+  const named = (displayName, testID, handle) => {
+    const C = React.forwardRef((props, ref) => {
+      React.useImperativeHandle(ref, () => handle || {});
+      return React.createElement(
+        View,
+        // ソース/レイヤはスタイル上の id で引けるようにする。
+        // テストは getByTestId('goshuin-spots').props.data で中身を見る
+        { ...props, testID: props.testID || props.id || testID },
+        props.children
+      );
+    });
+    C.displayName = displayName;
+    return C;
+  };
   return {
     __esModule: true,
-    default: MockMapView,
-    Marker: MockMarker,
-    PROVIDER_GOOGLE: 'google',
-    __mapViewMocks: mapViewMocks,
+    Map: named('Map', 'map-view'),
+    Camera: named('Camera', 'map-camera', cameraMocks),
+    GeoJSONSource: named('GeoJSONSource', undefined, sourceMocks),
+    Layer: named('Layer'),
+    Images: named('Images'),
+    Marker: named('Marker', 'marker'),
+    UserLocation: named('UserLocation'),
+    NativeUserLocation: named('NativeUserLocation'),
+    __cameraMocks: cameraMocks,
+    __sourceMocks: sourceMocks,
   };
 });
 
@@ -174,3 +190,17 @@ jest.mock('expo-location', () => ({
     Balanced: 3,
   },
 }));
+
+/*
+ * react-native の `Easing.ease` は、**初回に呼ばれたときだけ** 中で
+ * `require('./bezier')` を走らせて結果を覚える（Easing.js:93-97）。
+ *
+ * その初回が `jest.resetModules()` のあとに来ると、読み直しの途中の空の
+ * モジュールを掴んで `_bezier is not a function` で落ちる。落ちるのは
+ * そのとき走っていた無関係なテストなので、原因と症状が結びつかない。
+ * イージングを指定しない `Animated.timing`（= 既定の ease）が1つでも
+ * 残っていれば踏みうる。
+ *
+ * ワーカーごとに一度、先に呼んで覚えさせておく。
+ */
+require('react-native').Easing.ease(0);

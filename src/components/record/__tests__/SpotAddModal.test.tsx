@@ -1,7 +1,9 @@
 import React from 'react';
+import { StyleSheet } from 'react-native';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { SpotAddModal } from '../SpotAddModal';
 import { createSpot } from '@/services/spots';
+import { typography } from '@theme/typography';
 
 jest.mock('@/services/spots', () => ({
   createSpot: jest.fn(),
@@ -81,5 +83,37 @@ describe('SpotAddModal', () => {
       });
       expect(mockOnSpotCreated).toHaveBeenCalledWith(mockSpot);
     });
+  });
+});
+
+// SearchBar と同じ事故。typography.body を TextInput に丸ごと広げると
+// lineHeight が付いてきて、iOS は NSParagraphStyle として解釈する。
+// 余った行間が文字の上に入るので、文字が入力欄の下端に寄る（実測 4.7pt 下）
+describe('入力欄の文字の高さ', () => {
+  const props = {
+    visible: true,
+    onClose: jest.fn(),
+    onSpotCreated: jest.fn(),
+    userLocation: { latitude: 38.2682, longitude: 140.8694 },
+    userId: 'user-123',
+  };
+
+  it('入力欄に lineHeight を渡さない', () => {
+    const { getByTestId } = render(<SpotAddModal {...props} />);
+
+    const style = StyleSheet.flatten(getByTestId('spot-name-input').props.style);
+
+    expect(style.lineHeight).toBeUndefined();
+    // 字の大きさは body のまま
+    expect(style.fontSize).toBe(typography.body.fontSize);
+  });
+
+  // Android は TextInput の既定が top 寄せの端末がある
+  it('縦の中央寄せを明示する', () => {
+    const { getByTestId } = render(<SpotAddModal {...props} />);
+
+    const style = StyleSheet.flatten(getByTestId('spot-name-input').props.style);
+
+    expect(style.textAlignVertical).toBe('center');
   });
 });

@@ -2,6 +2,8 @@ import { File } from 'expo-file-system';
 
 import { supabase } from '@services/supabase';
 import { describeSupabaseError } from '@/utils/supabaseError';
+import { stampVariantPath, THUMB_DIR, VIEW_DIR } from '@/utils/stampThumb';
+import { toUploadableJpeg } from '@/utils/toUploadableJpeg';
 import type { Stamp, StampWithSpot, PublicStampWithUser } from '@/types/supabase';
 
 /**
@@ -28,7 +30,10 @@ export async function fetchStampsBySpotId(spotId: string): Promise<Stamp[]> {
     .from('stamps')
     .select('*')
     .eq('spot_id', spotId)
-    .order('visited_at', { ascending: false });
+    .order('visited_at', { ascending: false })
+    // 同じ日に同じ場所で複数枚いただくのは普通のこと（大崎八幡宮など）。
+    // visited_at だけだと同日分の順序は Postgres 任せになり、開くたびに並びが変わる
+    .order('created_at', { ascending: false });
 
   if (error) {
     console.warn('fetchStampsBySpotId error:', error.message);
@@ -50,7 +55,11 @@ export async function uploadStampImage(userId: string, imageUri: string): Promis
   // 通常のユニットテストでは検出できない（stamps-upload-native.test.ts で再現している）。
   //
   // バイト列を直接渡す経路なら RN でも Node でも同じように通る。
-  const bytes = await new File(imageUri).bytes();
+  //
+  // ⚠ 先に JPEG にしておくこと。iPhone の写真は HEIC で、picker の複数選択は
+  //   それをそのまま返す。HEIC のまま上げると Web で表示できず、サーバ側で
+  //   触るにも毎回復号が要る（Issue #196）
+  const bytes = await new File(await toUploadableJpeg(imageUri)).bytes();
 
   const { data, error } = await supabase.storage
     .from('goshuin-images')
@@ -91,15 +100,45 @@ export async function createStamp(params: {
   return data as Stamp;
 }
 
-export async function fetchAllStamps(userId: string): Promise<StampWithSpot[]> {
-  const { data, error } = await supabase
+export async function fetchAllStamps(userId: string, limit?: number): Promise<StampWithSpot[]> {
+  const query = supabase
     .from('stamps')
     .select('*, spots!inner(name, type)')
     .eq('user_id', userId)
-    .order('visited_at', { ascending: false });
+    .order('visited_at', { ascending: false })
+    // まとめて登録した1組が、御朱印帳を開くたびに並び替わらないようにする
+    .order('created_at', { ascending: false });
+
+  // limit を渡さない呼び出しは今までと1文字も変わらないクエリを投げる（御朱印帳が全件を要る）
+  const { data, error } = await (limit === undefined ? query : query.limit(limit));
 
   if (error) {
     console.warn('fetchAllStamps error:', error.message);
+    return [];
+  }
+  return data as StampWithSpot[];
+}
+
+/**
+ * 県別シート用。その県で授かった御朱印だけを新しい順に。
+ *
+ * 並びは御朱印帳（fetchAllStamps）と同じ visited_at → created_at にする。
+ * 同じ御朱印が画面ごとに違う順で出ると、探しているものを見失う。
+ */
+export async function fetchStampsByPrefecture(
+  userId: string,
+  prefecture: string
+): Promise<StampWithSpot[]> {
+  const { data, error } = await supabase
+    .from('stamps')
+    .select('*, spots!inner(name, type, prefecture)')
+    .eq('user_id', userId)
+    .eq('spots.prefecture', prefecture)
+    .order('visited_at', { ascending: false })
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.warn('fetchStampsByPrefecture error:', error.message);
     return [];
   }
   return data as StampWithSpot[];
@@ -162,8 +201,52 @@ export async function fetchPublicStampsBySpotId(spotId: string): Promise<PublicS
   return data as PublicStampWithUser[];
 }
 
+/**
+ * 一覧で使う小さい方の URL（Issue #194）。
+ *
+ * まだ焼かれていなければ 404 になる。呼び出し側は onError で元の写真に
+ * 落として表示を続け、裏で焼かせること
+ */
+export function getStampThumbUrl(imagePath: string): string {
+  return getStampImageUrl(stampVariantPath(imagePath, THUMB_DIR));
+}
+
+/**
+ * 詳細・Web で使う方の URL（Issue #196）。
+ *
+ * 元は iPhone の HEIC がそのまま上がっていて、Safari 以外では表示できない。
+ * こちらは JPEG なのでどこでも出る。まだ焼かれていなければ 404 になるので、
+ * 呼び出し側は元の写真に落として表示を続けること
+ */
+export function getStampViewUrl(imagePath: string): string {
+  return getStampImageUrl(stampVariantPath(imagePath, VIEW_DIR));
+}
+
+/**
+ * 足りない縮小版を焼かせる。表示を止めないよう投げっぱなしで呼ぶ（Issue #194）
+ */
+export async function ensureStampVariants(imagePaths: string[]): Promise<void> {
+  if (imagePaths.length === 0) return;
+
+  const { error } = await supabase.functions.invoke('make-stamp-thumbnail', {
+    body: { image_paths: imagePaths },
+  });
+
+  if (error) {
+    console.warn('Failed to make stamp variants:', error.message);
+  }
+}
+
 export async function deleteStampImage(imagePath: string): Promise<void> {
-  const { error } = await supabase.storage.from('goshuin-images').remove([imagePath]);
+  // 縮小版も一緒に片付ける。残すと持ち主のいないファイルが溜まる。
+  // まだ焼かれていない場合も remove はエラーにならない
+  const { error } = await supabase.storage
+    .from('goshuin-images')
+    .remove([
+      imagePath,
+      stampVariantPath(imagePath, THUMB_DIR),
+      stampVariantPath(imagePath, VIEW_DIR),
+    ]);
   if (error) throw new Error(error.message);
 }
 

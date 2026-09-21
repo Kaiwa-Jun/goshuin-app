@@ -1,0 +1,61 @@
+# App Store 掲載画像の素材撮影 — 4枚目「限定御朱印を、見逃さない」だけを撮る
+#
+# ⚠️ 検索結果をタップしただけでは compact のボトムシートで止まり、
+#    「限定御朱印 3件」のチップは出るが中身が見えない。ハンドルを上へ引いて展開する。
+#
+# 前提は store-shots-public.yaml と同じ（preview-simulator / 位置 / 権限 / ステータスバー）
+# 実行: maestro test e2e/flows/store-shot-limited.yaml
+appId: com.goshuin.app
+---
+- launchApp
+- waitForAnimationToEnd:
+    timeout: 8000
+
+- runFlow:
+    when:
+      visible: 'スキップ'
+    commands:
+      - repeat:
+          times: 4
+          commands:
+            - tapOn:
+                point: '50%,91%'
+            - waitForAnimationToEnd:
+                timeout: 2500
+- runFlow:
+    when:
+      visible: 'Allow While Using App'
+    commands:
+      - tapOn: 'Allow While Using App'
+- runFlow:
+    when:
+      visible: 'Appの使用中は許可'
+    commands:
+      - tapOn: 'Appの使用中は許可'
+
+- assertVisible:
+    id: 'map-view'
+- waitForAnimationToEnd:
+    timeout: 10000
+
+# 靖國神社を検索して開く（限定御朱印が3件ある本番データ）
+- tapOn:
+    point: '50%,10%'
+- waitForAnimationToEnd:
+    timeout: 3000
+- inputText: '靖國'
+- waitForAnimationToEnd:
+    timeout: 4000
+- tapOn:
+    id: 'search-result-card'
+- waitForAnimationToEnd:
+    timeout: 6000
+
+# ボトムシートを展開する。
+# ⚠️ スワイプだと地図のパンになってしまうので、ハンドルのタップで展開する
+#    （Issue #114 で入れた挙動）。⚠️ ハンドルは画面の 73% 付近（66% は地図側）
+- tapOn:
+    point: '50%,73%'
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: screenshots/store/04-limited-goshuin

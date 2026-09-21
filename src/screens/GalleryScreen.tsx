@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -18,10 +18,17 @@ import { useAuth } from '@hooks/useAuth';
 import { useGalleryStamps } from '@hooks/useGalleryStamps';
 import { useGalleryViewMode } from '@hooks/useGalleryViewMode';
 import { useStampDetail } from '@hooks/useStampDetail';
-import { getStampImageUrl } from '@services/stamps';
+import {
+  getStampImageUrl,
+  getStampThumbUrl,
+  getStampViewUrl,
+  ensureStampVariants,
+} from '@services/stamps';
 import { Button } from '@components/common/Button';
 import { ImageGalleryModal, GalleryImage } from '@components/common/ImageGalleryModal';
 import { GoshuinchoFlipView } from '@components/gallery/GoshuinchoFlipView';
+import { HeroFlyer } from '@components/gallery/HeroFlyer';
+import { useHeroTransition } from '@hooks/useHeroTransition';
 import { ViewModeToggle } from '@components/gallery/ViewModeToggle';
 import { getWebPreviewStamps, previewImageUrl } from '@components/gallery/webPreview';
 import { EditStampModal } from '@components/stamp-detail/EditStampModal';
@@ -36,6 +43,11 @@ const NUM_COLUMNS = 3;
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const ITEM_MARGIN = spacing.xs;
 const ITEM_SIZE = (SCREEN_WIDTH - spacing.lg * 2 - ITEM_MARGIN * (NUM_COLUMNS - 1)) / NUM_COLUMNS;
+
+/** 詳細から「写真が出せる」合図が来なかったときに、飛ぶ1枚を諦めて引っ込めるまで */
+const HANDOVER_FALLBACK_MS = 800;
+/** サムネが無いものをまとめて焼かせるまでの待ち。1枚ごとに叩かないため */
+const THUMB_REQUEST_DEBOUNCE_MS = 400;
 
 const GUEST_PREVIEW_ITEMS = [
   { icon: 'photo-camera', label: '写真で御朱印を残す' },
@@ -61,6 +73,41 @@ export function GalleryScreen({ navigation }: Props) {
   const showsGallery = isAuthenticated || isPreview;
 
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
+  const hero = useHeroTransition();
+  /** 今まさに飛んでいる御朱印。一覧のタイルはこれを見て隠れる */
+  const [flyingStampId, setFlyingStampId] = useState<string | null>(null);
+  /** 詳細を開いたまま、飛ぶ1枚を持ったままにしているか（Issue #192） */
+  const [resting, setResting] = useState(false);
+  /** サムネがまだ無い御朱印。元の写真に落として表示を続ける（Issue #194） */
+  const [thumbMissing, setThumbMissing] = useState<ReadonlySet<string>>(() => new Set());
+  const pendingThumbs = useRef<Set<string>>(new Set());
+  const thumbTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (thumbTimer.current) clearTimeout(thumbTimer.current);
+    };
+  }, []);
+
+  /**
+   * サムネが無かった。表示は元の写真で続けつつ、裏で焼かせる。
+   * 1枚ごとに叩くと一覧を開くたび数十回になるので、少し溜めてから1回で送る
+   */
+  const requestVariants = (imagePath: string) => {
+    pendingThumbs.current.add(imagePath);
+    if (thumbTimer.current) clearTimeout(thumbTimer.current);
+    thumbTimer.current = setTimeout(() => {
+      const paths = [...pendingThumbs.current];
+      pendingThumbs.current.clear();
+      ensureStampVariants(paths).catch(() => {});
+    }, THUMB_REQUEST_DEBOUNCE_MS);
+  };
+
+  /** 一覧のタイルが小さい方を出せなかった。元に落として表示を続けつつ焼かせる */
+  const handleThumbMissing = (stamp: StampWithSpot) => {
+    setThumbMissing(prev => (prev.has(stamp.id) ? prev : new Set(prev).add(stamp.id)));
+    requestVariants(stamp.image_path);
+  };
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
 
@@ -73,6 +120,22 @@ export function GalleryScreen({ navigation }: Props) {
 
   const sortLabel = sortOrder === 'date' ? '日付順' : 'スポット順';
 
+  /*
+   * 御朱印帳は古い順に綴じる。そのまま開くと「最近の参拝」から来た人が
+   * **本の一番遠い端**に降ろされるので、開く位置だけ最新側にする。
+   *
+   * **最初の1回だけ**。この画面は戻るたびに取り直すので、毎回飛ばすと
+   * 途中まで見て他のタブへ行って戻った人の位置が失われる。
+   * 並べ替えを切り替えたときは、新しい並びの最新側へもう一度送る
+   */
+  const gridRef = useRef<FlatList<StampWithSpot>>(null);
+  const openedAt = useRef<SortOrder | null>(null);
+  const openAtLatest = () => {
+    if (openedAt.current === sortOrder || displayStamps.length === 0) return;
+    openedAt.current = sortOrder;
+    gridRef.current?.scrollToEnd({ animated: false });
+  };
+
   const handleToggleSort = () => {
     setSortOrder(prev => (prev === 'date' ? 'spot' : 'date'));
   };
@@ -81,7 +144,11 @@ export function GalleryScreen({ navigation }: Props) {
     () =>
       displayStamps.map(s => ({
         id: s.id,
-        imageUrl: isPreview ? previewImageUrl(s) : getStampImageUrl(s.image_path),
+        // 詳細は JPEG の方を見る。元は HEIC で Safari 以外では表示できない。
+        // まだ焼かれていなければ元に落ちる（Issue #196）
+        imageUrl: isPreview ? previewImageUrl(s) : getStampViewUrl(s.image_path),
+        fallbackUrl: isPreview ? undefined : getStampImageUrl(s.image_path),
+        spotName: s.spots.name,
         memo: s.memo,
         visitedAt: s.visited_at,
       })),
@@ -123,25 +190,151 @@ export function GalleryScreen({ navigation }: Props) {
 
   const formatDate = (dateStr: string) => dateStr.replace(/-/g, '/');
 
+  /**
+   * 一覧に出す URL。小さい方を先に見に行く（Issue #194）。
+   * 飛ぶ1枚もこれを使う。一覧がもう持っている画像なので待たずに飛べる
+   */
+  const imageUrlOf = (stamp: StampWithSpot) => {
+    if (isPreview) return previewImageUrl(stamp);
+    if (thumbMissing.has(stamp.id)) return getStampImageUrl(stamp.image_path);
+    return getStampThumbUrl(stamp.image_path);
+  };
+
+  /** 押したタイルから詳細へ飛ばす。測れなければ演出を諦めて開く（Issue #192） */
+  const openStamp = (
+    index: number,
+    stamp: StampWithSpot,
+    fit: 'cover' | 'contain' = 'cover',
+    // 飛ぶ1枚は、押した画面に出ているものと同じ URL を使う。違うものを使うと
+    // 出発の瞬間に解像度が変わって見える
+    imageUrl: string = imageUrlOf(stamp)
+  ) => {
+    hero.start(
+      {
+        stampId: stamp.id,
+        index,
+        direction: 'in',
+        imageUrl,
+        spotName: stamp.spots.name,
+        visitedAt: formatDate(stamp.visited_at),
+        memo: stamp.memo ?? null,
+        fit,
+      },
+      // 開かないのが一番まずい。飛べないときはそのまま出す
+      started => {
+        if (!started) setSelectedImageIndex(index);
+      }
+    );
+  };
+
+  /**
+   * 閉じる。行きに飛ばした1枚をそのまま持っているので、向き直すだけで帰れる。
+   * 作り直すと写真の読み込みからやり直しになり、間に合わずに空の枠が飛ぶ。
+   *
+   * 詳細では横に移れないので、帰り先は必ず来たタイル。例外の分岐が要らない
+   */
+  const closeStamp = () => {
+    if (resting && hero.flight) {
+      setResting(false);
+      hero.turnBack();
+      return;
+    }
+
+    setSelectedImageIndex(null);
+    setFlyingStampId(null);
+    setResting(false);
+    hero.end();
+  };
+
+  /**
+   * 動き出した合図。飛ぶと決めた時ではなくここで元を隠す。
+   * 写真の読み込みを待つぶん間があり、その間に隠すと穴があき、
+   * 隠さないまま飛び始めると同じ御朱印が二重に見える
+   */
+  /**
+   * 詳細側の写真が出せるようになった合図。ここで初めて飛ぶ1枚を溶かす。
+   * 合図が来ないことがあるので、少し待って諦める
+   */
+  const handleDetailImageReady = useCallback(() => setResting(true), []);
+
+  useEffect(() => {
+    if (selectedImageIndex === null || resting) return;
+    const timer = setTimeout(() => setResting(true), HANDOVER_FALLBACK_MS);
+    return () => clearTimeout(timer);
+  }, [selectedImageIndex, resting]);
+
+  const handleFlightStart = () => {
+    if (!hero.flight) return;
+    setFlyingStampId(hero.flight.stampId);
+    // 戻るときは、飛ぶ1枚が出てから詳細を外す。先に外すと地が一瞬素になる
+    if (hero.flight.direction === 'out') setSelectedImageIndex(null);
+  };
+
+  const handleFlightDone = () => {
+    // 行きはここで終わりにしない。同じ1枚を持ったまま詳細の裏で待たせる。
+    // ⚠️ ここで引っ込めないこと。詳細の画像はまだ読み込み中で、切り替えた
+    // 瞬間に写真が消えて見える。詳細から「出せる」合図が来てから溶かす
+    if (hero.flight?.direction === 'in') {
+      setSelectedImageIndex(hero.flight.index);
+      return;
+    }
+
+    setFlyingStampId(null);
+    setResting(false);
+    hero.end();
+  };
+
   const renderItem = ({ item, index }: { item: StampWithSpot; index: number }) => {
     const isMiddleColumn = index % NUM_COLUMNS === 1;
-    const imageUrl = isPreview ? previewImageUrl(item) : getStampImageUrl(item.image_path);
+    const imageUrl = imageUrlOf(item);
+    // 飛んでいる間は隠す。出したままだと同じ御朱印が一覧と空中で二重に見える
+    const isFlying = flyingStampId === item.id;
 
     return (
       <TouchableOpacity
         style={[styles.gridItem, isMiddleColumn && styles.gridItemMiddle]}
-        onPress={() => setSelectedImageIndex(index)}
+        // 指が離れるまでに読み込みを始めておく。飛ぶ1枚は新しい <Image> なので、
+        // 一覧に出ていても読み込み直しが要る
+        onPressIn={() => {
+          Image.prefetch(imageUrl).catch(() => {});
+        }}
+        onPress={() => openStamp(index, item)}
+        // 押しても暗くしない。押した合図は「その写真が開いていく」動きの方で
+        // 出しているので、ここで色が変わると遷移の手前に余計な一手が挟まる
+        activeOpacity={1}
         testID={`gallery-item-${item.id}`}
       >
-        <Image
-          source={{ uri: imageUrl }}
-          style={styles.stampImage}
-          testID={`stamp-image-${item.id}`}
-        />
-        <Text style={styles.itemSpotName} numberOfLines={1}>
-          {item.spots.name}
-        </Text>
-        {sortOrder === 'date' && <Text style={styles.itemDate}>{formatDate(item.visited_at)}</Text>}
+        <View
+          ref={node => {
+            hero.registerTile(item.id, 'image', node);
+          }}
+          style={isFlying && styles.flying}
+        >
+          <Image
+            source={{ uri: imageUrl }}
+            style={styles.stampImage}
+            // 読み込んだついでに縦横比を控える。飛ぶ先の高さがこれで決まる
+            onLoad={e =>
+              hero.rememberAspect(item.id, e.nativeEvent.source.width, e.nativeEvent.source.height)
+            }
+            // 小さい方がまだ焼かれていない。元の写真に落として表示は続け、裏で焼かせる
+            onError={() => handleThumbMissing(item)}
+            testID={`stamp-image-${item.id}`}
+          />
+        </View>
+        <View
+          ref={node => {
+            hero.registerTile(item.id, 'text', node);
+          }}
+          style={isFlying && styles.flying}
+        >
+          <Text style={styles.itemSpotName} numberOfLines={1}>
+            {item.spots.name}
+          </Text>
+          {sortOrder === 'date' && (
+            <Text style={styles.itemDate}>{formatDate(item.visited_at)}</Text>
+          )}
+        </View>
       </TouchableOpacity>
     );
   };
@@ -195,8 +388,16 @@ export function GalleryScreen({ navigation }: Props) {
           <GoshuinchoFlipView
             stamps={displayStamps}
             resolveImageUrl={isPreview ? previewImageUrl : undefined}
-            onPressStamp={setSelectedImageIndex}
-            onPressBlank={() => navigation.navigate('Record')}
+            onPressStamp={index => {
+              const stamp = displayStamps[index];
+              // 蛇腹は contain。枠（1:1.5）と写真（3:4）がずれるので、
+              // 写真が実際に占めているところから飛ばす（Issue #202）
+              if (stamp) openStamp(index, stamp, 'contain', getStampImageUrl(stamp.image_path));
+            }}
+            registerNode={(id, part, node) => hero.registerTile(id, part, node)}
+            onImageLoad={(id, w, h) => hero.rememberAspect(id, w, h)}
+            hiddenStampId={flyingStampId}
+            onPressBlank={() => navigation.navigate('Record', { origin: 'gallery' })}
           />
         ) : displayStamps.length === 0 ? (
           <View style={styles.centerContainer} testID="empty-state">
@@ -208,18 +409,25 @@ export function GalleryScreen({ navigation }: Props) {
               title="御朱印を記録する"
               variant="primary"
               testID="gallery-record-cta"
-              onPress={() => navigation.navigate('Record')}
+              onPress={() => navigation.navigate('Record', { origin: 'gallery' })}
               style={styles.emptyCta}
             />
           </View>
         ) : (
           <FlatList
+            ref={gridRef}
             data={displayStamps}
             renderItem={renderItem}
             keyExtractor={item => item.id}
             numColumns={NUM_COLUMNS}
             key={sortOrder}
             contentContainerStyle={styles.listContent}
+            /*
+             * **いちばん下（最新）から開く**。綴じる順は変えない。
+             * 高さが出そろってからでないと端まで飛べないので、
+             * 中身の大きさが決まった合図で送る
+             */
+            onContentSizeChange={openAtLatest}
             testID="gallery-list"
           />
         )}
@@ -247,13 +455,44 @@ export function GalleryScreen({ navigation }: Props) {
       </SafeAreaView>
       <ImageGalleryModal
         visible={selectedImageIndex !== null}
-        onClose={() => setSelectedImageIndex(null)}
+        onClose={closeStamp}
         images={galleryImages}
         initialIndex={selectedImageIndex ?? 0}
         onEdit={handleEdit}
         onDelete={handleDeletePress}
+        onImageReady={handleDetailImageReady}
+        // 詳細用がまだ無い。一覧は小さい方を見ているので、ここでしか気づけない
+        onImageFallback={id => {
+          const stamp = displayStamps.find(s => s.id === id);
+          if (stamp) requestVariants(stamp.image_path);
+        }}
+        // 一覧のタイルと詳細を1対1で繋いでいる。途中で別の1枚に移ると
+        // その結びつきが切れて元のタイルへ戻れない。順に見る動線は
+        // 蛇腹めくりが持っている（Issue #192）
+        swipeable={false}
+        // 指で写真を下へずらしてから離すと、そこから一覧へ戻る連続的な動きが
+        // 始められない。閉じる合図だけ受け取って、写真は元の位置から戻す
+        dismissFollowsFinger={false}
         useModal={false}
       />
+
+      {hero.flight && (
+        <HeroFlyer
+          // 向きでは作り直さない。同じ1枚を行きと帰りで使い回す
+          key={hero.flight.stampId}
+          imageUrl={hero.flight.imageUrl}
+          imageAspect={hero.flight.imageAspect}
+          sourceRect={hero.flight.sourceRect}
+          sourceTextRect={hero.flight.sourceTextRect}
+          spotName={hero.flight.spotName}
+          visitedAt={hero.flight.visitedAt}
+          memo={hero.flight.memo}
+          direction={hero.flight.direction}
+          resting={resting}
+          onStart={handleFlightStart}
+          onDone={handleFlightDone}
+        />
+      )}
     </View>
   );
 }
@@ -297,6 +536,9 @@ const styles = StyleSheet.create({
   },
   gridItemMiddle: {
     marginHorizontal: ITEM_MARGIN,
+  },
+  flying: {
+    opacity: 0,
   },
   stampImage: {
     width: ITEM_SIZE,

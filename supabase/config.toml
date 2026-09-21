@@ -11,6 +11,12 @@ verify_jwt = false
 [functions.extract-spot-info]
 verify_jwt = false
 
+# make-stamp-thumbnail も呼び出し元は「ログイン中の本人」。
+# ゲートウェイの都合で verify_jwt = false にしているぶん、
+# 本人確認と「自分のフォルダ配下か」の検証は関数の中でやっている
+[functions.make-stamp-thumbnail]
+verify_jwt = false
+
 # delete-account だけは呼び出し元が「ログイン中の本人」であり service role ではない。
 # それでも verify_jwt = false にしているのは上と同じゲートウェイの都合で、
 # 本人確認は関数内の getUser() で行う（index.ts の冒頭コメント参照）。

@@ -1,13 +1,22 @@
 import { renderHook, waitFor } from '@testing-library/react-native';
-import { useCollectionStats } from '@hooks/useCollectionStats';
+import { useCollectionStats, RECENT_VISITS_COUNT } from '@hooks/useCollectionStats';
 
 const mockFetchCollectionStats = jest.fn();
 const mockFetchRegionStats = jest.fn();
 const mockFetchPilgrimageProgress = jest.fn();
 
+const mockFetchAllStamps = jest.fn().mockResolvedValue([]);
+
+jest.mock('@services/stamps', () => ({
+  fetchAllStamps: (...args: unknown[]) => mockFetchAllStamps(...args),
+}));
+
+const mockFetchVisitLog = jest.fn().mockResolvedValue([]);
+
 jest.mock('@services/collection', () => ({
   fetchCollectionStats: (...args: unknown[]) => mockFetchCollectionStats(...args),
   fetchRegionStats: (...args: unknown[]) => mockFetchRegionStats(...args),
+  fetchVisitLog: (...args: unknown[]) => mockFetchVisitLog(...args),
 }));
 
 jest.mock('@services/pilgrimages', () => ({
@@ -123,5 +132,19 @@ describe('useCollectionStats', () => {
     expect(result.current.stampCount).toBe(0);
     expect(result.current.regionStats).toEqual([]);
     expect(result.current.pilgrimageProgress).toEqual([]);
+  });
+});
+
+describe('useCollectionStats — 最近の参拝', () => {
+  // 定数を外すと御朱印帳ぶんの全件が飛んでくる。引数まで見ないと気づけない
+  it('直近3件だけを取りに行く', async () => {
+    mockFetchAllStamps.mockClear();
+
+    renderHook(() => useCollectionStats());
+
+    await waitFor(() =>
+      expect(mockFetchAllStamps).toHaveBeenCalledWith(expect.any(String), RECENT_VISITS_COUNT)
+    );
+    expect(RECENT_VISITS_COUNT).toBe(3);
   });
 });

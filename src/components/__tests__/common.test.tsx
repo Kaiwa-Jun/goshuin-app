@@ -10,7 +10,6 @@ import { TextInput } from '@components/common/TextInput';
 import { Header } from '@components/common/Header';
 import { Modal } from '@components/common/Modal';
 import { MapPin } from '@components/common/MapPin';
-import { SpotMarker } from '@components/common/SpotMarker';
 import { Text, StyleSheet } from 'react-native';
 import { colors } from '@theme/colors';
 
@@ -132,6 +131,17 @@ describe('Common Components', () => {
   });
 
   describe('SearchBar', () => {
+    // lineHeight を TextInput に当てると iOS で文字が下端に寄る。
+    // 理由は theme/typography.ts の singleLineInput にある
+    it('入力欄に lineHeight を渡さない', () => {
+      const { getByTestId } = render(<SearchBar />);
+
+      const style = StyleSheet.flatten(getByTestId('search-input').props.style);
+
+      expect(style.lineHeight).toBeUndefined();
+      expect(style.textAlignVertical).toBe('center');
+    });
+
     it('renders with default placeholder', () => {
       const { getByTestId, getByPlaceholderText } = render(<SearchBar />);
       expect(getByTestId('search-bar')).toBeTruthy();
@@ -328,59 +338,6 @@ describe('Common Components', () => {
       expect(getByTestId('map-pin-current-location')).toBeTruthy();
       expect(getByTestId('map-pin-halo')).toBeTruthy();
       expect(queryByTestId('map-pin-pulse')).toBeNull();
-    });
-  });
-
-  describe('SpotMarker', () => {
-    it('renders pin head and tail', () => {
-      const { getByTestId } = render(
-        <SpotMarker color="#EF4444" name="Test Shrine" showLabel={false} />
-      );
-      expect(getByTestId('spot-marker-pin-head')).toBeTruthy();
-      expect(getByTestId('spot-marker-pin-tail')).toBeTruthy();
-    });
-
-    it('shows label when showLabel is true', () => {
-      const { getByTestId, getByText } = render(
-        <SpotMarker color="#EF4444" name="Test Shrine" showLabel />
-      );
-      expect(getByTestId('spot-marker-label')).toBeTruthy();
-      expect(getByText('Test Shrine')).toBeTruthy();
-    });
-
-    it('hides label when showLabel is false', () => {
-      const { getByTestId } = render(
-        <SpotMarker color="#EF4444" name="Test Shrine" showLabel={false} />
-      );
-      // ラベルは常にレンダリングされるが、親Viewが opacity: 0 で非表示
-      const label = getByTestId('spot-marker-label');
-      expect(label).toBeTruthy();
-    });
-
-    it('applies the correct color to pin head', () => {
-      const { getByTestId } = render(
-        <SpotMarker color="#A855F7" name="Test Temple" showLabel={false} />
-      );
-      const pinHead = getByTestId('spot-marker-pin-head');
-      const flatStyle = Object.assign({}, ...[].concat(pinHead.props.style));
-      expect(flatStyle).toEqual(expect.objectContaining({ backgroundColor: '#A855F7' }));
-    });
-
-    it('applies the correct color to pin tail', () => {
-      const { getByTestId } = render(
-        <SpotMarker color="#A855F7" name="Test Temple" showLabel={false} />
-      );
-      const pinTail = getByTestId('spot-marker-pin-tail');
-      const flatStyle = Object.assign({}, ...[].concat(pinTail.props.style));
-      expect(flatStyle).toEqual(expect.objectContaining({ borderTopColor: '#A855F7' }));
-    });
-
-    it('truncates long label text with numberOfLines=1', () => {
-      const { getByTestId } = render(
-        <SpotMarker color="#EF4444" name="非常に長いスポット名のテスト" showLabel />
-      );
-      const label = getByTestId('spot-marker-label');
-      expect(label.props.numberOfLines).toBe(1);
     });
   });
 });

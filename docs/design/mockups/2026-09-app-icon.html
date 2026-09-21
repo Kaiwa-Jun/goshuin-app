@@ -1,0 +1,135 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8">
+<title>アプリアイコンの案</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root{ --seal:#C2342B; --paper:#F7F3EA; --ink:#111827; --ink2:#4B5563; --ink3:#9CA3AF; }
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#374151;font-family:"Noto Sans JP",-apple-system,sans-serif;color:#E5E7EB;
+  padding:26px 16px 60px;display:flex;flex-direction:column;align-items:center;gap:20px}
+h1{font-size:17px;font-weight:700;color:#fff}
+.hint{font-size:13px;color:#D1D5DB;max-width:520px;text-align:center;line-height:1.85}
+.hint b{color:#FDBA74}
+
+.board{background:#1F2937;border-radius:20px;padding:22px;width:560px;display:flex;
+  flex-direction:column;gap:22px}
+.row{display:flex;align-items:flex-end;gap:18px;padding-bottom:20px;border-bottom:1px solid #374151}
+.row:last-child{border-bottom:none;padding-bottom:0}
+.meta{width:92px;flex:none}
+.meta .nm{font-size:13px;font-weight:700;color:#fff}
+.meta .ds{font-size:11px;color:var(--ink3);margin-top:3px;line-height:1.5}
+.sizes{display:flex;align-items:flex-end;gap:16px}
+.size{display:flex;flex-direction:column;align-items:center;gap:6px}
+.size .lb{font-size:10px;color:var(--ink3)}
+.ico{border-radius:22.37%;overflow:hidden;display:block;box-shadow:0 2px 8px rgba(0,0,0,.45)}
+
+/* ホーム画面での見え方 */
+.home{width:320px;background:linear-gradient(160deg,#5B4B8A,#2E3B5E 60%,#1B2440);
+  border-radius:26px;padding:22px 18px;display:grid;grid-template-columns:repeat(4,1fr);
+  gap:20px 14px;box-shadow:0 14px 40px rgba(0,0,0,.5)}
+.home .app{display:flex;flex-direction:column;align-items:center;gap:5px}
+.home .app .lb{font-size:9px;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.6);white-space:nowrap}
+.home .other{width:60px;height:60px;border-radius:13.42px;background:rgba(255,255,255,.16)}
+.stage{display:flex;gap:26px;align-items:flex-start;flex-wrap:wrap;justify-content:center}
+.splash{width:200px;height:433px;border-radius:26px;display:flex;align-items:center;
+  justify-content:center;box-shadow:0 14px 40px rgba(0,0,0,.5)}
+.cap{font-size:11px;color:var(--ink3);text-align:center;margin-top:7px}
+</style></head><body>
+
+<h1>アプリアイコンの案</h1>
+<div class="hint">アイコンはホーム画面で <b>60px</b> です。1024 で良く見えても、そこで潰れたら意味がないので、実寸を並べています。</div>
+
+<div class="board" id="board"></div>
+
+<div class="hint" style="margin-top:6px">ホーム画面に置いたところ（実寸）と、起動画面</div>
+<div class="stage" id="stage"></div>
+
+<script>
+/* ═══ 彫りは Seal.tsx と同じ素材。矩形と円と path だけ ═══ */
+const FRAME =
+  'M4.0 5.2 L50 3.4 L96.0 5.0 L97.4 50 L95.8 96.2 L50 97.4 L4.6 95.6 L3.0 50 Z' +
+  'M11.6 12.4 L50 10.8 L88.8 12.6 L90.4 50 L88.6 88.2 L50 90.6 L11.2 88.6 L9.8 50 Z';
+
+const r = (x,y,w,h) => `<rect x="${x}" y="${y}" width="${w}" height="${h}"/>`;
+const poly = p => `<polygon points="${p}"/>`;
+
+/*
+ * 朱。御朱印の朱そのもの。
+ * 1画目は縦棒の上から左下へ落とす（短い点にすると未に見えた）。
+ * 上の横棒は短く、下の横棒は長い。下の2画は縦棒から立てぎみに開く
+ */
+const SHU = () =>
+  poly('49.8,8.7 54.2,15.3 36.2,27.3 31.8,20.7')
+  + r(30,27,40,9)
+  + r(45,10,10,80)
+  + r(14,52,72,10)
+  + poly('42.2,57.6 49.8,62.4 31.8,90.4 24.2,85.6')
+  + poly('50.2,62.4 57.8,57.6 75.8,85.6 68.2,90.4');
+
+/* 12ヶ月の環。満願の紋と同じ */
+const RING = () => Array.from({length:12},(_,i)=>{
+  const a = -Math.PI/2 + i*Math.PI/6;
+  return `<circle cx="${(50+27*Math.cos(a)).toFixed(2)}" cy="${(50+27*Math.sin(a)).toFixed(2)}" r="8"/>`;
+}).join('');
+
+/**
+ * 白文 = 朱を地にして、枠と字を紙の色で抜く。小さくしても塊で残る
+ * 朱文 = 紙を地にして、枠と字を朱で彫る。紙に押した落款に近い
+ */
+function icon(glyph, mode, tilt){
+  const bg  = mode==='haku' ? 'var(--seal)'  : 'var(--paper)';
+  const fg  = mode==='haku' ? 'var(--paper)' : 'var(--seal)';
+  // 白文は縁いっぱいまで朱。枠は紙色の細い帯として内側に置く
+  // 枠はどちらも同じ彫り。白文は紙色で抜く、朱文は朱で彫る
+  const inner = `<path fill-rule="evenodd" d="${FRAME}" fill="${fg}"/>`;
+  const rot = tilt ? ` transform="rotate(-6 50 50)"` : '';
+  return `<svg viewBox="0 0 100 100" class="ico" style="background:${bg}">
+    <g${rot}>${inner}<g fill="${fg}">${glyph()}</g></g></svg>`;
+}
+
+const CANDIDATES = [
+  {id:'a', nm:'朱・白文',  ds:'朱地に紙色で抜く',       html:()=>icon(SHU,'haku',false)},
+  {id:'b', nm:'朱・朱文',  ds:'紙地に朱で彫る',         html:()=>icon(SHU,'shu',false)},
+  {id:'c', nm:'朱・押印',  ds:'紙地・少し傾けて押す',   html:()=>icon(SHU,'shu',true)},
+  {id:'d', nm:'環・白文',  ds:'12ヶ月の環・朱地',       html:()=>icon(RING,'haku',false)},
+  {id:'e', nm:'環・朱文',  ds:'12ヶ月の環・紙地',       html:()=>icon(RING,'shu',false)},
+];
+const SIZES = [120, 87, 60, 40];
+
+document.getElementById('board').innerHTML = CANDIDATES.map(c=>`
+  <div class="row">
+    <div class="meta"><div class="nm">${c.nm}</div><div class="ds">${c.ds}</div></div>
+    <div class="sizes">${SIZES.map(s=>{
+      const el = c.html().replace('class="ico"', `class="ico" width="${s}" height="${s}"`);
+      return `<div class="size">${el}<div class="lb">${s}px</div></div>`;
+    }).join('')}</div>
+  </div>`).join('');
+
+/* ホーム画面と起動画面は、いちばん有力な案で */
+const pick = CANDIDATES[0];
+const at = (c,s) => c.html().replace('class="ico"', `class="ico" width="${s}" height="${s}"`);
+document.getElementById('stage').innerHTML = `
+  <div>
+    <div class="home">
+      <div class="app"><div class="other"></div><div class="lb">カメラ</div></div>
+      <div class="app">${at(pick,60)}<div class="lb">御朱印</div></div>
+      <div class="app"><div class="other"></div><div class="lb">マップ</div></div>
+      <div class="app"><div class="other"></div><div class="lb">設定</div></div>
+      <div class="app"><div class="other"></div><div class="lb">メモ</div></div>
+      <div class="app"><div class="other"></div><div class="lb">写真</div></div>
+      <div class="app"><div class="other"></div><div class="lb">時計</div></div>
+      <div class="app"><div class="other"></div><div class="lb">天気</div></div>
+    </div>
+    <div class="cap">ホーム画面（60px・実寸）</div>
+  </div>
+  <div>
+    <div class="splash" style="background:var(--paper)">
+      <svg viewBox="0 0 100 100" width="104" height="104" style="transform:rotate(-5deg)">
+        <path fill-rule="evenodd" d="${FRAME}" fill="var(--seal)"/>
+        <g fill="var(--seal)">${SHU()}</g>
+      </svg>
+    </div>
+    <div class="cap">起動画面（紙に押した印そのもの。タイルではない）</div>
+  </div>`;
+</script></body></html>

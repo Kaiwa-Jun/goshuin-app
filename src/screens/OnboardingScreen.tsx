@@ -11,7 +11,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 
-import { OnboardingIcon } from '@components/animated/OnboardingIcon';
+import { NearbyArt } from '@components/onboarding/NearbyArt';
+import { PrefectureMap } from '@components/onboarding/PrefectureMap';
+import { RecordArt } from '@components/onboarding/RecordArt';
+import { SealsArt } from '@components/onboarding/SealsArt';
 import { Button } from '@components/common/Button';
 import { PageIndicator } from '@components/common/PageIndicator';
 import { useOnboarding } from '@hooks/useOnboarding';
@@ -22,37 +25,39 @@ import { spacing } from '@theme/spacing';
 
 type Props = RootStackScreenProps<'Onboarding'>;
 
+/** その画で何を見せるか。絵は作り分ける */
+type SlideArt = 'map' | 'record' | 'seals' | 'nearby';
+
 interface SlideData {
-  icon: 'map' | 'camera-alt' | 'emoji-events' | 'place';
-  bg: string;
+  art: SlideArt;
   title: string;
   desc: string;
 }
 
+/*
+ * 絵で言う。**「地図で管理します」と文字で書くのをやめた** —
+ * 以前は色つきの角丸にアイコンを載せていて、地図が一度も出てこなかった
+ */
 const slides: SlideData[] = [
   {
-    icon: 'map',
-    bg: '#FB923C',
-    title: '御朱印を地図で管理',
-    desc: '訪れた神社やお寺が地図上にマッピングされます',
+    art: 'map',
+    title: '集めるたび、\n地図があなたの旅になる。',
+    desc: '訪れた県が濃くなっていきます',
   },
   {
-    icon: 'camera-alt',
-    bg: '#A855F7',
-    title: 'かんたん記録',
-    desc: '写真を撮るだけですぐに御朱印を記録できます',
+    art: 'record',
+    title: '写真を1枚。\nそれだけ。',
+    desc: '撮ると、地図にピンが刺さります',
   },
   {
-    icon: 'emoji-events',
-    bg: '#F59E0B',
-    title: 'コレクションを楽しむ',
-    desc: '巡礼チャレンジやバッジで御朱印集めがもっと楽しく',
+    art: 'seals',
+    title: '続けると、\n印が増えていく。',
+    desc: '訪問数だけでなく、通い方や季節でも',
   },
   {
-    icon: 'place',
-    bg: '#22C55E',
-    title: '近くのスポットを発見',
-    desc: '位置情報をオンにすると周辺の神社仏閣が見つかります',
+    art: 'nearby',
+    title: '近くの寺社を\n見つけます。',
+    desc: '許可すると、まわりの神社やお寺が地図に出ます',
   },
 ];
 
@@ -98,13 +103,26 @@ export function OnboardingScreen({ navigation }: Props) {
 
   const isLastSlide = currentIndex === slides.length - 1;
 
-  const renderSlide = ({ item }: { item: SlideData }) => (
-    <View style={styles.slide} testID="onboarding-slide">
-      <OnboardingIcon name={item.icon} backgroundColor={item.bg} />
-      <Text style={styles.title}>{item.title}</Text>
-      <Text style={styles.description}>{item.desc}</Text>
-    </View>
-  );
+  const renderSlide = ({ item, index }: { item: SlideData; index: number }) => {
+    // 見えている画だけ動かす。離れたら最初から出し直す
+    const active = index === currentIndex;
+    const artWidth = SCREEN_WIDTH - spacing.lg * 2;
+
+    return (
+      <View style={styles.slide} testID="onboarding-slide">
+        <View style={styles.art}>
+          {item.art === 'map' && (
+            <PrefectureMap width={artWidth * 0.82} animate={active} testID="onboarding-art-map" />
+          )}
+          {item.art === 'record' && <RecordArt width={artWidth} active={active} />}
+          {item.art === 'seals' && <SealsArt width={artWidth} active={active} />}
+          {item.art === 'nearby' && <NearbyArt width={artWidth} active={active} />}
+        </View>
+        <Text style={styles.title}>{item.title}</Text>
+        <Text style={styles.description}>{item.desc}</Text>
+      </View>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container} testID="onboarding-screen">
@@ -180,9 +198,11 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: spacing['3xl'],
+    paddingHorizontal: spacing.lg,
     gap: spacing.lg,
   },
+  /* 絵の高さを固定する。画ごとに高さが違うと、文が上下に跳ねる */
+  art: { height: 360, alignItems: 'center', justifyContent: 'center' },
   title: {
     ...typography.h1,
     color: colors.gray[900],

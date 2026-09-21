@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
+import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { Image } from 'react-native';
 import { GalleryScreen } from '@screens/GalleryScreen';
 import { useGalleryStamps } from '@hooks/useGalleryStamps';
@@ -43,6 +43,9 @@ jest.mock('@hooks/useStampDetail', () => ({
 
 jest.mock('@services/stamps', () => ({
   getStampImageUrl: jest.fn((path: string) => `https://example.com/${path}`),
+  getStampThumbUrl: jest.fn((path: string) => `https://example.com/thumb-400/${path}`),
+  getStampViewUrl: jest.fn((path: string) => `https://example.com/view-1200/${path}`),
+  ensureStampVariants: jest.fn(() => Promise.resolve()),
 }));
 
 jest
@@ -208,7 +211,9 @@ describe('GalleryScreen', () => {
     expect(queryByText('2024/01/15')).toBeNull();
   });
 
-  it('アイテムタップでギャラリーモーダルが開く', () => {
+  // 位置を測ってから飛ばすので、開くのは1フレーム後になった（Issue #192）。
+  // 測れない環境では演出を飛ばして開く。開かないのが一番まずい
+  it('アイテムタップでギャラリーモーダルが開く', async () => {
     mockUseGalleryStamps.mockReturnValue({
       stamps: [makeStamp({ id: 'stamp-abc' })],
       totalCount: 1,
@@ -220,7 +225,10 @@ describe('GalleryScreen', () => {
 
     const { getByTestId } = renderGalleryScreenInGrid();
     fireEvent.press(getByTestId('gallery-item-stamp-abc'));
-    expect(getByTestId('gallery-image')).toBeTruthy();
+
+    await waitFor(() => {
+      expect(getByTestId('gallery-image')).toBeTruthy();
+    });
   });
 
   describe('表示モードの切り替え（Issue #116）', () => {
@@ -304,14 +312,20 @@ describe('GalleryScreen', () => {
       withStamps([]);
       const { getByTestId } = renderGalleryScreen();
       fireEvent.press(getByTestId('flip-blank-page'));
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('Record');
+      expect(mockNavigation.navigate).toHaveBeenCalledWith('Record', { origin: 'gallery' });
     });
 
-    it('めくり表示で中央のページをタップするとギャラリーモーダルが開く', () => {
+    // 一覧のタイルと同じく、位置を測ってから飛ばすので開くのは1フレーム後になる。
+    // 測れない環境では演出を飛ばして開く（Issue #202）
+    it('めくり表示で中央のページをタップするとギャラリーモーダルが開く', async () => {
       withStamps([makeStamp({ id: 'stamp-abc' })]);
       const { getByTestId } = renderGalleryScreen();
+
       fireEvent.press(getByTestId('flip-page-stamp-abc'));
-      expect(getByTestId('gallery-image')).toBeTruthy();
+
+      await waitFor(() => {
+        expect(getByTestId('gallery-image')).toBeTruthy();
+      });
     });
 
     it('めくり表示のフッターに和暦の訪問日を出す', () => {
@@ -440,6 +454,6 @@ describe('グリッド0件時の CTA（監査 A-10）', () => {
 
     fireEvent.press(getByTestId('gallery-record-cta'));
 
-    expect(mockNavigation.navigate).toHaveBeenCalledWith('Record');
+    expect(mockNavigation.navigate).toHaveBeenCalledWith('Record', { origin: 'gallery' });
   });
 });

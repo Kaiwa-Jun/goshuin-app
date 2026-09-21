@@ -1,9 +1,10 @@
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import { Image } from 'react-native';
+import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
+import { Image, Keyboard, ScrollView, StyleSheet } from 'react-native';
 import { RecordScreen } from '@screens/RecordScreen';
-import { evaluateNewBadge } from '@services/badges';
+import { evaluateNewBadges } from '@services/badges';
 import type { Spot, Stamp } from '@/types/supabase';
+import { MAX_PHOTOS_PER_RECORD } from '@/constants/record';
 
 jest
   .spyOn(Image, 'getSize')
@@ -22,10 +23,11 @@ jest.mock('react-native-safe-area-context', () => {
 });
 
 const mockSelectSpot = jest.fn();
-const mockSetImageUri = jest.fn();
+const mockAddImages = jest.fn();
+const mockRemoveImage = jest.fn();
 const mockSetVisitedAt = jest.fn();
 const mockSetMemo = jest.fn();
-const mockValidate = jest.fn(() => true);
+const mockValidate = jest.fn((): string[] => []);
 const mockSubmit = jest.fn();
 const mockReset = jest.fn();
 
@@ -49,16 +51,18 @@ const mockSetIsPublic = jest.fn();
 
 let mockFormState = {
   selectedSpot: null as Spot | null,
-  imageUri: null as string | null,
+  imageUris: [] as string[],
   visitedAt: new Date('2024-06-01'),
   memo: '',
   isPublic: false,
   spotError: null as string | null,
   imageError: null as string | null,
   isSubmitting: false,
+  savedCount: 0,
   submitError: null as string | null,
   selectSpot: mockSelectSpot,
-  setImageUri: mockSetImageUri,
+  addImages: mockAddImages,
+  removeImage: mockRemoveImage,
   setVisitedAt: mockSetVisitedAt,
   setMemo: mockSetMemo,
   setIsPublic: mockSetIsPublic,
@@ -110,6 +114,14 @@ jest.mock('@hooks/usePhotoPicker', () => ({
 }));
 
 const mockFetchVisitedSpotIds = jest.fn();
+const mockFetchRegionStats = jest.fn().mockResolvedValue([]);
+
+const mockFetchVisitLog = jest.fn().mockResolvedValue([]);
+
+jest.mock('@services/collection', () => ({
+  fetchRegionStats: (...args: unknown[]) => mockFetchRegionStats(...args),
+  fetchVisitLog: (...args: unknown[]) => mockFetchVisitLog(...args),
+}));
 
 jest.mock('@services/stamps', () => ({
   getStampImageUrl: (path: string) => `https://example.com/stamps/${path}`,
@@ -117,7 +129,7 @@ jest.mock('@services/stamps', () => ({
 }));
 
 jest.mock('@services/badges', () => ({
-  evaluateNewBadge: jest.fn(() => null),
+  evaluateNewBadges: jest.fn(() => null),
 }));
 
 jest.mock('@services/spots', () => ({
@@ -135,6 +147,7 @@ jest.mock('@react-native-community/datetimepicker', () => {
 
 const mockNavigation = {
   navigate: jest.fn(),
+  replace: jest.fn(),
   goBack: jest.fn(),
   getParent: jest.fn(() => ({ navigate: jest.fn() })),
 } as any;
@@ -150,16 +163,18 @@ describe('RecordScreen', () => {
     jest.clearAllMocks();
     mockFormState = {
       selectedSpot: null,
-      imageUri: null,
+      imageUris: [],
       visitedAt: new Date('2024-06-01'),
       memo: '',
       isPublic: false,
       spotError: null,
       imageError: null,
       isSubmitting: false,
+      savedCount: 0,
       submitError: null,
       selectSpot: mockSelectSpot,
-      setImageUri: mockSetImageUri,
+      addImages: mockAddImages,
+      removeImage: mockRemoveImage,
       setVisitedAt: mockSetVisitedAt,
       setMemo: mockSetMemo,
       setIsPublic: mockSetIsPublic,
@@ -224,8 +239,8 @@ describe('RecordScreen', () => {
     };
 
     mockFormState.selectedSpot = fakeSpot;
-    mockFormState.imageUri = 'file:///photo.jpg';
-    mockSubmit.mockResolvedValue({ success: true, stamp: fakeStamp });
+    mockFormState.imageUris = ['file:///photo.jpg'];
+    mockSubmit.mockResolvedValue({ success: true, stamps: [fakeStamp], failedCount: 0 });
     mockFetchVisitedSpotIds.mockResolvedValue(new Set(['spot-2']));
 
     const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
@@ -234,76 +249,55 @@ describe('RecordScreen', () => {
 
     await waitFor(() => {
       expect(mockSubmit).toHaveBeenCalled();
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
+      expect(mockNavigation.replace).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
     });
   });
 
-  it('navigates to RecordComplete with visitCount when recording new spot', async () => {
-    const fakeStamp: Stamp = {
-      id: 'stamp-1',
-      user_id: 'user-1',
-      spot_id: 'spot-1',
-      goshuincho_id: null,
-      visited_at: '2024-06-01T00:00:00.000Z',
-      image_path: 'user-1/12345.jpg',
-      memo: '',
-      is_public: false,
-      extracted_info: null,
-      created_at: '2024-06-01T00:00:00Z',
-      updated_at: '2024-06-01T00:00:00Z',
-    };
-
+  /*
+   * 県ごとの枚数は**保存する前**に取る。完了画面が開いてから取りに行くと、
+   * 祝っている最中に地図の色が後から変わる
+   */
+  it('県ごとの枚数を、保存より前に取りに行く', async () => {
+    const order: string[] = [];
+    mockFetchRegionStats.mockImplementation(async () => {
+      order.push('fetchRegionStats');
+      return [];
+    });
     mockFormState.selectedSpot = fakeSpot;
-    mockFormState.imageUri = 'file:///photo.jpg';
-    mockSubmit.mockResolvedValue({ success: true, stamp: fakeStamp });
-    // spot-1 is NOT in visited set -> new spot
-    mockFetchVisitedSpotIds.mockResolvedValue(new Set(['spot-2', 'spot-3']));
-
+    mockFormState.imageUris = ['file:///photo.jpg'];
+    mockFetchVisitedSpotIds.mockResolvedValue(new Set<string>());
+    mockSubmit.mockImplementation(async () => {
+      order.push('submit');
+      return { success: true, stamps: [{ id: 's1', image_path: 'p.jpg' }], failedCount: 0 };
+    });
     const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+
     fireEvent.press(getByText('この内容で記録する'));
 
-    await waitFor(() => {
-      expect(mockNavigation.navigate).toHaveBeenCalledWith(
-        'RecordComplete',
-        expect.objectContaining({
-          visitCount: 3, // previousCount=2 + 1 new spot
-        })
-      );
-    });
+    await waitFor(() => expect(mockNavigation.replace).toHaveBeenCalled());
+    expect(order).toEqual(['fetchRegionStats', 'submit']);
   });
 
-  it('navigates to RecordComplete with visitCount when re-visiting spot', async () => {
-    const fakeStamp: Stamp = {
-      id: 'stamp-2',
-      user_id: 'user-1',
-      spot_id: 'spot-1',
-      goshuincho_id: null,
-      visited_at: '2024-06-01T00:00:00.000Z',
-      image_path: 'user-1/12345.jpg',
-      memo: '',
-      is_public: false,
-      extracted_info: null,
-      created_at: '2024-06-01T00:00:00Z',
-      updated_at: '2024-06-01T00:00:00Z',
-    };
-
+  // 表示用の前取得であって記録ではない。失敗しても保存を止めない（Issue #133）
+  it('県ごとの枚数が取れなくても、記録は止めない', async () => {
+    mockFetchRegionStats.mockRejectedValue(new Error('boom'));
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
     mockFormState.selectedSpot = fakeSpot;
-    mockFormState.imageUri = 'file:///photo.jpg';
-    mockSubmit.mockResolvedValue({ success: true, stamp: fakeStamp });
-    // spot-1 is already in visited set -> re-visit
-    mockFetchVisitedSpotIds.mockResolvedValue(new Set(['spot-1', 'spot-2']));
-
+    mockFormState.imageUris = ['file:///photo.jpg'];
+    mockFetchVisitedSpotIds.mockResolvedValue(new Set<string>());
+    mockSubmit.mockResolvedValue({
+      success: true,
+      stamps: [{ id: 's1', image_path: 'p.jpg' }],
+      failedCount: 0,
+    });
     const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+
     fireEvent.press(getByText('この内容で記録する'));
 
-    await waitFor(() => {
-      expect(mockNavigation.navigate).toHaveBeenCalledWith(
-        'RecordComplete',
-        expect.objectContaining({
-          visitCount: 2, // previousCount=2, no change for re-visit
-        })
-      );
-    });
+    await waitFor(() => expect(mockNavigation.replace).toHaveBeenCalled());
+    expect(mockSubmit).toHaveBeenCalled();
+    warnSpy.mockRestore();
+    mockFetchRegionStats.mockResolvedValue([]);
   });
 
   it('navigates to RecordComplete with badge when badge is earned', async () => {
@@ -321,22 +315,24 @@ describe('RecordScreen', () => {
       updated_at: '2024-06-01T00:00:00Z',
     };
 
-    const mockBadge = { name: '初めての御朱印', description: '初めての御朱印を記録しました' };
-    (evaluateNewBadge as jest.Mock).mockReturnValue(mockBadge);
+    const mockBadges = [
+      { id: 'first-stamp', name: '初めての御朱印', description: '', mark: 'ichi' as const },
+    ];
+    (evaluateNewBadges as jest.Mock).mockReturnValue(mockBadges);
 
     mockFormState.selectedSpot = fakeSpot;
-    mockFormState.imageUri = 'file:///photo.jpg';
-    mockSubmit.mockResolvedValue({ success: true, stamp: fakeStamp });
+    mockFormState.imageUris = ['file:///photo.jpg'];
+    mockSubmit.mockResolvedValue({ success: true, stamps: [fakeStamp], failedCount: 0 });
     mockFetchVisitedSpotIds.mockResolvedValue(new Set());
 
     const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
     fireEvent.press(getByText('この内容で記録する'));
 
     await waitFor(() => {
-      expect(mockNavigation.navigate).toHaveBeenCalledWith(
+      expect(mockNavigation.replace).toHaveBeenCalledWith(
         'RecordComplete',
         expect.objectContaining({
-          badge: mockBadge,
+          badges: mockBadges,
         })
       );
     });
@@ -368,8 +364,8 @@ describe('RecordScreen', () => {
 
   it('navigates to Error screen when submit fails', async () => {
     mockFormState.selectedSpot = fakeSpot;
-    mockFormState.imageUri = 'file:///photo.jpg';
-    mockSubmit.mockResolvedValue({ success: false });
+    mockFormState.imageUris = ['file:///photo.jpg'];
+    mockSubmit.mockResolvedValue({ success: false, stamps: [], failedCount: 1 });
     mockFetchVisitedSpotIds.mockResolvedValue(new Set());
 
     const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
@@ -385,9 +381,11 @@ describe('RecordScreen', () => {
 
   it('ネットワークエラーの場合は type: "network" でエラー画面に遷移する', async () => {
     mockFormState.selectedSpot = fakeSpot;
-    mockFormState.imageUri = 'file:///photo.jpg';
+    mockFormState.imageUris = ['file:///photo.jpg'];
     mockSubmit.mockResolvedValue({
       success: false,
+      stamps: [],
+      failedCount: 1,
       error: new Error('Network request failed'),
     });
     mockFetchVisitedSpotIds.mockResolvedValue(new Set());
@@ -405,9 +403,11 @@ describe('RecordScreen', () => {
 
   it('ネットワーク以外のエラーの場合は type: "upload" でエラー画面に遷移する', async () => {
     mockFormState.selectedSpot = fakeSpot;
-    mockFormState.imageUri = 'file:///photo.jpg';
+    mockFormState.imageUris = ['file:///photo.jpg'];
     mockSubmit.mockResolvedValue({
       success: false,
+      stamps: [],
+      failedCount: 1,
       error: new Error('保存に失敗しました'),
     });
     mockFetchVisitedSpotIds.mockResolvedValue(new Set());
@@ -426,9 +426,11 @@ describe('RecordScreen', () => {
   it('失敗箇所とエラー原文をエラー画面へ引き渡す', async () => {
     // ここが抜けると「失敗しても詳細が出ない」形で実機で発覚する
     mockFormState.selectedSpot = fakeSpot;
-    mockFormState.imageUri = 'file:///photo.jpg';
+    mockFormState.imageUris = ['file:///photo.jpg'];
     mockSubmit.mockResolvedValue({
       success: false,
+      stamps: [],
+      failedCount: 1,
       error: new Error('insert failed (code=42501)'),
       stage: 'create',
       message: 'insert failed (code=42501)',
@@ -454,16 +456,18 @@ describe('確認モーダルの廃止（Issue #130 / D-3）', () => {
     jest.clearAllMocks();
     mockFormState = {
       selectedSpot: null,
-      imageUri: null,
+      imageUris: [],
       visitedAt: new Date('2024-06-01'),
       memo: '',
       isPublic: false,
       spotError: null,
       imageError: null,
       isSubmitting: false,
+      savedCount: 0,
       submitError: null,
       selectSpot: mockSelectSpot,
-      setImageUri: mockSetImageUri,
+      addImages: mockAddImages,
+      removeImage: mockRemoveImage,
       setVisitedAt: mockSetVisitedAt,
       setMemo: mockSetMemo,
       setIsPublic: mockSetIsPublic,
@@ -471,7 +475,7 @@ describe('確認モーダルの廃止（Issue #130 / D-3）', () => {
       submit: mockSubmit,
       reset: mockReset,
     };
-    mockValidate.mockReturnValue(true);
+    mockValidate.mockReturnValue([]);
   });
 
   const fakeStamp: Stamp = {
@@ -491,8 +495,8 @@ describe('確認モーダルの廃止（Issue #130 / D-3）', () => {
   // A-5: モーダルを挟まず1回で送信される
   it('「この内容で記録する」の1タップで submit が1回だけ呼ばれる', async () => {
     mockFormState.selectedSpot = fakeSpot;
-    mockFormState.imageUri = 'file:///photo.jpg';
-    mockSubmit.mockResolvedValue({ success: true, stamp: fakeStamp });
+    mockFormState.imageUris = ['file:///photo.jpg'];
+    mockSubmit.mockResolvedValue({ success: true, stamps: [fakeStamp], failedCount: 0 });
     mockFetchVisitedSpotIds.mockResolvedValue(new Set());
 
     const { getByText, queryByText } = render(
@@ -509,23 +513,21 @@ describe('確認モーダルの廃止（Issue #130 / D-3）', () => {
     expect(queryByText('登録する')).toBeNull();
   });
 
-  // B-2: 取り消しに要る stampId / imagePath を完了画面へ渡す
-  it('完了画面へ stampId と imagePath を渡す', async () => {
+  // 完了画面は来た場所に返すので、入口の origin を引き継ぐ
+  it('完了画面へ origin を渡す', async () => {
     mockFormState.selectedSpot = fakeSpot;
-    mockFormState.imageUri = 'file:///photo.jpg';
-    mockSubmit.mockResolvedValue({ success: true, stamp: fakeStamp });
+    mockFormState.imageUris = ['file:///photo.jpg'];
+    mockSubmit.mockResolvedValue({ success: true, stamps: [fakeStamp], failedCount: 0 });
     mockFetchVisitedSpotIds.mockResolvedValue(new Set());
 
-    const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    const route = { ...mockRoute, params: { origin: 'gallery' } } as never;
+    const { getByText } = render(<RecordScreen navigation={mockNavigation} route={route} />);
     fireEvent.press(getByText('この内容で記録する'));
 
     await waitFor(() => {
-      expect(mockNavigation.navigate).toHaveBeenCalledWith(
+      expect(mockNavigation.replace).toHaveBeenCalledWith(
         'RecordComplete',
-        expect.objectContaining({
-          stampId: 'stamp-1',
-          imagePath: 'user-1/12345.jpg',
-        })
+        expect.objectContaining({ origin: 'gallery' })
       );
     });
   });
@@ -533,8 +535,8 @@ describe('確認モーダルの廃止（Issue #130 / D-3）', () => {
   // A-8: スポット未選択なら遷移しない
   it('スポット未選択なら送信も遷移もしない', async () => {
     mockFormState.selectedSpot = null;
-    mockFormState.imageUri = 'file:///photo.jpg';
-    mockValidate.mockReturnValueOnce(false);
+    mockFormState.imageUris = ['file:///photo.jpg'];
+    mockValidate.mockReturnValueOnce(['spot']);
 
     const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
     fireEvent.press(getByText('この内容で記録する'));
@@ -548,8 +550,8 @@ describe('確認モーダルの廃止（Issue #130 / D-3）', () => {
   // A-9: 写真未選択なら遷移しない
   it('写真未選択なら送信も遷移もしない', async () => {
     mockFormState.selectedSpot = fakeSpot;
-    mockFormState.imageUri = null;
-    mockValidate.mockReturnValueOnce(false);
+    mockFormState.imageUris = [];
+    mockValidate.mockReturnValueOnce(['image']);
 
     const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
     fireEvent.press(getByText('この内容で記録する'));
@@ -564,7 +566,7 @@ describe('確認モーダルの廃止（Issue #130 / D-3）', () => {
   // toBeDisabled は @testing-library/jest-native 未導入のため使えないので挙動で確認する
   it('送信中は記録ボタンを押しても submit が呼ばれない', async () => {
     mockFormState.selectedSpot = fakeSpot;
-    mockFormState.imageUri = 'file:///photo.jpg';
+    mockFormState.imageUris = ['file:///photo.jpg'];
     mockFormState.isSubmitting = true;
     mockFetchVisitedSpotIds.mockResolvedValue(new Set());
 
@@ -612,16 +614,18 @@ describe('写真のカメラ直起動（Issue #130 / S-3）', () => {
     jest.clearAllMocks();
     mockFormState = {
       selectedSpot: null,
-      imageUri: null,
+      imageUris: [],
       visitedAt: new Date('2024-06-01'),
       memo: '',
       isPublic: false,
       spotError: null,
       imageError: null,
       isSubmitting: false,
+      savedCount: 0,
       submitError: null,
       selectSpot: mockSelectSpot,
-      setImageUri: mockSetImageUri,
+      addImages: mockAddImages,
+      removeImage: mockRemoveImage,
       setVisitedAt: mockSetVisitedAt,
       setMemo: mockSetMemo,
       setIsPublic: mockSetIsPublic,
@@ -648,11 +652,11 @@ describe('写真のカメラ直起動（Issue #130 / S-3）', () => {
     // 選択モーダルが出ていないこと
     expect(queryByText('カメラで撮影')).toBeNull();
     expect(queryByText('ギャラリーから選択')).toBeNull();
-    expect(mockSetImageUri).toHaveBeenCalledWith('file:///photo.jpg');
+    expect(mockAddImages).toHaveBeenCalledWith(['file:///photo.jpg']);
   });
 
   // C-7: キャンセル時に選択済みの写真を壊さない
-  it('撮影をキャンセルしたら imageUri を更新しない', async () => {
+  it('撮影をキャンセルしたら写真を増やさない', async () => {
     mockTakePhoto.mockResolvedValue(null);
 
     const { getByTestId } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
@@ -661,12 +665,12 @@ describe('写真のカメラ直起動（Issue #130 / S-3）', () => {
     await waitFor(() => {
       expect(mockTakePhoto).toHaveBeenCalled();
     });
-    expect(mockSetImageUri).not.toHaveBeenCalled();
+    expect(mockAddImages).not.toHaveBeenCalled();
   });
 
   // C-6: モーダルを廃してもギャラリーに到達できる
   it('ギャラリーのリンクからライブラリを開ける', async () => {
-    mockPickFromLibrary.mockResolvedValue('file:///library.jpg');
+    mockPickFromLibrary.mockResolvedValue(['file:///library.jpg']);
 
     const { getByTestId } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
     fireEvent.press(getByTestId('pick-from-library'));
@@ -674,11 +678,11 @@ describe('写真のカメラ直起動（Issue #130 / S-3）', () => {
     await waitFor(() => {
       expect(mockPickFromLibrary).toHaveBeenCalledTimes(1);
     });
-    expect(mockSetImageUri).toHaveBeenCalledWith('file:///library.jpg');
+    expect(mockAddImages).toHaveBeenCalledWith(['file:///library.jpg']);
   });
 
-  it('ギャラリーの選択をキャンセルしたら imageUri を更新しない', async () => {
-    mockPickFromLibrary.mockResolvedValue(null);
+  it('ギャラリーの選択をキャンセルしたら写真を増やさない', async () => {
+    mockPickFromLibrary.mockResolvedValue([]);
 
     const { getByTestId } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
     fireEvent.press(getByTestId('pick-from-library'));
@@ -686,23 +690,25 @@ describe('写真のカメラ直起動（Issue #130 / S-3）', () => {
     await waitFor(() => {
       expect(mockPickFromLibrary).toHaveBeenCalled();
     });
-    expect(mockSetImageUri).not.toHaveBeenCalled();
+    expect(mockAddImages).not.toHaveBeenCalled();
   });
 });
 
 describe('最寄りスポットの自動選択ラベル（Issue #130 / S-5）', () => {
   const baseFormState = () => ({
     selectedSpot: null as Spot | null,
-    imageUri: null as string | null,
+    imageUris: [] as string[],
     visitedAt: new Date('2024-06-01'),
     memo: '',
     isPublic: false,
     spotError: null as string | null,
     imageError: null as string | null,
     isSubmitting: false,
+    savedCount: 0,
     submitError: null as string | null,
     selectSpot: mockSelectSpot,
-    setImageUri: mockSetImageUri,
+    addImages: mockAddImages,
+    removeImage: mockRemoveImage,
     setVisitedAt: mockSetVisitedAt,
     setMemo: mockSetMemo,
     setIsPublic: mockSetIsPublic,
@@ -757,16 +763,18 @@ describe('最寄りスポットの自動選択ラベル（Issue #130 / S-5）', 
 describe('タップ数（Issue #130 / F 群）', () => {
   const baseFormState = () => ({
     selectedSpot: null as Spot | null,
-    imageUri: null as string | null,
+    imageUris: [] as string[],
     visitedAt: new Date('2024-06-01'),
     memo: '',
     isPublic: false,
     spotError: null as string | null,
     imageError: null as string | null,
     isSubmitting: false,
+    savedCount: 0,
     submitError: null as string | null,
     selectSpot: mockSelectSpot,
-    setImageUri: mockSetImageUri,
+    addImages: mockAddImages,
+    removeImage: mockRemoveImage,
     setVisitedAt: mockSetVisitedAt,
     setMemo: mockSetMemo,
     setIsPublic: mockSetIsPublic,
@@ -792,8 +800,8 @@ describe('タップ数（Issue #130 / F 群）', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockFormState = baseFormState();
-    mockValidate.mockReturnValue(true);
-    mockSubmit.mockResolvedValue({ success: true, stamp: fakeStamp });
+    mockValidate.mockReturnValue([]);
+    mockSubmit.mockResolvedValue({ success: true, stamps: [fakeStamp], failedCount: 0 });
     mockFetchVisitedSpotIds.mockResolvedValue(new Set());
     mockTakePhoto.mockResolvedValue('file:///photo.jpg');
   });
@@ -804,7 +812,8 @@ describe('タップ数（Issue #130 / F 群）', () => {
       ...baseFormState(),
       selectedSpot: fakeSpot,
       isSpotAutoSelected: true,
-      imageUri: 'file:///photo.jpg',
+      // まだ1枚も無い状態から数える。写真枠をタップするところが1タップ目
+      imageUris: [],
     } as any;
 
     const { getByTestId, getByText } = render(
@@ -818,7 +827,7 @@ describe('タップ数（Issue #130 / F 群）', () => {
     taps++;
 
     await waitFor(() => {
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
+      expect(mockNavigation.replace).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
     });
     expect(taps).toBe(2);
   });
@@ -847,7 +856,7 @@ describe('タップ数（Issue #130 / F 群）', () => {
 
     // 4. 記録する
     mockFormState.selectedSpot = fakeSpot;
-    mockFormState.imageUri = 'file:///photo.jpg';
+    mockFormState.imageUris = ['file:///photo.jpg'];
     fireEvent.press(getByText('この内容で記録する'));
     taps++;
 
@@ -877,16 +886,18 @@ describe('二重送信の防止（Issue #130 / A-10 補強）', () => {
     jest.clearAllMocks();
     mockFormState = {
       selectedSpot: fakeSpot,
-      imageUri: 'file:///photo.jpg',
+      imageUris: ['file:///photo.jpg'],
       visitedAt: new Date('2024-06-01'),
       memo: '',
       isPublic: false,
       spotError: null,
       imageError: null,
       isSubmitting: false,
+      savedCount: 0,
       submitError: null,
       selectSpot: mockSelectSpot,
-      setImageUri: mockSetImageUri,
+      addImages: mockAddImages,
+      removeImage: mockRemoveImage,
       setVisitedAt: mockSetVisitedAt,
       setMemo: mockSetMemo,
       setIsPublic: mockSetIsPublic,
@@ -894,7 +905,7 @@ describe('二重送信の防止（Issue #130 / A-10 補強）', () => {
       submit: mockSubmit,
       reset: mockReset,
     };
-    mockValidate.mockReturnValue(true);
+    mockValidate.mockReturnValue([]);
   });
 
   // 確認モーダルを廃したことで、記録ボタンが唯一の入口になった。
@@ -908,7 +919,7 @@ describe('二重送信の防止（Issue #130 / A-10 補強）', () => {
         releaseFetch = resolve;
       })
     );
-    mockSubmit.mockResolvedValue({ success: true, stamp: fakeStamp });
+    mockSubmit.mockResolvedValue({ success: true, stamps: [fakeStamp], failedCount: 0 });
 
     const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
 
@@ -922,12 +933,12 @@ describe('二重送信の防止（Issue #130 / A-10 補強）', () => {
       expect(mockSubmit).toHaveBeenCalledTimes(1);
     });
     expect(mockFetchVisitedSpotIds).toHaveBeenCalledTimes(1);
-    expect(mockNavigation.navigate).toHaveBeenCalledTimes(1);
+    expect(mockNavigation.replace).toHaveBeenCalledTimes(1);
   });
 
   it('送信が終われば次の記録を送信できる', async () => {
     mockFetchVisitedSpotIds.mockResolvedValue(new Set());
-    mockSubmit.mockResolvedValue({ success: true, stamp: fakeStamp });
+    mockSubmit.mockResolvedValue({ success: true, stamps: [fakeStamp], failedCount: 0 });
 
     const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
     const button = getByText('この内容で記録する');
@@ -945,7 +956,13 @@ describe('二重送信の防止（Issue #130 / A-10 補強）', () => {
 
   it('送信に失敗した後も再送信できる', async () => {
     mockFetchVisitedSpotIds.mockResolvedValue(new Set());
-    mockSubmit.mockResolvedValue({ success: false, error: new Error('boom'), stage: 'upload' });
+    mockSubmit.mockResolvedValue({
+      success: false,
+      stamps: [],
+      failedCount: 1,
+      error: new Error('boom'),
+      stage: 'upload',
+    });
 
     const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
     const button = getByText('この内容で記録する');
@@ -985,16 +1002,18 @@ describe('訪問済みスポットの取得に失敗したとき（Issue #133）
     jest.clearAllMocks();
     mockFormState = {
       selectedSpot: fakeSpot,
-      imageUri: 'file:///photo.jpg',
+      imageUris: ['file:///photo.jpg'],
       visitedAt: new Date('2024-06-01'),
       memo: '',
       isPublic: false,
       spotError: null,
       imageError: null,
       isSubmitting: false,
+      savedCount: 0,
       submitError: null,
       selectSpot: mockSelectSpot,
-      setImageUri: mockSetImageUri,
+      addImages: mockAddImages,
+      removeImage: mockRemoveImage,
       setVisitedAt: mockSetVisitedAt,
       setMemo: mockSetMemo,
       setIsPublic: mockSetIsPublic,
@@ -1002,7 +1021,7 @@ describe('訪問済みスポットの取得に失敗したとき（Issue #133）
       submit: mockSubmit,
       reset: mockReset,
     };
-    mockValidate.mockReturnValue(true);
+    mockValidate.mockReturnValue([]);
     mockFetchVisitedSpotIds.mockRejectedValue(new Error('訪問済みスポットの取得に失敗しました'));
     warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
   });
@@ -1018,25 +1037,25 @@ describe('訪問済みスポットの取得に失敗したとき（Issue #133）
 
   // B-1 / B-2: 失敗しているのは表示用の前取得であって記録ではない
   it('記録そのものは続行して完了画面へ遷移する', async () => {
-    mockSubmit.mockResolvedValue({ success: true, stamp: fakeStamp });
+    mockSubmit.mockResolvedValue({ success: true, stamps: [fakeStamp], failedCount: 0 });
     pressSave();
 
     await waitFor(() => {
       expect(mockSubmit).toHaveBeenCalled();
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
+      expect(mockNavigation.replace).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
     });
   });
 
   // B-3 / B-4 / B-5: 誤った数字を祝うくらいなら出さない
   it('visitCount と badge を渡さず countUnavailable を渡す', async () => {
-    mockSubmit.mockResolvedValue({ success: true, stamp: fakeStamp });
+    mockSubmit.mockResolvedValue({ success: true, stamps: [fakeStamp], failedCount: 0 });
     pressSave();
 
     await waitFor(() => {
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
+      expect(mockNavigation.replace).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
     });
 
-    const params = mockNavigation.navigate.mock.calls.find(
+    const params = mockNavigation.replace.mock.calls.find(
       (call: unknown[]) => call[0] === 'RecordComplete'
     )![1];
 
@@ -1047,32 +1066,30 @@ describe('訪問済みスポットの取得に失敗したとき（Issue #133）
 
   // B-6: previousCount が無い以上、判定できる材料が無い
   it('evaluateNewBadge を一度も呼ばない', async () => {
-    mockSubmit.mockResolvedValue({ success: true, stamp: fakeStamp });
+    mockSubmit.mockResolvedValue({ success: true, stamps: [fakeStamp], failedCount: 0 });
     pressSave();
 
     await waitFor(() => {
       expect(mockSubmit).toHaveBeenCalled();
     });
 
-    expect(evaluateNewBadge as jest.Mock).not.toHaveBeenCalled();
+    expect(evaluateNewBadges as jest.Mock).not.toHaveBeenCalled();
   });
 
-  // B-7: 取り消し導線（Issue #130）を巻き添えにしない
-  it('取り消しと表示に要る params は従来どおり渡す', async () => {
-    mockSubmit.mockResolvedValue({ success: true, stamp: fakeStamp });
+  // 表示に要る params を巻き添えにしない
+  it('表示に要る params は従来どおり渡す', async () => {
+    mockSubmit.mockResolvedValue({ success: true, stamps: [fakeStamp], failedCount: 0 });
     pressSave();
 
     await waitFor(() => {
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
+      expect(mockNavigation.replace).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
     });
 
-    const params = mockNavigation.navigate.mock.calls.find(
+    const params = mockNavigation.replace.mock.calls.find(
       (call: unknown[]) => call[0] === 'RecordComplete'
     )![1];
 
     expect(params.spotName).toBe(fakeSpot.name);
-    expect(params.stampId).toBe('stamp-1');
-    expect(params.imagePath).toBe('user-1/12345.jpg');
     expect(params.stampImageUrl).toBeDefined();
   });
 
@@ -1080,6 +1097,8 @@ describe('訪問済みスポットの取得に失敗したとき（Issue #133）
   it('保存も失敗したら従来どおりエラー画面へ原文を渡す', async () => {
     mockSubmit.mockResolvedValue({
       success: false,
+      stamps: [],
+      failedCount: 1,
       error: new Error('insert failed (code=42501)'),
       stage: 'create',
       message: 'insert failed (code=42501)',
@@ -1103,11 +1122,11 @@ describe('訪問済みスポットの取得に失敗したとき（Issue #133）
   // 自前で process.on('unhandledRejection') を張っても、その時点で jest が先に
   // テストを落とすのでアサーションまで到達せず、守っているように見えるだけになる
   it('reject を持ち越さず最後まで流れ切る', async () => {
-    mockSubmit.mockResolvedValue({ success: true, stamp: fakeStamp });
+    mockSubmit.mockResolvedValue({ success: true, stamps: [fakeStamp], failedCount: 0 });
 
     pressSave();
     await waitFor(() => {
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
+      expect(mockNavigation.replace).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
     });
     // 取りこぼした rejection がマイクロタスクの後に浮上してくる猶予を与える
     await new Promise(resolve => setImmediate(resolve));
@@ -1115,7 +1134,7 @@ describe('訪問済みスポットの取得に失敗したとき（Issue #133）
 
   // B-10: isSavingRef が張り付くと以降まったく記録できなくなる（issue-130 A-12/A-13 と同趣旨）
   it('失敗した後もう一度押せば再び記録できる', async () => {
-    mockSubmit.mockResolvedValue({ success: true, stamp: fakeStamp });
+    mockSubmit.mockResolvedValue({ success: true, stamps: [fakeStamp], failedCount: 0 });
 
     const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
     const button = getByText('この内容で記録する');
@@ -1133,7 +1152,7 @@ describe('訪問済みスポットの取得に失敗したとき（Issue #133）
 
   // B-13: 実機では Metro のログでしか追えないので、接頭辞を固定しておく
   it('診断できるよう [record] 接頭辞で警告を残す', async () => {
-    mockSubmit.mockResolvedValue({ success: true, stamp: fakeStamp });
+    mockSubmit.mockResolvedValue({ success: true, stamps: [fakeStamp], failedCount: 0 });
     pressSave();
 
     await waitFor(() => {
@@ -1165,16 +1184,18 @@ describe('訪問済みスポットの取得に成功したとき（Issue #133 �
     jest.clearAllMocks();
     mockFormState = {
       selectedSpot: fakeSpot,
-      imageUri: 'file:///photo.jpg',
+      imageUris: ['file:///photo.jpg'],
       visitedAt: new Date('2024-06-01'),
       memo: '',
       isPublic: false,
       spotError: null,
       imageError: null,
       isSubmitting: false,
+      savedCount: 0,
       submitError: null,
       selectSpot: mockSelectSpot,
-      setImageUri: mockSetImageUri,
+      addImages: mockAddImages,
+      removeImage: mockRemoveImage,
       setVisitedAt: mockSetVisitedAt,
       setMemo: mockSetMemo,
       setIsPublic: mockSetIsPublic,
@@ -1182,70 +1203,689 @@ describe('訪問済みスポットの取得に成功したとき（Issue #133 �
       submit: mockSubmit,
       reset: mockReset,
     };
-    mockValidate.mockReturnValue(true);
-    mockSubmit.mockResolvedValue({ success: true, stamp: fakeStamp });
+    mockValidate.mockReturnValue([]);
+    mockSubmit.mockResolvedValue({ success: true, stamps: [fakeStamp], failedCount: 0 });
   });
 
   const paramsOfRecordComplete = () =>
-    mockNavigation.navigate.mock.calls.find((call: unknown[]) => call[0] === 'RecordComplete')![1];
+    mockNavigation.replace.mock.calls.find((call: unknown[]) => call[0] === 'RecordComplete')![1];
 
-  it('新規スポットなら件数を1つ増やし、バッジ判定に前後の件数を渡す', async () => {
-    (evaluateNewBadge as jest.Mock).mockReturnValue(null);
+  it('新しい寺社なら、バッジ判定の前後で寺社の数が1つ増える', async () => {
+    (evaluateNewBadges as jest.Mock).mockReturnValue([]);
     mockFetchVisitedSpotIds.mockResolvedValue(new Set(['spot-2', 'spot-3']));
+    mockFetchVisitLog.mockResolvedValue([
+      { spot_id: 'spot-2', visited_at: '2026-09-01' },
+      { spot_id: 'spot-3', visited_at: '2026-09-02' },
+    ]);
 
     const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
     fireEvent.press(getByText('この内容で記録する'));
 
     await waitFor(() => {
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
+      expect(mockNavigation.replace).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
     });
-
-    expect(paramsOfRecordComplete().visitCount).toBe(3);
-    expect(evaluateNewBadge as jest.Mock).toHaveBeenCalledWith(2, 3);
+    const [before, after] = (evaluateNewBadges as jest.Mock).mock.calls[0];
+    expect(before.visitCount).toBe(2);
+    expect(after.visitCount).toBe(3);
   });
 
-  it('再訪なら件数を増やさない', async () => {
-    (evaluateNewBadge as jest.Mock).mockReturnValue(null);
+  it('再訪なら寺社の数は増えない', async () => {
+    (evaluateNewBadges as jest.Mock).mockReturnValue([]);
     mockFetchVisitedSpotIds.mockResolvedValue(new Set(['spot-1', 'spot-2']));
+    mockFetchVisitLog.mockResolvedValue([
+      { spot_id: 'spot-1', visited_at: '2026-09-01' },
+      { spot_id: 'spot-2', visited_at: '2026-09-02' },
+    ]);
 
     const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
     fireEvent.press(getByText('この内容で記録する'));
 
     await waitFor(() => {
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
+      expect(mockNavigation.replace).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
     });
-
-    expect(paramsOfRecordComplete().visitCount).toBe(2);
-    expect(evaluateNewBadge as jest.Mock).toHaveBeenCalledWith(2, 2);
+    const [before, after] = (evaluateNewBadges as jest.Mock).mock.calls[0];
+    expect(before.visitCount).toBe(2);
+    expect(after.visitCount).toBe(2);
   });
 
-  it('evaluateNewBadge の返り値をそのまま badge に渡す', async () => {
-    const badge = { name: '初めての御朱印', description: '最初の1枚' };
-    (evaluateNewBadge as jest.Mock).mockReturnValue(badge);
+  it('evaluateNewBadges の返り値をそのまま badges に渡す', async () => {
+    const badges = [
+      { id: 'first-stamp', name: '初めての御朱印', description: '', mark: 'ichi' as const },
+    ];
+    (evaluateNewBadges as jest.Mock).mockReturnValue(badges);
     mockFetchVisitedSpotIds.mockResolvedValue(new Set());
 
     const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
     fireEvent.press(getByText('この内容で記録する'));
 
     await waitFor(() => {
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
+      expect(mockNavigation.replace).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
     });
 
-    expect(paramsOfRecordComplete().badge).toEqual(badge);
+    expect(paramsOfRecordComplete().badges).toEqual(badges);
   });
 
   // B-12: 成功経路に注記のフラグを混ぜない
   it('countUnavailable のキーを渡さない', async () => {
-    (evaluateNewBadge as jest.Mock).mockReturnValue(null);
+    (evaluateNewBadges as jest.Mock).mockReturnValue(null);
     mockFetchVisitedSpotIds.mockResolvedValue(new Set(['spot-2']));
 
     const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
     fireEvent.press(getByText('この内容で記録する'));
 
     await waitFor(() => {
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
+      expect(mockNavigation.replace).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
     });
 
     expect(paramsOfRecordComplete()).not.toHaveProperty('countUnavailable');
+  });
+});
+
+describe('日付ピッカーを開いたときのスクロール', () => {
+  /*
+   * 訪問日の行を画面最上部まで持ち上げると、上にある御朱印の写真が画面外に出る。
+   * 写真の日付を見ながら訪問日を決めたいので、必要な分だけ動かす。
+   *
+   * ScrollView.prototype.scrollTo を spy する。ローカルの jest.fn() を作っても
+   * ref には配線されないため、何も検証できない
+   */
+  const VIEWPORT = 600;
+  let scrollTo: jest.SpyInstance;
+
+  beforeEach(() => {
+    scrollTo = jest.spyOn(ScrollView.prototype, 'scrollTo').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    scrollTo.mockRestore();
+  });
+
+  const setup = () => {
+    const r = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent(r.getByTestId('record-scroll'), 'layout', {
+      nativeEvent: { layout: { height: VIEWPORT } },
+    });
+    return r;
+  };
+
+  it('タップしただけでは動かさない。高さが分かるまで動かす量を決められない', () => {
+    jest.useFakeTimers();
+    try {
+      const r = setup();
+
+      fireEvent.press(r.getByTestId('date-picker-trigger'));
+      act(() => {
+        jest.advanceTimersByTime(1000);
+      });
+
+      expect(scrollTo).not.toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('ピッカーの下端が入る分だけ動かす。行を最上部に持ち上げない', () => {
+    const r = setup();
+    fireEvent.press(r.getByTestId('date-picker-trigger'));
+
+    fireEvent(r.getByTestId('date-picker-block'), 'layout', {
+      nativeEvent: { layout: { y: 460, height: 260 } },
+    });
+
+    // 下端 720 / 画面 600 → 120 + 余白。行の位置(460)まで上げてはいけない
+    expect(scrollTo).toHaveBeenCalledTimes(1);
+    const { y } = scrollTo.mock.calls[0][0] as { y: number };
+    expect(y).toBeGreaterThanOrEqual(120);
+    expect(y).toBeLessThan(460);
+  });
+
+  it('すでに見えていれば動かさない', () => {
+    const r = setup();
+    fireEvent.press(r.getByTestId('date-picker-trigger'));
+
+    fireEvent(r.getByTestId('date-picker-block'), 'layout', {
+      nativeEvent: { layout: { y: 100, height: 200 } },
+    });
+
+    expect(scrollTo).not.toHaveBeenCalled();
+  });
+
+  // メモ欄も同じ不具合を抱えていた（行を最上部に持ち上げる）
+  it('メモ欄も下端が入る分だけ動かす', () => {
+    jest.useFakeTimers();
+    try {
+      const r = setup();
+      fireEvent(r.getByTestId('memo-block'), 'layout', {
+        nativeEvent: { layout: { y: 700, height: 120 } },
+      });
+
+      fireEvent(r.getByTestId('memo-input'), 'focus');
+      act(() => {
+        jest.advanceTimersByTime(500);
+      });
+
+      expect(scrollTo).toHaveBeenCalledTimes(1);
+      const { y } = scrollTo.mock.calls[0][0] as { y: number };
+      // 下端 820 / 画面 600 → 220 + 余白。行の位置(700)まで上げてはいけない
+      expect(y).toBeGreaterThanOrEqual(220);
+      expect(y).toBeLessThan(700);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+});
+
+describe('複数枚をまとめて登録する（Issue #180）', () => {
+  const stampFor = (id: string): Stamp => ({
+    id,
+    user_id: 'user-1',
+    spot_id: 'spot-1',
+    goshuincho_id: null,
+    visited_at: '2024-06-01T00:00:00.000Z',
+    image_path: `user-1/${id}.jpg`,
+    memo: '',
+    is_public: false,
+    extracted_info: null,
+    created_at: '2024-06-01T00:00:00Z',
+    updated_at: '2024-06-01T00:00:00Z',
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockFormState = {
+      selectedSpot: fakeSpot,
+      imageUris: ['file:///a.jpg'],
+      visitedAt: new Date('2024-06-01'),
+      memo: '',
+      isPublic: false,
+      spotError: null,
+      imageError: null,
+      isSubmitting: false,
+      savedCount: 0,
+      submitError: null,
+      selectSpot: mockSelectSpot,
+      addImages: mockAddImages,
+      removeImage: mockRemoveImage,
+      setVisitedAt: mockSetVisitedAt,
+      setMemo: mockSetMemo,
+      setIsPublic: mockSetIsPublic,
+      validate: mockValidate,
+      submit: mockSubmit,
+      reset: mockReset,
+    };
+    mockValidate.mockReturnValue([]);
+    mockFetchVisitedSpotIds.mockResolvedValue(new Set(['spot-1']));
+    mockTakePhoto.mockReset();
+    mockPickFromLibrary.mockReset();
+  });
+
+  it('ギャラリーは残り枚数を上限にして開く', async () => {
+    mockFormState.imageUris = ['file:///a.jpg', 'file:///b.jpg'];
+    mockPickFromLibrary.mockResolvedValue([]);
+
+    const { getByTestId } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent.press(getByTestId('pick-from-library'));
+
+    await waitFor(() => {
+      expect(mockPickFromLibrary).toHaveBeenCalledWith(MAX_PHOTOS_PER_RECORD - 2);
+    });
+  });
+
+  it('選んだ複数枚をまとめてフォームに渡す', async () => {
+    mockPickFromLibrary.mockResolvedValue(['file:///b.jpg', 'file:///c.jpg']);
+
+    const { getByTestId } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent.press(getByTestId('pick-from-library'));
+
+    await waitFor(() => {
+      expect(mockAddImages).toHaveBeenCalledWith(['file:///b.jpg', 'file:///c.jpg']);
+    });
+  });
+
+  // selectionLimit: 0 は expo-image-picker では「無制限」なので、
+  // 残り0枚のまま呼ぶと上限が外れる
+  it('上限まで入っていたらギャラリーのリンクを出さない', () => {
+    mockFormState.imageUris = Array.from(
+      { length: MAX_PHOTOS_PER_RECORD },
+      (_, i) => `file:///${i}.jpg`
+    );
+
+    const { queryByTestId } = render(
+      <RecordScreen navigation={mockNavigation} route={mockRoute} />
+    );
+
+    expect(queryByTestId('pick-from-library')).toBeNull();
+  });
+
+  it('全部保存できたら完了画面に枚数を渡す', async () => {
+    mockFormState.imageUris = ['file:///a.jpg', 'file:///b.jpg', 'file:///c.jpg'];
+    mockSubmit.mockResolvedValue({
+      success: true,
+      stamps: [stampFor('s1'), stampFor('s2'), stampFor('s3')],
+      failedCount: 0,
+    });
+
+    const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent.press(getByText('この内容で記録する'));
+
+    await waitFor(() => {
+      expect(mockNavigation.replace).toHaveBeenCalledWith(
+        'RecordComplete',
+        expect.objectContaining({
+          stampCount: 3,
+          stampImageUrl: 'https://example.com/stamps/user-1/s1.jpg',
+        })
+      );
+    });
+  });
+
+  // 全部失敗したように見せると、やり直して重複ができる
+  it('一部だけ失敗したら画面に留まり、保存できた枚数を伝える', async () => {
+    mockFormState.imageUris = ['file:///a.jpg', 'file:///b.jpg', 'file:///c.jpg'];
+    mockSubmit.mockResolvedValue({
+      success: false,
+      stamps: [stampFor('s1'), stampFor('s2')],
+      failedCount: 1,
+      error: new Error('Upload failed'),
+      stage: 'upload',
+      message: 'Upload failed',
+    });
+
+    const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent.press(getByText('この内容で記録する'));
+
+    await waitFor(() => {
+      expect(getByText(/2枚を記録しました/)).toBeTruthy();
+    });
+    expect(getByText(/残り1枚/)).toBeTruthy();
+    expect(mockNavigation.navigate).not.toHaveBeenCalled();
+  });
+
+  it('1枚も保存できなければ従来どおりエラー画面へ', async () => {
+    mockFormState.imageUris = ['file:///a.jpg', 'file:///b.jpg'];
+    mockSubmit.mockResolvedValue({
+      success: false,
+      stamps: [],
+      failedCount: 2,
+      error: new Error('Network request failed'),
+      stage: 'upload',
+      message: 'Network request failed',
+    });
+
+    const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent.press(getByText('この内容で記録する'));
+
+    await waitFor(() => {
+      expect(mockNavigation.navigate).toHaveBeenCalledWith('Error', {
+        type: 'network',
+        origin: 'record',
+        stage: 'upload',
+        message: 'Network request failed',
+      });
+    });
+  });
+
+  // 5枚登録しても訪問したスポットは1つ。バッジが枚数で進んではいけない
+  it('枚数ではなくスポット数でバッジを判定する', async () => {
+    mockFormState.imageUris = ['file:///a.jpg', 'file:///b.jpg', 'file:///c.jpg'];
+    mockSubmit.mockResolvedValue({
+      success: true,
+      stamps: [stampFor('s1'), stampFor('s2'), stampFor('s3')],
+      failedCount: 0,
+    });
+    mockFetchVisitedSpotIds.mockResolvedValue(new Set(['spot-2', 'spot-3']));
+    mockFetchVisitLog.mockResolvedValue([
+      { spot_id: 'spot-2', visited_at: '2026-09-01' },
+      { spot_id: 'spot-3', visited_at: '2026-09-02' },
+    ]);
+
+    const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent.press(getByText('この内容で記録する'));
+
+    await waitFor(() => expect(evaluateNewBadges).toHaveBeenCalled());
+    const [before, after] = (evaluateNewBadges as jest.Mock).mock.calls[0];
+    expect(before.visitCount).toBe(2);
+    // 3枚まとめて登録しても、訪問した寺社は1つ増えるだけ
+    expect(after.visitCount).toBe(3);
+  });
+});
+
+describe('バリデーションエラーのある欄まで連れていく', () => {
+  /*
+   * 記録ボタンは画面下に固定されているので、下までスクロールしたまま押せる。
+   * そのときスポット欄や写真欄のエラーは画面の外にあり、押しても何も起きて
+   * いないように見えていた。
+   */
+  const VIEWPORT = 600;
+  let scrollTo: jest.SpyInstance;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    scrollTo = jest.spyOn(ScrollView.prototype, 'scrollTo').mockImplementation(() => {});
+    mockFormState = {
+      selectedSpot: null,
+      imageUris: [],
+      visitedAt: new Date('2024-06-01'),
+      memo: '',
+      isPublic: false,
+      spotError: null,
+      imageError: null,
+      isSubmitting: false,
+      savedCount: 0,
+      submitError: null,
+      selectSpot: mockSelectSpot,
+      addImages: mockAddImages,
+      removeImage: mockRemoveImage,
+      setVisitedAt: mockSetVisitedAt,
+      setMemo: mockSetMemo,
+      setIsPublic: mockSetIsPublic,
+      validate: mockValidate,
+      submit: mockSubmit,
+      reset: mockReset,
+    };
+  });
+
+  afterEach(() => {
+    scrollTo.mockRestore();
+  });
+
+  /** 画面より下までスクロールした状態にして、欄の位置を教える */
+  const setup = () => {
+    const r = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent(r.getByTestId('record-scroll'), 'layout', {
+      nativeEvent: { layout: { height: VIEWPORT } },
+    });
+    fireEvent(r.getByTestId('spot-block'), 'layout', {
+      nativeEvent: { layout: { y: 0, height: 120 } },
+    });
+    fireEvent(r.getByTestId('photo-block'), 'layout', {
+      nativeEvent: { layout: { y: 160, height: 280 } },
+    });
+    // メモ欄まで下げた状態
+    fireEvent.scroll(r.getByTestId('record-scroll'), {
+      nativeEvent: { contentOffset: { y: 700 } },
+    });
+    return r;
+  };
+
+  it('スポット未選択ならスポット欄まで戻る', async () => {
+    mockValidate.mockReturnValue(['spot']);
+
+    const r = setup();
+    fireEvent.press(r.getByText('この内容で記録する'));
+
+    await waitFor(() => {
+      expect(scrollTo).toHaveBeenCalled();
+    });
+    const { y } = scrollTo.mock.calls[0][0] as { y: number };
+    // スポット欄は先頭にあるので一番上まで
+    expect(y).toBe(0);
+    expect(mockSubmit).not.toHaveBeenCalled();
+  });
+
+  it('写真が無ければ写真欄まで戻る', async () => {
+    mockValidate.mockReturnValue(['image']);
+
+    const r = setup();
+    fireEvent.press(r.getByText('この内容で記録する'));
+
+    await waitFor(() => {
+      expect(scrollTo).toHaveBeenCalled();
+    });
+    const { y } = scrollTo.mock.calls[0][0] as { y: number };
+    // 写真欄の上端(160)が見える位置。スポット欄まで戻しすぎない
+    expect(y).toBeGreaterThan(0);
+    expect(y).toBeLessThanOrEqual(160);
+  });
+
+  it('両方欠けていたら上の欄へ連れていく', async () => {
+    mockValidate.mockReturnValue(['spot', 'image']);
+
+    const r = setup();
+    fireEvent.press(r.getByText('この内容で記録する'));
+
+    await waitFor(() => {
+      expect(scrollTo).toHaveBeenCalled();
+    });
+    expect(scrollTo).toHaveBeenCalledTimes(1);
+    const { y } = scrollTo.mock.calls[0][0] as { y: number };
+    expect(y).toBe(0);
+  });
+
+  // 日付ピッカーの枠は onLayout で自分を画面に入れ直す。エラー文が増えると
+  // 枠の位置が動いて onLayout が再発火し、せっかく欄まで戻したスクロールを
+  // 上書きしてしまう。実機で「写真欄に飛ばされる」形で出た
+  it('日付ピッカーが開いていたら閉じてから連れていく', async () => {
+    mockValidate.mockReturnValue(['spot']);
+
+    const r = setup();
+    fireEvent.press(r.getByTestId('date-picker-trigger'));
+    expect(r.getByTestId('date-picker-block')).toBeTruthy();
+
+    fireEvent.press(r.getByText('この内容で記録する'));
+
+    await waitFor(() => {
+      expect(r.queryByTestId('date-picker-block')).toBeNull();
+    });
+  });
+
+  it('入力がそろっていれば動かさない', async () => {
+    mockValidate.mockReturnValue([]);
+    mockFetchVisitedSpotIds.mockResolvedValue(new Set());
+    mockSubmit.mockResolvedValue({ success: true, stamps: [], failedCount: 0 });
+
+    const r = setup();
+    fireEvent.press(r.getByText('この内容で記録する'));
+
+    await waitFor(() => {
+      expect(mockSubmit).toHaveBeenCalled();
+    });
+    expect(scrollTo).not.toHaveBeenCalled();
+  });
+
+  it('その欄がすでに見えていれば動かさない', async () => {
+    mockValidate.mockReturnValue(['spot']);
+
+    const r = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent(r.getByTestId('record-scroll'), 'layout', {
+      nativeEvent: { layout: { height: VIEWPORT } },
+    });
+    fireEvent(r.getByTestId('spot-block'), 'layout', {
+      nativeEvent: { layout: { y: 0, height: 120 } },
+    });
+    // スクロールしていない = スポット欄は見えている
+    fireEvent.press(r.getByText('この内容で記録する'));
+
+    await waitFor(() => {
+      expect(mockValidate).toHaveBeenCalled();
+    });
+    expect(scrollTo).not.toHaveBeenCalled();
+  });
+});
+
+// 記録済みのフォームを履歴に残すと、完了画面の「もう1枚記録する」から戻ったとき
+// ✕ が完了画面に帰ってしまう。しかも押すたびに履歴が2つずつ伸びる（Issue #188）
+describe('記録を終えたら、そのフォームを履歴に残さない', () => {
+  const savedStamp: Stamp = {
+    id: 'stamp-1',
+    user_id: 'user-1',
+    spot_id: 'spot-1',
+    goshuincho_id: null,
+    visited_at: '2024-06-01T00:00:00.000Z',
+    image_path: 'user-1/12345.jpg',
+    memo: '',
+    is_public: false,
+    extracted_info: null,
+    created_at: '2024-06-01T00:00:00Z',
+    updated_at: '2024-06-01T00:00:00Z',
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockFormState = {
+      selectedSpot: fakeSpot,
+      imageUris: ['file:///a.jpg'],
+      visitedAt: new Date('2024-06-01'),
+      memo: '',
+      isPublic: false,
+      spotError: null,
+      imageError: null,
+      isSubmitting: false,
+      savedCount: 0,
+      submitError: null,
+      selectSpot: mockSelectSpot,
+      addImages: mockAddImages,
+      removeImage: mockRemoveImage,
+      setVisitedAt: mockSetVisitedAt,
+      setMemo: mockSetMemo,
+      setIsPublic: mockSetIsPublic,
+      validate: mockValidate,
+      submit: mockSubmit,
+      reset: mockReset,
+    };
+    mockValidate.mockReturnValue([]);
+  });
+
+  it('完了画面へは push ではなく置き換えで行く', async () => {
+    mockFetchVisitedSpotIds.mockResolvedValue(new Set(['spot-1']));
+    mockSubmit.mockResolvedValue({ success: true, stamps: [savedStamp], failedCount: 0 });
+
+    const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent.press(getByText('この内容で記録する'));
+
+    await waitFor(() => {
+      expect(mockNavigation.replace).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
+    });
+    expect(mockNavigation.navigate).not.toHaveBeenCalled();
+  });
+
+  it('件数が取れなかったときも置き換えで行く', async () => {
+    mockFetchVisitedSpotIds.mockRejectedValue(new Error('network'));
+    mockSubmit.mockResolvedValue({ success: true, stamps: [savedStamp], failedCount: 0 });
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent.press(getByText('この内容で記録する'));
+
+    await waitFor(() => {
+      expect(mockNavigation.replace).toHaveBeenCalledWith(
+        'RecordComplete',
+        expect.objectContaining({ countUnavailable: true })
+      );
+    });
+    expect(mockNavigation.navigate).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  // 失敗はやり直せる必要があるので、エラー画面は今までどおり push
+  it('失敗したときのエラー画面は置き換えない', async () => {
+    mockFetchVisitedSpotIds.mockResolvedValue(new Set());
+    mockSubmit.mockResolvedValue({
+      success: false,
+      stamps: [],
+      failedCount: 1,
+      error: new Error('boom'),
+      stage: 'upload',
+    });
+
+    const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent.press(getByText('この内容で記録する'));
+
+    await waitFor(() => {
+      expect(mockNavigation.navigate).toHaveBeenCalledWith('Error', expect.any(Object));
+    });
+    expect(mockNavigation.replace).not.toHaveBeenCalled();
+  });
+});
+
+describe('保存中の覆い（Issue #190）', () => {
+  const submitting = (imageUris: string[], savedCount: number) => {
+    mockFormState = {
+      ...mockFormState,
+      selectedSpot: fakeSpot,
+      imageUris,
+      isSubmitting: true,
+      savedCount,
+    };
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockFormState = {
+      ...mockFormState,
+      selectedSpot: null,
+      imageUris: [],
+      isSubmitting: false,
+      savedCount: 0,
+      spotError: null,
+      imageError: null,
+    };
+  });
+
+  it('保存していないときは覆いを出さない', () => {
+    const { queryByTestId } = render(
+      <RecordScreen navigation={mockNavigation} route={mockRoute} />
+    );
+
+    expect(queryByTestId('saving-overlay')).toBeNull();
+  });
+
+  it('保存中は覆いを出し、選んだ枚数ぶんの点を並べる', () => {
+    submitting(['file:///a.jpg', 'file:///b.jpg', 'file:///c.jpg'], 1);
+
+    const { getByTestId, queryByTestId } = render(
+      <RecordScreen navigation={mockNavigation} route={mockRoute} />
+    );
+
+    expect(getByTestId('saving-overlay')).toBeTruthy();
+    expect(getByTestId('saving-dot-2')).toBeTruthy();
+    expect(queryByTestId('saving-dot-3')).toBeNull();
+    expect(getByTestId('saving-count').props.children).toBe('1 / 3枚');
+  });
+
+  // アップロードにタイムアウトが無いので、全面を塞ぐと回線が死んだとき
+  // 強制終了しか道が無くなる。覆いはヘッダーの下から敷く
+  it('保存中でもヘッダーの ✕ は押せる', () => {
+    submitting(['file:///a.jpg'], 0);
+
+    const { getByTestId } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent.press(getByTestId('header-close-button'));
+
+    expect(mockNavigation.goBack).toHaveBeenCalled();
+  });
+
+  // 絶対配置の基準は SafeAreaView の外枠で、セーフエリアの余白はその内側にある。
+  // 高さだけ見るとステータスバーのぶん足りず、覆いがヘッダーに乗る
+  it('覆いはヘッダーの下端から敷く（セーフエリアのぶんを含む）', () => {
+    submitting(['file:///a.jpg'], 0);
+
+    const { getByTestId } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent(getByTestId('header-block'), 'layout', {
+      nativeEvent: { layout: { y: 59, height: 65 } },
+    });
+
+    expect(StyleSheet.flatten(getByTestId('saving-overlay').props.style).top).toBe(124);
+  });
+
+  // メモを書いている途中で押されると、覆いがキーボードの下に潜る
+  it('保存を始めるときキーボードを閉じる', async () => {
+    const dismiss = jest.spyOn(Keyboard, 'dismiss');
+    mockFormState = { ...mockFormState, selectedSpot: fakeSpot, imageUris: ['file:///a.jpg'] };
+    mockValidate.mockReturnValue([]);
+    mockFetchVisitedSpotIds.mockResolvedValue(new Set());
+    mockSubmit.mockResolvedValue({
+      success: true,
+      stamps: [{ id: 'stamp-1', spot_id: 'spot-1', image_path: 'user-1/1.jpg' } as Stamp],
+      failedCount: 0,
+    });
+
+    const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent.press(getByText('この内容で記録する'));
+
+    await waitFor(() => {
+      expect(mockSubmit).toHaveBeenCalled();
+    });
+    expect(dismiss).toHaveBeenCalled();
+    dismiss.mockRestore();
   });
 });

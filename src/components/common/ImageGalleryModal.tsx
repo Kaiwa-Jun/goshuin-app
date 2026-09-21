@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Animated,
   Dimensions,
-  Image,
   Modal,
   PanResponder,
   StyleSheet,
@@ -13,14 +13,26 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { spacing } from '@theme/spacing';
+import { TYPICAL_STAMP_ASPECT } from '@/constants/stampImage';
 
 export interface GalleryImage {
   id: string;
   imageUrl: string;
+  /** imageUrl が出せなかったときに使う。縮小版がまだ焼かれていない場合の逃げ道 */
+  fallbackUrl?: string;
   userName?: string | null;
+  /** 寺社の名前。一覧から飛んでくる文字の行き先になる（Issue #192） */
+  spotName?: string | null;
   memo?: string | null;
   visitedAt?: string | null;
 }
+
+/**
+ * 情報の行の置き場所。飛んでいる文字の行き先を合わせるため、
+ * HeroFlyer から参照する（Issue #192）
+ */
+export const GALLERY_INFO_BOTTOM = spacing['5xl'];
+export const GALLERY_INFO_LEFT = spacing.lg;
 
 interface ImageGalleryModalProps {
   visible: boolean;
@@ -31,6 +43,36 @@ interface ImageGalleryModalProps {
   onDelete?: (index: number) => void;
   /** When false, renders as absolute-positioned View instead of Modal to avoid native modal flicker. */
   useModal?: boolean;
+  /** 横スワイプで見ている1枚が変わったとき。閉じるとき、その1枚のタイルへ戻すのに使う（#192） */
+  onIndexChange?: (index: number) => void;
+  /**
+   * 今見ている1枚の写真が出せるようになったとき。
+   * 一覧から飛んできた1枚を、いつ引っ込めてよいかの合図に使う（#192）
+   */
+  onImageReady?: (index: number) => void;
+  /**
+   * 縮小版が無くて元に落ちたとき。焼かせる合図に使う（Issue #196）。
+   * 一覧のタイルは小さい方を見ているので、詳細用が無いことに気づけるのはここだけ
+   */
+  onImageFallback?: (id: string) => void;
+  /**
+   * 横スワイプで隣の1枚へ移れるか。件数の表示もこれに従う。
+   *
+   * 御朱印帳は off。一覧のタイルと詳細が1対1で繋がる動きにしているので、
+   * 途中で別の1枚に移ると、その結びつきが切れて元のタイルへ戻れなくなる。
+   * 順に見る動線は蛇腹めくりが持っている（Issue #192）。
+   * スポット詳細は on。あちらは1つのスポットの御朱印をまとめて見せる場で、
+   * 連続遷移もしていない
+   */
+  swipeable?: boolean;
+  /**
+   * 下スワイプで写真が指についてくるか。閉じること自体はどちらでも起きる。
+   *
+   * 御朱印帳は off。指で写真を下へずらしてから離すと、そこから一覧へ戻る
+   * 連続的な動きが始められない（写真がもう元の位置にいない）。
+   * 写真は動かさず、離した時点で元の位置から戻す（Issue #192）
+   */
+  dismissFollowsFinger?: boolean;
 }
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -39,6 +81,85 @@ const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.25;
 const VELOCITY_THRESHOLD = 0.5;
 const TAP_MAX_DURATION = 200;
 const TAP_MAX_DISTANCE = 10;
+/** 今の1枚の前後いくつまで実際に描くか。横スワイプの先読みぶん */
+const NEIGHBORS = 1;
+/** 写真が届いたときの溶け込み */
+const FADE_IN_MS = 160;
+/** ここまで待っても届かないなら、黙っているより出ていないことを示す */
+const SLOW_MS = 2000;
+
+interface GalleryImageSlotProps {
+  image: GalleryImage;
+  /** 枠の高さ。実寸が分かるまでは、よくある形で置く */
+  height: number;
+  isCurrent: boolean;
+  onLoaded: (width: number, height: number) => void;
+  onFallback: () => void;
+}
+
+/**
+ * 1枚ぶんの枠（Issue #192）。
+ *
+ * 写真が届くまで「何も無い」のではなく「正しい形の枠」を出す。白いままだと
+ * 壊れて見えるが、形のある枠は「ここに写真が来る」と言っている。
+ * スピナーは最初から出さない。あれは「遅い・怪しい」の記号なので、
+ * ふつうに届く場面で出すと不安にさせるだけ。2秒待っても来ないときだけ出す
+ */
+function GalleryImageSlot({
+  image,
+  height,
+  isCurrent,
+  onLoaded,
+  onFallback,
+}: GalleryImageSlotProps) {
+  const fade = useRef(new Animated.Value(0)).current;
+  const [loaded, setLoaded] = useState(false);
+  const [slow, setSlow] = useState(false);
+  /** 縮小版がまだ無いときに元へ落ちる（Issue #196） */
+  const [fellBack, setFellBack] = useState(false);
+  const uri = fellBack && image.fallbackUrl ? image.fallbackUrl : image.imageUrl;
+
+  useEffect(() => {
+    if (loaded) return;
+    const timer = setTimeout(() => setSlow(true), SLOW_MS);
+    return () => clearTimeout(timer);
+  }, [loaded]);
+
+  return (
+    <View style={styles.imageSlot}>
+      <View
+        style={[styles.imageFrame, { height }]}
+        testID={isCurrent ? 'gallery-frame' : undefined}
+      >
+        {!loaded && slow && (
+          <ActivityIndicator size="small" color={colors.gray[400]} testID="gallery-image-slow" />
+        )}
+        <Animated.Image
+          source={{ uri }}
+          style={[styles.image, { opacity: fade }]}
+          resizeMode="contain"
+          onLoad={e => {
+            const { width, height: sourceHeight } = e.nativeEvent.source;
+            setLoaded(true);
+            onLoaded(width, sourceHeight);
+            Animated.timing(fade, {
+              toValue: 1,
+              duration: FADE_IN_MS,
+              useNativeDriver: true,
+            }).start();
+          }}
+          onError={() => {
+            if (image.fallbackUrl && !fellBack) {
+              setFellBack(true);
+              onFallback();
+            }
+          }}
+          testID={isCurrent ? 'gallery-image' : undefined}
+        />
+      </View>
+    </View>
+  );
+}
 
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr);
@@ -56,9 +177,24 @@ export function ImageGalleryModal({
   onEdit,
   onDelete,
   useModal = true,
+  onIndexChange,
+  onImageReady,
+  onImageFallback,
+  swipeable = true,
+  dismissFollowsFinger = true,
 }: ImageGalleryModalProps) {
   // currentIndex is only used for info display (userName, memo, counter)
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const onIndexChangeRef = useRef(onIndexChange);
+  onIndexChangeRef.current = onIndexChange;
+  const onImageReadyRef = useRef(onImageReady);
+  onImageReadyRef.current = onImageReady;
+  const onImageFallbackRef = useRef(onImageFallback);
+  onImageFallbackRef.current = onImageFallback;
+  const swipeableRef = useRef(swipeable);
+  swipeableRef.current = swipeable;
+  const followsFingerRef = useRef(dismissFollowsFinger);
+  followsFingerRef.current = dismissFollowsFinger;
   const [imageHeights, setImageHeights] = useState<Record<string, number>>({});
 
   // Single animated value for the entire strip position
@@ -80,6 +216,9 @@ export function ImageGalleryModal({
   // to avoid 1-frame flicker when reopening after a swipe-dismiss
   const prevVisible = useRef(false);
   if (visible && !prevVisible.current) {
+    // 番号も描画のうちに合わせる。useEffect だと1フレームだけ前の1枚が出て、
+    // 地が不透明になってからはその瞬きが見える（Issue #192）
+    setCurrentIndex(initialIndex);
     settledIndex.current = initialIndex;
     baseX.current = -initialIndex * SCREEN_WIDTH;
     stripX.setValue(-initialIndex * SCREEN_WIDTH);
@@ -97,22 +236,20 @@ export function ImageGalleryModal({
     }
   }, [visible, initialIndex]);
 
-  // Preload image sizes regardless of visibility so heights are ready when modal opens
-  useEffect(() => {
-    if (images.length === 0) return;
-    images.forEach(img => {
-      if (imageHeights[img.id] !== undefined) return;
-      Image.getSize(
-        img.imageUrl,
-        (w, h) => {
-          setImageHeights(prev => ({ ...prev, [img.id]: SCREEN_WIDTH * (h / w) }));
-        },
-        () => {
-          setImageHeights(prev => ({ ...prev, [img.id]: SCREEN_WIDTH }));
-        }
-      );
-    });
-  }, [images, imageHeights]);
+  /*
+   * 高さは、描いた画像の onLoad から受け取る。
+   *
+   * 以前はここで全枚数ぶん Image.getSize を呼んでいた。getSize は iOS では
+   * 画像を丸ごと取りにいくので、57件あると 1.2MB × 57 の取得が同時に走り、
+   * 画像ローダーが詰まる。新しく置いた <Image> が読み込まれず、load も error も
+   * 返ってこない状態になっていた（実機で確認 / Issue #192）
+   */
+  const rememberHeight = useCallback((id: string, width: number, height: number) => {
+    if (width <= 0 || height <= 0) return;
+    setImageHeights(prev =>
+      prev[id] !== undefined ? prev : { ...prev, [id]: SCREEN_WIDTH * (height / width) }
+    );
+  }, []);
 
   const navigateTo = useCallback(
     (newIndex: number, animated: boolean) => {
@@ -126,10 +263,12 @@ export function ImageGalleryModal({
           useNativeDriver: true,
         }).start(() => {
           setCurrentIndex(newIndex);
+          onIndexChangeRef.current?.(newIndex);
         });
       } else {
         stripX.setValue(targetX);
         setCurrentIndex(newIndex);
+        onIndexChangeRef.current?.(newIndex);
       }
     },
     [stripX]
@@ -153,7 +292,8 @@ export function ImageGalleryModal({
       },
       onPanResponderMove: (_, gs) => {
         if (!directionLocked.current) {
-          if (Math.abs(gs.dx) > Math.abs(gs.dy)) {
+          // 横に移れない設定なら、横の動きは無視して縦だけ見る
+          if (swipeableRef.current && Math.abs(gs.dx) > Math.abs(gs.dy)) {
             directionLocked.current = 'horizontal';
           } else if (gs.dy > 0) {
             directionLocked.current = 'vertical';
@@ -162,7 +302,7 @@ export function ImageGalleryModal({
 
         if (directionLocked.current === 'horizontal') {
           stripX.setValue(baseX.current + gs.dx);
-        } else if (directionLocked.current === 'vertical') {
+        } else if (directionLocked.current === 'vertical' && followsFingerRef.current) {
           panY.setValue(Math.max(0, gs.dy));
           opacity.setValue(Math.max(0, 1 - gs.dy / SCREEN_HEIGHT));
         }
@@ -175,6 +315,8 @@ export function ImageGalleryModal({
           Math.abs(gs.dy) < TAP_MAX_DISTANCE;
 
         if (isTap) {
+          // 横に移れない設定では、左右のタップでも移らない
+          if (!swipeableRef.current) return;
           // Tap handling - use refs for latest values
           const idx = settledIndex.current;
           const len = imagesLengthRef.current;
@@ -202,7 +344,17 @@ export function ImageGalleryModal({
           }
         } else if (directionLocked.current === 'vertical') {
           // Vertical swipe dismiss
-          if (gs.dy > DISMISS_THRESHOLD || gs.vy > VELOCITY_THRESHOLD) {
+          const dismissing = gs.dy > DISMISS_THRESHOLD || gs.vy > VELOCITY_THRESHOLD;
+
+          // 写真を動かさない設定では、閉じる合図を出すだけ。戻る動きは
+          // 呼び出し側が元の位置から始める（Issue #192）
+          if (!followsFingerRef.current) {
+            if (dismissing) onCloseRef.current();
+            directionLocked.current = null;
+            return;
+          }
+
+          if (dismissing) {
             Animated.parallel([
               Animated.timing(panY, {
                 toValue: SCREEN_HEIGHT,
@@ -246,30 +398,50 @@ export function ImageGalleryModal({
         <Animated.View
           style={[
             styles.stripContainer,
-            {
-              width: images.length * SCREEN_WIDTH,
-              transform: [{ translateX: stripX }, { translateY: panY }],
-            },
+            swipeable
+              ? {
+                  width: images.length * SCREEN_WIDTH,
+                  transform: [{ translateX: stripX }, { translateY: panY }],
+                }
+              : { width: SCREEN_WIDTH, transform: [{ translateY: panY }] },
           ]}
           {...panResponder.panHandlers}
           testID="gallery-gesture-area"
         >
-          {images.map((img, index) => (
-            <View key={img.id} style={styles.imageSlot}>
-              <Image
-                source={{ uri: img.imageUrl }}
-                style={[styles.image, { height: imageHeights[img.id] ?? SCREEN_WIDTH }]}
-                resizeMode="contain"
-                testID={index === currentIndex ? 'gallery-image' : undefined}
+          {/* 横に移れないなら今の1枚だけ置く。隣を先に読み込まないぶん、
+              今の1枚が早く出る（Issue #192） */}
+          {(swipeable ? images : [currentImage]).map((img, slot) => {
+            const index = swipeable ? slot : currentIndex;
+            // 見えている前後だけ描く。全枚数を一度に置くと、そのぶんの取得が
+            // 同時に走って画像ローダーが詰まる（Issue #192）
+            if (Math.abs(index - currentIndex) > NEIGHBORS) {
+              return <View key={img.id} style={styles.imageSlot} />;
+            }
+            return (
+              <GalleryImageSlot
+                key={img.id}
+                image={img}
+                height={imageHeights[img.id] ?? SCREEN_WIDTH / TYPICAL_STAMP_ASPECT}
+                isCurrent={index === currentIndex}
+                onLoaded={(width, sourceHeight) => {
+                  rememberHeight(img.id, width, sourceHeight);
+                  if (index === currentIndex) onImageReadyRef.current?.(index);
+                }}
+                onFallback={() => onImageFallbackRef.current?.(img.id)}
               />
-            </View>
-          ))}
+            );
+          })}
         </Animated.View>
 
         <View style={styles.infoContainer} pointerEvents="none">
           {currentImage.userName && (
             <Text style={styles.userName} testID="gallery-username">
               {currentImage.userName}
+            </Text>
+          )}
+          {currentImage.spotName && (
+            <Text style={styles.spotName} testID="gallery-spot-name" numberOfLines={1}>
+              {currentImage.spotName}
             </Text>
           )}
           {currentImage.memo && (
@@ -284,11 +456,14 @@ export function ImageGalleryModal({
           )}
         </View>
 
-        <View style={styles.counterContainer} pointerEvents="none">
-          <Text style={styles.counter} testID="gallery-counter">
-            {currentIndex + 1} / {images.length}
-          </Text>
-        </View>
+        {/* 件数は「並びの何番目か」の目印。横に移れないなら数えるものが無い */}
+        {swipeable && (
+          <View style={styles.counterContainer} pointerEvents="none">
+            <Text style={styles.counter} testID="gallery-counter">
+              {currentIndex + 1} / {images.length}
+            </Text>
+          </View>
+        )}
 
         <View style={styles.topBar}>
           <View style={styles.topBarActions}>
@@ -296,7 +471,7 @@ export function ImageGalleryModal({
               <MaterialIcons
                 name="edit"
                 size={24}
-                color={colors.white}
+                color={colors.gray[800]}
                 onPress={() => onEdit(currentIndex)}
                 testID="gallery-edit-button"
                 style={styles.topBarIcon}
@@ -306,7 +481,7 @@ export function ImageGalleryModal({
               <MaterialIcons
                 name="delete"
                 size={24}
-                color={colors.white}
+                color={colors.gray[800]}
                 onPress={() => onDelete(currentIndex)}
                 testID="gallery-delete-button"
                 style={styles.topBarIcon}
@@ -316,7 +491,7 @@ export function ImageGalleryModal({
           <MaterialIcons
             name="close"
             size={28}
-            color={colors.white}
+            color={colors.gray[800]}
             onPress={onClose}
             testID="gallery-close-button"
           />
@@ -350,7 +525,9 @@ export function ImageGalleryModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(50, 50, 50, 0.85)',
+    // 一覧と同じ地。暗くするとモーダルに見えるが、ここは画面が変わったのであって
+    // 一覧の上に何かが乗ったのではない（Issue #192）
+    backgroundColor: colors.background,
     justifyContent: 'center',
     overflow: 'hidden',
   },
@@ -360,7 +537,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(50, 50, 50, 0.85)',
+    backgroundColor: colors.background,
     justifyContent: 'center',
     overflow: 'hidden',
     zIndex: 1000,
@@ -376,8 +553,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  image: {
+  imageFrame: {
     width: SCREEN_WIDTH,
+    alignItems: 'center',
+    justifyContent: 'center',
+    // 写真が届くまでの地。一覧のタイルと同じ考えで、形だけ先に見せる
+    backgroundColor: colors.gray[100],
+  },
+  image: {
+    ...StyleSheet.absoluteFillObject,
   },
   topBar: {
     position: 'absolute',
@@ -398,24 +582,29 @@ const styles = StyleSheet.create({
   },
   infoContainer: {
     position: 'absolute',
-    bottom: spacing['5xl'],
+    bottom: GALLERY_INFO_BOTTOM,
     left: 0,
     right: 0,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: GALLERY_INFO_LEFT,
     gap: spacing.xs,
   },
   userName: {
     ...typography.body,
-    color: colors.white,
+    color: colors.gray[800],
+    fontWeight: '600',
+  },
+  spotName: {
+    ...typography.body,
+    color: colors.gray[800],
     fontWeight: '600',
   },
   memo: {
     ...typography.bodySmall,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: colors.gray[600],
   },
   visitedAt: {
     ...typography.caption,
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: colors.gray[500],
   },
   counterContainer: {
     position: 'absolute',
@@ -426,6 +615,6 @@ const styles = StyleSheet.create({
   },
   counter: {
     ...typography.bodySmall,
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: colors.gray[500],
   },
 });

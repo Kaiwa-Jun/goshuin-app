@@ -91,11 +91,10 @@ describe('GoshuinchoPage', () => {
   });
 
   describe('視覚仕様', () => {
-    it('紙面の背景がトークンの background である', () => {
+    // 紙面は「紙」であって画面の地ではない。地の色を動かしても白のまま
+    it('紙面の背景が白である', () => {
       const { getByTestId } = render(<GoshuinchoPage {...stampProps} />);
-      expect(flatten(getByTestId('flip-page-surface-stamp-1')).backgroundColor).toBe(
-        colors.background
-      );
+      expect(flatten(getByTestId('flip-page-surface-stamp-1')).backgroundColor).toBe(colors.white);
     });
 
     it('紙面の枠線が gray[200] / 1px である', () => {

@@ -1,14 +1,20 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Dimensions, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import { Camera, Map } from '@maplibre/maplibre-react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { ImageGalleryModal, GalleryImage } from '@components/common/ImageGalleryModal';
+import { SpotPinImages, SpotPinLayer } from '@components/map/spotPins';
+import { MAP_STYLE } from '@components/map/mapStyle';
+import { toSpotFeatureCollection } from '@utils/spotGeoJson';
 import { SpotInfoSection } from '@components/spot-detail/SpotInfoSection';
 import { SpotSheetHeader } from '@components/spot-detail/SpotSheetHeader';
 import { SpotSheetActions } from '@components/spot-detail/SpotSheetActions';
 import { LimitedGoshuinSection } from '@components/spot-detail/LimitedGoshuinSection';
 import { getStampImageUrl } from '@services/stamps';
+import { TsukimairiCard, TsukimairiPast } from '@components/spot-detail/TsukimairiCard';
+import { tsukimairiOf } from '@utils/tsukimairi';
+import { toLocalDateString } from '@utils/localDate';
 import type { Spot, Stamp, PublicStampWithUser } from '@/types/supabase';
 import type { ParsedSpotInfo } from '@hooks/useSpotInfo';
 import { colors } from '@theme/colors';
@@ -18,6 +24,8 @@ import { spacing, borderRadius } from '@theme/spacing';
 const GRID_GAP = spacing.xs;
 const CONTENT_PADDING = spacing.lg;
 const STAMP_IMAGE_SIZE = (Dimensions.get('window').width - CONTENT_PADDING * 2 - GRID_GAP * 2) / 3;
+/** ミニマップは訪問状況で色を変えない（未訪問色の1本ピン） */
+const EMPTY_IDS = new Set<string>();
 
 interface SpotDetailContentProps {
   spot: Spot;
@@ -55,6 +63,19 @@ export function SpotDetailContent({
 }: SpotDetailContentProps) {
   const isStandalone = variant === 'standalone';
   const showVisited = isAuthenticated && visitCount > 0;
+  /*
+   * 月参りは、その寺社の記録から数える。参拝日は DATE のまま渡す
+   * （new Date() を挟むと Issue #204 と同じ1日ずれを踏む）
+   */
+  const tsukimairi = useMemo(
+    () =>
+      tsukimairiOf(
+        stamps.map(s => s.visited_at),
+        toLocalDateString(new Date())
+      ),
+    [stamps]
+  );
+
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
 
   const openGallery = useCallback(
@@ -107,6 +128,10 @@ export function SpotDetailContent({
         />
       )}
 
+      {/* 続いていればカード、途切れていれば1行だけ（§3） */}
+      <TsukimairiCard tsukimairi={tsukimairi} />
+      {!tsukimairi.shouldShowCard && <TsukimairiPast longest={tsukimairi.longest} />}
+
       {(stamps.length > 0 || publicStamps.length > 0) && (
         <View style={styles.stampGrid} testID="stamp-grid">
           {stamps.map((stamp, index) => (
@@ -146,21 +171,32 @@ export function SpotDetailContent({
         <>
           <Text style={styles.sectionTitle}>アクセス</Text>
           <View style={styles.miniMapContainer} testID="mini-map">
-            <MapView
+            {/* attribution は消さない。OSM 由来のタイルは ODbL で帰属表示が要る */}
+            <Map
               style={styles.miniMapView}
-              initialRegion={{
-                latitude: spot.lat,
-                longitude: spot.lng,
-                latitudeDelta: 0.005,
-                longitudeDelta: 0.005,
-              }}
-              scrollEnabled={false}
-              zoomEnabled={false}
-              rotateEnabled={false}
-              pitchEnabled={false}
+              mapStyle={MAP_STYLE}
+              logo={false}
+              compass={false}
+              dragPan={false}
+              touchZoom={false}
+              doubleTapZoom={false}
+              doubleTapHoldZoom={false}
+              touchRotate={false}
+              touchPitch={false}
             >
-              <Marker coordinate={{ latitude: spot.lat, longitude: spot.lng }} />
-            </MapView>
+              <Camera initialViewState={{ center: [spot.lng, spot.lat], zoom: 15.5 }} />
+              <SpotPinImages />
+              {/* 名前は真上のヘッダに出ているので、ここではピンだけ */}
+              <SpotPinLayer
+                id="spot-detail-mini-map"
+                data={toSpotFeatureCollection({
+                  spots: [spot],
+                  visitedSpotIds: EMPTY_IDS,
+                  wishlistSpotIds: EMPTY_IDS,
+                })}
+                hideLabels
+              />
+            </Map>
           </View>
           {spot.address && (
             <View style={styles.miniMapAddress}>

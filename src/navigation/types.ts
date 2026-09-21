@@ -2,23 +2,42 @@ import type { NavigatorScreenParams, CompositeScreenProps } from '@react-navigat
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 
+import type { Badge } from '@/types/badge';
+
 // --- Param Lists ---
+
+/** 記録フローの入口。完了画面の出口の行き先になる */
+export type RecordOrigin = 'map' | 'gallery';
 
 export type RootStackParamList = {
   Onboarding: undefined;
   MainTabs: NavigatorScreenParams<MainTabParamList>;
-  Record: { spotId?: string } | undefined;
+  /** origin は完了画面が「来た場所」に返すために使う。記録画面は地図と御朱印帳の両方から開ける */
+  Record: { spotId?: string; origin?: RecordOrigin } | undefined;
   RecordComplete:
     | {
         stampImageUrl?: string;
+        /** まとめて登録した枚数。表示できるのは先頭の1枚だけなので数だけ添える */
+        stampCount?: number;
         spotName?: string;
-        visitCount?: number;
-        badge?: { name: string; description: string } | null;
-        // 記録の取り消し用。deleteStamp が ID と画像パスの両方を要求する
-        stampId?: string;
-        imagePath?: string;
+        /** 今回の記録で新しく取れたバッジ。同じ日に複数そろうことがある */
+        badges?: Pick<Badge, 'id' | 'name' | 'description' | 'mark'>[];
         /** 訪問済みスポットの取得に失敗し、件数とバッジを算出できなかった（Issue #133） */
         countUnavailable?: boolean;
+        /** 記録を始めた画面。終わったらここへ返す */
+        origin?: RecordOrigin;
+        /** 参拝日。YYYY-MM-DD（DATE 型のまま渡す。new Date() を挟まない） */
+        visitedAt?: string;
+        /** 記録した寺社の種別。ピンの色に使う */
+        spotType?: 'shrine' | 'temple';
+        /** 記録した寺社の県。完了画面の地図が寄る先 */
+        prefecture?: string;
+        /** その県が初めてか。チップを出すかどうか */
+        isFirstInPrefecture?: boolean;
+        /** 県ごとの枚数（いま記録したぶんを足した状態）。完了画面の地図の塗り */
+        stampCountByPrefecture?: Record<string, number>;
+        /** 通算の枚数（いま記録したぶんを含む） */
+        totalStampCount?: number;
       }
     | undefined;
   Login: undefined;
@@ -39,6 +58,8 @@ export type RootStackParamList = {
 export type CollectionStackParamList = {
   CollectionList: undefined;
   PilgrimageDetail: { pilgrimageId: string; pilgrimageName: string };
+  /** 地図で県をタップした先。シートにしない理由は issue-209 の注意事項を見ること */
+  PrefectureDetail: { prefecture: string };
 };
 
 export type MainTabParamList = {
@@ -52,7 +73,6 @@ export type MapStackParamList = {
   Map: { focusSpotId?: string; focusPrefecture?: string } | undefined;
   SpotDetail: { spotId: string };
   Search: undefined;
-  Wishlist: undefined;
 };
 
 export type GalleryStackParamList = {

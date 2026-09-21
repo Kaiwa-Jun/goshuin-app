@@ -1,0 +1,312 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8">
+<title>月参り・満願とバッジの軸</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap">
+<style>
+:root{
+  --brand:#f27f0d; --brand400:#FB923C; --brand700:#C2410C; --brand300:#FDBA74; --brand50:#FFF7ED;
+  --seal:#DC2626; --temple:#9333EA; --teal:#0D9488;
+  --ink:#111827; --ink2:#4B5563; --ink3:#9CA3AF; --rule:#E5E7EB; --empty:#E3E4E8; --paper:#F2F2F7;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:#4B5563;font-family:"Noto Sans JP",-apple-system,sans-serif;color:var(--ink);
+  display:flex;flex-direction:column;align-items:center;gap:14px;padding:22px 12px 40px}
+.switch{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.switch button{font:inherit;font-size:13px;font-weight:700;padding:9px 16px;border-radius:999px;
+  border:none;cursor:pointer;background:#374151;color:#D1D5DB}
+.switch button.on{background:#FDBA74;color:#7C2D12}
+.hint{color:#E5E7EB;font-size:13px;text-align:center;max-width:430px;line-height:1.8}
+.hint b{color:#FDBA74}
+.phone{width:390px;height:844px;background:var(--paper);border-radius:34px;overflow:hidden;
+  position:relative;box-shadow:0 18px 60px rgba(0,0,0,.45)}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;background:var(--paper);
+  opacity:0;pointer-events:none;transition:opacity .2s}
+.screen.on{opacity:1;pointer-events:auto}
+.statusbar{height:44px;flex:none;display:flex;align-items:center;justify-content:space-between;
+  padding:0 20px;font-size:13px;font-weight:700}
+.body{flex:1;overflow-y:auto;padding:0 16px 24px}
+h1{font-size:28px;font-weight:700;padding:4px 16px 12px}
+.card{background:#fff;border-radius:16px;padding:14px;margin-bottom:12px;
+  box-shadow:0 2px 4px rgba(0,0,0,.06)}
+.sechead{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px}
+.sechead h2{font-size:16px;font-weight:700}
+.sechead a{font-size:12px;color:var(--ink3)}
+
+/* 月参りカード */
+.tsuki{border-top:3px solid var(--seal)}
+.tshead{display:flex;align-items:center;justify-content:space-between}
+.tstitle{font-size:16px;font-weight:700}
+.tschip{font-size:11px;font-weight:700;color:var(--seal);background:rgba(220,38,38,.1);
+  border-radius:999px;padding:3px 10px}
+.tssub{font-size:12px;color:var(--ink2);margin:2px 0 12px}
+.dots{display:grid;grid-template-columns:repeat(12,1fr);gap:5px;margin-bottom:7px}
+.d{aspect-ratio:1;border-radius:50%;background:var(--empty);transition:background .4s,transform .4s}
+.d.on{background:var(--seal)}
+.d.next{background:transparent;border:1.5px dashed var(--ink3)}
+@keyframes pop{0%{transform:scale(.4)}60%{transform:scale(1.25)}100%{transform:scale(1)}}
+.d.pop{animation:pop .42s cubic-bezier(.3,.9,.3,1.2) both}
+.dlegend{display:flex;justify-content:space-between;font-size:10px;color:var(--ink3)}
+.tsgoal{margin-top:13px;padding-top:12px;border-top:1px solid var(--rule);font-size:13px}
+.tsgoal b{color:var(--seal);font-weight:700}
+.past{font-size:12px;color:var(--ink2);margin:-4px 0 12px}
+.past b{color:var(--seal);font-weight:700}
+
+/* あゆみの月参り一覧 */
+.mrow{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--rule)}
+.mrow:last-child{border-bottom:none}
+.mname{font-size:14px;font-weight:700;width:104px;flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mdots{display:grid;grid-template-columns:repeat(12,1fr);gap:3px;flex:1}
+.md{aspect-ratio:1;border-radius:50%;background:var(--empty)}
+.md.on{background:var(--seal)}
+.md.next{background:transparent;border:1px dashed var(--ink3)}
+.mleft{font-size:11px;color:var(--ink2);width:52px;text-align:right;flex:none}
+
+/* 満願の瞬間 */
+#mangan{background:linear-gradient(170deg,var(--brand400),var(--brand) 55%,var(--brand700))}
+.mcard{flex:1;margin:4px 16px 0;background:#fff;border-radius:24px;display:flex;
+  flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:26px 22px}
+@keyframes rise{from{opacity:0;transform:translateY(20px) scale(.95)}to{opacity:1;transform:none}}
+.rise{animation:rise .5s cubic-bezier(.2,.8,.2,1) both}
+.stamp-photo{width:158px;aspect-ratio:3/4;border-radius:8px;position:relative;
+  background:linear-gradient(168deg,#FBF7EF,#F1EADC);border:1px solid rgba(17,24,39,.12);
+  box-shadow:0 12px 30px rgba(17,24,39,.25)}
+.stamp-photo .sumi{position:absolute;right:26%;top:12%;width:4px;height:58%;
+  background:#1F2937;opacity:.75;border-radius:2px}
+.stamp-photo .seal-small{position:absolute;left:18%;bottom:14%;width:22px;height:22px;
+  border:2.5px solid rgba(220,38,38,.6);border-radius:2px}
+/* 満願の朱印は、いま押されたものとして御朱印の上に重ねる */
+.seal-big{position:absolute;left:50%;top:52%;width:96px;height:96px;border-radius:5px;
+  border:5px solid var(--seal);transform:translate(-50%,-50%) rotate(-8deg)}
+.seal-big::after{content:"満願";position:absolute;inset:0;display:grid;place-items:center;
+  font-size:32px;font-weight:900;color:var(--seal);letter-spacing:2px}
+/* 同時に取れたバッジ。テキストの行を増やすと縦に伸びるので、横に並べる */
+.newbadges{display:flex;justify-content:center;gap:16px;flex-wrap:wrap;margin-top:2px}
+.nb{text-align:center;width:62px}
+.nb .circle{width:46px;height:46px;border-radius:50%;margin:0 auto 5px;display:grid;
+  place-items:center;font-size:21px;background:var(--brand50);border:1px solid #FFEDD5}
+.nb .t{font-size:10px;color:var(--ink2);line-height:1.3}
+.nb:first-child .circle{background:rgba(220,38,38,.1);border-color:rgba(220,38,38,.35)}
+@keyframes badgepop{0%{opacity:0;transform:scale(.3)}
+  65%{opacity:1;transform:scale(1.18)}100%{opacity:1;transform:scale(1)}}
+.nb{animation:badgepop .42s cubic-bezier(.3,.9,.3,1.2) both}
+.nb:nth-child(1){animation-delay:1.05s}
+.nb:nth-child(2){animation-delay:1.2s}
+.nb:nth-child(3){animation-delay:1.35s}
+.nb:nth-child(4){animation-delay:1.5s}
+
+.count{font-size:32px;font-weight:900}
+.count em{font-style:normal;font-size:16px;font-weight:700;margin-left:2px}
+@keyframes stamp{0%{transform:translate(-50%,-50%) rotate(-8deg) scale(2.4);opacity:0}
+  55%{transform:translate(-50%,-50%) rotate(-8deg) scale(.92);opacity:1}
+  100%{transform:translate(-50%,-50%) rotate(-8deg) scale(1);opacity:1}}
+.seal-big.stamp{animation:stamp .5s cubic-bezier(.2,.8,.2,1) both}
+.mtitle{font-size:20px;font-weight:700}
+.msub{font-size:14px;color:var(--ink2);text-align:center;line-height:1.8}
+.msub b{color:var(--seal)}
+.outside{font-size:13px;color:var(--ink2);background:var(--paper);border-radius:12px;
+  padding:14px 16px;text-align:center;line-height:1.8}
+.actions{flex:none;padding:14px 16px 26px;display:flex;flex-direction:column;gap:10px}
+.btn{height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;
+  font-size:16px;font-weight:700;cursor:pointer}
+.btn.p{background:#fff;color:var(--brand700)}
+.btn.s{border:1.5px solid rgba(255,255,255,.65);color:#fff}
+
+/* バッジ */
+.axis{font-size:12px;font-weight:700;color:var(--ink2);margin:2px 0 10px;display:flex;
+  align-items:center;gap:8px}
+.axis span{font-size:11px;font-weight:400;color:var(--ink3)}
+.badges{display:grid;grid-template-columns:repeat(4,1fr);gap:12px 8px}
+.b{text-align:center}
+.b .circle{width:52px;height:52px;border-radius:50%;margin:0 auto 6px;display:grid;
+  place-items:center;font-size:22px;background:var(--brand50);border:1px solid #FFEDD5}
+.b.off .circle{background:#F3F4F6;border-color:var(--rule);opacity:.42}
+.b .t{font-size:10px;color:var(--ink2);line-height:1.35}
+.b.off .t{color:var(--ink3)}
+.b.mangan .circle{background:rgba(220,38,38,.1);border-color:rgba(220,38,38,.35)}
+.edge{font-size:12px;color:var(--ink2);line-height:1.9;background:var(--paper);
+  border-radius:12px;padding:12px 14px;margin-top:4px}
+.edge b{color:var(--ink)}
+</style></head><body>
+
+<div class="switch">
+  <button class="on" onclick="show('spot')">寺社の詳細</button>
+  <button onclick="show('ayumi')">あゆみ</button>
+  <button onclick="show('mangan')">満願（保存直後）</button>
+  <button onclick="show('badge')">バッジ</button>
+  <button onclick="replay()">もう一度動かす</button>
+</div>
+
+<div class="phone">
+  <!-- 寺社の詳細 -->
+  <div class="screen on" id="spot">
+    <div class="statusbar"><span>9:41</span><span>●●● ▮</span></div>
+    <h1 style="font-size:22px">湯島天満宮</h1>
+    <div class="body">
+      <div class="card tsuki">
+        <div class="tshead"><span class="tstitle">月参り</span><span class="tschip">7ヶ月目</span></div>
+        <div class="tssub">毎月この神社へ。12ヶ月で満願です</div>
+        <div class="dots" id="d1"></div>
+        <div class="dlegend"><span>3月</span><span>満願</span></div>
+        <div class="tsgoal">満願まで、<b>あと5ヶ月</b>。</div>
+      </div>
+
+      <div class="card">
+        <div class="sechead"><h2>ここで授かった御朱印</h2><a>7枚</a></div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+          <div style="aspect-ratio:3/4;border-radius:8px;background:linear-gradient(168deg,#FBF7EF,#F1EADC);border:1px solid rgba(17,24,39,.1)"></div>
+          <div style="aspect-ratio:3/4;border-radius:8px;background:linear-gradient(168deg,#FBF7EF,#F1EADC);border:1px solid rgba(17,24,39,.1)"></div>
+          <div style="aspect-ratio:3/4;border-radius:8px;background:linear-gradient(168deg,#FBF7EF,#F1EADC);border:1px solid rgba(17,24,39,.1)"></div>
+        </div>
+      </div>
+
+      <div style="font-size:12px;color:var(--ink3);text-align:center;padding:4px 0 12px">
+        （下は<b style="color:var(--ink2)">途切れている神社</b>の見え方。カードは出さず、この1行だけ）
+      </div>
+      <div class="card">
+        <div class="sechead"><h2>ここで授かった御朱印</h2><a>5枚</a></div>
+        <div class="past">月参り ・ 最長 <b>7ヶ月</b></div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+          <div style="aspect-ratio:3/4;border-radius:8px;background:linear-gradient(168deg,#FBF7EF,#F1EADC);border:1px solid rgba(17,24,39,.1)"></div>
+          <div style="aspect-ratio:3/4;border-radius:8px;background:linear-gradient(168deg,#FBF7EF,#F1EADC);border:1px solid rgba(17,24,39,.1)"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- あゆみ -->
+  <div class="screen" id="ayumi">
+    <div class="statusbar"><span>9:41</span><span>●●● ▮</span></div>
+    <h1>あゆみ</h1>
+    <div class="body">
+      <div class="card" style="text-align:center;color:var(--ink3);font-size:12px;padding:26px">
+        （ここに日本地図 ／ 最近の参拝）
+      </div>
+
+      <div class="card">
+        <div class="sechead"><h2>月参り</h2><a>2社</a></div>
+        <div class="mrow">
+          <span class="mname">湯島天満宮</span>
+          <div class="mdots" id="m1"></div>
+          <span class="mleft">あと5</span>
+        </div>
+        <div class="mrow">
+          <span class="mname">大崎八幡宮</span>
+          <div class="mdots" id="m2"></div>
+          <span class="mleft">あと9</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="sechead"><h2>獲得バッジ</h2><a>すべて見る ›</a></div>
+        <div style="color:var(--ink3);font-size:12px;text-align:center;padding:10px">（略）</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 満願の瞬間（保存直後の画面の中で） -->
+  <div class="screen" id="mangan">
+    <div class="statusbar" style="color:#fff"><span>9:41</span><span>●●● ▮</span></div>
+    <div class="mcard">
+      <div class="stamp-photo rise">
+        <i class="sumi"></i><i class="seal-small"></i>
+        <div class="seal-big stamp" id="seal"></div>
+      </div>
+      <div class="count rise" style="animation-delay:.5s">34<em>枚目</em></div>
+      <div class="dots rise" style="animation-delay:.6s;width:100%" id="d3"></div>
+      <div class="msub rise" style="animation-delay:.7s">
+        <b>湯島天満宮 ・ 満願</b><br>12ヶ月、毎月おまいりしました
+      </div>
+      <div class="outside rise" style="animation-delay:.9s">
+        満願の御朱印をいただけることがあります。<br>社務所で尋ねてみてください
+      </div>
+
+      <!-- 同時に取れたバッジ。行を増やさず、横に並べる -->
+      <div class="newbadges" id="nb">
+        <div class="nb"><div class="circle">⛩</div><div class="t">満願</div></div>
+        <div class="nb"><div class="circle">🌸</div><div class="t">四季を巡る</div></div>
+        <div class="nb"><div class="circle">👣</div><div class="t">1日に3箇所</div></div>
+      </div>
+    </div>
+    <div class="actions">
+      <div class="btn p">＋ もう1枚記録する</div>
+      <div class="btn s" onclick="show('spot')">地図に戻る</div>
+    </div>
+  </div>
+
+  <!-- バッジ -->
+  <div class="screen" id="badge">
+    <div class="statusbar"><span>9:41</span><span>●●● ▮</span></div>
+    <h1 style="font-size:22px">獲得バッジ</h1>
+    <div class="body">
+      <div class="card">
+        <div class="axis">作法 <span>神社や寺に、もとからあるもの</span></div>
+        <div class="badges">
+          <div class="b mangan"><div class="circle">⛩</div><div class="t">満願</div></div>
+          <div class="b off"><div class="circle">⛩</div><div class="t">満願<br>2社</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="axis">旅のしかた <span>出かける理由を増やす</span></div>
+        <div class="badges">
+          <div class="b"><div class="circle">🌸</div><div class="t">四季を<br>巡る</div></div>
+          <div class="b"><div class="circle">👣</div><div class="t">1日に<br>3箇所</div></div>
+          <div class="b off"><div class="circle">🗾</div><div class="t">1日に<br>5箇所</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="axis">訪問数 <span>これまでどおり</span></div>
+        <div class="badges">
+          <div class="b"><div class="circle">🎊</div><div class="t">はじめての<br>御朱印</div></div>
+          <div class="b"><div class="circle">⛩️</div><div class="t">5箇所<br>達成</div></div>
+          <div class="b"><div class="circle">🏆</div><div class="t">10箇所<br>達成</div></div>
+          <div class="b off"><div class="circle">🌟</div><div class="t">30箇所<br>達成</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="hint">
+  <b>途切れたらカードは消えます</b>。「最長7ヶ月」は御朱印一覧の1行として残るだけ。<br>
+  次にその寺社で記録したら1ヶ月目から再開し、<b>2ヶ月目でカードが戻ります</b>。<br>
+  <b>満願</b>は独立した画面をやめて、<b>保存直後の続き</b>にしました。<br>
+  同時に取れたバッジは<b>横に並べて</b>ポンポンと出ます（行を増やすと縦に伸びるため）。
+</p>
+
+<script>
+function dots(el, on, next, cls) {
+  if (!el) return;
+  el.innerHTML = '';
+  for (let i = 0; i < 12; i++) {
+    const d = document.createElement('i');
+    d.className = (cls || 'd') + (i < on ? ' on' : i === on && next ? ' next' : '');
+    el.appendChild(d);
+  }
+}
+function replay() {
+  dots(document.getElementById('d1'), 0, false);
+  // 1つずつ押されていく
+  [...document.querySelectorAll('#d1 .d')].forEach((d, i) => {
+    if (i < 7) setTimeout(() => { d.classList.add('on', 'pop'); }, 120 + i * 110);
+  });
+  setTimeout(() => document.querySelectorAll('#d1 .d')[7].classList.add('next'), 120 + 7 * 110);
+  dots(document.getElementById('m1'), 7, true, 'md');
+  dots(document.getElementById('m2'), 3, true, 'md');
+  dots(document.getElementById('d3'), 12, false);
+  const seal = document.getElementById('seal');
+  if (seal) { seal.classList.remove('stamp'); void seal.offsetWidth; seal.classList.add('stamp'); }
+  document.querySelectorAll('.rise, .nb').forEach(e => { e.style.animation = 'none'; void e.offsetWidth; e.style.animation = ''; });
+}
+function show(id) {
+  ['spot', 'ayumi', 'mangan', 'badge'].forEach(s =>
+    document.getElementById(s).classList.toggle('on', s === id));
+  document.querySelectorAll('.switch button').forEach((b, i) =>
+    b.classList.toggle('on', ['spot', 'ayumi', 'mangan', 'badge'][i] === id));
+  replay();
+}
+addEventListener('DOMContentLoaded', replay);
+</script>
+</body></html>

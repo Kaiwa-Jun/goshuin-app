@@ -1,8 +1,14 @@
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
+import { AccessibilityInfo, ScrollView, StyleSheet } from 'react-native';
+import { render, fireEvent, act, within } from '@testing-library/react-native';
 
 import { CollectionScreen } from '../CollectionScreen';
+import { JapanMap } from '@components/collection/JapanMap';
+import { colors } from '@theme/colors';
 import type { CollectionStackScreenProps } from '@/navigation/types';
+
+/* react-native-svg は fill を ARGB の数値に正規化する（JapanMap.test.tsx と同じ） */
+const asPayload = (hex: string) => 0xff000000 + parseInt(hex.slice(1), 16);
 
 jest.mock('react-native-safe-area-context', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
@@ -23,29 +29,29 @@ jest.mock('@hooks/useAuth', () => ({
   useAuth: () => mockAuth,
 }));
 
-const mockRefetch = jest.fn();
-let mockWishlistSpots: unknown[] = [];
-
-jest.mock('@hooks/useWishlistSpots', () => ({
-  useWishlistSpots: () => ({
-    spots: mockWishlistSpots,
-    isLoading: false,
-    error: null,
-    refetch: mockRefetch,
-  }),
-}));
-
 let mockCollectionStats = {
   spotCount: 10,
   stampCount: 25,
   regionStats: [
-    {
-      prefecture: '宮城県',
-      visitedCount: 5,
-      totalCount: 10,
-    },
-    { prefecture: '東京都', visitedCount: 3, totalCount: 20 },
+    { prefecture: '宮城県', visitedCount: 5, stampCount: 9, totalCount: 10 },
+    { prefecture: '東京都', visitedCount: 3, stampCount: 16, totalCount: 20 },
   ],
+  recentStamps: [
+    {
+      id: 'stamp-1',
+      image_path: 'a.jpg',
+      visited_at: '2026-09-20',
+      memo: null,
+      spots: { name: '湯島天満宮', type: 'shrine' },
+    },
+  ],
+  badgeProgress: {
+    visitCount: 10,
+    longestTsukimairi: 3,
+    seasonCount: 2,
+    maxSameDayVisits: 1,
+  },
+  tsukimairi: [],
   pilgrimageProgress: [
     {
       id: 'pilgrimage-1',
@@ -80,33 +86,57 @@ jest.mock('@services/wishlist', () => ({
 }));
 
 jest.mock('@services/badges', () => ({
+  isEarned: (condition: { threshold?: number }, progress: { visitCount: number }) =>
+    progress.visitCount >= (condition.threshold ?? 0),
+  distanceOf: (condition: { threshold?: number }, progress: { visitCount: number }) => ({
+    current: progress.visitCount,
+    target: condition.threshold ?? 0,
+    unit: '箇所',
+  }),
+  // 未獲得は満願(12)と全国制覇(100)。近いのは満願
+  nearestUnearned: () => ({
+    id: 'mangan',
+    condition: { type: 'tsukimairi', threshold: 12 },
+  }),
   getAllBadges: () => [
     {
       id: 'first-stamp',
       name: '初めての御朱印',
       description: '初めての御朱印を記録しました',
-      icon: '🎊',
+      mark: 'ichi',
+      axis: 'count',
       condition: { type: 'visit_count', threshold: 1 },
     },
     {
       id: 'visit-5',
       name: '5箇所達成',
       description: '5箇所の神社仏閣を訪れました',
-      icon: '⛩️',
+      mark: 'go',
+      axis: 'count',
       condition: { type: 'visit_count', threshold: 5 },
     },
     {
       id: 'visit-10',
       name: '10箇所達成',
       description: '10箇所の神社仏閣を訪れました',
-      icon: '🏆',
+      mark: 'juu',
+      axis: 'count',
       condition: { type: 'visit_count', threshold: 10 },
+    },
+    {
+      id: 'mangan',
+      name: '満願',
+      description: 'ひとつの寺社に12ヶ月',
+      mark: 'mangan',
+      axis: 'practice',
+      condition: { type: 'tsukimairi', threshold: 12 },
     },
     {
       id: 'visit-100',
       name: '全国制覇',
       description: '100箇所の神社仏閣を訪れました',
-      icon: '👑',
+      mark: 'hyaku',
+      axis: 'count',
       condition: { type: 'visit_count', threshold: 100 },
     },
   ],
@@ -129,19 +159,32 @@ const mockRoute = {
 describe('CollectionScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // 塗り広がりは JapanMap のテストで見る。ここでは最後の状態を見たい
+    jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true as never);
     mockAuth = { user: { id: 'user-1' }, isAuthenticated: true };
-    mockWishlistSpots = [];
     mockCollectionStats = {
       spotCount: 10,
       stampCount: 25,
       regionStats: [
-        {
-          prefecture: '宮城県',
-          visitedCount: 5,
-          totalCount: 10,
-        },
-        { prefecture: '東京都', visitedCount: 3, totalCount: 20 },
+        { prefecture: '宮城県', visitedCount: 5, stampCount: 9, totalCount: 10 },
+        { prefecture: '東京都', visitedCount: 3, stampCount: 16, totalCount: 20 },
       ],
+      recentStamps: [
+        {
+          id: 'stamp-1',
+          image_path: 'a.jpg',
+          visited_at: '2026-09-20',
+          memo: null,
+          spots: { name: '湯島天満宮', type: 'shrine' },
+        },
+      ],
+      badgeProgress: {
+        visitCount: 10,
+        longestTsukimairi: 3,
+        seasonCount: 2,
+        maxSameDayVisits: 1,
+      },
+      tsukimairi: [],
       pilgrimageProgress: [
         {
           id: 'pilgrimage-1',
@@ -170,56 +213,205 @@ describe('CollectionScreen', () => {
     const { getByText } = render(
       <CollectionScreen navigation={mockNavigation} route={mockRoute} />
     );
-    expect(getByText('あつめる')).toBeTruthy();
+    expect(getByText('あゆみ')).toBeTruthy();
   });
 
-  it('統計サマリーに spotCount/stampCount が表示される', () => {
-    const { getByText } = render(
+  it('地図が出て、塗られた県の数と通算の枚数が並ぶ', async () => {
+    const { getByTestId, getAllByTestId, getByText } = render(
       <CollectionScreen navigation={mockNavigation} route={mockRoute} />
     );
-    expect(getByText('10')).toBeTruthy();
-    expect(getByText('箇所')).toBeTruthy();
+    await act(async () => {});
+
+    expect(getByTestId('ayumi-map-card')).toBeTruthy();
+    expect(getAllByTestId(/^prefecture-/)).toHaveLength(47);
+    expect(getByText('2')).toBeTruthy();
+    expect(getByText('/ 47 都道府県')).toBeTruthy();
     expect(getByText('25')).toBeTruthy();
-    expect(getByText('御朱印（枚）')).toBeTruthy();
   });
 
-  it('地域別データが地域ブロックのトグルで表示される', () => {
-    const { getByText, queryByText } = render(
+  // 色に載せる意味は枚数ひとつだけ。凡例も枚数の段にする
+  it('凡例が枚数の段になっている', async () => {
+    const { getByText, getAllByTestId } = render(
       <CollectionScreen navigation={mockNavigation} route={mockRoute} />
     );
-    expect(getByText('地域別')).toBeTruthy();
-    // 初期表示では地域ブロックヘッダーのみ
-    expect(getByText('北海道・東北')).toBeTruthy();
-    expect(getByText('関東')).toBeTruthy();
-    // 都道府県は初期表示では非表示
-    expect(queryByText('宮城県')).toBeNull();
-    // 北海道・東北を開く
-    fireEvent.press(getByText('北海道・東北'));
-    expect(getByText('宮城県')).toBeTruthy();
-    expect(getByText('5/10')).toBeTruthy();
-    // 関東を開く
-    fireEvent.press(getByText('関東'));
-    expect(getByText('東京都')).toBeTruthy();
-    expect(getByText('3/20')).toBeTruthy();
+    await act(async () => {});
+
+    expect(getByText('まだ 45')).toBeTruthy();
+    expect(getByText('1〜2枚')).toBeTruthy();
+    expect(getByText('3〜5枚')).toBeTruthy();
+    expect(getByText('6枚〜')).toBeTruthy();
+    expect(
+      getAllByTestId('ayumi-legend-swatch').map(
+        el => StyleSheet.flatten(el.props.style).backgroundColor
+      )
+    ).toEqual([
+      colors.prefectureFill.empty,
+      colors.prefectureFill.tier1,
+      colors.prefectureFill.tier2,
+      colors.prefectureFill.tier3,
+    ]);
   });
 
-  it('地域データが空の場合は空状態を表示する', () => {
+  it('「いちばん新しい」を地図に出さない', () => {
+    const { queryByText } = render(
+      <CollectionScreen navigation={mockNavigation} route={mockRoute} />
+    );
+
+    expect(queryByText('いちばん新しい')).toBeNull();
+  });
+
+  // シートではなく画面。行き止まりにしない
+  it('県をタップすると県別の画面へ進む', () => {
+    const { getByTestId } = render(
+      <CollectionScreen navigation={mockNavigation} route={mockRoute} />
+    );
+
+    fireEvent.press(getByTestId('prefecture-東京都'));
+
+    expect(mockNavigate).toHaveBeenCalledWith('PrefectureDetail', { prefecture: '東京都' });
+  });
+
+  it('最近の参拝が出て、「すべて見る」で御朱印帳へ渡す', () => {
+    const { getByTestId, getByText } = render(
+      <CollectionScreen navigation={mockNavigation} route={mockRoute} />
+    );
+
+    expect(getByTestId('recent-visits-section')).toBeTruthy();
+    expect(getByText('湯島天満宮')).toBeTruthy();
+
+    fireEvent.press(getByTestId('recent-visits-see-all'));
+
+    expect(mockParentNavigate).toHaveBeenCalledWith('GalleryTab', { screen: 'Gallery' });
+  });
+
+  it('最近の参拝が0件なら、そのセクションごと出さない', () => {
+    mockCollectionStats = { ...mockCollectionStats, recentStamps: [] };
+    const { queryByTestId } = render(
+      <CollectionScreen navigation={mockNavigation} route={mockRoute} />
+    );
+
+    expect(queryByTestId('recent-visits-section')).toBeNull();
+  });
+
+  /*
+   * 地図が地域別と同じことを県単位で見せるので、集計カードと地域別は消した。
+   * 文言が残っていると同じ数字が2箇所に出る
+   */
+  it('集計カードと地域別セクションが無い', () => {
+    const { queryByText } = render(
+      <CollectionScreen navigation={mockNavigation} route={mockRoute} />
+    );
+
+    expect(queryByText('これまでの達成')).toBeNull();
+    expect(queryByText('御朱印（枚）')).toBeNull();
+    expect(queryByText('地域別')).toBeNull();
+    expect(queryByText('北海道・東北')).toBeNull();
+  });
+
+  // 空の地図そのものが「これから塗る」の予告になる。説明文で埋めない
+  it('0件でも47県の地図を出し、説明文で埋めない', async () => {
     mockCollectionStats = { ...mockCollectionStats, regionStats: [] };
-    const { getByText } = render(
+    const { getAllByTestId, getByText, queryByText } = render(
       <CollectionScreen navigation={mockNavigation} route={mockRoute} />
     );
-    expect(getByText('御朱印を記録すると地域別の統計が表示されます')).toBeTruthy();
+    await act(async () => {});
+    expect(getAllByTestId(/^prefecture-/)).toHaveLength(47);
+    expect(getByText('まだ 47')).toBeTruthy();
+    expect(queryByText('御朱印を記録すると地域別の統計が表示されます')).toBeNull();
   });
 
   it('バッジが BADGE_DEFINITIONS に基づいて表示される', () => {
     const { getByText } = render(
       <CollectionScreen navigation={mockNavigation} route={mockRoute} />
     );
-    expect(getByText('獲得バッジ')).toBeTruthy();
+    expect(getByText('印')).toBeTruthy();
     expect(getByText('初めての御朱印')).toBeTruthy();
     expect(getByText('5箇所達成')).toBeTruthy();
     expect(getByText('10箇所達成')).toBeTruthy();
     expect(getByText('全国制覇')).toBeTruthy();
+  });
+
+  /*
+   * 訪問数だけだと物語が1本しかない。軸で分けて、性質の違いを見せる
+   */
+  it('バッジを軸ごとに分けて出す', () => {
+    const { getByTestId, getByText, queryByTestId } = render(
+      <CollectionScreen navigation={mockNavigation} route={mockRoute} />
+    );
+
+    expect(getByTestId('badge-axis-practice')).toBeTruthy();
+    expect(getByTestId('badge-axis-count')).toBeTruthy();
+    expect(getByText('作法')).toBeTruthy();
+    expect(getByText('訪問数')).toBeTruthy();
+    // 旅のしかたのバッジを1つも持っていなければ、その見出しは出さない
+    expect(queryByTestId('badge-axis-journey')).toBeNull();
+  });
+
+  // 未獲得を鍵で塞ぐと、何を目指せばいいか分からなくなる
+  it('未獲得も同じ印のまま、「まだ押されていない」色で出す', () => {
+    const { getByTestId } = render(
+      <CollectionScreen navigation={mockNavigation} route={mockRoute} />
+    );
+    const markFill = (id: string) =>
+      within(getByTestId(`badge-${id}`)).getByTestId('seal-mark').props.fill?.payload;
+
+    // 満願は未獲得。鍵に差し替えず、満願の印のまま薄く出す
+    expect(markFill('mangan')).toBe(asPayload(colors.sealEmpty));
+    expect(markFill('first-stamp')).toBe(asPayload(colors.seal));
+  });
+
+  /*
+   * 押されているかどうかが朱と灰の違いだけだと、色が見分けられない人に
+   * 伝わらない。薄い灰は白地とのコントラストも低い
+   */
+  it('押されているかを、色だけでなく読み上げでも伝える', () => {
+    const { getByTestId } = render(
+      <CollectionScreen navigation={mockNavigation} route={mockRoute} />
+    );
+
+    expect(getByTestId('badge-first-stamp').props.accessibilityLabel).toBe(
+      '初めての御朱印、獲得済み'
+    );
+    expect(getByTestId('badge-mangan').props.accessibilityLabel).toBe('満願、まだ');
+  });
+
+  /*
+   * 9個しかないのに横スクロールが3本あって、スクロールの先は
+   * 見えていないのと同じだった
+   */
+  it('印は横スクロールせず、ぜんぶ並べる', () => {
+    const { getAllByTestId, getByTestId, getByText } = render(
+      <CollectionScreen navigation={mockNavigation} route={mockRoute} />
+    );
+
+    // 軸の中に横スクロールが1つも無い（スクロールの先は見えていないのと同じ）
+    for (const axis of ['practice', 'count']) {
+      const inAxis = within(getByTestId(`badge-axis-${axis}`));
+      expect(inAxis.UNSAFE_queryAllByType(ScrollView).filter(v => v.props.horizontal)).toHaveLength(
+        0
+      );
+    }
+
+    // モックの5個ぜんぶが出ている。軸ごとの内訳も見る
+    expect(getAllByTestId(/^badge-(?!axis|remaining)/)).toHaveLength(5);
+    expect(
+      within(getByTestId('badge-axis-count')).getAllByTestId(/^badge-(?!axis|remaining)/)
+    ).toHaveLength(4);
+    expect(
+      within(getByTestId('badge-axis-practice')).getAllByTestId(/^badge-(?!axis|remaining)/)
+    ).toHaveLength(1);
+    expect(getByText('3 / 5')).toBeTruthy();
+  });
+
+  // 未獲得ぜんぶに残りを並べると、記録を見に来た画面が催促になる
+  it('「あと何回」は、いちばん近い1つにだけ出す', () => {
+    const { getAllByTestId, getByTestId, getByText } = render(
+      <CollectionScreen navigation={mockNavigation} route={mockRoute} />
+    );
+
+    expect(getAllByTestId(/^badge-remaining-/)).toHaveLength(1);
+    expect(getByTestId('badge-remaining-mangan')).toBeTruthy();
+    expect(getByText('あと2箇所')).toBeTruthy();
   });
 
   it('巡礼チャレンジセクションが表示される', () => {
@@ -262,34 +454,6 @@ describe('CollectionScreen', () => {
     expect(getByText('西国三十三所')).toBeTruthy();
   });
 
-  describe('地域カードタップでマップへの遷移', () => {
-    it('地域ブロックを開いて都道府県をタップすると MapTab へ遷移する', () => {
-      const { getByText } = render(
-        <CollectionScreen navigation={mockNavigation} route={mockRoute} />
-      );
-      // 北海道・東北を開いて宮城県をタップ
-      fireEvent.press(getByText('北海道・東北'));
-      fireEvent.press(getByText('宮城県'));
-      expect(mockParentNavigate).toHaveBeenCalledWith('MapTab', {
-        screen: 'Map',
-        params: { focusPrefecture: '宮城県' },
-      });
-    });
-
-    it('別の地域ブロックを開いて都道府県をタップすると対応する prefecture で遷移する', () => {
-      const { getByText } = render(
-        <CollectionScreen navigation={mockNavigation} route={mockRoute} />
-      );
-      // 関東を開いて東京都をタップ
-      fireEvent.press(getByText('関東'));
-      fireEvent.press(getByText('東京都'));
-      expect(mockParentNavigate).toHaveBeenCalledWith('MapTab', {
-        screen: 'Map',
-        params: { focusPrefecture: '東京都' },
-      });
-    });
-  });
-
   describe('行きたいリストの移設（Issue #123）', () => {
     it('行きたいリストの見出しが無い', () => {
       const { queryByText } = render(
@@ -299,15 +463,6 @@ describe('CollectionScreen', () => {
     });
 
     it('行きたいのカードが描画されない', () => {
-      mockWishlistSpots = [
-        {
-          id: 'wl-1',
-          user_id: 'user-1',
-          spot_id: 'spot-1',
-          created_at: '2026-01-01T00:00:00Z',
-          spots: { name: '伊勢神宮', type: 'shrine', address: '三重県伊勢市宇治館町1' },
-        },
-      ];
       const { queryByText, queryByTestId } = render(
         <CollectionScreen navigation={mockNavigation} route={mockRoute} />
       );
@@ -315,13 +470,12 @@ describe('CollectionScreen', () => {
       expect(queryByText('伊勢神宮')).toBeNull();
     });
 
-    it('獲得バッジ・巡礼チャレンジ・地域別の3セクションは残る', () => {
+    it('獲得バッジと巡礼チャレンジは残る', () => {
       const { getByText } = render(
         <CollectionScreen navigation={mockNavigation} route={mockRoute} />
       );
-      expect(getByText('獲得バッジ')).toBeTruthy();
+      expect(getByText('印')).toBeTruthy();
       expect(getByText('巡礼チャレンジ')).toBeTruthy();
-      expect(getByText('地域別')).toBeTruthy();
     });
   });
 
@@ -337,7 +491,7 @@ describe('CollectionScreen', () => {
       expect(getByTestId('collection-guest-empty-state')).toBeTruthy();
       expect(getByText('記録するとここに集計されます')).toBeTruthy();
       expect(
-        getByText('訪れた寺社の数・都道府県の埋まり方・巡礼の進捗・獲得バッジが自動でたまります')
+        getByText('訪れた寺社の数・都道府県の埋まり方・巡礼の進捗・印が自動でたまります')
       ).toBeTruthy();
     });
 
@@ -355,20 +509,26 @@ describe('CollectionScreen', () => {
         spotCount: 0,
         stampCount: 0,
         regionStats: [],
+        recentStamps: [],
+        badgeProgress: {
+          visitCount: 10,
+          longestTsukimairi: 3,
+          seasonCount: 2,
+          maxSameDayVisits: 1,
+        },
+        tsukimairi: [],
         pilgrimageProgress: [],
         isLoading: false,
         error: null,
         refetch: jest.fn(),
       };
-      mockWishlistSpots = [];
-
-      const { getByText } = render(
+      const { getByText, queryByTestId } = render(
         <CollectionScreen navigation={mockNavigation} route={mockRoute} />
       );
-      expect(getByText('これまでの達成')).toBeTruthy();
-      expect(getByText('獲得バッジ')).toBeTruthy();
+      // 未ログインでは地図を出さない（ゲストカードが受ける）
+      expect(queryByTestId('ayumi-map-card')).toBeNull();
+      expect(getByText('印')).toBeTruthy();
       expect(getByText('巡礼チャレンジに挑戦してみましょう')).toBeTruthy();
-      expect(getByText('御朱印を記録すると地域別の統計が表示されます')).toBeTruthy();
     });
   });
 
@@ -377,5 +537,41 @@ describe('CollectionScreen', () => {
       <CollectionScreen navigation={mockNavigation} route={mockRoute} />
     );
     expect(queryByTestId('collection-guest-empty-state')).toBeNull();
+  });
+});
+
+describe('地図を触っている間は画面が動かない', () => {
+  /*
+   * iOS の ScrollView はネイティブのジェスチャなので、JS 側で指を引き取っても
+   * 一緒に動く。地図から合図をもらって縦スクロールを止める。
+   * 「指が触れたら合図を出す」側は JapanMap のテストで見ている
+   */
+  it('地図からの合図で縦スクロールを止め、戻す', () => {
+    const tree = render(<CollectionScreen navigation={mockNavigation} route={mockRoute} />);
+    const map = tree.UNSAFE_getByType(JapanMap);
+
+    expect(tree.getByTestId('ayumi-scroll').props.scrollEnabled).toBe(true);
+
+    act(() => map.props.onInteraction(true));
+    expect(tree.getByTestId('ayumi-scroll').props.scrollEnabled).toBe(false);
+
+    act(() => map.props.onInteraction(false));
+    expect(tree.getByTestId('ayumi-scroll').props.scrollEnabled).toBe(true);
+  });
+});
+
+describe('上の数字が、塗り広がりに合わせて増える', () => {
+  // 数字だけ最初から最終値だと、塗り広がりと噛み合わない
+  it('地図が塗った県の数を、そのまま上に出す', () => {
+    const tree = render(<CollectionScreen navigation={mockNavigation} route={mockRoute} />);
+    const map = tree.UNSAFE_getByType(JapanMap);
+
+    act(() => map.props.onRevealed(0));
+    expect(tree.getByText('0')).toBeTruthy();
+    expect(tree.getByText('まだ 47')).toBeTruthy();
+
+    act(() => map.props.onRevealed(1));
+    expect(tree.getByText('1')).toBeTruthy();
+    expect(tree.getByText('まだ 46')).toBeTruthy();
   });
 });

@@ -2,7 +2,7 @@ import React from 'react';
 import { View, TextInput, StyleSheet, TouchableOpacity, Pressable } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { colors } from '@theme/colors';
-import { typography } from '@theme/typography';
+import { typography, singleLineInput } from '@theme/typography';
 import { borderRadius, spacing } from '@theme/spacing';
 import { shadows } from '@theme/shadows';
 
@@ -18,7 +18,18 @@ interface SearchBarProps {
   autoFocus?: boolean;
   leftIcon?: 'search' | 'back';
   onLeftIconPress?: () => void;
+  /**
+   * 'floating' は地図の上に重ねるとき用。
+   * 地図の地の色(#F2F3F0)と gray[100] の差は L* で 0.4 しかなく、
+   * 既定の見た目だと下地に沈む。白にしても地の色がほぼ白なので、
+   * 分離を作っているのは影の方（Google マップも同じ作り）。
+   * 検索画面・記録画面は白背景なので、そちらで浮かせると逆に沈む
+   */
+  variant?: 'plain' | 'floating';
 }
+
+/** 入力欄の高さ。body の lineHeight と同じにして、検索バー全体の高さを変えない */
+const INPUT_HEIGHT = typography.body.lineHeight;
 
 export const SearchBar: React.FC<SearchBarProps> = ({
   placeholder = '神社・寺院を検索',
@@ -32,7 +43,9 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   autoFocus = false,
   leftIcon = 'search',
   onLeftIconPress,
+  variant = 'plain',
 }) => {
+  const containerStyle = [styles.container, variant === 'floating' && styles.floating];
   const iconName = leftIcon === 'back' ? 'arrow-back' : 'search';
   const iconElement = onLeftIconPress ? (
     <TouchableOpacity onPress={onLeftIconPress} testID="search-left-icon" activeOpacity={0.7}>
@@ -59,7 +72,13 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         />
       </View>
       {showClearButton && (
-        <TouchableOpacity onPress={onClear} testID="search-clear-button" activeOpacity={0.7}>
+        <TouchableOpacity
+          onPress={onClear}
+          testID="search-clear-button"
+          accessibilityRole="button"
+          accessibilityLabel="検索条件をクリア"
+          activeOpacity={0.7}
+        >
           <MaterialIcons name="close" size={20} color={colors.gray[400]} />
         </TouchableOpacity>
       )}
@@ -68,14 +87,14 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 
   if (!editable && onPress) {
     return (
-      <Pressable style={styles.container} testID="search-bar" onPress={onPress}>
+      <Pressable style={containerStyle} testID="search-bar" onPress={onPress}>
         {content}
       </Pressable>
     );
   }
 
   return (
-    <View style={styles.container} testID="search-bar">
+    <View style={containerStyle} testID="search-bar">
       {content}
     </View>
   );
@@ -92,11 +111,18 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     ...shadows.sm,
   },
+  floating: {
+    backgroundColor: colors.white,
+    ...shadows.md,
+  },
   inputWrapper: {
     flex: 1,
   },
   input: {
-    ...typography.body,
+    // lineHeight を渡さない理由は singleLineInput の説明にある
+    ...singleLineInput,
+    // 枠も padding も外側のコンテナが持っているので、高さは行の高さそのまま
+    height: INPUT_HEIGHT,
     color: colors.gray[800],
     padding: 0,
   },

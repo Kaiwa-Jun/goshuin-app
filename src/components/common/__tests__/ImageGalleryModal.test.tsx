@@ -1,7 +1,8 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
-import { Image } from 'react-native';
+import { Dimensions, Image, StyleSheet } from 'react-native';
 import { ImageGalleryModal, GalleryImage } from '../ImageGalleryModal';
+import { TYPICAL_STAMP_ASPECT } from '@/constants/stampImage';
 
 jest
   .spyOn(Image, 'getSize')
@@ -101,5 +102,57 @@ describe('ImageGalleryModal', () => {
     const { getByText } = render(<ImageGalleryModal {...defaultProps} initialIndex={1} />);
     expect(getByText('2 / 3')).toBeTruthy();
     expect(getByText('2024/07/20')).toBeTruthy();
+  });
+
+  // 一覧を開いた直後に押すと、写真がまだ届いていないことがある。
+  // 白いままだと壊れて見えるので、正しい形の枠を先に出す（Issue #192）
+  describe('写真が届く前', () => {
+    it('よくある形の枠を出す', () => {
+      const { getByTestId } = render(<ImageGalleryModal {...defaultProps} />);
+
+      const height = StyleSheet.flatten(getByTestId('gallery-frame').props.style).height;
+      expect(height).toBeCloseTo(Dimensions.get('window').width / TYPICAL_STAMP_ASPECT, 1);
+    });
+
+    // スピナーは「遅い・怪しい」の記号。ふつうに届く場面で出すと不安にさせるだけ
+    it('いきなりスピナーは出さない', () => {
+      const { queryByTestId } = render(<ImageGalleryModal {...defaultProps} />);
+
+      expect(queryByTestId('gallery-image-slow')).toBeNull();
+    });
+  });
+
+  // 御朱印帳からは、一覧のタイルと1対1で繋がる動きで開く。途中で別の1枚に
+  // 移るとその結びつきが切れるので、横スワイプを外している（Issue #192）
+  describe('横に移れない設定（swipeable=false）', () => {
+    it('件数を出さない', () => {
+      const { queryByTestId } = render(<ImageGalleryModal {...defaultProps} swipeable={false} />);
+
+      expect(queryByTestId('gallery-counter')).toBeNull();
+    });
+
+    it('件数は既定では出る', () => {
+      const { getByTestId } = render(<ImageGalleryModal {...defaultProps} />);
+
+      expect(getByTestId('gallery-counter')).toBeTruthy();
+    });
+
+    // 並べるのは今の1枚だけ。隣を先に読み込まないぶん、今の1枚が早く出る
+    it('今の1枚だけを置く', () => {
+      const { getByTestId } = render(
+        <ImageGalleryModal {...defaultProps} initialIndex={1} swipeable={false} />
+      );
+
+      const strip = getByTestId('gallery-gesture-area');
+      expect(strip.props.children).toHaveLength(1);
+    });
+
+    it('指定された1枚を出す', () => {
+      const { getByText } = render(
+        <ImageGalleryModal {...defaultProps} initialIndex={1} swipeable={false} />
+      );
+
+      expect(getByText('2024/07/20')).toBeTruthy();
+    });
   });
 });

@@ -11,7 +11,7 @@ jest.mock('@services/wishlist', () => ({
   removeFromWishlist: (...args: unknown[]) => mockRemoveFromWishlist(...args),
 }));
 
-// useFocusEffect を useEffect として動作させるモック（useWishlistSpots.test と同じ）
+// useFocusEffect を useEffect として動作させるモック
 let focusCallback: (() => void) | null = null;
 jest.mock('@react-navigation/native', () => ({
   useFocusEffect: (cb: () => void) => {

@@ -79,3 +79,21 @@ describe('useOnboarding', () => {
     expect(AsyncStorage.setItem).toHaveBeenCalledWith('onboarding_completed', 'true');
   });
 });
+
+describe('resetOnboarding', () => {
+  /*
+   * 一度終えるとオンボーディングは二度と出ない。実機で見るのに
+   * アプリを入れ直すのは重すぎるので、印を消せるようにしてある（開発用）
+   */
+  it('印を消して、また出るようにする', async () => {
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue('true');
+    const { result } = renderHook(() => useOnboarding());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.isCompleted).toBe(true);
+
+    await act(() => result.current.resetOnboarding());
+
+    expect(AsyncStorage.removeItem).toHaveBeenCalledWith('onboarding_completed');
+    expect(result.current.isCompleted).toBe(false);
+  });
+});

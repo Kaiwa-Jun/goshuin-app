@@ -1,8 +1,9 @@
 import React from 'react';
-import { Alert } from 'react-native';
+import { Alert, StyleSheet } from 'react-native';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 
 import { AccountDeletionScreen } from '@screens/AccountDeletionScreen';
+import { colors } from '@theme/colors';
 
 jest.mock('react-native-safe-area-context', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
@@ -212,5 +213,23 @@ describe('AccountDeletionScreen', () => {
       screen: 'MapTab',
       params: { screen: 'Map' },
     });
+  });
+
+  /*
+   * この画面の地は backgroundGrouped。エラーの囲みを gray[100] にすると
+   * ΔE 1.7 で地に溶けて、失敗したことに気づけなくなる（実際に一度やった）
+   */
+  it('エラーの囲みが画面の地に溶けない', async () => {
+    mockDeleteAccount.mockResolvedValue({ success: false, error: new Error('失敗') });
+    const { getByTestId } = renderScreen();
+
+    fireEvent.press(getByTestId('delete-account-button'));
+    await pressDestructiveAlertButton(alertSpy);
+
+    const box = await waitFor(() => getByTestId('account-deletion-error'));
+    const fill = StyleSheet.flatten(box.props.style).backgroundColor;
+
+    expect(fill).not.toBe(colors.backgroundGrouped);
+    expect(fill).not.toBe(colors.gray[100]);
   });
 });

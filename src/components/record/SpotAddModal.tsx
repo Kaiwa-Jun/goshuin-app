@@ -5,7 +5,7 @@ import { Button } from '@components/common/Button';
 import { createSpot } from '@/services/spots';
 import type { Spot } from '@/types/supabase';
 import { colors } from '@theme/colors';
-import { typography } from '@theme/typography';
+import { typography, singleLineInput } from '@theme/typography';
 import { spacing, borderRadius } from '@theme/spacing';
 
 interface SpotAddModalProps {
@@ -91,7 +91,8 @@ export function SpotAddModal({
 
 const styles = StyleSheet.create({
   input: {
-    ...typography.body,
+    // typography.body を広げると lineHeight が付いてきて、文字が枠の下端に寄る
+    ...singleLineInput,
     color: colors.gray[800],
     borderWidth: 1,
     borderColor: colors.gray[200],

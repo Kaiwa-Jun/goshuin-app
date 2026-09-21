@@ -19,7 +19,6 @@ interface SpotSelectorProps {
   searchQuery: string;
   onSearchQueryChange: (q: string) => void;
   onSelectSpot: (spot: Spot) => void;
-  onAddSpotPress: () => void;
   error: string | null;
   /** 現在地から自動で選ばれた状態か。勝手に選ばれたことを隠さないためのラベルを出す */
   isAutoSelected?: boolean;
@@ -31,7 +30,6 @@ export function SpotSelector({
   searchQuery,
   onSearchQueryChange,
   onSelectSpot,
-  onAddSpotPress,
   error,
   isAutoSelected = false,
 }: SpotSelectorProps) {
@@ -96,6 +94,7 @@ export function SpotSelector({
                 style={styles.spotRow}
                 onPress={() => handleSelectSpot(item.spot)}
                 activeOpacity={0.7}
+                testID={`spot-option-${item.spot.id}`}
               >
                 <View style={styles.spotInfo}>
                   <Text style={styles.spotName} numberOfLines={1}>
@@ -103,6 +102,12 @@ export function SpotSelector({
                   </Text>
                   <Badge type={item.spot.type} />
                 </View>
+                {/* 同名が 27 種 60 件あり名前だけでは判別できない。行が狭いので県だけ */}
+                {item.spot.prefecture && (
+                  <Text style={styles.prefecture} numberOfLines={1}>
+                    {item.spot.prefecture}
+                  </Text>
+                )}
                 <Text style={styles.distance}>{item.distanceKm.toFixed(1)}km</Text>
               </TouchableOpacity>
             )}
@@ -112,16 +117,10 @@ export function SpotSelector({
               </View>
             }
           />
-          <TouchableOpacity
-            style={styles.addLink}
-            onPress={() => {
-              setShowDropdown(false);
-              onAddSpotPress();
-            }}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.addLinkText}>スポットが見つからない場合は追加</Text>
-          </TouchableOpacity>
+          {/* 「スポットが見つからない場合は追加」はここにあったが外した。
+              追加したスポットは status: 'pending' で入り、RLS の SELECT は
+              active しか返さないので、作った本人にも二度と出てこなかった。
+              動線の設計をやり直すまで出さない（Issue #184） */}
         </View>
       )}
     </View>
@@ -190,6 +189,13 @@ const styles = StyleSheet.create({
   spotName: {
     ...typography.body,
     color: colors.gray[800],
+    // 親の flex だけでは Text は縮まない。長い名前で県と距離を押し出さないため
+    flexShrink: 1,
+  },
+  prefecture: {
+    ...typography.bodySmall,
+    color: colors.gray[500],
+    marginLeft: spacing.sm,
   },
   distance: {
     ...typography.bodySmall,
@@ -203,15 +209,5 @@ const styles = StyleSheet.create({
   emptyText: {
     ...typography.bodySmall,
     color: colors.gray[400],
-  },
-  addLink: {
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.gray[200],
-  },
-  addLinkText: {
-    ...typography.bodySmall,
-    color: colors.primary[500],
   },
 });

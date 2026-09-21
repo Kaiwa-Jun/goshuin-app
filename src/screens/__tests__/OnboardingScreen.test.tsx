@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, fireEvent, act } from '@testing-library/react-native';
+import { render, fireEvent, act, within } from '@testing-library/react-native';
 import { OnboardingScreen } from '@screens/OnboardingScreen';
 
 jest.mock('react-native-safe-area-context', () => {
@@ -129,12 +129,31 @@ describe('OnboardingScreen', () => {
     expect(slides.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('renders onboarding icons', () => {
-    const { getAllByTestId } = render(
+  /*
+   * 色つきの角丸に MaterialIcon を載せるのをやめ、アプリの中で動いている
+   * ものをそのまま出すようにした。**4画とも別の絵**であることを見る
+   */
+  it('4画とも、アプリの実物を出す', () => {
+    const { getByTestId, queryAllByTestId } = render(
       <OnboardingScreen navigation={mockNavigation as never} route={mockRoute} />
     );
-    const icons = getAllByTestId('onboarding-icon');
-    expect(icons.length).toBeGreaterThanOrEqual(1);
+
+    expect(getByTestId('onboarding-art-map')).toBeTruthy();
+    expect(getByTestId('onboarding-art-record')).toBeTruthy();
+    expect(getByTestId('onboarding-art-seals')).toBeTruthy();
+    expect(getByTestId('onboarding-art-nearby')).toBeTruthy();
+    // 絵に差し替えたので、古いアイコンはもう無い
+    expect(queryAllByTestId('onboarding-icon')).toHaveLength(0);
+  });
+
+  // 地図は47県ぜんぶ描く。途中で止めると西日本だけ色がついた妙な絵になる
+  it('地図は47県を描く', () => {
+    const { getByTestId } = render(
+      <OnboardingScreen navigation={mockNavigation as never} route={mockRoute} />
+    );
+    // 記録の画にも地図が入っているので、1枚目のぶんだけ数える
+    const map = within(getByTestId('onboarding-art-map'));
+    expect(map.queryAllByTestId(/^onboarding-prefecture-/)).toHaveLength(47);
   });
 
   it('requests location permission when "続ける" is pressed on last slide', async () => {
