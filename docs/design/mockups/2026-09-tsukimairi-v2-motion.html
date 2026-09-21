@@ -49,7 +49,8 @@ h1{font-size:28px;font-weight:700;padding:4px 16px 12px}
 .dlegend{display:flex;justify-content:space-between;font-size:10px;color:var(--ink3)}
 .tsgoal{margin-top:13px;padding-top:12px;border-top:1px solid var(--rule);font-size:13px}
 .tsgoal b{color:var(--seal);font-weight:700}
-.tsbroke{font-size:12px;color:var(--ink2);margin-top:10px;padding-top:10px;border-top:1px solid var(--rule)}
+.past{font-size:12px;color:var(--ink2);margin:-4px 0 12px}
+.past b{color:var(--seal);font-weight:700}
 
 /* あゆみの月参り一覧 */
 .mrow{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--rule)}
@@ -67,12 +68,23 @@ h1{font-size:28px;font-weight:700;padding:4px 16px 12px}
   flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:26px 22px}
 @keyframes rise{from{opacity:0;transform:translateY(20px) scale(.95)}to{opacity:1;transform:none}}
 .rise{animation:rise .5s cubic-bezier(.2,.8,.2,1) both}
-.seal-big{width:118px;height:118px;border-radius:6px;position:relative;
-  border:5px solid var(--seal);transform:rotate(-5deg)}
+.stamp-photo{width:158px;aspect-ratio:3/4;border-radius:8px;position:relative;
+  background:linear-gradient(168deg,#FBF7EF,#F1EADC);border:1px solid rgba(17,24,39,.12);
+  box-shadow:0 12px 30px rgba(17,24,39,.25)}
+.stamp-photo .sumi{position:absolute;right:26%;top:12%;width:4px;height:58%;
+  background:#1F2937;opacity:.75;border-radius:2px}
+.stamp-photo .seal-small{position:absolute;left:18%;bottom:14%;width:22px;height:22px;
+  border:2.5px solid rgba(220,38,38,.6);border-radius:2px}
+/* 満願の朱印は、いま押されたものとして御朱印の上に重ねる */
+.seal-big{position:absolute;left:50%;top:52%;width:96px;height:96px;border-radius:5px;
+  border:5px solid var(--seal);transform:translate(-50%,-50%) rotate(-8deg)}
 .seal-big::after{content:"満願";position:absolute;inset:0;display:grid;place-items:center;
-  font-size:38px;font-weight:900;color:var(--seal);letter-spacing:2px}
-@keyframes stamp{0%{transform:rotate(-5deg) scale(2.2);opacity:0}
-  55%{transform:rotate(-5deg) scale(.92);opacity:1}100%{transform:rotate(-5deg) scale(1);opacity:1}}
+  font-size:32px;font-weight:900;color:var(--seal);letter-spacing:2px}
+.count{font-size:32px;font-weight:900}
+.count em{font-style:normal;font-size:16px;font-weight:700;margin-left:2px}
+@keyframes stamp{0%{transform:translate(-50%,-50%) rotate(-8deg) scale(2.4);opacity:0}
+  55%{transform:translate(-50%,-50%) rotate(-8deg) scale(.92);opacity:1}
+  100%{transform:translate(-50%,-50%) rotate(-8deg) scale(1);opacity:1}}
 .seal-big.stamp{animation:stamp .5s cubic-bezier(.2,.8,.2,1) both}
 .mtitle{font-size:20px;font-weight:700}
 .msub{font-size:14px;color:var(--ink2);text-align:center;line-height:1.8}
@@ -105,7 +117,7 @@ h1{font-size:28px;font-weight:700;padding:4px 16px 12px}
 <div class="switch">
   <button class="on" onclick="show('spot')">寺社の詳細</button>
   <button onclick="show('ayumi')">あゆみ</button>
-  <button onclick="show('mangan')">満願の瞬間</button>
+  <button onclick="show('mangan')">満願（保存直後）</button>
   <button onclick="show('badge')">バッジ</button>
   <button onclick="replay()">もう一度動かす</button>
 </div>
@@ -124,18 +136,22 @@ h1{font-size:28px;font-weight:700;padding:4px 16px 12px}
         <div class="tsgoal">満願まで、<b>あと5ヶ月</b>。</div>
       </div>
 
-      <div class="card tsuki" style="border-top-color:var(--ink3)">
-        <div class="tshead"><span class="tstitle">月参り</span><span class="tschip" style="color:var(--ink2);background:var(--paper)">1ヶ月目</span></div>
-        <div class="tssub">毎月この神社へ。12ヶ月で満願です</div>
-        <div class="dots" id="d2"></div>
-        <div class="dlegend"><span>9月</span><span>満願</span></div>
-        <div class="tsbroke">これまでの最長は <b>7ヶ月</b>。記録は残っています</div>
-      </div>
-
       <div class="card">
         <div class="sechead"><h2>ここで授かった御朱印</h2><a>7枚</a></div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
           <div style="aspect-ratio:3/4;border-radius:8px;background:linear-gradient(168deg,#FBF7EF,#F1EADC);border:1px solid rgba(17,24,39,.1)"></div>
+          <div style="aspect-ratio:3/4;border-radius:8px;background:linear-gradient(168deg,#FBF7EF,#F1EADC);border:1px solid rgba(17,24,39,.1)"></div>
+          <div style="aspect-ratio:3/4;border-radius:8px;background:linear-gradient(168deg,#FBF7EF,#F1EADC);border:1px solid rgba(17,24,39,.1)"></div>
+        </div>
+      </div>
+
+      <div style="font-size:12px;color:var(--ink3);text-align:center;padding:4px 0 12px">
+        （下は<b style="color:var(--ink2)">途切れている神社</b>の見え方。カードは出さず、この1行だけ）
+      </div>
+      <div class="card">
+        <div class="sechead"><h2>ここで授かった御朱印</h2><a>5枚</a></div>
+        <div class="past">月参り ・ 最長 <b>7ヶ月</b></div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
           <div style="aspect-ratio:3/4;border-radius:8px;background:linear-gradient(168deg,#FBF7EF,#F1EADC);border:1px solid rgba(17,24,39,.1)"></div>
           <div style="aspect-ratio:3/4;border-radius:8px;background:linear-gradient(168deg,#FBF7EF,#F1EADC);border:1px solid rgba(17,24,39,.1)"></div>
         </div>
@@ -173,23 +189,26 @@ h1{font-size:28px;font-weight:700;padding:4px 16px 12px}
     </div>
   </div>
 
-  <!-- 満願の瞬間 -->
+  <!-- 満願の瞬間（保存直後の画面の中で） -->
   <div class="screen" id="mangan">
     <div class="statusbar" style="color:#fff"><span>9:41</span><span>●●● ▮</span></div>
     <div class="mcard">
-      <div class="seal-big stamp" id="seal"></div>
-      <div class="mtitle rise" style="animation-delay:.4s">湯島天満宮 ・ 満願</div>
-      <div class="dots rise" style="animation-delay:.5s;width:100%" id="d3"></div>
-      <div class="msub rise" style="animation-delay:.6s">
-        12ヶ月、毎月おまいりしました。<br><b>3月から、ひと巡り。</b>
+      <div class="stamp-photo rise">
+        <i class="sumi"></i><i class="seal-small"></i>
+        <div class="seal-big stamp" id="seal"></div>
       </div>
-      <div class="outside rise" style="animation-delay:.8s">
+      <div class="count rise" style="animation-delay:.5s">34<em>枚目</em></div>
+      <div class="dots rise" style="animation-delay:.6s;width:100%" id="d3"></div>
+      <div class="msub rise" style="animation-delay:.7s">
+        <b>湯島天満宮 ・ 満願</b><br>12ヶ月、毎月おまいりしました
+      </div>
+      <div class="outside rise" style="animation-delay:.9s">
         満願の御朱印をいただけることがあります。<br>社務所で尋ねてみてください
       </div>
     </div>
     <div class="actions">
-      <div class="btn p">御朱印を見る</div>
-      <div class="btn s" onclick="show('spot')">閉じる</div>
+      <div class="btn p">＋ もう1枚記録する</div>
+      <div class="btn s" onclick="show('spot')">地図に戻る</div>
     </div>
   </div>
 
@@ -211,13 +230,7 @@ h1{font-size:28px;font-weight:700;padding:4px 16px 12px}
         <div class="badges">
           <div class="b"><div class="circle">🌸</div><div class="t">四季を<br>巡る</div></div>
           <div class="b"><div class="circle">👣</div><div class="t">1日に<br>3箇所</div></div>
-          <div class="b off"><div class="circle">🧭</div><div class="t">南北<br>500km</div></div>
           <div class="b off"><div class="circle">🗾</div><div class="t">1日に<br>5箇所</div></div>
-        </div>
-        <div class="edge">
-          いちばん北は <b>大崎八幡宮</b>（宮城県）<br>
-          いちばん南は <b>八坂神社</b>（京都府）<br>
-          その差 <b>306km</b>
         </div>
       </div>
 
@@ -235,13 +248,14 @@ h1{font-size:28px;font-weight:700;padding:4px 16px 12px}
 </div>
 
 <p class="hint">
-  <b>寺社の詳細</b>には2枚出しています。上が7ヶ月続いている神社、下が<b>途切れた神社</b>。<br>
-  途切れても責めず、「最長7ヶ月」を残します。次の丸は<b>破線</b>で開いたまま置くだけ。<br>
-  <b>あゆみ</b>に一覧があるので、その寺社を開かなくても気づけます。
+  <b>途切れたらカードは消えます</b>。「最長7ヶ月」は御朱印一覧の1行として残るだけ。<br>
+  次にその寺社で記録したら1ヶ月目から再開し、<b>2ヶ月目でカードが戻ります</b>。<br>
+  <b>満願</b>は独立した画面をやめて、<b>保存直後の続き</b>にしました。
 </p>
 
 <script>
 function dots(el, on, next, cls) {
+  if (!el) return;
   el.innerHTML = '';
   for (let i = 0; i < 12; i++) {
     const d = document.createElement('i');
@@ -251,18 +265,16 @@ function dots(el, on, next, cls) {
 }
 function replay() {
   dots(document.getElementById('d1'), 0, false);
-  dots(document.getElementById('d2'), 0, false);
   // 1つずつ押されていく
   [...document.querySelectorAll('#d1 .d')].forEach((d, i) => {
     if (i < 7) setTimeout(() => { d.classList.add('on', 'pop'); }, 120 + i * 110);
   });
   setTimeout(() => document.querySelectorAll('#d1 .d')[7].classList.add('next'), 120 + 7 * 110);
-  dots(document.getElementById('d2'), 1, true);
   dots(document.getElementById('m1'), 7, true, 'md');
   dots(document.getElementById('m2'), 3, true, 'md');
   dots(document.getElementById('d3'), 12, false);
   const seal = document.getElementById('seal');
-  seal.classList.remove('stamp'); void seal.offsetWidth; seal.classList.add('stamp');
+  if (seal) { seal.classList.remove('stamp'); void seal.offsetWidth; seal.classList.add('stamp'); }
   document.querySelectorAll('.rise').forEach(e => { e.style.animation = 'none'; void e.offsetWidth; e.style.animation = ''; });
 }
 function show(id) {
