@@ -203,17 +203,11 @@ describe('CollectionScreen', () => {
     expect(queryByText('いちばん新しい')).toBeNull();
   });
 
-  /*
-   * 1回目は寄るだけ、2回目で選ぶ。全体表示のままでは東京や大阪が指より
-   * 小さいので、1回目を大雑把に押せるようにしてある
-   */
-  it('寄ってから県をタップすると、県別の画面へ進む', () => {
+  // シートではなく画面。行き止まりにしない
+  it('県をタップすると県別の画面へ進む', () => {
     const { getByTestId } = render(
       <CollectionScreen navigation={mockNavigation} route={mockRoute} />
     );
-
-    fireEvent.press(getByTestId('prefecture-東京都'));
-    expect(mockNavigate).not.toHaveBeenCalledWith('PrefectureDetail', expect.anything());
 
     fireEvent.press(getByTestId('prefecture-東京都'));
 

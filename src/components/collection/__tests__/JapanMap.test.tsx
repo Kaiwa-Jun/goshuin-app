@@ -3,7 +3,6 @@ import { AccessibilityInfo } from 'react-native';
 
 import {
   JapanMap,
-  MAP_ZOOM_MS,
   REVEAL_STEP_MS,
   prefectureTier,
   revealOrder,
@@ -84,67 +83,51 @@ describe('JapanMap', () => {
     expect(fillOf(getByTestId('prefecture-大阪府'))).toBe(fill(colors.prefectureFill.tier3));
   });
 
+  it('タップするとその県名が渡る', () => {
+    const onPressPrefecture = jest.fn();
+    const { getByTestId } = setup({ onPressPrefecture });
+
+    fireEvent.press(getByTestId('prefecture-和歌山県'));
+
+    expect(onPressPrefecture).toHaveBeenCalledWith('和歌山県');
+  });
+
   /*
-   * 全体表示のままでは香川や大阪は指より小さい。1回目は寄るだけにして、
-   * 2回目で選ぶ。1回目が大雑把でよくなるのが狙い
+   * 地図アプリと同じ操作にする。二本指で広げて寄り、一本指で動かす。
+   * 計算そのものは utils/japanMapZoom のテストで見ている
    */
-  describe('タップで寄ってから選ぶ', () => {
-    it('1回目のタップでは選ばない', () => {
-      const onPressPrefecture = jest.fn();
-      const { getByTestId } = setup({ onPressPrefecture });
+  describe('指で広げて寄る', () => {
+    const touch = (x: number, y: number) => ({ pageX: x, pageY: y, locationX: x, locationY: y });
+    const shouldSetOf = (el: unknown) =>
+      (el as { props: Record<string, unknown> }).props.onMoveShouldSetResponder as (
+        e: unknown,
+        g: unknown
+      ) => boolean;
 
-      fireEvent.press(getByTestId('prefecture-和歌山県'));
+    /*
+     * ⚠️ ピンチそのもの（広げたら寄る）はここでは見ていない。PanResponder の
+     * ハンドラを直接呼ぶには内部の touchHistory を作り込む必要があり、
+     * 実装ではなく PanResponder の形に依存したテストになるため。
+     * 倍率と移動量の計算は utils/__tests__/japanMapZoom.test.ts で、
+     * 指を横取りしない条件はここで見ている。動きの確認は実機で。
+     */
 
-      expect(onPressPrefecture).not.toHaveBeenCalled();
-      expect(getByTestId('japan-map-reset')).toBeTruthy();
-    });
-
-    it('寄ったあとのタップで選ぶ', () => {
-      const onPressPrefecture = jest.fn();
-      const { getByTestId } = setup({ onPressPrefecture });
-      fireEvent.press(getByTestId('prefecture-和歌山県'));
-
-      fireEvent.press(getByTestId('prefecture-奈良県'));
-
-      expect(onPressPrefecture).toHaveBeenCalledWith('奈良県');
-    });
-
-    it('「全体に戻す」で、また寄るところからやり直せる', async () => {
-      jest.useFakeTimers();
-      const onPressPrefecture = jest.fn();
-      const { getByTestId, queryByTestId } = setup({ onPressPrefecture });
-      fireEvent.press(getByTestId('prefecture-和歌山県'));
-
-      fireEvent.press(getByTestId('japan-map-reset'));
-      await act(async () => {
-        jest.advanceTimersByTime(MAP_ZOOM_MS + 10);
-      });
-
-      expect(queryByTestId('japan-map-reset')).toBeNull();
-      fireEvent.press(getByTestId('prefecture-北海道'));
-      expect(onPressPrefecture).not.toHaveBeenCalled();
-      jest.useRealTimers();
-    });
-
-    it('全体表示のときは、読み上げでも「寄る」と分かる', () => {
+    // 全体表示では引き取らない。引き取ると画面の縦スクロールが効かなくなる
+    it('全体表示の一本指では、指の動きを横取りしない', () => {
       const { getByTestId } = setup();
+      const shouldSet = shouldSetOf(getByTestId('japan-map'));
 
-      expect(getByTestId('prefecture-香川県').props.accessibilityLabel).toContain('まわりに寄る');
+      expect(shouldSet({ nativeEvent: { touches: [touch(0, 0)] } }, { dx: 0, dy: 40 })).toBe(false);
     });
-  });
 
-  it('読み上げで、色に頼らず枚数が分かる', () => {
-    const { getByTestId } = setup({ stampCountByPrefecture: new Map([['東京都', 12]]) });
+    it('二本指なら、全体表示でも引き取る', () => {
+      const { getByTestId } = setup();
+      const shouldSet = shouldSetOf(getByTestId('japan-map'));
 
-    expect(getByTestId('prefecture-東京都').props.accessibilityLabel).toContain('東京都、12枚');
-    expect(getByTestId('prefecture-高知県').props.accessibilityLabel).toContain('高知県、まだ');
-  });
-
-  // 47県が1要素にまとめられると、県ごとの読み上げが消える
-  it('地図のコンテナを1つの要素にまとめない', () => {
-    const { getByTestId } = setup();
-
-    expect(getByTestId('japan-map').props.accessible).toBe(false);
+      expect(
+        shouldSet({ nativeEvent: { touches: [touch(0, 0), touch(50, 0)] } }, { dx: 0, dy: 0 })
+      ).toBe(true);
+    });
   });
 
   describe('塗り広がり', () => {

@@ -3,6 +3,7 @@ import {
   AccessibilityInfo,
   Animated,
   Easing,
+  PanResponder,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -20,12 +21,14 @@ import {
 import { colors } from '@theme/colors';
 import { borderRadius, spacing } from '@theme/spacing';
 import { typography } from '@theme/typography';
-import { zoomToPrefecture } from '@utils/japanMapZoom';
+import { clampPan, panForPinch, pinchScale, touchDistance, type Pan } from '@utils/japanMapZoom';
 
 /** 1県が塗られてから次の県までの間 */
 export const REVEAL_STEP_MS = 90;
-/** 寄る・戻るの長さ */
+/** 全体に戻すときの長さ */
 export const MAP_ZOOM_MS = 380;
+/** これ以上なら「寄っている」とみなす */
+const ZOOMED_AT = 1.01;
 
 export type PrefectureTier = 'empty' | 'tier1' | 'tier2' | 'tier3';
 
@@ -56,7 +59,7 @@ interface Props {
   onPressPrefecture: (prefecture: string) => void;
   /** 塗り広がりを見せるか。データが変わったときだけ true にする */
   animate?: boolean;
-  /** 地図を描く幅。寄りの計算に要る */
+  /** 地図を描く幅。指で動かす計算に実寸が要る */
   width: number;
 }
 
@@ -65,6 +68,11 @@ interface Props {
  *
  * **色に載せる意味は枚数ひとつだけ**。「いちばん新しい」は載せない
  * （docs/design/2026-09-ayumi-map-spec.md §0）。
+ *
+ * 操作は地図アプリと同じで、**二本指で広げて寄り、一本指で動かし、タップで選ぶ**。
+ * react-native-gesture-handler は入れない。PanResponder は指の本数も座標も
+ * 持っているので、二本指の距離からピンチを組める。依存を増やすと dev build の
+ * 焼き直しがもう1回要る。
  */
 export function JapanMap({
   stampCountByPrefecture,
@@ -74,60 +82,6 @@ export function JapanMap({
 }: Props) {
   const height = (width * JAPAN_MAP_HEIGHT) / JAPAN_MAP_WIDTH;
 
-  /*
-   * 全体表示のままでは、香川や大阪は指より小さい。
-   *
-   * 1回目のタップは**寄るだけ**にして、2回目で選ぶ。こうすると1回目は
-   * 大雑把でよくなる ── 東京を狙って神奈川に当たっても関東に寄るので、
-   * そのあと正確に押せる。
-   */
-  const [zoomedAt, setZoomedAt] = useState<string | null>(null);
-  const zoom = useRef(new Animated.Value(0)).current;
-  const zooming = useRef<Animated.CompositeAnimation | null>(null);
-  const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const target = useMemo(
-    () => (zoomedAt ? zoomToPrefecture(zoomedAt, width) : null),
-    [zoomedAt, width]
-  );
-
-  const animateZoom = useCallback(
-    (toValue: number) => {
-      zooming.current?.stop();
-      zooming.current = Animated.timing(zoom, {
-        toValue,
-        duration: MAP_ZOOM_MS,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      });
-      zooming.current.start();
-    },
-    [zoom]
-  );
-
-  // 画面から外れたら止める。動いたままにするとタイマーが生き残る
-  useEffect(
-    () => () => {
-      zooming.current?.stop();
-      if (resetTimer.current) clearTimeout(resetTimer.current);
-    },
-    []
-  );
-
-  const handlePress = (prefecture: string) => {
-    if (zoomedAt === null) {
-      setZoomedAt(prefecture);
-      zoom.setValue(0);
-      animateZoom(1);
-      return;
-    }
-    onPressPrefecture(prefecture);
-  };
-
-  const resetZoom = () => {
-    animateZoom(0);
-    if (resetTimer.current) clearTimeout(resetTimer.current);
-    resetTimer.current = setTimeout(() => setZoomedAt(null), MAP_ZOOM_MS);
-  };
   const visited = useMemo(
     () => JAPAN_PREFECTURE_NAMES.filter(name => (stampCountByPrefecture.get(name) ?? 0) > 0),
     [stampCountByPrefecture]
@@ -170,27 +124,111 @@ export function JapanMap({
     };
   }, [animate, order]);
 
-  const shown = new Set(order.slice(0, revealed));
+  const [zoomed, setZoomed] = useState(false);
+  const scale = useRef(new Animated.Value(1)).current;
+  const pan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
+  /** いまの値。ジェスチャの途中で読むので Animated とは別に持つ */
+  const now = useRef<{ scale: number; pan: Pan }>({ scale: 1, pan: { x: 0, y: 0 } });
+  const start = useRef<{ distance: number; scale: number; pan: Pan }>({
+    distance: 0,
+    scale: 1,
+    pan: { x: 0, y: 0 },
+  });
+  const resetting = useRef<Animated.CompositeAnimation | null>(null);
 
-  const zoomStyle = target
-    ? {
-        transform: [
-          {
-            translateX: zoom.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, target.translateX],
-            }),
-          },
-          {
-            translateY: zoom.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, target.translateY],
-            }),
-          },
-          { scale: zoom.interpolate({ inputRange: [0, 1], outputRange: [1, target.scale] }) },
-        ],
-      }
-    : undefined;
+  const apply = useCallback(
+    (nextScale: number, nextPan: Pan) => {
+      const limited = clampPan(nextScale, nextPan, width, height);
+      now.current = { scale: nextScale, pan: limited };
+      scale.setValue(nextScale);
+      pan.setValue(limited);
+      setZoomed(nextScale > ZOOMED_AT);
+    },
+    [height, pan, scale, width]
+  );
+
+  const responder = useMemo(
+    () =>
+      PanResponder.create({
+        // タップは下の県に通す。動いたとき・二本指のときだけ引き取る
+        onStartShouldSetPanResponder: () => false,
+        onMoveShouldSetPanResponder: (event, gesture) =>
+          event.nativeEvent.touches.length >= 2 ||
+          (now.current.scale > ZOOMED_AT && Math.hypot(gesture.dx, gesture.dy) > 4),
+        onPanResponderGrant: event => {
+          resetting.current?.stop();
+          start.current = {
+            distance: touchDistance(event.nativeEvent.touches),
+            scale: now.current.scale,
+            pan: now.current.pan,
+          };
+        },
+        onPanResponderMove: (event, gesture) => {
+          const touches = event.nativeEvent.touches;
+
+          if (touches.length >= 2) {
+            const distance = touchDistance(touches);
+            // 一本指から二本指に増えた瞬間は、その距離を基準にし直す
+            if (start.current.distance <= 0) {
+              start.current = {
+                ...start.current,
+                distance,
+                scale: now.current.scale,
+                pan: now.current.pan,
+              };
+              return;
+            }
+            const next = pinchScale(start.current.scale, start.current.distance, distance);
+            const focus = {
+              x: (touches[0].locationX + touches[1].locationX) / 2,
+              y: (touches[0].locationY + touches[1].locationY) / 2,
+            };
+            apply(
+              next,
+              panForPinch(start.current.pan, focus, start.current.scale, next, width, height)
+            );
+            return;
+          }
+
+          // 一本指は移動。全体表示では引き取らないので、縦スクロールを邪魔しない
+          apply(now.current.scale, {
+            x: start.current.pan.x + gesture.dx,
+            y: start.current.pan.y + gesture.dy,
+          });
+        },
+        onPanResponderRelease: () => {
+          start.current.distance = 0;
+        },
+      }),
+    [apply, height, width]
+  );
+
+  const resetZoom = useCallback(() => {
+    resetting.current?.stop();
+    resetting.current = Animated.parallel([
+      Animated.timing(scale, {
+        toValue: 1,
+        duration: MAP_ZOOM_MS,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(pan, {
+        toValue: { x: 0, y: 0 },
+        duration: MAP_ZOOM_MS,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]);
+    resetting.current.start(() => {
+      now.current = { scale: 1, pan: { x: 0, y: 0 } };
+      setZoomed(false);
+    });
+  }, [pan, scale]);
+
+  // 画面から外れたら止める。動いたままにするとタイマーが生き残る
+  useEffect(() => () => resetting.current?.stop(), []);
+
+  const shown = new Set(order.slice(0, revealed));
 
   return (
     <View
@@ -198,8 +236,11 @@ export function JapanMap({
       accessibilityLabel={`47都道府県のうち${visited.length}県`}
       testID="japan-map"
       style={[styles.window, { width, height }]}
+      {...responder.panHandlers}
     >
-      <Animated.View style={zoomStyle}>
+      <Animated.View
+        style={{ transform: [{ translateX: pan.x }, { translateY: pan.y }, { scale }] }}
+      >
         <Svg viewBox={`0 0 ${JAPAN_MAP_WIDTH} ${JAPAN_MAP_HEIGHT}`} width={width} height={height}>
           {JAPAN_PREFECTURE_NAMES.map(name => {
             const stampCount = stampCountByPrefecture.get(name) ?? 0;
@@ -212,19 +253,16 @@ export function JapanMap({
                 fill={colors.prefectureFill[tier]}
                 stroke={colors.prefectureFill.border}
                 strokeWidth={2}
-                onPress={() => handlePress(name)}
+                onPress={() => onPressPrefecture(name)}
                 accessible
-                accessibilityLabel={
-                  (stampCount > 0 ? `${name}、${stampCount}枚` : `${name}、まだ`) +
-                  (zoomedAt === null ? '。まわりに寄る' : '')
-                }
+                accessibilityLabel={stampCount > 0 ? `${name}、${stampCount}枚` : `${name}、まだ`}
               />
             );
           })}
         </Svg>
       </Animated.View>
 
-      {zoomedAt !== null && (
+      {zoomed && (
         <TouchableOpacity
           style={styles.reset}
           onPress={resetZoom}

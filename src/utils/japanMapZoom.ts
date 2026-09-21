@@ -39,3 +39,67 @@ export function zoomToPrefecture(prefecture: string, width: number): MapZoom {
     translateY: clamp(-scale * (py - height / 2), -limitY, limitY),
   };
 }
+
+/** 指で広げられる上限。これ以上寄っても県の形が粗くなるだけ */
+export const MAX_SCALE = 8;
+
+export interface Pan {
+  x: number;
+  y: number;
+}
+
+/**
+ * 拡大した地図が枠を覆ったままになるよう、移動量を頭打ちにする。
+ *
+ * 押さえないと、指で動かしたときに地図の外の地が見えて「落ちた」ように見える。
+ */
+export function clampPan(scale: number, pan: Pan, width: number, height: number): Pan {
+  const limitX = ((scale - 1) * width) / 2;
+  const limitY = ((scale - 1) * height) / 2;
+
+  return {
+    x: clamp(pan.x, -limitX, limitX),
+    y: clamp(pan.y, -limitY, limitY),
+  };
+}
+
+/** 2本指の間の距離。ピンチの倍率のもと */
+export function touchDistance(touches: { pageX: number; pageY: number }[]): number {
+  if (touches.length < 2) return 0;
+  return Math.hypot(touches[0].pageX - touches[1].pageX, touches[0].pageY - touches[1].pageY);
+}
+
+/**
+ * ピンチ後の倍率。
+ *
+ * 全体より小さくは縮めない（1 が下限）。地図が枠より小さくなると、
+ * 端に地が見えて収まりが悪くなる。
+ */
+export function pinchScale(baseScale: number, startDistance: number, distance: number): number {
+  if (startDistance <= 0) return baseScale;
+  return clamp((baseScale * distance) / startDistance, 1, MAX_SCALE);
+}
+
+/**
+ * 指で広げた分だけ、つまんだ場所を軸に寄る。
+ *
+ * 枠の中心を軸に拡大されるので、つまんだ点が動かないように移動量を補正する。
+ * これをしないと、端をつまんでも真ん中に寄っていって気持ち悪い。
+ */
+export function panForPinch(
+  pan: Pan,
+  focus: Pan,
+  fromScale: number,
+  toScale: number,
+  width: number,
+  height: number
+): Pan {
+  const ratio = toScale / fromScale;
+  const cx = width / 2;
+  const cy = height / 2;
+
+  return {
+    x: focus.x - cx - ratio * (focus.x - cx - pan.x),
+    y: focus.y - cy - ratio * (focus.y - cy - pan.y),
+  };
+}
