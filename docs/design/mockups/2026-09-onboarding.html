@@ -44,10 +44,10 @@ h2{font-size:25px;font-weight:700;color:var(--ink);text-align:center;margin-top:
 .counter .u{font-size:14px;color:var(--ink3);font-weight:700}
 
 /* 2. 写真1枚 → ピン */
-.shot{width:168px;height:224px;border-radius:14px;background:#EFEAE0;display:flex;
-  align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,0,0,.18);
-  font-family:"Hiragino Mincho ProN",serif;font-size:46px;color:#3C3226;opacity:0;
-  transform:translateY(24px) scale(.94)}
+.shot{width:168px;height:224px;border-radius:14px;overflow:hidden;
+  box-shadow:0 8px 24px rgba(0,0,0,.18);opacity:0;transform:translateY(24px) scale(.94)}
+.shot .goshuin-svg{width:100%;height:100%;display:block}
+:root{--sumi:#2B2622;--washi:#EFEAE0}
 .shot.go{animation:shotIn .55s cubic-bezier(.2,.9,.3,1.1) both}
 @keyframes shotIn{from{opacity:0;transform:translateY(24px) scale(.94)}to{opacity:1;transform:none}}
 /* 退場は別のアニメーションで。style で opacity をいじっても
@@ -162,6 +162,98 @@ const pin = (size,color)=>`<svg width="${size}" height="${size*1.3}" viewBox="0 
   <path d="M12 0C5.4 0 0 5.4 0 12c0 8.4 12 19 12 19s12-10.6 12-19C24 5.4 18.6 0 12 0z" fill="${color}"/>
   <circle cx="12" cy="12" r="4.6" fill="#fff"/></svg>`;
 
+/* ─── 御朱印（2026-09-goshuin-art.html から。墨は読める字ではない） ─── */
+/**
+ * 筆の線。**直線の台形では筆に見えない**（最初そうして十字架になった）。
+ * 三次ベジェを刻んで、接線の法線方向に太さを振りながら閉じた形にする。
+ * 太さは入りで最大、抜きへ向かって細る
+ */
+function nib(p0,p1,p2,p3, wIn, wOut, N=26){
+  const at = t => {
+    const u = 1-t;
+    return [ u*u*u*p0[0] + 3*u*u*t*p1[0] + 3*u*t*t*p2[0] + t*t*t*p3[0],
+             u*u*u*p0[1] + 3*u*u*t*p1[1] + 3*u*t*t*p2[1] + t*t*t*p3[1] ];
+  };
+  const tan = t => {
+    const u = 1-t;
+    return [ 3*u*u*(p1[0]-p0[0]) + 6*u*t*(p2[0]-p1[0]) + 3*t*t*(p3[0]-p2[0]),
+             3*u*u*(p1[1]-p0[1]) + 6*u*t*(p2[1]-p1[1]) + 3*t*t*(p3[1]-p2[1]) ];
+  };
+  // 入りで少し膨らんで、抜きへ細る
+  const width = t => wOut + (wIn - wOut) * Math.pow(1 - t, 0.75);
+  const L = [], R = [];
+  for (let i=0;i<=N;i++){
+    const t = i/N, [x,y] = at(t), [dx,dy] = tan(t);
+    const len = Math.hypot(dx,dy) || 1;
+    const nx = -dy/len, ny = dx/len, w = width(t)/2;
+    L.push([x+nx*w, y+ny*w]);
+    R.push([x-nx*w, y-ny*w]);
+  }
+  const pt = ([x,y]) => `${x.toFixed(1)} ${y.toFixed(1)}`;
+  return `<path d="M${pt(L[0])} ${L.slice(1).map(q=>'L'+pt(q)).join('')}`
+       + `${R.reverse().map(q=>'L'+pt(q)).join('')} Z"/>`;
+}
+
+/** 短い点。打ち込みだけの画 */
+const tick = (x,y,dx,dy,w) => nib([x,y],[x+dx*0.3,y+dy*0.3],[x+dx*0.7,y+dy*0.7],[x+dx,y+dy], w, w*0.45, 10);
+
+/*
+ * 墨書。**読める字にはしない**。
+ * 中央は寺社の名前が入る場所で、そこに読める字を置くと
+ * 存在しない寺社の名前を私が捏造することになる。
+ *
+ * 草書に寄せて、長く曲げて抜く運びにする。縦横の画で組むと
+ * 一文字の楷書に見えてしまい、名前を書いたように読めてしまう
+ */
+function goSumi(){
+  const g = [];
+
+  /*
+   * 右の列（奉拝の位置）。速い運筆として、短い画を斜めに崩す。
+   * 縦横をそろえると小さな楷書の字に見えてしまう
+   */
+  g.push(nib([195,38],[209,42],[199,45],[215,44], 3.2, 3.6));
+  g.push(nib([207,43],[198,55],[209,60],[200,70], 4.4, 1.8));
+  g.push(nib([197,80],[212,84],[201,87],[216,86], 3.0, 3.4));
+  g.push(nib([209,85],[201,98],[212,103],[203,113], 4.2, 1.7));
+
+  /*
+   * 中央。**画を減らす**。等間隔の縦横を重ねると格子（井）に見えたので、
+   * 長さも角度もばらばらな運びを4つだけ。朱印が主役で墨は少ない、
+   * という実際の御朱印の配分にも合う
+   */
+  g.push(nib([118, 58],[136,108],[ 98,158],[110,246], 13.0, 3.4));
+  g.push(nib([ 88, 92],[124, 78],[146,112],[172,102],  8.5, 2.8));
+  g.push(nib([152,138],[140,176],[126,182],[104,218],  9.0, 2.6));
+  g.push(tick(156, 76, 9, 16, 5.0));
+
+  // 左の列（日付の位置）。細かい画を縦に
+  for (let i=0;i<4;i++){
+    g.push(tick(38, 72+i*30, 12, 3, 2.8));
+    g.push(nib([44,78+i*30],[47,86+i*30],[42,92+i*30],[46,98+i*30], 3.0, 1.6));
+  }
+  return `<g fill="var(--sumi)" opacity=".92">${g.join('')}</g>`;
+}
+
+function goshuinSvg(){
+  return `<svg class="goshuin-svg" viewBox="0 0 240 320">
+    <rect width="240" height="320" fill="var(--washi)"/>
+    <!-- 紙の陰影。刷毛目のような縦のむら -->
+    <g opacity=".025" fill="#6B5B4A">
+      ${Array.from({length:22},(_,i)=>`<rect x="${(i*11.4).toFixed(1)}" y="0" width="${(1.4+(i%5)*0.9).toFixed(1)}" height="320"/>`).join('')}
+    </g>
+    ${goSumi()}
+    ${goStamp(66, 150, 108, -6, ring(25.5,6.6,0))}
+    ${goStamp(190, 24, 36, 5, ring(25.5,7.6,0))}
+  </svg>`;
+}
+
+
+/** 朱印をその位置に押す。アプリの Seal.tsx と同じ彫り */
+const goStamp = (x,y,size,rot,mark)=>`<g transform="translate(${x} ${y}) rotate(${rot} ${size/2} ${size/2}) scale(${size/100})"
+    fill="var(--seal)" opacity=".88">
+  <path fill-rule="evenodd" d="${SEAL_FRAME}"/><g>${mark}</g></g>`;
+
 const SLIDES = [
   { title:'集めるたび、<br>地図があなたの旅になる。',
     sub:'訪れた県が濃くなっていきます',
@@ -182,7 +274,7 @@ const SLIDES = [
 
   { title:'写真を1枚。<br>それだけ。',
     sub:'撮ると、地図にピンが刺さります',
-    art:()=>`<div class="shot" id="shot">奉拝</div>
+    art:()=>`<div class="shot" id="shot">${goshuinSvg()}</div>
       <div class="minimap" id="mini">
         <svg viewBox="0 0 ${JP_W} ${JP_H}" style="height:330px">
           ${JP_ORDER.map(n=>`<path class="pref" d="${JP_PATHS[n]}"/>`).join('')}
