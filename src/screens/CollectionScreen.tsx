@@ -15,13 +15,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '@components/common/Button';
 import { Card } from '@components/common/Card';
+import { JapanMap } from '@components/collection/JapanMap';
+import { RecentVisits } from '@components/collection/RecentVisits';
 import { useAuth } from '@hooks/useAuth';
 import { useCollectionStats } from '@hooks/useCollectionStats';
 import { getAllBadges } from '@services/badges';
+import { JAPAN_MAP_HEIGHT, JAPAN_MAP_WIDTH, JAPAN_PREFECTURE_NAMES } from '@/constants/japanMap';
 import { colors } from '@theme/colors';
+import { shadows } from '@theme/shadows';
 import { borderRadius, spacing } from '@theme/spacing';
 import { typography } from '@theme/typography';
-import { groupByRegionBlock } from '@utils/regionBlocks';
 import type { CollectionStackScreenProps } from '@/navigation/types';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -32,39 +35,32 @@ type Props = CollectionStackScreenProps<'CollectionList'>;
 
 export function CollectionScreen({ navigation }: Props) {
   const { isAuthenticated } = useAuth();
-  const { spotCount, stampCount, regionStats, pilgrimageProgress, isLoading } =
+  const { spotCount, stampCount, regionStats, recentStamps, pilgrimageProgress, isLoading } =
     useCollectionStats();
 
   const [showAllPilgrimages, setShowAllPilgrimages] = useState(false);
-  const [expandedRegions, setExpandedRegions] = useState<Set<string>>(new Set());
 
-  const groupedRegions = useMemo(() => groupByRegionBlock(regionStats), [regionStats]);
+  const stampCountByPrefecture = useMemo(
+    () => new Map(regionStats.map(stat => [stat.prefecture, stat.stampCount])),
+    [regionStats]
+  );
 
-  const toggleRegionBlock = (key: string) => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setExpandedRegions(prev => {
-      const next = new Set(prev);
-      if (next.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
-      }
-      return next;
-    });
-  };
+  // 47県のうち塗られた数。地域別の集計に出てくる表記ゆれは数に入れない
+  const visitedPrefectureCount = useMemo(
+    () => JAPAN_PREFECTURE_NAMES.filter(name => (stampCountByPrefecture.get(name) ?? 0) > 0).length,
+    [stampCountByPrefecture]
+  );
 
   const handlePilgrimageDetail = (pilgrimageId: string, pilgrimageName: string) => {
     navigation.navigate('PilgrimageDetail', { pilgrimageId, pilgrimageName });
   };
 
-  const handleRegionPress = (prefecture: string) => {
-    const parent = navigation.getParent();
-    if (parent) {
-      parent.navigate('MapTab', {
-        screen: 'Map',
-        params: { focusPrefecture: prefecture },
-      });
-    }
+  const handlePressPrefecture = (prefecture: string) => {
+    navigation.navigate('PrefectureDetail', { prefecture });
+  };
+
+  const handleSeeAllStamps = () => {
+    navigation.getParent()?.navigate('GalleryTab', { screen: 'Gallery' });
   };
 
   const badges = getAllBadges();
@@ -111,34 +107,47 @@ export function CollectionScreen({ navigation }: Props) {
           </View>
         )}
 
-        {/* Achievement Summary Card */}
-        <View style={styles.summaryCardOuter}>
-          {/* 右上の装飾アイコン */}
-          <View style={styles.summaryDecoration}>
-            <MaterialIcons name="temple-buddhist" size={140} color="rgba(255,255,255,0.1)" />
-          </View>
-          <View style={styles.summaryContent}>
-            <View style={styles.summarySubtitleRow}>
-              <MaterialIcons name="emoji-events" size={16} color={colors.white} />
-              <Text style={styles.summarySubtitle}>これまでの達成</Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <View style={styles.summaryItem}>
-                <Text style={styles.summaryNumber}>
-                  {isLoading ? <ActivityIndicator size="small" color={colors.white} /> : spotCount}
-                </Text>
-                <Text style={styles.summaryLabel}>箇所</Text>
+        {isAuthenticated && (
+          <>
+            <View style={styles.mapCard} testID="ayumi-map-card">
+              <View style={styles.mapHeader}>
+                {isLoading ? (
+                  <ActivityIndicator testID="ayumi-map-loading" color={colors.primary[500]} />
+                ) : (
+                  <View style={styles.mapHeaderLeft}>
+                    <Text style={styles.mapBigNumber}>{visitedPrefectureCount}</Text>
+                    <Text style={styles.mapOf}>/ 47 都道府県</Text>
+                  </View>
+                )}
+                <View style={styles.mapHeaderRight}>
+                  <Text style={styles.mapStampNumber}>{stampCount}</Text>
+                  <Text style={styles.mapStampUnit}>枚</Text>
+                </View>
               </View>
-              <View style={styles.summaryDivider} />
-              <View style={styles.summaryItemRight}>
-                <Text style={styles.summaryNumber}>
-                  {isLoading ? <ActivityIndicator size="small" color={colors.white} /> : stampCount}
-                </Text>
-                <Text style={styles.summaryLabel}>御朱印（枚）</Text>
+
+              <View style={styles.mapBody}>
+                <JapanMap
+                  stampCountByPrefecture={stampCountByPrefecture}
+                  onPressPrefecture={handlePressPrefecture}
+                  animate={!isLoading}
+                />
+              </View>
+
+              <View style={styles.legend}>
+                <LegendItem
+                  color={colors.prefectureFill.empty}
+                  text={`まだ ${47 - visitedPrefectureCount}`}
+                />
+                <LegendItem color={colors.prefectureFill.tier1} text="1〜2枚" />
+                <LegendItem color={colors.prefectureFill.tier2} text="3〜5枚" />
+                <LegendItem color={colors.prefectureFill.tier3} text="6枚〜" />
               </View>
             </View>
-          </View>
-        </View>
+
+            <RecentVisits stamps={recentStamps} onSeeAll={handleSeeAllStamps} />
+          </>
+        )}
+
         {/* Badge Section */}
         <Text style={styles.sectionTitle}>獲得バッジ</Text>
         <ScrollView
@@ -244,73 +253,56 @@ export function CollectionScreen({ navigation }: Props) {
               })}
           </>
         )}
-
-        {/* Region Section */}
-        <Text style={[styles.sectionTitle, styles.sectionTitleSpacing]}>地域別</Text>
-        {regionStats.length === 0 ? (
-          <Card style={styles.regionEmptyCard}>
-            <MaterialIcons name="map" size={40} color={colors.gray[300]} />
-            <Text style={styles.regionEmptyText}>御朱印を記録すると地域別の統計が表示されます</Text>
-          </Card>
-        ) : (
-          groupedRegions.map(block => {
-            const isExpanded = expandedRegions.has(block.key);
-            const blockPercent =
-              block.totalPrefCount > 0
-                ? Math.round((block.visitedPrefCount / block.totalPrefCount) * 100)
-                : 0;
-            return (
-              <Card key={block.key} style={styles.regionBlockCard}>
-                <TouchableOpacity
-                  style={styles.regionBlockHeader}
-                  onPress={() => toggleRegionBlock(block.key)}
-                  activeOpacity={0.7}
-                >
-                  <MaterialIcons
-                    name={isExpanded ? 'expand-more' : 'chevron-right'}
-                    size={24}
-                    color={colors.gray[700]}
-                  />
-                  <Text style={styles.regionBlockName}>{block.label}</Text>
-                  <View style={styles.regionBlockProgressContainer}>
-                    <View style={styles.progressBarBg}>
-                      <View style={[styles.progressBarFill, { width: `${blockPercent}%` }]} />
-                    </View>
-                  </View>
-                  <Text style={styles.regionBlockCount}>
-                    {block.visitedPrefCount}/{block.totalPrefCount}
-                  </Text>
-                </TouchableOpacity>
-                {isExpanded &&
-                  block.prefectures.map(pref => {
-                    const prefColor = pref.hasVisited ? colors.primary[500] : colors.gray[400];
-                    return (
-                      <TouchableOpacity
-                        key={pref.prefecture}
-                        style={styles.regionPrefRow}
-                        onPress={() => handleRegionPress(pref.prefecture)}
-                        activeOpacity={0.7}
-                      >
-                        <MaterialIcons name="location-on" size={18} color={prefColor} />
-                        <Text style={[styles.regionPrefName, { color: prefColor }]}>
-                          {pref.prefecture}
-                        </Text>
-                        <Text style={[styles.regionPrefCount, { color: prefColor }]}>
-                          {pref.visitedCount}/{pref.totalCount}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-              </Card>
-            );
-          })
-        )}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+function LegendItem({ color, text }: { color: string; text: string }) {
+  return (
+    <View style={styles.legendItem}>
+      <View
+        style={[styles.legendSwatch, { backgroundColor: color }]}
+        testID="ayumi-legend-swatch"
+      />
+      <Text style={styles.legendText}>{text}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  mapCard: {
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.xl,
+    padding: 14,
+    marginBottom: spacing.md,
+    ...shadows.md,
+  },
+  mapHeader: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    minHeight: 34,
+  },
+  mapHeaderLeft: { flexDirection: 'row', alignItems: 'baseline' },
+  mapBigNumber: { fontSize: 34, fontWeight: '900', color: colors.gray[900], lineHeight: 36 },
+  mapOf: { fontSize: 13, color: colors.gray[400], marginLeft: spacing.xs },
+  mapHeaderRight: { flexDirection: 'row', alignItems: 'baseline' },
+  mapStampNumber: { fontSize: 20, fontWeight: '900', color: colors.gray[900] },
+  mapStampUnit: { fontSize: 13, color: colors.gray[600], marginLeft: 2 },
+  // viewBox と同じ縦横比で場所を取る。中身の高さで画面が跳ねないように
+  mapBody: { aspectRatio: JAPAN_MAP_WIDTH / JAPAN_MAP_HEIGHT, marginTop: spacing.sm },
+  legend: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginTop: spacing.md,
+    paddingTop: 11,
+    borderTopWidth: 1,
+    borderTopColor: colors.gray[200],
+  },
+  legendItem: { flexDirection: 'row', alignItems: 'center' },
+  legendSwatch: { width: 9, height: 9, borderRadius: 2, marginRight: spacing.xs },
+  legendText: { ...typography.caption, fontSize: 11, color: colors.gray[600] },
   container: {
     flex: 1,
     backgroundColor: colors.backgroundGrouped,
@@ -351,77 +343,10 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     alignSelf: 'stretch',
   },
-  summaryCardOuter: {
-    backgroundColor: colors.primary[500],
-    borderRadius: borderRadius.xl,
-    marginBottom: spacing.xl,
-    overflow: 'hidden',
-    shadowColor: colors.primary[500],
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  summaryDecoration: {
-    position: 'absolute',
-    top: -20,
-    right: -20,
-  },
-  summaryContent: {
-    padding: spacing.xl,
-  },
-  summarySubtitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.xl,
-    opacity: 0.9,
-  },
-  summarySubtitle: {
-    ...typography.label,
-    color: colors.white,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-  },
-  summaryItem: {
-    flex: 1,
-    gap: spacing.xs,
-  },
-  summaryItemRight: {
-    flex: 1,
-    alignItems: 'flex-end',
-    gap: spacing.xs,
-  },
-  summaryDivider: {
-    width: 1,
-    height: 48,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    borderRadius: 1,
-    marginHorizontal: spacing.lg,
-  },
-  summaryNumber: {
-    fontSize: 48,
-    fontWeight: 'bold',
-    color: colors.white,
-    lineHeight: 52,
-  },
-  summaryLabel: {
-    ...typography.bodySmall,
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontWeight: '500',
-  },
   sectionTitle: {
     ...typography.h3,
     color: colors.gray[800],
     marginBottom: spacing.md,
-  },
-  sectionTitleSpacing: {
-    marginTop: spacing.xl,
   },
   badgeScrollView: {
     marginBottom: spacing.xl,
@@ -539,57 +464,6 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   pilgrimageEmptyText: {
-    ...typography.bodySmall,
-    color: colors.gray[400],
-    textAlign: 'center',
-  },
-  regionBlockCard: {
-    marginBottom: spacing.sm,
-  },
-  regionBlockHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  regionBlockName: {
-    ...typography.body,
-    color: colors.gray[800],
-    fontWeight: '600',
-    minWidth: 100,
-  },
-  regionBlockProgressContainer: {
-    flex: 1,
-    marginHorizontal: spacing.sm,
-  },
-  regionBlockCount: {
-    ...typography.bodySmall,
-    color: colors.gray[600],
-    minWidth: 32,
-    textAlign: 'right',
-  },
-  regionPrefRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingLeft: spacing.xl + spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  regionPrefName: {
-    ...typography.bodySmall,
-    flex: 1,
-  },
-  regionPrefCount: {
-    ...typography.bodySmall,
-    textAlign: 'right',
-    minWidth: 40,
-  },
-  regionEmptyCard: {
-    alignItems: 'center',
-    paddingVertical: spacing.xl,
-    marginBottom: spacing.xl,
-    gap: spacing.sm,
-  },
-  regionEmptyText: {
     ...typography.bodySmall,
     color: colors.gray[400],
     textAlign: 'center',

@@ -100,8 +100,8 @@ export async function createStamp(params: {
   return data as Stamp;
 }
 
-export async function fetchAllStamps(userId: string): Promise<StampWithSpot[]> {
-  const { data, error } = await supabase
+export async function fetchAllStamps(userId: string, limit?: number): Promise<StampWithSpot[]> {
+  const query = supabase
     .from('stamps')
     .select('*, spots!inner(name, type)')
     .eq('user_id', userId)
@@ -109,8 +109,36 @@ export async function fetchAllStamps(userId: string): Promise<StampWithSpot[]> {
     // まとめて登録した1組が、御朱印帳を開くたびに並び替わらないようにする
     .order('created_at', { ascending: false });
 
+  // limit を渡さない呼び出しは今までと1文字も変わらないクエリを投げる（御朱印帳が全件を要る）
+  const { data, error } = await (limit === undefined ? query : query.limit(limit));
+
   if (error) {
     console.warn('fetchAllStamps error:', error.message);
+    return [];
+  }
+  return data as StampWithSpot[];
+}
+
+/**
+ * 県別シート用。その県で授かった御朱印だけを新しい順に。
+ *
+ * 並びは御朱印帳（fetchAllStamps）と同じ visited_at → created_at にする。
+ * 同じ御朱印が画面ごとに違う順で出ると、探しているものを見失う。
+ */
+export async function fetchStampsByPrefecture(
+  userId: string,
+  prefecture: string
+): Promise<StampWithSpot[]> {
+  const { data, error } = await supabase
+    .from('stamps')
+    .select('*, spots!inner(name, type, prefecture)')
+    .eq('user_id', userId)
+    .eq('spots.prefecture', prefecture)
+    .order('visited_at', { ascending: false })
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.warn('fetchStampsByPrefecture error:', error.message);
     return [];
   }
   return data as StampWithSpot[];

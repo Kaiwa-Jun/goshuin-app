@@ -44,6 +44,8 @@ export type RootStackParamList = {
 export type CollectionStackParamList = {
   CollectionList: undefined;
   PilgrimageDetail: { pilgrimageId: string; pilgrimageName: string };
+  /** 地図で県をタップした先。シートにしない理由は issue-209 の注意事項を見ること */
+  PrefectureDetail: { prefecture: string };
 };
 
 export type MainTabParamList = {
