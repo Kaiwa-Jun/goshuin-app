@@ -1,8 +1,8 @@
 import { act, render } from '@testing-library/react-native';
 import { AccessibilityInfo } from 'react-native';
 
-import { SaveMapReveal, zoomTo, HOLD_MS, ZOOM_MS, PIN_MS } from '@components/record/SaveMapReveal';
-import { JAPAN_MAP_WIDTH, JAPAN_PREFECTURE_BOXES } from '@/constants/japanMap';
+import { SaveMapReveal, HOLD_MS, ZOOM_MS, PIN_MS } from '@components/record/SaveMapReveal';
+
 import { colors } from '@theme/colors';
 
 const asPayload = (hex: string) => 0xff000000 + parseInt(hex.slice(1), 16);
@@ -17,32 +17,6 @@ const setup = (props: Partial<React.ComponentProps<typeof SaveMapReveal>> = {}) 
       {...props}
     />
   );
-
-describe('zoomTo', () => {
-  it('県が小さいほど強く寄る', () => {
-    expect(zoomTo('東京都', 210).scale).toBeGreaterThan(zoomTo('北海道', 210).scale);
-  });
-
-  /*
-   * 東京の範囲に小笠原（南へ1000km）が入っていると、寄り先が太平洋の真ん中になる。
-   * 本体の位置に寄れていることを、地理の並びで確かめる
-   */
-  it('本体のある方へ寄る', () => {
-    const tokyo = zoomTo('東京都', 210);
-    const hokkaido = zoomTo('北海道', 210);
-
-    // 北海道は北（上）にあるので、中心へ持ってくるには下へ動かす
-    expect(hokkaido.translateY).toBeGreaterThan(tokyo.translateY);
-  });
-
-  it('地方くらいの広さで止まる（県だけに寄り切らない）', () => {
-    const box = JAPAN_PREFECTURE_BOXES['東京都'];
-    const { scale } = zoomTo('東京都', 210);
-    const shownSpan = JAPAN_MAP_WIDTH / scale;
-
-    expect(shownSpan).toBeGreaterThan(Math.max(box.width, box.height) * 3);
-  });
-});
 
 describe('SaveMapReveal', () => {
   beforeEach(() => jest.useFakeTimers());

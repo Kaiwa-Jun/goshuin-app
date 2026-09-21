@@ -2,6 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Dimensions,
   LayoutAnimation,
   Platform,
   ScrollView,
@@ -39,6 +40,13 @@ export function CollectionScreen({ navigation }: Props) {
     useCollectionStats();
 
   const [showAllPilgrimages, setShowAllPilgrimages] = useState(false);
+  /*
+   * 寄りの計算に実寸が要る。onLayout を待つ間も地図を出したいので、
+   * 画面幅から引いた見込みで描き始めて、測れたら差し替える
+   */
+  const [mapWidth, setMapWidth] = useState(
+    Dimensions.get('window').width - spacing.lg * 2 - MAP_CARD_PADDING * 2
+  );
 
   const stampCountByPrefecture = useMemo(
     () => new Map(regionStats.map(stat => [stat.prefecture, stat.stampCount])),
@@ -125,11 +133,13 @@ export function CollectionScreen({ navigation }: Props) {
                 </View>
               </View>
 
-              <View style={styles.mapBody}>
+              {/* 寄りの計算に実寸が要る。端末幅を決め打ちにしない */}
+              <View style={styles.mapBody} onLayout={e => setMapWidth(e.nativeEvent.layout.width)}>
                 <JapanMap
                   stampCountByPrefecture={stampCountByPrefecture}
                   onPressPrefecture={handlePressPrefecture}
                   animate={!isLoading}
+                  width={mapWidth}
                 />
               </View>
 
@@ -258,6 +268,8 @@ export function CollectionScreen({ navigation }: Props) {
   );
 }
 
+const MAP_CARD_PADDING = 14;
+
 function LegendItem({ color, text }: { color: string; text: string }) {
   return (
     <View style={styles.legendItem}>
@@ -274,7 +286,7 @@ const styles = StyleSheet.create({
   mapCard: {
     backgroundColor: colors.white,
     borderRadius: borderRadius.xl,
-    padding: 14,
+    padding: MAP_CARD_PADDING,
     marginBottom: spacing.md,
     ...shadows.md,
   },
@@ -292,6 +304,7 @@ const styles = StyleSheet.create({
   mapStampUnit: { fontSize: 13, color: colors.gray[600], marginLeft: 2 },
   // viewBox と同じ縦横比で場所を取る。中身の高さで画面が跳ねないように
   mapBody: { aspectRatio: JAPAN_MAP_WIDTH / JAPAN_MAP_HEIGHT, marginTop: spacing.sm },
+
   legend: {
     flexDirection: 'row',
     gap: spacing.md,

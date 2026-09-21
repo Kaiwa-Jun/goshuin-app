@@ -6,53 +6,22 @@ import { prefectureTier } from '@components/collection/JapanMap';
 import {
   JAPAN_MAP_HEIGHT,
   JAPAN_MAP_WIDTH,
-  JAPAN_PREFECTURE_BOXES,
   JAPAN_PREFECTURE_NAMES,
   JAPAN_PREFECTURE_PATHS,
 } from '@/constants/japanMap';
 import { colors } from '@theme/colors';
 import { borderRadius } from '@theme/spacing';
+import { zoomToPrefecture } from '@utils/japanMapZoom';
 
 /** 全国が見えている間 → 寄る → ピンが落ちる */
 export const HOLD_MS = 560;
 export const ZOOM_MS = 1100;
 export const PIN_MS = 520;
 
-/** 県そのものより広く取って「地方くらい」の寄りにする */
-const REGION_SPAN = 5.5;
 /** 尾の先が県を指す。形は地図タブのピン（scripts/generate-map-pins.py）と同じ */
 const PIN_W = 84;
 const PIN_H = 120;
 const PIN_SCALE = 0.34;
-
-export interface ZoomTarget {
-  /** 寄せたあとの倍率 */
-  scale: number;
-  /** 県の中心を枠の中心へ持ってくるための移動量（描画後の px） */
-  translateX: number;
-  translateY: number;
-}
-
-/**
- * その県を枠の真ん中に持ってくる寄り。
- *
- * 枠の中心を軸に拡大されるので、拡大後の中心からのずれを打ち消す。
- */
-export function zoomTo(prefecture: string, width: number): ZoomTarget {
-  const box = JAPAN_PREFECTURE_BOXES[prefecture];
-  const height = (width * JAPAN_MAP_HEIGHT) / JAPAN_MAP_WIDTH;
-  const k = width / JAPAN_MAP_WIDTH;
-  const span = Math.max(box.width, box.height) * REGION_SPAN;
-  const scale = JAPAN_MAP_WIDTH / span;
-  const px = (box.x + box.width / 2) * k;
-  const py = (box.y + box.height / 2) * k;
-
-  return {
-    scale,
-    translateX: -scale * (px - width / 2),
-    translateY: -scale * (py - height / 2),
-  };
-}
 
 interface Props {
   /** 寄る先。いま記録した寺社の県 */
@@ -77,11 +46,13 @@ export function SaveMapReveal({
   width,
 }: Props) {
   const height = (width * JAPAN_MAP_HEIGHT) / JAPAN_MAP_WIDTH;
-  const target = useMemo(() => zoomTo(prefecture, width), [prefecture, width]);
+  const target = useMemo(() => zoomToPrefecture(prefecture, width), [prefecture, width]);
 
   const progress = useRef(new Animated.Value(0)).current;
   const pinDrop = useRef(new Animated.Value(0)).current;
   const [settled, setSettled] = useState(false);
+  const running = useRef<Animated.CompositeAnimation | null>(null);
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -96,21 +67,30 @@ export function SaveMapReveal({
           setSettled(true);
           return;
         }
-        Animated.sequence([
-          Animated.delay(HOLD_MS),
-          Animated.timing(progress, {
-            toValue: 1,
-            duration: ZOOM_MS,
-            easing: Easing.bezier(0.35, 0, 0.2, 1),
-            useNativeDriver: true,
-          }),
-          Animated.timing(pinDrop, {
-            toValue: 1,
-            duration: PIN_MS,
-            easing: Easing.bezier(0.3, 0.9, 0.3, 1.1),
-            useNativeDriver: true,
-          }),
-        ]).start(() => !cancelled && setSettled(true));
+        /*
+         * ⚠️ Animated.delay を使わないこと。イージングを渡せないので既定の
+         * Easing.ease になり、その遅延 require が jest.resetModules() の
+         * あとに発火すると壊れる（全国を見せている間の「待ち」でしかないので、
+         * ただの setTimeout で足りる）
+         */
+        holdTimer.current = setTimeout(() => {
+          if (cancelled) return;
+          running.current = Animated.sequence([
+            Animated.timing(progress, {
+              toValue: 1,
+              duration: ZOOM_MS,
+              easing: Easing.out(Easing.cubic),
+              useNativeDriver: true,
+            }),
+            Animated.timing(pinDrop, {
+              toValue: 1,
+              duration: PIN_MS,
+              easing: Easing.out(Easing.back(1.4)),
+              useNativeDriver: true,
+            }),
+          ]);
+          running.current.start(() => !cancelled && setSettled(true));
+        }, HOLD_MS);
       })
       .catch(() => {
         progress.setValue(1);
@@ -118,8 +98,16 @@ export function SaveMapReveal({
         setSettled(true);
       });
 
+    /*
+     * 外れたら必ず止める。止めないとタイマーが生き残り、画面が無くなった
+     * あとに動き続ける（テストでは別のテストの最中に発火して、Easing の
+     * 遅延 require を壊した）
+     */
     return () => {
       cancelled = true;
+      if (holdTimer.current) clearTimeout(holdTimer.current);
+      running.current?.stop();
+      running.current = null;
     };
   }, [progress, pinDrop]);
 

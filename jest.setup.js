@@ -190,3 +190,17 @@ jest.mock('expo-location', () => ({
     Balanced: 3,
   },
 }));
+
+/*
+ * react-native の `Easing.ease` は、**初回に呼ばれたときだけ** 中で
+ * `require('./bezier')` を走らせて結果を覚える（Easing.js:93-97）。
+ *
+ * その初回が `jest.resetModules()` のあとに来ると、読み直しの途中の空の
+ * モジュールを掴んで `_bezier is not a function` で落ちる。落ちるのは
+ * そのとき走っていた無関係なテストなので、原因と症状が結びつかない。
+ * イージングを指定しない `Animated.timing`（= 既定の ease）が1つでも
+ * 残っていれば踏みうる。
+ *
+ * ワーカーごとに一度、先に呼んで覚えさせておく。
+ */
+require('react-native').Easing.ease(0);

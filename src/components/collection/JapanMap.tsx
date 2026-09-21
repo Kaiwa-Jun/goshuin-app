@@ -1,5 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  AccessibilityInfo,
+  Animated,
+  Easing,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import {
@@ -10,9 +18,14 @@ import {
   JAPAN_PREFECTURE_PATHS,
 } from '@/constants/japanMap';
 import { colors } from '@theme/colors';
+import { borderRadius, spacing } from '@theme/spacing';
+import { typography } from '@theme/typography';
+import { zoomToPrefecture } from '@utils/japanMapZoom';
 
 /** 1県が塗られてから次の県までの間 */
 export const REVEAL_STEP_MS = 90;
+/** 寄る・戻るの長さ */
+export const MAP_ZOOM_MS = 380;
 
 export type PrefectureTier = 'empty' | 'tier1' | 'tier2' | 'tier3';
 
@@ -43,6 +56,8 @@ interface Props {
   onPressPrefecture: (prefecture: string) => void;
   /** 塗り広がりを見せるか。データが変わったときだけ true にする */
   animate?: boolean;
+  /** 地図を描く幅。寄りの計算に要る */
+  width: number;
 }
 
 /**
@@ -51,7 +66,68 @@ interface Props {
  * **色に載せる意味は枚数ひとつだけ**。「いちばん新しい」は載せない
  * （docs/design/2026-09-ayumi-map-spec.md §0）。
  */
-export function JapanMap({ stampCountByPrefecture, onPressPrefecture, animate = false }: Props) {
+export function JapanMap({
+  stampCountByPrefecture,
+  onPressPrefecture,
+  animate = false,
+  width,
+}: Props) {
+  const height = (width * JAPAN_MAP_HEIGHT) / JAPAN_MAP_WIDTH;
+
+  /*
+   * 全体表示のままでは、香川や大阪は指より小さい。
+   *
+   * 1回目のタップは**寄るだけ**にして、2回目で選ぶ。こうすると1回目は
+   * 大雑把でよくなる ── 東京を狙って神奈川に当たっても関東に寄るので、
+   * そのあと正確に押せる。
+   */
+  const [zoomedAt, setZoomedAt] = useState<string | null>(null);
+  const zoom = useRef(new Animated.Value(0)).current;
+  const zooming = useRef<Animated.CompositeAnimation | null>(null);
+  const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const target = useMemo(
+    () => (zoomedAt ? zoomToPrefecture(zoomedAt, width) : null),
+    [zoomedAt, width]
+  );
+
+  const animateZoom = useCallback(
+    (toValue: number) => {
+      zooming.current?.stop();
+      zooming.current = Animated.timing(zoom, {
+        toValue,
+        duration: MAP_ZOOM_MS,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      });
+      zooming.current.start();
+    },
+    [zoom]
+  );
+
+  // 画面から外れたら止める。動いたままにするとタイマーが生き残る
+  useEffect(
+    () => () => {
+      zooming.current?.stop();
+      if (resetTimer.current) clearTimeout(resetTimer.current);
+    },
+    []
+  );
+
+  const handlePress = (prefecture: string) => {
+    if (zoomedAt === null) {
+      setZoomedAt(prefecture);
+      zoom.setValue(0);
+      animateZoom(1);
+      return;
+    }
+    onPressPrefecture(prefecture);
+  };
+
+  const resetZoom = () => {
+    animateZoom(0);
+    if (resetTimer.current) clearTimeout(resetTimer.current);
+    resetTimer.current = setTimeout(() => setZoomedAt(null), MAP_ZOOM_MS);
+  };
   const visited = useMemo(
     () => JAPAN_PREFECTURE_NAMES.filter(name => (stampCountByPrefecture.get(name) ?? 0) > 0),
     [stampCountByPrefecture]
@@ -96,31 +172,84 @@ export function JapanMap({ stampCountByPrefecture, onPressPrefecture, animate = 
 
   const shown = new Set(order.slice(0, revealed));
 
+  const zoomStyle = target
+    ? {
+        transform: [
+          {
+            translateX: zoom.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, target.translateX],
+            }),
+          },
+          {
+            translateY: zoom.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, target.translateY],
+            }),
+          },
+          { scale: zoom.interpolate({ inputRange: [0, 1], outputRange: [1, target.scale] }) },
+        ],
+      }
+    : undefined;
+
   return (
     <View
       accessible={false}
       accessibilityLabel={`47都道府県のうち${visited.length}県`}
       testID="japan-map"
+      style={[styles.window, { width, height }]}
     >
-      <Svg viewBox={`0 0 ${JAPAN_MAP_WIDTH} ${JAPAN_MAP_HEIGHT}`} width="100%" height="100%">
-        {JAPAN_PREFECTURE_NAMES.map(name => {
-          const stampCount = stampCountByPrefecture.get(name) ?? 0;
-          const tier = shown.has(name) ? prefectureTier(stampCount) : 'empty';
-          return (
-            <Path
-              key={name}
-              testID={`prefecture-${name}`}
-              d={JAPAN_PREFECTURE_PATHS[name]}
-              fill={colors.prefectureFill[tier]}
-              stroke={colors.prefectureFill.border}
-              strokeWidth={2}
-              onPress={() => onPressPrefecture(name)}
-              accessible
-              accessibilityLabel={stampCount > 0 ? `${name}、${stampCount}枚` : `${name}、まだ`}
-            />
-          );
-        })}
-      </Svg>
+      <Animated.View style={zoomStyle}>
+        <Svg viewBox={`0 0 ${JAPAN_MAP_WIDTH} ${JAPAN_MAP_HEIGHT}`} width={width} height={height}>
+          {JAPAN_PREFECTURE_NAMES.map(name => {
+            const stampCount = stampCountByPrefecture.get(name) ?? 0;
+            const tier = shown.has(name) ? prefectureTier(stampCount) : 'empty';
+            return (
+              <Path
+                key={name}
+                testID={`prefecture-${name}`}
+                d={JAPAN_PREFECTURE_PATHS[name]}
+                fill={colors.prefectureFill[tier]}
+                stroke={colors.prefectureFill.border}
+                strokeWidth={2}
+                onPress={() => handlePress(name)}
+                accessible
+                accessibilityLabel={
+                  (stampCount > 0 ? `${name}、${stampCount}枚` : `${name}、まだ`) +
+                  (zoomedAt === null ? '。まわりに寄る' : '')
+                }
+              />
+            );
+          })}
+        </Svg>
+      </Animated.View>
+
+      {zoomedAt !== null && (
+        <TouchableOpacity
+          style={styles.reset}
+          onPress={resetZoom}
+          testID="japan-map-reset"
+          accessibilityRole="button"
+          accessibilityLabel="地図を全体に戻す"
+        >
+          <Text style={styles.resetText}>全体に戻す</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  // 寄せた地図が枠からはみ出さないようにする
+  window: { overflow: 'hidden', borderRadius: borderRadius.md },
+  reset: {
+    position: 'absolute',
+    top: spacing.sm,
+    right: spacing.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    borderRadius: borderRadius.full,
+    paddingVertical: spacing.xs + 2,
+    paddingHorizontal: spacing.md,
+  },
+  resetText: { ...typography.caption, fontWeight: '700', color: colors.gray[700] },
+});
