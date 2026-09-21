@@ -80,6 +80,21 @@ h1{font-size:28px;font-weight:700;padding:4px 16px 12px}
   border:5px solid var(--seal);transform:translate(-50%,-50%) rotate(-8deg)}
 .seal-big::after{content:"満願";position:absolute;inset:0;display:grid;place-items:center;
   font-size:32px;font-weight:900;color:var(--seal);letter-spacing:2px}
+/* 同時に取れたバッジ。テキストの行を増やすと縦に伸びるので、横に並べる */
+.newbadges{display:flex;justify-content:center;gap:16px;flex-wrap:wrap;margin-top:2px}
+.nb{text-align:center;width:62px}
+.nb .circle{width:46px;height:46px;border-radius:50%;margin:0 auto 5px;display:grid;
+  place-items:center;font-size:21px;background:var(--brand50);border:1px solid #FFEDD5}
+.nb .t{font-size:10px;color:var(--ink2);line-height:1.3}
+.nb:first-child .circle{background:rgba(220,38,38,.1);border-color:rgba(220,38,38,.35)}
+@keyframes badgepop{0%{opacity:0;transform:scale(.3)}
+  65%{opacity:1;transform:scale(1.18)}100%{opacity:1;transform:scale(1)}}
+.nb{animation:badgepop .42s cubic-bezier(.3,.9,.3,1.2) both}
+.nb:nth-child(1){animation-delay:1.05s}
+.nb:nth-child(2){animation-delay:1.2s}
+.nb:nth-child(3){animation-delay:1.35s}
+.nb:nth-child(4){animation-delay:1.5s}
+
 .count{font-size:32px;font-weight:900}
 .count em{font-style:normal;font-size:16px;font-weight:700;margin-left:2px}
 @keyframes stamp{0%{transform:translate(-50%,-50%) rotate(-8deg) scale(2.4);opacity:0}
@@ -205,6 +220,13 @@ h1{font-size:28px;font-weight:700;padding:4px 16px 12px}
       <div class="outside rise" style="animation-delay:.9s">
         満願の御朱印をいただけることがあります。<br>社務所で尋ねてみてください
       </div>
+
+      <!-- 同時に取れたバッジ。行を増やさず、横に並べる -->
+      <div class="newbadges" id="nb">
+        <div class="nb"><div class="circle">⛩</div><div class="t">満願</div></div>
+        <div class="nb"><div class="circle">🌸</div><div class="t">四季を巡る</div></div>
+        <div class="nb"><div class="circle">👣</div><div class="t">1日に3箇所</div></div>
+      </div>
     </div>
     <div class="actions">
       <div class="btn p">＋ もう1枚記録する</div>
@@ -250,7 +272,8 @@ h1{font-size:28px;font-weight:700;padding:4px 16px 12px}
 <p class="hint">
   <b>途切れたらカードは消えます</b>。「最長7ヶ月」は御朱印一覧の1行として残るだけ。<br>
   次にその寺社で記録したら1ヶ月目から再開し、<b>2ヶ月目でカードが戻ります</b>。<br>
-  <b>満願</b>は独立した画面をやめて、<b>保存直後の続き</b>にしました。
+  <b>満願</b>は独立した画面をやめて、<b>保存直後の続き</b>にしました。<br>
+  同時に取れたバッジは<b>横に並べて</b>ポンポンと出ます（行を増やすと縦に伸びるため）。
 </p>
 
 <script>
@@ -275,7 +298,7 @@ function replay() {
   dots(document.getElementById('d3'), 12, false);
   const seal = document.getElementById('seal');
   if (seal) { seal.classList.remove('stamp'); void seal.offsetWidth; seal.classList.add('stamp'); }
-  document.querySelectorAll('.rise').forEach(e => { e.style.animation = 'none'; void e.offsetWidth; e.style.animation = ''; });
+  document.querySelectorAll('.rise, .nb').forEach(e => { e.style.animation = 'none'; void e.offsetWidth; e.style.animation = ''; });
 }
 function show(id) {
   ['spot', 'ayumi', 'mangan', 'badge'].forEach(s =>
