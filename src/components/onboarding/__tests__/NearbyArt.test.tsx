@@ -5,8 +5,11 @@ import { NearbyArt } from '@components/onboarding/NearbyArt';
 import { colors } from '@theme/colors';
 
 describe('NearbyArt', () => {
-  // 地図で出会う2色を、先に見せておく
-  it('近くのピンは3つで、1つだけ寺の紫', () => {
+  /*
+   * 未訪問は種別で分けない、という地図の決まりに揃える。
+   * 一度1つを寺の紫にしたが、訪問済みの色なので戻した
+   */
+  it('近くのピンは3つとも、未訪問のブランド色', () => {
     const { getAllByTestId, UNSAFE_getAllByType } = render(<NearbyArt width={300} active />);
 
     expect(getAllByTestId('onboarding-near-pin')).toHaveLength(3);
@@ -15,8 +18,8 @@ describe('NearbyArt', () => {
     const fills = UNSAFE_getAllByType(Circle)
       .map(c => c.props.fill)
       .filter((f): f is string => typeof f === 'string' && f !== '#fff');
-    expect(fills.filter(f => f === colors.pin.templeVisited)).toHaveLength(1);
-    expect(fills.filter(f => f === colors.pin.unvisited)).toHaveLength(2);
+    expect(fills).toHaveLength(3);
+    expect(fills.every(f => f === colors.pin.unvisited)).toBe(true);
   });
 
   it('波紋は3つ', () => {

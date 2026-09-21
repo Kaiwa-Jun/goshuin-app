@@ -35,16 +35,16 @@ const RIPPLE_COUNT = 3;
 const PIN_STEP_MS = 260;
 
 /*
- * 近くの寺社。**1つだけ紫**にして、アプリで使っている2色を見せる。
+ * 近くの寺社。**3つともブランド色1色**。
  *
- * 厳密には紫は「訪問済みの寺」の色で、まだ何も記録していない時点の
- * 画としては筋が通らない。それでも、地図で出会う色を先に見せておく
- * ほうが繋がると判断した
+ * 一度1つを寺の紫にしたが戻した。紫は「訪問済みの寺」の色で、
+ * まだ何も記録していない時点で出すと意味がずれる。
+ * 未訪問は種別で分けない、という地図の決まりとも揃う（colors.pin 参照）
  */
 const NEAR_PINS = [
-  { key: 'a', left: 0.1, top: 0.16, color: colors.pin.unvisited },
-  { key: 'b', left: 0.74, top: 0.3, color: colors.pin.templeVisited },
-  { key: 'c', left: 0.26, top: 0.7, color: colors.pin.unvisited },
+  { key: 'a', left: 0.1, top: 0.16 },
+  { key: 'b', left: 0.74, top: 0.3 },
+  { key: 'c', left: 0.26, top: 0.7 },
 ] as const;
 
 interface Props {
@@ -201,7 +201,7 @@ export function NearbyArt({ width, active }: Props) {
             },
           ]}
         >
-          <MapPin height={pinHeight} color={p.color} />
+          <MapPin height={pinHeight} color={colors.pin.unvisited} />
         </Animated.View>
       ))}
     </View>
