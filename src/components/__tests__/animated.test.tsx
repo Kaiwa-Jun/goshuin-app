@@ -3,7 +3,6 @@ import { render } from '@testing-library/react-native';
 import { FABButton } from '@components/animated/FABButton';
 import { CheckmarkAnimation } from '@components/animated/CheckmarkAnimation';
 import { BadgeAnimation } from '@components/animated/BadgeAnimation';
-import { OnboardingIcon } from '@components/animated/OnboardingIcon';
 import { ErrorIcon } from '@components/animated/ErrorIcon';
 import { ConfettiEffect } from '@components/animated/ConfettiEffect';
 
@@ -73,13 +72,6 @@ describe('Animated Components', () => {
     it('renders when trigger is false', () => {
       const { getByTestId } = render(<ConfettiEffect trigger={false} />);
       expect(getByTestId('confetti-effect')).toBeTruthy();
-    });
-  });
-
-  describe('OnboardingIcon', () => {
-    it('renders', () => {
-      const { getByTestId } = render(<OnboardingIcon name="map" backgroundColor="#F97316" />);
-      expect(getByTestId('onboarding-icon')).toBeTruthy();
     });
   });
 

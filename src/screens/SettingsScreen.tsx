@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Card } from '@components/common/Card';
 import { useAuth } from '@hooks/useAuth';
+import { useOnboarding } from '@hooks/useOnboarding';
 import { colors } from '@theme/colors';
 import { spacing } from '@theme/spacing';
 import { typography } from '@theme/typography';
@@ -16,6 +17,7 @@ type Props = MainTabScreenProps<'Settings'>;
 
 export function SettingsScreen({ navigation }: Props) {
   const { user, isAuthenticated, signOut } = useAuth();
+  const { resetOnboarding } = useOnboarding();
   const appVersion = Constants.expoConfig?.version ?? '不明';
   // OS の権限はアプリから直接トグルできないため、状態の表示と設定アプリへの導線だけ持つ
   const [locationGranted, setLocationGranted] = useState<boolean | null>(null);
@@ -62,6 +64,12 @@ export function SettingsScreen({ navigation }: Props) {
     if (parent) {
       parent.navigate('AccountDeletion');
     }
+  };
+
+  /** 開発用。印を消してオンボーディングへ戻る */
+  const handleReplayOnboarding = async () => {
+    await resetOnboarding();
+    navigation.getParent()?.navigate('Onboarding');
   };
 
   return (
@@ -141,6 +149,28 @@ export function SettingsScreen({ navigation }: Props) {
             </TouchableOpacity>
           </Card>
         </View>
+
+        {/*
+         * 開発中だけ出す。一度終えるとオンボーディングは二度と出ないので、
+         * 実機で見るにはアプリを入れ直すしかなかった。
+         * __DEV__ で囲ってあるので本番の束には入らない
+         */}
+        {__DEV__ && (
+          <View style={styles.section} testID="settings-section-dev">
+            <Text style={styles.sectionTitle}>開発用</Text>
+            <Card>
+              <TouchableOpacity
+                style={styles.row}
+                accessibilityRole="button"
+                onPress={handleReplayOnboarding}
+                testID="replay-onboarding-row"
+              >
+                <Text style={styles.rowLabel}>オンボーディングをもう一度見る</Text>
+                <MaterialIcons name="chevron-right" size={24} color={colors.gray[400]} />
+              </TouchableOpacity>
+            </Card>
+          </View>
+        )}
 
         <View style={styles.section} testID="settings-section-app-info">
           <Text style={styles.sectionTitle}>アプリ情報</Text>

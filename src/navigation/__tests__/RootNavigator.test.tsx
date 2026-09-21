@@ -1,7 +1,8 @@
-import { render, waitFor } from '@testing-library/react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { act, render, waitFor } from '@testing-library/react-native';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 
 import { RootNavigator } from '../RootNavigator';
+import type { RootStackParamList } from '@/navigation/types';
 
 // Mock supabase client to avoid env var requirement
 jest.mock('@services/supabase', () => ({
@@ -169,9 +170,11 @@ jest.mock('expo-image-picker', () => ({
 
 jest.mock('@react-native-community/datetimepicker', () => 'DateTimePicker');
 
+const navigationRef = createNavigationContainerRef<RootStackParamList>();
+
 function renderWithNavigation() {
   return render(
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <RootNavigator />
     </NavigationContainer>
   );
@@ -207,6 +210,29 @@ describe('RootNavigator', () => {
     await waitFor(() => {
       expect(getByTestId('onboarding-screen')).toBeTruthy();
     });
+  });
+
+  /*
+   * 一度終えた人にも Onboarding を**登録したまま**にしておく。
+   * 以前は条件付きに登録していて、開発用の「もう一度見る」から navigate
+   * すると「そんな画面は無い」で落ちた
+   */
+  it('終えたあとでも、Onboarding へ行ける', async () => {
+    mockUseOnboarding.mockReturnValue({
+      isCompleted: true,
+      isLoading: false,
+      completeOnboarding: jest.fn(),
+      resetOnboarding: jest.fn(),
+    });
+
+    const { getByTestId } = renderWithNavigation();
+    await waitFor(() => expect(getByTestId('map-screen')).toBeTruthy());
+
+    act(() => {
+      navigationRef.navigate('Onboarding');
+    });
+
+    await waitFor(() => expect(getByTestId('onboarding-screen')).toBeTruthy());
   });
 
   it('shows Map screen (MainTabs) when onboarding is completed', async () => {

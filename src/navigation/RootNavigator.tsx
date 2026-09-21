@@ -29,8 +29,19 @@ export function RootNavigator() {
   }
 
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {!isCompleted && <Stack.Screen name="Onboarding" component={OnboardingScreen} />}
+    /*
+     * Onboarding は**いつでも登録しておく**。出すかどうかは初期ルートで決める。
+     *
+     * 以前は `!isCompleted &&` で条件付きに登録していたが、それだと一度
+     * 終えた人には画面ごと存在しなくなり、開発用の「もう一度見る」から
+     * navigate すると「そんな画面は無い」で落ちた。
+     * 初期ルートは最初のマウントでしか見ないので、通常の動きは変わらない
+     */
+    <Stack.Navigator
+      screenOptions={{ headerShown: false }}
+      initialRouteName={isCompleted ? 'MainTabs' : 'Onboarding'}
+    >
+      <Stack.Screen name="Onboarding" component={OnboardingScreen} />
       <Stack.Screen name="MainTabs" component={TabNavigator} />
       <Stack.Screen name="Record" component={RecordScreen} />
       <Stack.Screen name="RecordComplete" component={RecordCompleteScreen} />
