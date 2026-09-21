@@ -31,7 +31,7 @@ export type SealMark =
  * 外周と内周を1つの d に入れて fillRule="evenodd" で帯にする。
  * 3本を使い回す。9個ぜんぶ同じ枠だと、また機械で作った顔になる
  */
-const FRAMES = [
+export const SEAL_FRAMES = [
   'M4.0 5.2 L50 3.4 L96.0 5.0 L97.4 50 L95.8 96.2 L50 97.4 L4.6 95.6 L3.0 50 Z' +
     'M11.6 12.4 L50 10.8 L88.8 12.6 L90.4 50 L88.6 88.2 L50 90.6 L11.2 88.6 L9.8 50 Z',
 
@@ -186,7 +186,7 @@ export function Seal({ mark, earned, size, opacity }: Props) {
 
   return (
     <Svg width={size} height={size} viewBox="0 0 100 100" opacity={opacity}>
-      <Path testID="seal-frame" d={FRAMES[FRAME_OF[mark]]} fillRule="evenodd" fill={color} />
+      <Path testID="seal-frame" d={SEAL_FRAMES[FRAME_OF[mark]]} fillRule="evenodd" fill={color} />
       <G testID="seal-mark" fill={color}>
         {MARKS[mark]}
       </G>
