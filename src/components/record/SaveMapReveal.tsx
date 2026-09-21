@@ -28,6 +28,8 @@ interface Props {
   prefecture: string;
   /** 県ごとの枚数（いま記録したぶんを含む） */
   stampCountByPrefecture: Record<string, number>;
+  /** いま記録した枚数。寄り終わるまでは、この分を引いた「前の濃さ」で出す */
+  addedCount?: number;
   /** ピンの色。記録した寺社の種別に合わせる */
   spotType?: 'shrine' | 'temple';
   width: number;
@@ -44,6 +46,7 @@ interface Props {
 export function SaveMapReveal({
   prefecture,
   stampCountByPrefecture,
+  addedCount = 1,
   spotType = 'shrine',
   width,
   onSettled,
@@ -149,10 +152,17 @@ export function SaveMapReveal({
     transform: [{ translateY: pinDrop.interpolate({ inputRange: [0, 1], outputRange: [-90, 0] }) }],
   };
 
+  /*
+   * 寄り終わるまで、今回の県は**記録する前の濃さ**で出す。ピンと同時に1段濃くなる。
+   * 初めての県なら「まだ」の灰から色がつく。
+   *
+   * ここで朱に光らせることもできるが、そうすると地図の色に「枚数」以外の意味が
+   * 混ざる。あゆみの地図から「いちばん新しい」を外したのと同じ理由で、しない
+   */
   const tierOf = (name: string) => {
-    // 寄り終わるまで、今回の県は色をつけない。ピンと同時に色づく
-    if (name === prefecture && !settled) return 'empty';
-    return prefectureTier(stampCountByPrefecture[name] ?? 0);
+    const count = stampCountByPrefecture[name] ?? 0;
+    if (name === prefecture && !settled) return prefectureTier(count - addedCount);
+    return prefectureTier(count);
   };
 
   const pinColor = spotType === 'temple' ? colors.pin.templeVisited : colors.pin.shrineVisited;

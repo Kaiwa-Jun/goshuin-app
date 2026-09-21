@@ -2,7 +2,8 @@ import { act, render } from '@testing-library/react-native';
 import { AccessibilityInfo, StyleSheet } from 'react-native';
 
 import { SaveMapReveal, HOLD_MS, ZOOM_MS, PIN_MS } from '@components/record/SaveMapReveal';
-import { prefectureScreenPoint } from '@utils/japanMapZoom';
+import { zoomToPrefecture } from '@utils/japanMapZoom';
+import { JAPAN_MAP_HEIGHT, JAPAN_MAP_WIDTH, JAPAN_PREFECTURE_BOXES } from '@/constants/japanMap';
 
 import { colors } from '@theme/colors';
 
@@ -83,27 +84,40 @@ describe('ピンの位置と読み上げ', () => {
    * 端の県は移動量を頭打ちにしていて中心まで寄り切らない。枠の中心に置くと
    * 県から外れたところに刺さる
    */
-  it('端の県でも、ピンがその県の上に来る', async () => {
-    const width = 210;
-    for (const prefecture of ['沖縄県', '北海道', '東京都']) {
+  /*
+   * 端の県は移動量を頭打ちにしていて中心まで寄り切らない。枠の中心に置くと
+   * 県から外れたところに刺さる。**その県の上**に来ているかを、県の範囲で見る
+   */
+  it.each(['沖縄県', '鹿児島県', '北海道', '東京都'])(
+    '%s でも、ピンがその県の上に来る',
+    async name => {
+      const width = 210;
       const tree = render(
-        <SaveMapReveal
-          prefecture={prefecture}
-          stampCountByPrefecture={{ [prefecture]: 1 }}
-          width={width}
-        />
+        <SaveMapReveal prefecture={name} stampCountByPrefecture={{ [name]: 1 }} width={width} />
       );
       await act(async () => {});
 
-      const expected = prefectureScreenPoint(prefecture, width);
       const placed = StyleSheet.flatten(tree.getByTestId('save-map-pin').props.style);
+      // 尾の先（left + 幅/2, top + 高さ）が指す点
+      const tip = { x: placed.left + (84 * 0.34) / 2, y: placed.top + 120 * 0.34 };
 
-      // 尾の先（left + 幅/2, top + 高さ）が県を指す
-      expect(placed.left + (84 * 0.34) / 2).toBeCloseTo(expected.x, 1);
-      expect(placed.top + 120 * 0.34).toBeCloseTo(expected.y, 1);
+      // その県が、寄せたあと画面のどこに広がっているか
+      const box = JAPAN_PREFECTURE_BOXES[name];
+      const { scale, translateX, translateY } = zoomToPrefecture(name, width);
+      const height = (width * JAPAN_MAP_HEIGHT) / JAPAN_MAP_WIDTH;
+      const k = width / JAPAN_MAP_WIDTH;
+      const toScreen = (v: number, center: number, t: number) =>
+        scale * (v * k - center) + t + center;
+      const left = toScreen(box.x, width / 2, translateX);
+      const right = toScreen(box.x + box.width, width / 2, translateX);
+      const top = toScreen(box.y, height / 2, translateY);
+      const bottom = toScreen(box.y + box.height, height / 2, translateY);
+
+      expect({ name, inside: tip.x >= left && tip.x <= right }).toEqual({ name, inside: true });
+      expect({ name, inside: tip.y >= top && tip.y <= bottom }).toEqual({ name, inside: true });
       tree.unmount();
     }
-  });
+  );
 
   it('読み上げで、どの県が色づいたか分かる', async () => {
     const { getByTestId } = setup({ stampCountByPrefecture: { 東京都: 1, 宮城県: 9 } });

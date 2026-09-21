@@ -428,3 +428,19 @@ describe('地図を触っている間は画面が動かない', () => {
     expect(tree.getByTestId('ayumi-scroll').props.scrollEnabled).toBe(true);
   });
 });
+
+describe('上の数字が、塗り広がりに合わせて増える', () => {
+  // 数字だけ最初から最終値だと、塗り広がりと噛み合わない
+  it('地図が塗った県の数を、そのまま上に出す', () => {
+    const tree = render(<CollectionScreen navigation={mockNavigation} route={mockRoute} />);
+    const map = tree.UNSAFE_getByType(JapanMap);
+
+    act(() => map.props.onRevealed(0));
+    expect(tree.getByText('0')).toBeTruthy();
+    expect(tree.getByText('まだ 47')).toBeTruthy();
+
+    act(() => map.props.onRevealed(1));
+    expect(tree.getByText('1')).toBeTruthy();
+    expect(tree.getByText('まだ 46')).toBeTruthy();
+  });
+});

@@ -4,6 +4,7 @@ import { render, fireEvent, act } from '@testing-library/react-native';
 import { RecordCompleteScreen } from '@screens/RecordCompleteScreen';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
+import { shadows } from '@theme/shadows';
 
 jest.mock('react-native-safe-area-context', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
@@ -192,7 +193,8 @@ describe('RecordCompleteScreen', () => {
       expect(getByText('大崎八幡宮')).toBeTruthy();
     });
 
-    it('通算の枚数を大きく出す', () => {
+    // 地図を出さないときは数え上げの合図が来ないので、最終値のまま出す
+    it('地図が無いときは、通算の枚数をそのまま大きく出す', () => {
       const route = {
         key: 'test',
         name: 'RecordComplete' as const,
@@ -511,6 +513,7 @@ describe('まとめて登録したときの枚数表示', () => {
     );
 
     expect(getByTestId('stamp-count').props.children).toBe('この日 5枚');
+    // 地図が無い経路なので、通算はそのまま出る
     expect(getByText('34')).toBeTruthy();
   });
 });
@@ -650,6 +653,9 @@ describe('枚数が数え上がる', () => {
 
     const shown = () => getByTestId('stamp-total').children[0].props.children;
 
+    // 合図が来る前から、数え始めの値が出ている（最終値を先に出さない）
+    expect(shown()).toBe(32);
+
     act(() => UNSAFE_getByType(SaveMapReveal).props.onSettled());
     expect(shown()).toBe(32);
 
@@ -676,4 +682,16 @@ describe('枚数が数え上がる', () => {
     expect(queryByTestId('stamp-total')).toBeNull();
     expect(queryByTestId('save-map')).toBeNull();
   });
+});
+
+// 御朱印は主役。地から浮かせる（影は枠側。Image に影は乗らない）
+it('御朱印が影で浮いている（トークン由来）', () => {
+  const { getByTestId } = render(
+    <RecordCompleteScreen navigation={mockNavigation} route={mockRouteWithParams} />
+  );
+  const style = StyleSheet.flatten(getByTestId('stamp-frame').props.style);
+
+  expect(style.shadowOpacity).toBe(shadows.lg.shadowOpacity);
+  expect(style.shadowRadius).toBe(shadows.lg.shadowRadius);
+  expect(style.elevation).toBe(shadows.lg.elevation);
 });

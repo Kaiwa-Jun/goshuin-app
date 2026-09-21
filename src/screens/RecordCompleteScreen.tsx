@@ -84,14 +84,19 @@ export function RecordCompleteScreen({ navigation, route }: Props) {
    * 数字と地図は、取得に失敗したときは出さない。保存はできているので画面は
    * 出すが、嘘の数字を祝わない（Issue #133）
    */
-  const canShowMap = !countUnavailable && prefecture !== undefined && stampCountByPrefecture;
 
   /*
    * 枚数は地図が色づくのに合わせて数え上がる。いきなり最後の数字が出ていると、
    * 「増えた」ではなく「そういう数字だった」に見える
    */
+  const canShowMap = !countUnavailable && prefecture !== undefined && stampCountByPrefecture;
+
   const from = Math.max(0, (totalStampCount ?? 0) - stampCount);
-  const [shownCount, setShownCount] = useState(totalStampCount ?? 0);
+  /*
+   * 数え始めの値から出す。最終値を先に出すと、寄り終わった瞬間に戻って数え直す。
+   * ただし**地図を出さないときは数え上げの合図が来ない**ので、最終値のまま出す
+   */
+  const [shownCount, setShownCount] = useState(canShowMap ? from : (totalStampCount ?? 0));
   const countTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const startCountUp = useCallback(() => {
@@ -116,7 +121,7 @@ export function RecordCompleteScreen({ navigation, route }: Props) {
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={styles.card}>
           {/* 御朱印は主役。地から浮かせる（影は枠側に置く。Image に影は乗らない） */}
-          <View style={styles.stampFrame}>
+          <View style={styles.stampFrame} testID="stamp-frame">
             {stampImageUrl && !imageError ? (
               <Image
                 source={{ uri: stampImageUrl }}
@@ -155,6 +160,7 @@ export function RecordCompleteScreen({ navigation, route }: Props) {
             <SaveMapReveal
               prefecture={prefecture}
               stampCountByPrefecture={stampCountByPrefecture}
+              addedCount={stampCount}
               spotType={spotType}
               width={MAP_WIDTH}
               onSettled={startCountUp}

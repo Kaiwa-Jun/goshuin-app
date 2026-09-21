@@ -1,6 +1,7 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { colors } from '@theme/colors';
+import { shadows } from '@theme/shadows';
 import { borderRadius, spacing } from '@theme/spacing';
 import { typography } from '@theme/typography';
 import type { StampWithSpot } from '@/types/supabase';
@@ -9,6 +10,9 @@ interface Props {
   stamps: StampWithSpot[];
   onSeeAll: () => void;
 }
+
+/** 地図カードと同じ内側の余白（docs/design/2026-09-ayumi-map-spec.md §4-2） */
+const CARD_PADDING = 14;
 
 /** visited_at は DATE。文字列のまま切る（new Date() を挟むと Issue #204 の1日ずれを踏む） */
 function toMonthDay(visitedAt: string): string {
@@ -82,13 +86,9 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.white,
     borderRadius: borderRadius.xl,
-    padding: 14,
+    padding: CARD_PADDING,
     marginBottom: spacing.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
+    ...shadows.md,
   },
   header: {
     flexDirection: 'row',
