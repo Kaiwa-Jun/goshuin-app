@@ -173,3 +173,61 @@ describe('JapanMap', () => {
     });
   });
 });
+
+/*
+ * iOS の ScrollView はネイティブのジェスチャなので、JS 側で指を引き取っても
+ * 一緒に動く。指が乗っている間だけ親のスクロールを止める
+ */
+describe('親のスクロールを止める', () => {
+  const touchEvent = (count: number) => ({
+    nativeEvent: { touches: Array.from({ length: count }, () => ({ pageX: 0, pageY: 0 })) },
+  });
+  const touchStartOf = (el: unknown) =>
+    (el as { props: Record<string, unknown> }).props.onTouchStart as (e: unknown) => void;
+  const touchEndOf = (el: unknown) =>
+    (el as { props: Record<string, unknown> }).props.onTouchEnd as (e: unknown) => void;
+
+  it('二本指が触れたら止めて、離れたら戻す', () => {
+    const onInteraction = jest.fn();
+    const { getByTestId } = setup({ onInteraction });
+    const map = getByTestId('japan-map');
+
+    touchStartOf(map)(touchEvent(2));
+    expect(onInteraction).toHaveBeenLastCalledWith(true);
+
+    touchEndOf(map)(touchEvent(0));
+    expect(onInteraction).toHaveBeenLastCalledWith(false);
+  });
+
+  // 全体表示の一本指は縦スクロールに使う。止めてはいけない
+  it('全体表示の一本指では止めない', () => {
+    const onInteraction = jest.fn();
+    const { getByTestId } = setup({ onInteraction });
+
+    touchStartOf(getByTestId('japan-map'))(touchEvent(1));
+
+    expect(onInteraction).not.toHaveBeenCalled();
+  });
+
+  it('同じ状態を何度も伝えない', () => {
+    const onInteraction = jest.fn();
+    const { getByTestId } = setup({ onInteraction });
+    const map = getByTestId('japan-map');
+
+    touchStartOf(map)(touchEvent(2));
+    touchStartOf(map)(touchEvent(2));
+
+    expect(onInteraction).toHaveBeenCalledTimes(1);
+  });
+
+  // 止めたまま画面から外れると、二度と縦に動かせなくなる
+  it('操作の途中で画面から外れても、スクロールを戻す', () => {
+    const onInteraction = jest.fn();
+    const { getByTestId, unmount } = setup({ onInteraction });
+    touchStartOf(getByTestId('japan-map'))(touchEvent(2));
+
+    unmount();
+
+    expect(onInteraction).toHaveBeenLastCalledWith(false);
+  });
+});

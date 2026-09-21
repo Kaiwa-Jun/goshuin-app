@@ -44,6 +44,8 @@ export function CollectionScreen({ navigation }: Props) {
    * 寄りの計算に実寸が要る。onLayout を待つ間も地図を出したいので、
    * 画面幅から引いた見込みで描き始めて、測れたら差し替える
    */
+  // 地図に指が乗っている間は縦スクロールを止める（JapanMap の onInteraction 参照）
+  const [scrollEnabled, setScrollEnabled] = useState(true);
   const [mapWidth, setMapWidth] = useState(
     Dimensions.get('window').width - spacing.lg * 2 - MAP_CARD_PADDING * 2
   );
@@ -91,6 +93,8 @@ export function CollectionScreen({ navigation }: Props) {
       </View>
 
       <ScrollView
+        testID="ayumi-scroll"
+        scrollEnabled={scrollEnabled}
         style={styles.scrollView}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -140,6 +144,7 @@ export function CollectionScreen({ navigation }: Props) {
                   onPressPrefecture={handlePressPrefecture}
                   animate={!isLoading}
                   width={mapWidth}
+                  onInteraction={active => setScrollEnabled(!active)}
                 />
               </View>
 

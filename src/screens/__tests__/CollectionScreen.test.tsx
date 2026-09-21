@@ -1,7 +1,8 @@
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
+import { render, fireEvent, act } from '@testing-library/react-native';
 
 import { CollectionScreen } from '../CollectionScreen';
+import { JapanMap } from '@components/collection/JapanMap';
 import type { CollectionStackScreenProps } from '@/navigation/types';
 
 jest.mock('react-native-safe-area-context', () => {
@@ -389,5 +390,25 @@ describe('CollectionScreen', () => {
       <CollectionScreen navigation={mockNavigation} route={mockRoute} />
     );
     expect(queryByTestId('collection-guest-empty-state')).toBeNull();
+  });
+});
+
+describe('地図を触っている間は画面が動かない', () => {
+  /*
+   * iOS の ScrollView はネイティブのジェスチャなので、JS 側で指を引き取っても
+   * 一緒に動く。地図から合図をもらって縦スクロールを止める。
+   * 「指が触れたら合図を出す」側は JapanMap のテストで見ている
+   */
+  it('地図からの合図で縦スクロールを止め、戻す', () => {
+    const tree = render(<CollectionScreen navigation={mockNavigation} route={mockRoute} />);
+    const map = tree.UNSAFE_getByType(JapanMap);
+
+    expect(tree.getByTestId('ayumi-scroll').props.scrollEnabled).toBe(true);
+
+    act(() => map.props.onInteraction(true));
+    expect(tree.getByTestId('ayumi-scroll').props.scrollEnabled).toBe(false);
+
+    act(() => map.props.onInteraction(false));
+    expect(tree.getByTestId('ayumi-scroll').props.scrollEnabled).toBe(true);
   });
 });

@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import type { GestureResponderEvent } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import {
@@ -61,6 +62,14 @@ interface Props {
   animate?: boolean;
   /** 地図を描く幅。指で動かす計算に実寸が要る */
   width: number;
+  /**
+   * 地図をいま操作しているか。
+   *
+   * 親の縦スクロールを止めるのに使う。iOS の ScrollView はネイティブの
+   * ジェスチャなので、JS 側で指を引き取っても一緒に動いてしまう。
+   * 指が乗っている間だけ止めるのが定番の解き方。
+   */
+  onInteraction?: (active: boolean) => void;
 }
 
 /**
@@ -79,6 +88,7 @@ export function JapanMap({
   onPressPrefecture,
   animate = false,
   width,
+  onInteraction,
 }: Props) {
   const height = (width * JAPAN_MAP_HEIGHT) / JAPAN_MAP_WIDTH;
 
@@ -135,6 +145,17 @@ export function JapanMap({
     pan: { x: 0, y: 0 },
   });
   const resetting = useRef<Animated.CompositeAnimation | null>(null);
+  const interacting = useRef(false);
+
+  /** 同じ値を何度も親へ渡さない（そのたびに親が描き直される） */
+  const setInteracting = useCallback(
+    (active: boolean) => {
+      if (interacting.current === active) return;
+      interacting.current = active;
+      onInteraction?.(active);
+    },
+    [onInteraction]
+  );
 
   const apply = useCallback(
     (nextScale: number, nextPan: Pan) => {
@@ -157,6 +178,7 @@ export function JapanMap({
           (now.current.scale > ZOOMED_AT && Math.hypot(gesture.dx, gesture.dy) > 4),
         onPanResponderGrant: event => {
           resetting.current?.stop();
+          setInteracting(true);
           start.current = {
             distance: touchDistance(event.nativeEvent.touches),
             scale: now.current.scale,
@@ -198,10 +220,30 @@ export function JapanMap({
         },
         onPanResponderRelease: () => {
           start.current.distance = 0;
+          setInteracting(false);
+        },
+        onPanResponderTerminate: () => {
+          start.current.distance = 0;
+          setInteracting(false);
         },
       }),
-    [apply, height, width]
+    [apply, height, setInteracting, width]
   );
+
+  /*
+   * 指が触れた時点で止める。動き出してからでは、最初の数 px ぶん画面が
+   * 流れてしまう。全体表示の一本指だけは、縦スクロールの邪魔をしないよう
+   * そのまま通す
+   */
+  const handleTouchStart = (event: GestureResponderEvent) => {
+    if (event.nativeEvent.touches.length >= 2 || now.current.scale > ZOOMED_AT) {
+      setInteracting(true);
+    }
+  };
+
+  const handleTouchEnd = (event: GestureResponderEvent) => {
+    if (event.nativeEvent.touches.length === 0) setInteracting(false);
+  };
 
   const resetZoom = useCallback(() => {
     resetting.current?.stop();
@@ -225,8 +267,15 @@ export function JapanMap({
     });
   }, [pan, scale]);
 
-  // 画面から外れたら止める。動いたままにするとタイマーが生き残る
-  useEffect(() => () => resetting.current?.stop(), []);
+  // 画面から外れたら止める。動いたままにするとタイマーが生き残る。
+  // スクロールも必ず戻す（止めたまま外れると、二度と縦に動かせなくなる）
+  useEffect(
+    () => () => {
+      resetting.current?.stop();
+      if (interacting.current) onInteraction?.(false);
+    },
+    [onInteraction]
+  );
 
   const shown = new Set(order.slice(0, revealed));
 
@@ -236,6 +285,9 @@ export function JapanMap({
       accessibilityLabel={`47都道府県のうち${visited.length}県`}
       testID="japan-map"
       style={[styles.window, { width, height }]}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
       {...responder.panHandlers}
     >
       <Animated.View
