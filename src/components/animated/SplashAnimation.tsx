@@ -1,8 +1,34 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { ToriiIcon } from '@components/animated/ToriiIcon';
+import { Circle, Path, Svg } from 'react-native-svg';
+
+import { SEAL_FRAMES } from '@components/common/Seal';
 import { colors } from '@theme/colors';
+
+/**
+ * 起動画面に出す印。**アイコンと同じ絵**（12ヶ月の環と、真ん中のひとつ）。
+ *
+ * ⚠️ ここが合っていないと、ネイティブの起動画面（assets/splash.png）から
+ * この画面へ移るときに絵が入れ替わって見える。実際、以前はここが
+ * オレンジ地に鳥居の絵文字のままで、**焼いたアイコンが一度も見えていなかった**。
+ * 変えるときは scripts/icon/render.html も一緒に。
+ */
+const APP_MARK_RING = Array.from({ length: 12 }, (_, i) => {
+  const a = -Math.PI / 2 + (i * Math.PI) / 6;
+  return { cx: +(50 + 28 * Math.cos(a)).toFixed(2), cy: +(50 + 28 * Math.sin(a)).toFixed(2) };
+});
+
+function AppMark({ size }: { size: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 100 100" testID="splash-mark">
+      <Path fillRule="evenodd" d={SEAL_FRAMES[0]} fill={colors.seal} />
+      {APP_MARK_RING.map((c, i) => (
+        <Circle key={i} cx={c.cx} cy={c.cy} r={5.8} fill={colors.seal} />
+      ))}
+      <Circle cx={50} cy={50} r={10} fill={colors.seal} />
+    </Svg>
+  );
+}
 
 interface SplashAnimationProps {
   onAnimationComplete: () => void;
@@ -76,13 +102,14 @@ export const SplashAnimation: React.FC<SplashAnimationProps> = ({ onAnimationCom
       style={[StyleSheet.absoluteFill, styles.container, { opacity: exitOpacity }]}
       testID="splash-animation"
     >
-      <Animated.View style={[StyleSheet.absoluteFill, { opacity: backgroundOpacity }]}>
-        <LinearGradient
-          colors={[colors.primary[400], colors.primary[500], colors.primary[600]]}
-          style={StyleSheet.absoluteFill}
-          testID="splash-gradient"
-        />
-      </Animated.View>
+      {/* 地は和紙。ネイティブの起動画面と同じ色にして、継ぎ目を消す */}
+      <Animated.View
+        style={[
+          StyleSheet.absoluteFill,
+          { opacity: backgroundOpacity, backgroundColor: colors.washi },
+        ]}
+        testID="splash-ground"
+      />
 
       <View style={styles.content}>
         <Animated.View
@@ -91,7 +118,7 @@ export const SplashAnimation: React.FC<SplashAnimationProps> = ({ onAnimationCom
             transform: [{ scale: iconScale }],
           }}
         >
-          <ToriiIcon size={100} />
+          <AppMark size={104} />
         </Animated.View>
 
         <Animated.View
@@ -100,7 +127,7 @@ export const SplashAnimation: React.FC<SplashAnimationProps> = ({ onAnimationCom
             transform: [{ translateY: textTranslateY }],
           }}
         >
-          <Text style={styles.title}>御朱印めぐり</Text>
+          <Text style={styles.title}>御朱印さんぽ</Text>
         </Animated.View>
       </View>
     </Animated.View>
@@ -120,7 +147,8 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: colors.white,
+    // 地を和紙にしたので白では読めない
+    color: colors.gray[800],
     marginTop: 16,
   },
 });
