@@ -17,6 +17,24 @@ import type { CollectionStackScreenProps } from '@/navigation/types';
 type Props = CollectionStackScreenProps<'PrefectureDetail'>;
 
 const SHAPE_SIZE = 74;
+/** 県のまわりに取る余白。1.0 だと県が枠に触れる */
+const SHAPE_MARGIN = 1.24;
+
+/**
+ * 県ひとつを正方形の枠に収める viewBox。
+ *
+ * **正方形にするのが要点**。枠は正方形なのに viewBox を県の縦横比にすると、
+ * 比の食い違いの扱いが描画側の解釈任せになり、実機で県の左が切れた。
+ * 比を揃えてしまえば、どう解釈されても同じ絵になる。
+ */
+export function squareViewBox(prefecture: string): string {
+  const box = JAPAN_PREFECTURE_BOXES[prefecture];
+  const side = Math.max(box.width, box.height) * SHAPE_MARGIN;
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+
+  return `${cx - side / 2} ${cy - side / 2} ${side} ${side}`;
+}
 
 /**
  * 県ごとの御朱印。あゆみの地図で県をタップした先。
@@ -44,10 +62,7 @@ export function PrefectureDetailScreen({ navigation, route }: Props) {
     });
   };
 
-  // 離島まで入れると本体が豆粒になる。いちばん大きい島だけを枠いっぱいに出す
-  const box = JAPAN_PREFECTURE_BOXES[prefecture];
-  const pad = Math.max(box.width, box.height) * 0.12;
-  const viewBox = `${box.x - pad} ${box.y - pad} ${box.width + pad * 2} ${box.height + pad * 2}`;
+  const viewBox = squareViewBox(prefecture);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -67,7 +82,12 @@ export function PrefectureDetailScreen({ navigation, route }: Props) {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <View style={styles.shape} testID="prefecture-shape">
-            <Svg viewBox={viewBox} width={SHAPE_SIZE} height={SHAPE_SIZE}>
+            <Svg
+              viewBox={viewBox}
+              width={SHAPE_SIZE}
+              height={SHAPE_SIZE}
+              preserveAspectRatio="xMidYMid meet"
+            >
               <Path
                 d={JAPAN_PREFECTURE_PATHS[prefecture]}
                 fill={colors.primary[500]}
@@ -165,7 +185,8 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
     marginBottom: spacing.lg,
   },
-  shape: { width: SHAPE_SIZE, height: SHAPE_SIZE },
+  // 横に並ぶ相方に押されて縮まないようにする
+  shape: { width: SHAPE_SIZE, height: SHAPE_SIZE, flexShrink: 0, overflow: 'visible' },
   headerText: { flex: 1 },
   count: { fontSize: 26, fontWeight: '900', color: colors.gray[900] },
   sub: { ...typography.bodySmall, color: colors.gray[600], marginTop: 2 },

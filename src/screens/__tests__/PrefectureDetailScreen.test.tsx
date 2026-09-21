@@ -1,6 +1,7 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 
-import { PrefectureDetailScreen } from '@screens/PrefectureDetailScreen';
+import { PrefectureDetailScreen, squareViewBox } from '@screens/PrefectureDetailScreen';
+import { JAPAN_PREFECTURE_BOXES } from '@/constants/japanMap';
 
 jest.mock('react-native-safe-area-context', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
@@ -124,5 +125,40 @@ describe('PrefectureDetailScreen', () => {
         params: { focusPrefecture: '高知県' },
       });
     });
+  });
+});
+
+describe('squareViewBox', () => {
+  const parse = (vb: string) => {
+    const [x, y, w, h] = vb.split(' ').map(Number);
+    return { x, y, w, h };
+  };
+
+  /*
+   * 枠は正方形なのに viewBox を県の縦横比にすると、比の食い違いの扱いが
+   * 描画側の解釈任せになり、実機で県の左が切れた
+   */
+  it('正方形の viewBox を返す', () => {
+    for (const name of ['宮城県', '東京都', '北海道', '長崎県', '沖縄県']) {
+      const { w, h } = parse(squareViewBox(name));
+      expect(w).toBeCloseTo(h, 5);
+    }
+  });
+
+  it('県が枠の真ん中に来て、余白が残る', () => {
+    for (const name of ['宮城県', '静岡県', '神奈川県']) {
+      const box = JAPAN_PREFECTURE_BOXES[name];
+      const vb = parse(squareViewBox(name));
+
+      // 県が枠の内側に完全に収まる
+      expect(vb.x).toBeLessThan(box.x);
+      expect(vb.y).toBeLessThan(box.y);
+      expect(vb.x + vb.w).toBeGreaterThan(box.x + box.width);
+      expect(vb.y + vb.h).toBeGreaterThan(box.y + box.height);
+
+      // 中心が一致する
+      expect(vb.x + vb.w / 2).toBeCloseTo(box.x + box.width / 2, 5);
+      expect(vb.y + vb.h / 2).toBeCloseTo(box.y + box.height / 2, 5);
+    }
   });
 });
