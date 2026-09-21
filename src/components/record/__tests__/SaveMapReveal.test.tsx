@@ -49,6 +49,48 @@ describe('SaveMapReveal', () => {
   });
 
   // 落ちてきたピンが、地図タブで見るのと同じピンになる
+  /*
+   * 2回目以降の県は、寄っている間「記録する前の濃さ」で出る。empty に戻すと
+   * 一度も行っていない県のように見えるし、最終の濃さを先に出すと
+   * 「1段濃くなる」瞬間が消える
+   */
+  it('2回目以降の県は、記録する前の濃さから1段濃くなる', async () => {
+    jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false as never);
+    // 5枚目まで持っていて、いま1枚足して6枚目 = tier2 → tier3
+    const { getByTestId } = render(
+      <SaveMapReveal
+        prefecture="東京都"
+        stampCountByPrefecture={{ 東京都: 6 }}
+        addedCount={1}
+        width={210}
+      />
+    );
+    await act(async () => {});
+
+    expect(fillOf(getByTestId('save-map-東京都'))).toBe(asPayload(colors.prefectureFill.tier2));
+
+    await act(async () => {
+      jest.advanceTimersByTime(HOLD_MS + ZOOM_MS + PIN_MS + 50);
+    });
+
+    expect(fillOf(getByTestId('save-map-東京都'))).toBe(asPayload(colors.prefectureFill.tier3));
+  });
+
+  // 初めての県は「まだ」の灰から色がつく
+  it('初めての県は、まだの灰から色がつく', async () => {
+    jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false as never);
+    const { getByTestId } = setup({ stampCountByPrefecture: { 東京都: 1 }, addedCount: 1 });
+    await act(async () => {});
+
+    expect(fillOf(getByTestId('save-map-東京都'))).toBe(asPayload(colors.prefectureFill.empty));
+
+    await act(async () => {
+      jest.advanceTimersByTime(HOLD_MS + ZOOM_MS + PIN_MS + 50);
+    });
+
+    expect(fillOf(getByTestId('save-map-東京都'))).toBe(asPayload(colors.prefectureFill.tier1));
+  });
+
   it.each([
     ['shrine', colors.pin.shrineVisited],
     ['temple', colors.pin.templeVisited],

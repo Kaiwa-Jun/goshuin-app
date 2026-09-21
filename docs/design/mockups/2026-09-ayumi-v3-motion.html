@@ -113,8 +113,10 @@ svg.japan .pinwrap{animation:drop .52s cubic-bezier(.3,.9,.3,1.1) both;transform
 .minimap{width:210px;overflow:hidden;border-radius:12px;background:var(--paper)}
 .minimap svg{display:block}
 .minimap .zoom{transform-box:view-box;transform-origin:0 0}
-@keyframes flash{0%,100%{fill:var(--brand300)}35%{fill:var(--seal)}}
-.minimap svg path.flash{animation:flash .5s ease-in-out 2}
+/* 朱の点滅は入れない。地図の色に「枚数」以外の意味が混ざるため。
+   ピンが落ちて1段濃くなることで、その瞬間は十分に伝わる（実機で確認済み） */
+@keyframes settle{from{opacity:.35}to{opacity:1}}
+.minimap svg path.settle{animation:settle .45s ease-out}
 .minimap svg path{fill:var(--empty);stroke:#fff;stroke-width:3;transition:fill .5s ease}
 .minimap svg path.v1{fill:var(--brand300)} .minimap svg path.v2{fill:var(--brand)}
 .minimap svg path.v3{fill:var(--brand700)}
@@ -302,7 +304,7 @@ function playSave(){
 
   // 寄り終わりに合わせてピンが落ち、県が色づく
   setTimeout(()=>{
-    target.className.baseVal='v1 flash';
+    target.className.baseVal='v1 settle';
     // ピンは地図の縮尺で伸び縮みさせない。寄せたあとの位置を計算して、
     // 一定の大きさで置く（地図タブのピンと同じふるまい）
     const px=scale*cx+(vw/2-scale*cx), py=scale*cy+(vh/2-scale*cy);
