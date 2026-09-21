@@ -2,7 +2,7 @@ import React from 'react';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { Image, Keyboard, ScrollView, StyleSheet } from 'react-native';
 import { RecordScreen } from '@screens/RecordScreen';
-import { evaluateNewBadge } from '@services/badges';
+import { evaluateNewBadges } from '@services/badges';
 import type { Spot, Stamp } from '@/types/supabase';
 import { MAX_PHOTOS_PER_RECORD } from '@/constants/record';
 
@@ -116,8 +116,11 @@ jest.mock('@hooks/usePhotoPicker', () => ({
 const mockFetchVisitedSpotIds = jest.fn();
 const mockFetchRegionStats = jest.fn().mockResolvedValue([]);
 
+const mockFetchVisitLog = jest.fn().mockResolvedValue([]);
+
 jest.mock('@services/collection', () => ({
   fetchRegionStats: (...args: unknown[]) => mockFetchRegionStats(...args),
+  fetchVisitLog: (...args: unknown[]) => mockFetchVisitLog(...args),
 }));
 
 jest.mock('@services/stamps', () => ({
@@ -126,7 +129,7 @@ jest.mock('@services/stamps', () => ({
 }));
 
 jest.mock('@services/badges', () => ({
-  evaluateNewBadge: jest.fn(() => null),
+  evaluateNewBadges: jest.fn(() => null),
 }));
 
 jest.mock('@services/spots', () => ({
@@ -312,8 +315,8 @@ describe('RecordScreen', () => {
       updated_at: '2024-06-01T00:00:00Z',
     };
 
-    const mockBadge = { name: '初めての御朱印', description: '初めての御朱印を記録しました' };
-    (evaluateNewBadge as jest.Mock).mockReturnValue(mockBadge);
+    const mockBadges = [{ id: 'first-stamp', name: '初めての御朱印', description: '', icon: '🎊' }];
+    (evaluateNewBadges as jest.Mock).mockReturnValue(mockBadges);
 
     mockFormState.selectedSpot = fakeSpot;
     mockFormState.imageUris = ['file:///photo.jpg'];
@@ -327,7 +330,7 @@ describe('RecordScreen', () => {
       expect(mockNavigation.replace).toHaveBeenCalledWith(
         'RecordComplete',
         expect.objectContaining({
-          badge: mockBadge,
+          badges: mockBadges,
         })
       );
     });
@@ -1068,7 +1071,7 @@ describe('訪問済みスポットの取得に失敗したとき（Issue #133）
       expect(mockSubmit).toHaveBeenCalled();
     });
 
-    expect(evaluateNewBadge as jest.Mock).not.toHaveBeenCalled();
+    expect(evaluateNewBadges as jest.Mock).not.toHaveBeenCalled();
   });
 
   // 表示に要る params を巻き添えにしない
@@ -1205,9 +1208,13 @@ describe('訪問済みスポットの取得に成功したとき（Issue #133 �
   const paramsOfRecordComplete = () =>
     mockNavigation.replace.mock.calls.find((call: unknown[]) => call[0] === 'RecordComplete')![1];
 
-  it('新規スポットなら件数を1つ増やし、バッジ判定に前後の件数を渡す', async () => {
-    (evaluateNewBadge as jest.Mock).mockReturnValue(null);
+  it('新しい寺社なら、バッジ判定の前後で寺社の数が1つ増える', async () => {
+    (evaluateNewBadges as jest.Mock).mockReturnValue([]);
     mockFetchVisitedSpotIds.mockResolvedValue(new Set(['spot-2', 'spot-3']));
+    mockFetchVisitLog.mockResolvedValue([
+      { spot_id: 'spot-2', visited_at: '2026-09-01' },
+      { spot_id: 'spot-3', visited_at: '2026-09-02' },
+    ]);
 
     const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
     fireEvent.press(getByText('この内容で記録する'));
@@ -1215,12 +1222,18 @@ describe('訪問済みスポットの取得に成功したとき（Issue #133 �
     await waitFor(() => {
       expect(mockNavigation.replace).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
     });
-    expect(evaluateNewBadge as jest.Mock).toHaveBeenCalledWith(2, 3);
+    const [before, after] = (evaluateNewBadges as jest.Mock).mock.calls[0];
+    expect(before.visitCount).toBe(2);
+    expect(after.visitCount).toBe(3);
   });
 
-  it('再訪なら件数を増やさない', async () => {
-    (evaluateNewBadge as jest.Mock).mockReturnValue(null);
+  it('再訪なら寺社の数は増えない', async () => {
+    (evaluateNewBadges as jest.Mock).mockReturnValue([]);
     mockFetchVisitedSpotIds.mockResolvedValue(new Set(['spot-1', 'spot-2']));
+    mockFetchVisitLog.mockResolvedValue([
+      { spot_id: 'spot-1', visited_at: '2026-09-01' },
+      { spot_id: 'spot-2', visited_at: '2026-09-02' },
+    ]);
 
     const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
     fireEvent.press(getByText('この内容で記録する'));
@@ -1228,12 +1241,14 @@ describe('訪問済みスポットの取得に成功したとき（Issue #133 �
     await waitFor(() => {
       expect(mockNavigation.replace).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
     });
-    expect(evaluateNewBadge as jest.Mock).toHaveBeenCalledWith(2, 2);
+    const [before, after] = (evaluateNewBadges as jest.Mock).mock.calls[0];
+    expect(before.visitCount).toBe(2);
+    expect(after.visitCount).toBe(2);
   });
 
-  it('evaluateNewBadge の返り値をそのまま badge に渡す', async () => {
-    const badge = { name: '初めての御朱印', description: '最初の1枚' };
-    (evaluateNewBadge as jest.Mock).mockReturnValue(badge);
+  it('evaluateNewBadges の返り値をそのまま badges に渡す', async () => {
+    const badges = [{ id: 'first-stamp', name: '初めての御朱印', description: '', icon: '🎊' }];
+    (evaluateNewBadges as jest.Mock).mockReturnValue(badges);
     mockFetchVisitedSpotIds.mockResolvedValue(new Set());
 
     const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
@@ -1243,12 +1258,12 @@ describe('訪問済みスポットの取得に成功したとき（Issue #133 �
       expect(mockNavigation.replace).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
     });
 
-    expect(paramsOfRecordComplete().badge).toEqual(badge);
+    expect(paramsOfRecordComplete().badges).toEqual(badges);
   });
 
   // B-12: 成功経路に注記のフラグを混ぜない
   it('countUnavailable のキーを渡さない', async () => {
-    (evaluateNewBadge as jest.Mock).mockReturnValue(null);
+    (evaluateNewBadges as jest.Mock).mockReturnValue(null);
     mockFetchVisitedSpotIds.mockResolvedValue(new Set(['spot-2']));
 
     const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
@@ -1515,13 +1530,19 @@ describe('複数枚をまとめて登録する（Issue #180）', () => {
       failedCount: 0,
     });
     mockFetchVisitedSpotIds.mockResolvedValue(new Set(['spot-2', 'spot-3']));
+    mockFetchVisitLog.mockResolvedValue([
+      { spot_id: 'spot-2', visited_at: '2026-09-01' },
+      { spot_id: 'spot-3', visited_at: '2026-09-02' },
+    ]);
 
     const { getByText } = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
     fireEvent.press(getByText('この内容で記録する'));
 
-    await waitFor(() => {
-      expect(evaluateNewBadge).toHaveBeenCalledWith(2, 3);
-    });
+    await waitFor(() => expect(evaluateNewBadges).toHaveBeenCalled());
+    const [before, after] = (evaluateNewBadges as jest.Mock).mock.calls[0];
+    expect(before.visitCount).toBe(2);
+    // 3枚まとめて登録しても、訪問した寺社は1つ増えるだけ
+    expect(after.visitCount).toBe(3);
   });
 });
 

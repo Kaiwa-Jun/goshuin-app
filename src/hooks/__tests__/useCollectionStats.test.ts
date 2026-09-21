@@ -11,9 +11,12 @@ jest.mock('@services/stamps', () => ({
   fetchAllStamps: (...args: unknown[]) => mockFetchAllStamps(...args),
 }));
 
+const mockFetchVisitLog = jest.fn().mockResolvedValue([]);
+
 jest.mock('@services/collection', () => ({
   fetchCollectionStats: (...args: unknown[]) => mockFetchCollectionStats(...args),
   fetchRegionStats: (...args: unknown[]) => mockFetchRegionStats(...args),
+  fetchVisitLog: (...args: unknown[]) => mockFetchVisitLog(...args),
 }));
 
 jest.mock('@services/pilgrimages', () => ({

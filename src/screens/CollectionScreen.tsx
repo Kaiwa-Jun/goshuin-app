@@ -18,9 +18,10 @@ import { Button } from '@components/common/Button';
 import { Card } from '@components/common/Card';
 import { JapanMap } from '@components/collection/JapanMap';
 import { RecentVisits } from '@components/collection/RecentVisits';
+import { TsukimairiList } from '@components/collection/TsukimairiList';
 import { useAuth } from '@hooks/useAuth';
 import { useCollectionStats } from '@hooks/useCollectionStats';
-import { getAllBadges } from '@services/badges';
+import { getAllBadges, isEarned } from '@services/badges';
 import { JAPAN_MAP_HEIGHT, JAPAN_MAP_WIDTH } from '@/constants/japanMap';
 import { colors } from '@theme/colors';
 import { shadows } from '@theme/shadows';
@@ -36,8 +37,15 @@ type Props = CollectionStackScreenProps<'CollectionList'>;
 
 export function CollectionScreen({ navigation }: Props) {
   const { isAuthenticated } = useAuth();
-  const { spotCount, stampCount, regionStats, recentStamps, pilgrimageProgress, isLoading } =
-    useCollectionStats();
+  const {
+    stampCount,
+    regionStats,
+    recentStamps,
+    badgeProgress,
+    tsukimairi,
+    pilgrimageProgress,
+    isLoading,
+  } = useCollectionStats();
 
   const [showAllPilgrimages, setShowAllPilgrimages] = useState(false);
   /*
@@ -65,6 +73,10 @@ export function CollectionScreen({ navigation }: Props) {
     navigation.navigate('PrefectureDetail', { prefecture });
   };
 
+  const handlePressTsukimairi = (spotId: string) => {
+    navigation.getParent()?.navigate('MapTab', { screen: 'Map', params: { focusSpotId: spotId } });
+  };
+
   const handleSeeAllStamps = () => {
     navigation.getParent()?.navigate('GalleryTab', { screen: 'Gallery' });
   };
@@ -72,7 +84,7 @@ export function CollectionScreen({ navigation }: Props) {
   const badges = getAllBadges();
   const badgesWithStatus = badges.map(badge => ({
     ...badge,
-    earned: spotCount >= badge.condition.threshold,
+    earned: isEarned(badge.condition, badgeProgress),
   }));
 
   const topPilgrimage = pilgrimageProgress.length > 0 ? pilgrimageProgress[0] : null;
@@ -157,6 +169,7 @@ export function CollectionScreen({ navigation }: Props) {
             </View>
 
             <RecentVisits stamps={recentStamps} onSeeAll={handleSeeAllStamps} />
+            <TsukimairiList entries={tsukimairi} onPressSpot={handlePressTsukimairi} />
           </>
         )}
 

@@ -3,7 +3,7 @@ import { Image, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
-import { BadgeAnimation } from '@components/animated/BadgeAnimation';
+import { NewBadgeRow } from '@components/record/NewBadgeRow';
 import { PressableScale } from '@components/common/PressableScale';
 import { SaveMapReveal } from '@components/record/SaveMapReveal';
 import { colors } from '@theme/colors';
@@ -51,7 +51,7 @@ export function RecordCompleteScreen({ navigation, route }: Props) {
   const spotName = route.params?.spotName;
   const spotType = route.params?.spotType;
   const visitedAt = route.params?.visitedAt;
-  const badge = route.params?.badge;
+  const badges = route.params?.badges ?? [];
   const countUnavailable = route.params?.countUnavailable;
   const prefecture = route.params?.prefecture;
   const isFirstInPrefecture = route.params?.isFirstInPrefecture;
@@ -187,7 +187,7 @@ export function RecordCompleteScreen({ navigation, route }: Props) {
             </View>
           )}
 
-          {badge && <BadgeAnimation badge={badge} />}
+          <NewBadgeRow badges={badges} />
         </View>
 
         {/* 続ける / 終わる の2択だけ置く。お祝いの場に選択肢を並べない */}

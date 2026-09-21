@@ -42,6 +42,13 @@ let mockCollectionStats = {
       spots: { name: '湯島天満宮', type: 'shrine' },
     },
   ],
+  badgeProgress: {
+    visitCount: 10,
+    longestTsukimairi: 3,
+    seasonCount: 2,
+    maxSameDayVisits: 1,
+  },
+  tsukimairi: [],
   pilgrimageProgress: [
     {
       id: 'pilgrimage-1',
@@ -76,6 +83,8 @@ jest.mock('@services/wishlist', () => ({
 }));
 
 jest.mock('@services/badges', () => ({
+  isEarned: (condition: { threshold?: number }, progress: { visitCount: number }) =>
+    progress.visitCount >= (condition.threshold ?? 0),
   getAllBadges: () => [
     {
       id: 'first-stamp',
@@ -144,6 +153,13 @@ describe('CollectionScreen', () => {
           spots: { name: '湯島天満宮', type: 'shrine' },
         },
       ],
+      badgeProgress: {
+        visitCount: 10,
+        longestTsukimairi: 3,
+        seasonCount: 2,
+        maxSameDayVisits: 1,
+      },
+      tsukimairi: [],
       pilgrimageProgress: [
         {
           id: 'pilgrimage-1',
@@ -386,6 +402,13 @@ describe('CollectionScreen', () => {
         stampCount: 0,
         regionStats: [],
         recentStamps: [],
+        badgeProgress: {
+          visitCount: 10,
+          longestTsukimairi: 3,
+          seasonCount: 2,
+          maxSameDayVisits: 1,
+        },
+        tsukimairi: [],
         pilgrimageProgress: [],
         isLoading: false,
         error: null,

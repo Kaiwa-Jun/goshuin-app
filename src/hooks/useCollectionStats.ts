@@ -1,7 +1,17 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '@hooks/useAuth';
-import { fetchCollectionStats, fetchRegionStats, type RegionStat } from '@services/collection';
+import {
+  fetchCollectionStats,
+  fetchRegionStats,
+  fetchVisitLog,
+  type RegionStat,
+  type VisitLogRow,
+} from '@services/collection';
+import { buildBadgeProgress } from '@utils/badgeProgress';
+import { toLocalDateString } from '@utils/localDate';
+import { tsukimairiList, type TsukimairiEntry } from '@utils/tsukimairiList';
+import type { BadgeProgress } from '@/types/badge';
 import { fetchAllStamps } from '@services/stamps';
 import type { StampWithSpot } from '@/types/supabase';
 import { fetchPilgrimageProgress, type PilgrimageProgress } from '@services/pilgrimages';
@@ -15,6 +25,10 @@ interface UseCollectionStatsReturn {
   regionStats: RegionStat[];
   /** 最近の参拝（直近3件）。地図が「どこ」を見せるので、こちらは「いつ・どの寺社か」を受ける */
   recentStamps: StampWithSpot[];
+  /** バッジの判定に要る数字。参拝の記録から出す */
+  badgeProgress: BadgeProgress;
+  /** いま続いている月参り。満願に近い順 */
+  tsukimairi: TsukimairiEntry[];
   pilgrimageProgress: PilgrimageProgress[];
   isLoading: boolean;
   error: string | null;
@@ -31,6 +45,7 @@ export function useCollectionStats(): UseCollectionStatsReturn {
   const [regionStats, setRegionStats] = useState<RegionStat[]>([]);
   const [pilgrimageProgress, setPilgrimageProgress] = useState<PilgrimageProgress[]>([]);
   const [recentStamps, setRecentStamps] = useState<StampWithSpot[]>([]);
+  const [visitLog, setVisitLog] = useState<VisitLogRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -47,6 +62,7 @@ export function useCollectionStats(): UseCollectionStatsReturn {
         setRegionStats([]);
         setPilgrimageProgress([]);
         setRecentStamps([]);
+        setVisitLog([]);
         setIsLoading(false);
         return;
       }
@@ -56,11 +72,12 @@ export function useCollectionStats(): UseCollectionStatsReturn {
       (async () => {
         try {
           setIsLoading(true);
-          const [stats, regions, pilgrimages, recent] = await Promise.all([
+          const [stats, regions, pilgrimages, recent, log] = await Promise.all([
             fetchCollectionStats(user.id),
             fetchRegionStats(user.id),
             fetchPilgrimageProgress(user.id),
             fetchAllStamps(user.id, RECENT_VISITS_COUNT),
+            fetchVisitLog(user.id),
           ]);
           if (!cancelled) {
             setSpotCount(stats.spotCount);
@@ -68,6 +85,7 @@ export function useCollectionStats(): UseCollectionStatsReturn {
             setRegionStats(regions);
             setPilgrimageProgress(pilgrimages);
             setRecentStamps(recent);
+            setVisitLog(log);
             setError(null);
           }
         } catch (e) {
@@ -77,6 +95,7 @@ export function useCollectionStats(): UseCollectionStatsReturn {
             setRegionStats([]);
             setPilgrimageProgress([]);
             setRecentStamps([]);
+            setVisitLog([]);
             setError(e instanceof Error ? e.message : '取得に失敗しました');
           }
         } finally {
@@ -90,11 +109,18 @@ export function useCollectionStats(): UseCollectionStatsReturn {
     }, [user, refreshKey])
   );
 
+  // 今日の日付は1回だけ作る。DATE のまま扱う（Issue #204）
+  const today = toLocalDateString(new Date());
+  const badgeProgress = useMemo(() => buildBadgeProgress(visitLog, today), [visitLog, today]);
+  const tsukimairi = useMemo(() => tsukimairiList(visitLog, today), [visitLog, today]);
+
   return {
     spotCount,
     stampCount,
     regionStats,
     recentStamps,
+    badgeProgress,
+    tsukimairi,
     pilgrimageProgress,
     isLoading,
     error,

@@ -97,7 +97,7 @@ describe('RecordCompleteScreen', () => {
     const { queryByTestId } = render(
       <RecordCompleteScreen navigation={mockNavigation} route={mockRouteNoParams} />
     );
-    expect(queryByTestId('badge-animation')).toBeNull();
+    expect(queryByTestId('new-badges')).toBeNull();
   });
 
   it('renders badge animation when badge param is provided', () => {
@@ -107,13 +107,20 @@ describe('RecordCompleteScreen', () => {
       params: {
         stampImageUrl: undefined,
         spotName: undefined,
-        badge: { name: '初めての御朱印', description: '最初の御朱印を記録しました' },
+        badges: [
+          {
+            id: 'b',
+            name: '初めての御朱印',
+            description: '最初の御朱印を記録しました',
+            icon: '⛩️',
+          },
+        ],
       },
     };
     const { getByTestId, getByText } = render(
       <RecordCompleteScreen navigation={mockNavigation} route={routeWithBadge} />
     );
-    expect(getByTestId('badge-animation')).toBeTruthy();
+    expect(getByTestId('new-badges')).toBeTruthy();
     expect(getByText('初めての御朱印')).toBeTruthy();
   });
 
@@ -155,27 +162,34 @@ describe('RecordCompleteScreen', () => {
     const routeWithNullBadge = {
       key: 'test',
       name: 'RecordComplete' as const,
-      params: { badge: null },
+      params: { badges: [] },
     };
     const { queryByTestId } = render(
       <RecordCompleteScreen navigation={mockNavigation} route={routeWithNullBadge} />
     );
-    expect(queryByTestId('badge-animation')).toBeNull();
+    expect(queryByTestId('new-badges')).toBeNull();
   });
 
-  it('renders badge description when badge is provided', () => {
-    const routeWithBadge = {
+  // 説明文は出さない。行が増えると縦に伸びて、御朱印と地図の場所を奪う
+  it('取れたバッジは名前だけ、横に並べて出す', () => {
+    const route = {
       key: 'test',
       name: 'RecordComplete' as const,
       params: {
-        badge: { name: '初めての御朱印', description: '初めての御朱印を記録しました' },
+        badges: [
+          { id: 'mangan', name: '満願', description: '12ヶ月', icon: '⛩' },
+          { id: 'same-day-3', name: '1日に3箇所', description: '3つ回った', icon: '👣' },
+        ],
       },
     };
-    const { getByText } = render(
-      <RecordCompleteScreen navigation={mockNavigation} route={routeWithBadge} />
+    const { getByTestId, getByText, queryByText } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={route} />
     );
-    expect(getByText('初めての御朱印')).toBeTruthy();
-    expect(getByText('初めての御朱印を記録しました')).toBeTruthy();
+
+    expect(getByTestId('new-badge-mangan')).toBeTruthy();
+    expect(getByTestId('new-badge-same-day-3')).toBeTruthy();
+    expect(getByText('満願')).toBeTruthy();
+    expect(queryByText('12ヶ月')).toBeNull();
   });
 
   describe('with params', () => {
@@ -229,7 +243,14 @@ describe('RecordCompleteScreen', () => {
       params: {
         stampImageUrl: 'https://example.com/stamps/user-1/12345.jpg',
         spotName: '大崎八幡宮',
-        badge: { name: '初めての御朱印', description: '初めての御朱印を記録しました' },
+        badges: [
+          {
+            id: 'b',
+            name: '初めての御朱印',
+            description: '初めての御朱印を記録しました',
+            icon: '⛩️',
+          },
+        ],
       },
     };
 
@@ -257,7 +278,7 @@ describe('RecordCompleteScreen', () => {
         <RecordCompleteScreen navigation={mockNavigation} route={mockRouteWithBadge} />
       );
 
-      expect(getByTestId('badge-animation')).toBeTruthy();
+      expect(getByTestId('new-badges')).toBeTruthy();
     });
   });
 });
@@ -334,7 +355,7 @@ describe('記録数を算出できなかったときの注記（Issue #133）', 
       <RecordCompleteScreen navigation={mockNavigation} route={routeCountUnavailable} />
     );
 
-    expect(queryByTestId('badge-animation')).toBeNull();
+    expect(queryByTestId('new-badges')).toBeNull();
   });
 
   // C-7: 直値の色・文字サイズを書かない（CLAUDE.md のトークン規約）
