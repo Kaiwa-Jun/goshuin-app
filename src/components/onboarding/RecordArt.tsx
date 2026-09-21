@@ -18,9 +18,10 @@ import { colors } from '@theme/colors';
 
 /** 段取り。前の動きが終わってから次を始める */
 const SHOT_IN_MS = 200;
-const SHOT_OUT_MS = 1250;
-const MAP_IN_MS = 1600;
-const PIN_DROP_MS = 2150;
+/** 御朱印を見せておく時間。出てすぐ消えると何だったか分からない */
+const SHOT_HOLD_MS = 700;
+const MAP_IN_MS = 1750;
+const PIN_DROP_MS = 2300;
 
 /** ピンを刺す先。県の枠から引く（手で書いた座標を持たない） */
 const TOKYO = JAPAN_PREFECTURE_BOXES['東京都'];
@@ -60,21 +61,40 @@ export function RecordArt({ width, active }: Props) {
       return;
     }
 
-    const step = (value: Animated.Value, to: number, duration: number, delay: number) =>
+    const to = (value: Animated.Value, toValue: number, duration: number) =>
       Animated.timing(value, {
-        toValue: to,
+        toValue,
         duration,
-        delay,
         easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
+        /*
+         * native driver に載せると、JS 側の値が動かないので
+         * **テストから段取りを確かめられない**。ここは View 3つを
+         * 1回動かすだけなので、見えるほうを取る
+         */
+        useNativeDriver: false,
       });
 
-    const running = Animated.parallel([
-      step(shot, 1, 550, SHOT_IN_MS),
-      step(shot, 0, 450, SHOT_OUT_MS),
-      step(map, 1, 500, MAP_IN_MS),
-      step(pin, 1, 500, PIN_DROP_MS),
-    ]);
+    /*
+     * 1つの値には1本の流れだけ。
+     *
+     * 最初は shot の出し入れを2本の timing にして parallel に並べていたが、
+     * 同じ値を2本で取り合うかたちになり、**御朱印が一度も出なかった**
+     * （実機で分かった）。出す・待つ・引っ込めるを sequence で繋ぐ。
+     * stopTogether を切るのも要る — 既定では1本終わると他も止まる
+     */
+    const running = Animated.parallel(
+      [
+        Animated.sequence([
+          Animated.delay(SHOT_IN_MS),
+          to(shot, 1, 550),
+          Animated.delay(SHOT_HOLD_MS),
+          to(shot, 0, 450),
+        ]),
+        Animated.sequence([Animated.delay(MAP_IN_MS), to(map, 1, 500)]),
+        Animated.sequence([Animated.delay(PIN_DROP_MS), to(pin, 1, 500)]),
+      ],
+      { stopTogether: false }
+    );
     running.start();
     return () => running.stop();
   }, [active, reduceMotion, shot, map, pin]);
