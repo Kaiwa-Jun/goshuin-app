@@ -175,30 +175,42 @@ export function CollectionScreen({ navigation }: Props) {
 
         {/* Badge Section */}
         <Text style={styles.sectionTitle}>獲得バッジ</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.badgeScrollView}
-          contentContainerStyle={styles.badgeScrollContent}
-        >
-          {badgesWithStatus.map(badge => (
-            <View key={badge.id} style={styles.badgeItem}>
-              <View
-                style={[
-                  styles.badgeCircle,
-                  badge.earned ? styles.badgeEarned : styles.badgeUnearned,
-                ]}
-              >
-                <MaterialIcons
-                  name={badge.earned ? 'military-tech' : 'lock'}
-                  size={28}
-                  color={badge.earned ? colors.white : colors.gray[400]}
-                />
+        {/* 軸で分ける。訪問数だけだと物語が1本しかない（提案③） */}
+        {BADGE_AXES.map(axis => {
+          const inAxis = badgesWithStatus.filter(badge => badge.axis === axis.key);
+          if (inAxis.length === 0) return null;
+          return (
+            <View key={axis.key} testID={`badge-axis-${axis.key}`}>
+              <View style={styles.axisHeader}>
+                <Text style={styles.axisTitle}>{axis.label}</Text>
+                <Text style={styles.axisNote}>{axis.note}</Text>
               </View>
-              <Text style={styles.badgeName}>{badge.name}</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.badgeScrollView}
+                contentContainerStyle={styles.badgeScrollContent}
+              >
+                {inAxis.map(badge => (
+                  <View key={badge.id} style={styles.badgeItem} testID={`badge-${badge.id}`}>
+                    <View
+                      style={[
+                        styles.badgeCircle,
+                        badge.earned ? styles.badgeEarned : styles.badgeUnearned,
+                      ]}
+                    >
+                      {/* 未獲得を鍵で塞がない。そのバッジの絵のまま、薄く出す */}
+                      <Text style={[styles.badgeIcon, !badge.earned && styles.badgeIconOff]}>
+                        {badge.icon}
+                      </Text>
+                    </View>
+                    <Text style={styles.badgeName}>{badge.name}</Text>
+                  </View>
+                ))}
+              </ScrollView>
             </View>
-          ))}
-        </ScrollView>
+          );
+        })}
 
         {/* Pilgrimage Challenge Section */}
         <Text style={styles.sectionTitle}>巡礼チャレンジ</Text>
@@ -285,6 +297,13 @@ export function CollectionScreen({ navigation }: Props) {
 
 const MAP_CARD_PADDING = 14;
 
+/** バッジの軸。性質で分ける */
+const BADGE_AXES = [
+  { key: 'practice', label: '作法', note: '神社や寺に、もとからあるもの' },
+  { key: 'journey', label: '旅のしかた', note: '出かける理由を増やす' },
+  { key: 'count', label: '訪問数', note: 'これまでどおり' },
+] as const;
+
 function LegendItem({ color, text }: { color: string; text: string }) {
   return (
     <View style={styles.legendItem}>
@@ -328,6 +347,11 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.gray[200],
   },
+  axisHeader: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm, marginBottom: 2 },
+  axisTitle: { ...typography.caption, fontWeight: '700', color: colors.gray[600] },
+  axisNote: { fontSize: 11, color: colors.gray[400] },
+  badgeIcon: { fontSize: 24 },
+  badgeIconOff: { opacity: 0.42 },
   legendItem: { flexDirection: 'row', alignItems: 'center' },
   legendSwatch: { width: 9, height: 9, borderRadius: 2, marginRight: spacing.xs },
   legendText: { ...typography.caption, fontSize: 11, color: colors.gray[600] },

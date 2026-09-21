@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Dimensions, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Camera, Map } from '@maplibre/maplibre-react-native';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -12,6 +12,9 @@ import { SpotSheetHeader } from '@components/spot-detail/SpotSheetHeader';
 import { SpotSheetActions } from '@components/spot-detail/SpotSheetActions';
 import { LimitedGoshuinSection } from '@components/spot-detail/LimitedGoshuinSection';
 import { getStampImageUrl } from '@services/stamps';
+import { TsukimairiCard, TsukimairiPast } from '@components/spot-detail/TsukimairiCard';
+import { tsukimairiOf } from '@utils/tsukimairi';
+import { toLocalDateString } from '@utils/localDate';
 import type { Spot, Stamp, PublicStampWithUser } from '@/types/supabase';
 import type { ParsedSpotInfo } from '@hooks/useSpotInfo';
 import { colors } from '@theme/colors';
@@ -60,6 +63,19 @@ export function SpotDetailContent({
 }: SpotDetailContentProps) {
   const isStandalone = variant === 'standalone';
   const showVisited = isAuthenticated && visitCount > 0;
+  /*
+   * 月参りは、その寺社の記録から数える。参拝日は DATE のまま渡す
+   * （new Date() を挟むと Issue #204 と同じ1日ずれを踏む）
+   */
+  const tsukimairi = useMemo(
+    () =>
+      tsukimairiOf(
+        stamps.map(s => s.visited_at),
+        toLocalDateString(new Date())
+      ),
+    [stamps]
+  );
+
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
 
   const openGallery = useCallback(
@@ -111,6 +127,10 @@ export function SpotDetailContent({
           onRecordPress={onRecord}
         />
       )}
+
+      {/* 続いていればカード、途切れていれば1行だけ（§3） */}
+      <TsukimairiCard tsukimairi={tsukimairi} />
+      {!tsukimairi.shouldShowCard && <TsukimairiPast longest={tsukimairi.longest} />}
 
       {(stamps.length > 0 || publicStamps.length > 0) && (
         <View style={styles.stampGrid} testID="stamp-grid">

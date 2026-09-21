@@ -188,8 +188,47 @@ describe('RecordCompleteScreen', () => {
 
     expect(getByTestId('new-badge-mangan')).toBeTruthy();
     expect(getByTestId('new-badge-same-day-3')).toBeTruthy();
-    expect(getByText('満願')).toBeTruthy();
+    expect(getByText('1日に3箇所')).toBeTruthy();
+    // 説明文は出さない
     expect(queryByText('12ヶ月')).toBeNull();
+    expect(queryByText('3つ回った')).toBeNull();
+  });
+
+  /*
+   * 満願は御朱印の上の朱印とバッジの行の両方に出す。朱印は「いま押された」
+   * 瞬間の絵、行は「今日取れたもの」の一覧で、役割が違う
+   */
+  it('満願は、朱印とバッジの両方に出る', () => {
+    const route = {
+      key: 'test',
+      name: 'RecordComplete' as const,
+      params: {
+        spotName: '湯島天満宮',
+        badges: [{ id: 'mangan', name: '満願', description: '12ヶ月', icon: '⛩' }],
+      },
+    };
+    const { getByTestId } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={route} />
+    );
+
+    expect(getByTestId('mangan-seal')).toBeTruthy();
+    expect(getByTestId('new-badge-mangan')).toBeTruthy();
+    // ご褒美はアプリの外にある、を文言として持つ
+    expect(getByTestId('mangan-note')).toBeTruthy();
+  });
+
+  it('満願でなければ、朱印も注記も出さない', () => {
+    const route = {
+      key: 'test',
+      name: 'RecordComplete' as const,
+      params: { badges: [{ id: 'visit-5', name: '5箇所達成', description: '', icon: '⛩️' }] },
+    };
+    const { queryByTestId } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={route} />
+    );
+
+    expect(queryByTestId('mangan-seal')).toBeNull();
+    expect(queryByTestId('mangan-note')).toBeNull();
   });
 
   describe('with params', () => {

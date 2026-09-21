@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
 import { NewBadgeRow } from '@components/record/NewBadgeRow';
+import { ManganNote, ManganSeal } from '@components/record/ManganSeal';
 import { PressableScale } from '@components/common/PressableScale';
 import { SaveMapReveal } from '@components/record/SaveMapReveal';
 import { colors } from '@theme/colors';
@@ -18,6 +19,8 @@ type Props = RootStackScreenProps<'RecordComplete'>;
 const MAP_WIDTH = 210;
 /** 枚数が1つ増えるまでの間 */
 const COUNT_STEP_MS = 90;
+/** 地図が落ち着いてから朱印を押す */
+const MANGAN_DELAY_MS = 1700;
 
 /**
  * 記録を終えた人を、来た場所に返すための出口。
@@ -52,6 +55,8 @@ export function RecordCompleteScreen({ navigation, route }: Props) {
   const spotType = route.params?.spotType;
   const visitedAt = route.params?.visitedAt;
   const badges = route.params?.badges ?? [];
+  // 満願は、御朱印の上に朱印として押す。バッジの行にも出す（朱印は演出、行は記録）
+  const isMangan = badges.some(badge => badge.id === 'mangan');
   const countUnavailable = route.params?.countUnavailable;
   const prefecture = route.params?.prefecture;
   const isFirstInPrefecture = route.params?.isFirstInPrefecture;
@@ -133,6 +138,7 @@ export function RecordCompleteScreen({ navigation, route }: Props) {
             ) : (
               <View style={styles.imagePlaceholder} testID="stamp-image-placeholder">
                 <MaterialIcons name="photo" size={44} color={colors.gray[300]} />
+                {isMangan && <ManganSeal spotName={spotName ?? ''} delayMs={MANGAN_DELAY_MS} />}
               </View>
             )}
           </View>
@@ -186,6 +192,8 @@ export function RecordCompleteScreen({ navigation, route }: Props) {
               )}
             </View>
           )}
+
+          {isMangan && <ManganNote />}
 
           <NewBadgeRow badges={badges} />
         </View>

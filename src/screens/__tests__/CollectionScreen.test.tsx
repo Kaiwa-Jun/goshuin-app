@@ -1,6 +1,6 @@
 import React from 'react';
 import { AccessibilityInfo, StyleSheet } from 'react-native';
-import { render, fireEvent, act } from '@testing-library/react-native';
+import { render, fireEvent, act, within } from '@testing-library/react-native';
 
 import { CollectionScreen } from '../CollectionScreen';
 import { JapanMap } from '@components/collection/JapanMap';
@@ -91,6 +91,7 @@ jest.mock('@services/badges', () => ({
       name: '初めての御朱印',
       description: '初めての御朱印を記録しました',
       icon: '🎊',
+      axis: 'count',
       condition: { type: 'visit_count', threshold: 1 },
     },
     {
@@ -98,6 +99,7 @@ jest.mock('@services/badges', () => ({
       name: '5箇所達成',
       description: '5箇所の神社仏閣を訪れました',
       icon: '⛩️',
+      axis: 'count',
       condition: { type: 'visit_count', threshold: 5 },
     },
     {
@@ -105,13 +107,23 @@ jest.mock('@services/badges', () => ({
       name: '10箇所達成',
       description: '10箇所の神社仏閣を訪れました',
       icon: '🏆',
+      axis: 'count',
       condition: { type: 'visit_count', threshold: 10 },
+    },
+    {
+      id: 'mangan',
+      name: '満願',
+      description: 'ひとつの寺社に12ヶ月',
+      icon: '⛩',
+      axis: 'practice',
+      condition: { type: 'tsukimairi', threshold: 12 },
     },
     {
       id: 'visit-100',
       name: '全国制覇',
       description: '100箇所の神社仏閣を訪れました',
       icon: '👑',
+      axis: 'count',
       condition: { type: 'visit_count', threshold: 100 },
     },
   ],
@@ -304,6 +316,36 @@ describe('CollectionScreen', () => {
     expect(getByText('5箇所達成')).toBeTruthy();
     expect(getByText('10箇所達成')).toBeTruthy();
     expect(getByText('全国制覇')).toBeTruthy();
+  });
+
+  /*
+   * 訪問数だけだと物語が1本しかない。軸で分けて、性質の違いを見せる
+   */
+  it('バッジを軸ごとに分けて出す', () => {
+    const { getByTestId, getByText, queryByTestId } = render(
+      <CollectionScreen navigation={mockNavigation} route={mockRoute} />
+    );
+
+    expect(getByTestId('badge-axis-practice')).toBeTruthy();
+    expect(getByTestId('badge-axis-count')).toBeTruthy();
+    expect(getByText('作法')).toBeTruthy();
+    expect(getByText('訪問数')).toBeTruthy();
+    // 旅のしかたのバッジを1つも持っていなければ、その見出しは出さない
+    expect(queryByTestId('badge-axis-journey')).toBeNull();
+  });
+
+  // 未獲得を鍵で塞ぐと、何を目指せばいいか分からなくなる
+  it('未獲得のバッジも、その絵のまま薄く出す', () => {
+    const { getByTestId } = render(
+      <CollectionScreen navigation={mockNavigation} route={mockRoute} />
+    );
+    const iconStyle = (id: string, icon: string) =>
+      StyleSheet.flatten(within(getByTestId(`badge-${id}`)).getByText(icon).props.style);
+
+    // 満願は未獲得。鍵ではなく⛩のまま、薄く出す
+    expect(iconStyle('mangan', '⛩').opacity).toBe(0.42);
+    // 獲得済みは薄くしない
+    expect(iconStyle('first-stamp', '🎊').opacity).toBeUndefined();
   });
 
   it('巡礼チャレンジセクションが表示される', () => {
