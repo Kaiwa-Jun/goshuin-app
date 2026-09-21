@@ -1,5 +1,6 @@
 import { render } from '@testing-library/react-native';
-import { Svg } from 'react-native-svg';
+import { Text } from 'react-native';
+import { G, Svg, Text as SvgText } from 'react-native-svg';
 
 import { SEAL_MARKS, Seal, type SealMark } from '@components/common/Seal';
 import { colors } from '@theme/colors';
@@ -50,6 +51,29 @@ describe('Seal', () => {
   it('枠も字と同じ色で押される', () => {
     const { getByTestId } = setup('juu', false);
     expect(fillOf(getByTestId('seal-frame'))).toBe(asPayload(colors.sealEmpty));
+  });
+
+  /*
+   * この変更の肝。字は矩形と円で彫ってあるので、印はフォントを一切使わない。
+   * Text が1つでも入ると、iOS と Android で顔が変わる元に戻る
+   */
+  it.each(SEAL_MARKS)('%s は文字を1つも描かない', mark => {
+    const { UNSAFE_queryAllByType } = setup(mark);
+
+    expect(UNSAFE_queryAllByType(Text)).toHaveLength(0);
+    expect(UNSAFE_queryAllByType(SvgText)).toHaveLength(0);
+  });
+
+  // 2文字の印だけ、横に並べるための G が余分に2つ要る
+  it.each(['sanjuu', 'gojuu'] as const)('%s は2文字を横に並べている', mark => {
+    const { UNSAFE_queryAllByType } = setup(mark);
+    const placed = UNSAFE_queryAllByType(G).filter(g => typeof g.props.transform === 'string');
+
+    expect(placed).toHaveLength(2);
+    expect(placed.map(g => g.props.transform)).toEqual([
+      'translate(9,7) scale(0.46,0.86)',
+      'translate(45,7) scale(0.46,0.86)',
+    ]);
   });
 
   /*

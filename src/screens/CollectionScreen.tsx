@@ -202,7 +202,14 @@ export function CollectionScreen({ navigation }: Props) {
                  */}
                 <View style={styles.sealGrid}>
                   {inAxis.map(badge => (
-                    <View key={badge.id} style={styles.sealItem} testID={`badge-${badge.id}`}>
+                    <View
+                      key={badge.id}
+                      style={styles.sealItem}
+                      testID={`badge-${badge.id}`}
+                      accessible
+                      /* 押されているかを色だけの違いにしない */
+                      accessibilityLabel={`${badge.name}、${badge.earned ? '獲得済み' : 'まだ'}`}
+                    >
                       {/* 未獲得を鍵で塞がない。同じ印を、まだ押されていない色で出す */}
                       <Seal mark={badge.mark} earned={badge.earned} size={SEAL_SIZE} />
                       <Text style={[styles.sealName, !badge.earned && styles.sealNameOff]}>

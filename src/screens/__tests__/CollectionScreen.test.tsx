@@ -361,6 +361,21 @@ describe('CollectionScreen', () => {
   });
 
   /*
+   * 押されているかどうかが朱と灰の違いだけだと、色が見分けられない人に
+   * 伝わらない。薄い灰は白地とのコントラストも低い
+   */
+  it('押されているかを、色だけでなく読み上げでも伝える', () => {
+    const { getByTestId } = render(
+      <CollectionScreen navigation={mockNavigation} route={mockRoute} />
+    );
+
+    expect(getByTestId('badge-first-stamp').props.accessibilityLabel).toBe(
+      '初めての御朱印、獲得済み'
+    );
+    expect(getByTestId('badge-mangan').props.accessibilityLabel).toBe('満願、まだ');
+  });
+
+  /*
    * 9個しかないのに横スクロールが3本あって、スクロールの先は
    * 見えていないのと同じだった
    */

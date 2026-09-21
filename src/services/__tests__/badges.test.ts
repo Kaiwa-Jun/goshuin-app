@@ -174,4 +174,13 @@ describe('nearestUnearned', () => {
   it('何もしていなければ、いちばん手前の1つ', () => {
     expect(nearestUnearned(progress())?.id).toBe('first-stamp');
   });
+
+  // 同率で揺れると、画面を開くたびに違うものが出てしまう
+  it('比が同率なら、定義順が先のほうを返す', () => {
+    // 訪問0・季節0・同日0 はすべて比 0。定義順の先頭は first-stamp
+    expect(nearestUnearned(progress())?.id).toBe('first-stamp');
+    // 満願(6/12) と 四季(2/4) を同率 0.5 にそろえる
+    const tied = progress({ longestTsukimairi: 6, seasonCount: 2 });
+    expect(nearestUnearned(tied)?.id).toBe('mangan');
+  });
 });

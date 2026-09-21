@@ -9,6 +9,16 @@ describe('Theme', () => {
       expect(colors.primary[900]).toBeDefined();
     });
 
+    /*
+     * 印の色。朱肉に寄せた朱と、まだ押されていない灰。
+     * shrine[600] をそのまま使うと、9個並んだときに光って見えた
+     */
+    it('印の朱と、押されていない色を持つ', () => {
+      expect(colors.seal).toBe('#C2342B');
+      expect(colors.sealEmpty).toBe('#D3D6DC');
+      expect(colors.seal).not.toBe(colors.shrine[600]);
+    });
+
     it('should export shrine colors', () => {
       expect(colors.shrine[500]).toBe('#EF4444');
       expect(colors.shrine[100]).toBe('#FEE2E2');

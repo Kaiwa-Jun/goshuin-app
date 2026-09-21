@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet } from 'react-native';
-import { render, fireEvent, act } from '@testing-library/react-native';
+import { render, fireEvent, act, within } from '@testing-library/react-native';
+import { Svg } from 'react-native-svg';
 import { RecordCompleteScreen } from '@screens/RecordCompleteScreen';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
@@ -218,6 +219,15 @@ describe('RecordCompleteScreen', () => {
 
     expect(getByTestId('mangan-seal')).toBeTruthy();
     expect(getByTestId('new-badge-mangan')).toBeTruthy();
+
+    /*
+     * 朱印は彫った印であって、明朝の「満願」という文字ではない。
+     * 下の墨が少し透ける（紙に押した朱肉は下を塗りつぶさない）
+     */
+    const seal = within(getByTestId('mangan-seal'));
+    expect(seal.queryByText('満願')).toBeNull();
+    expect(seal.getByTestId('seal-frame')).toBeTruthy();
+    expect(seal.UNSAFE_getByType(Svg).props.opacity).toBe(0.9);
     // ご褒美はアプリの外にある、を文言として持つ
     expect(getByTestId('mangan-note')).toBeTruthy();
   });
