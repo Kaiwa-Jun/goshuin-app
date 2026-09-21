@@ -122,7 +122,7 @@ export function CollectionScreen({ navigation }: Props) {
               <MaterialIcons name="emoji-events" size={40} color={colors.primary[500]} />
               <Text style={styles.guestCardTitle}>記録するとここに集計されます</Text>
               <Text style={styles.guestCardDescription}>
-                訪れた寺社の数・都道府県の埋まり方・巡礼の進捗・獲得バッジが自動でたまります
+                訪れた寺社の数・都道府県の埋まり方・巡礼の進捗・印が自動でたまります
               </Text>
               <Button
                 title="ログインして始める"

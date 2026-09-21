@@ -1,6 +1,6 @@
 import { render } from '@testing-library/react-native';
 import { Text } from 'react-native';
-import { G, Svg, Text as SvgText } from 'react-native-svg';
+import { Circle, G, Path, Rect, Svg, Text as SvgText } from 'react-native-svg';
 
 import { SEAL_MARKS, Seal, type SealMark } from '@components/common/Seal';
 import { colors } from '@theme/colors';
@@ -21,12 +21,26 @@ describe('Seal', () => {
     expect(SEAL_MARKS).toHaveLength(9);
   });
 
-  // 空の印が混ざっていると、そのバッジだけ枠しか出ない
-  it.each(SEAL_MARKS)('%s は枠と図形の両方を持つ', mark => {
-    const { getByTestId } = setup(mark);
+  /*
+   * 空の印が混ざっていると、そのバッジだけ枠しか出ない。
+   *
+   * ⚠️ ここを `seal-mark` の children の truthy で見ていた時期があるが、
+   * children は JSX の要素そのものなので、中身を空フラグメントに
+   * 差し替えても truthy のまま通る＝**彫りが消えても緑になる**。
+   * 実際に描かれた図形を数える
+   */
+  it.each(SEAL_MARKS)('%s は枠のほかに図形が彫られている', mark => {
+    const { getByTestId, UNSAFE_queryAllByType } = setup(mark);
 
     expect(getByTestId('seal-frame').props.d).toBeTruthy();
-    expect(getByTestId('seal-mark').props.children).toBeTruthy();
+
+    // Polygon は内部で Path として描かれる。枠の Path 1本を引く
+    const drawn =
+      UNSAFE_queryAllByType(Rect).length +
+      UNSAFE_queryAllByType(Circle).length +
+      UNSAFE_queryAllByType(Path).length -
+      1;
+    expect(drawn).toBeGreaterThan(0);
   });
 
   /*
@@ -85,6 +99,29 @@ describe('Seal', () => {
       SEAL_MARKS.map(mark => setup(mark).getByTestId('seal-frame').props.d as string)
     );
     expect(shapes.size).toBe(3);
+  });
+
+  /*
+   * 同じ枠が隣り合うと、3種類ある意味が薄れる。
+   * どの枠を使うかは Seal 側が持っているので、ここで固定する
+   */
+  it('印ごとの枠の割り当てが決まっている', () => {
+    const frameOf = (mark: SealMark) => setup(mark).getByTestId('seal-frame').props.d as string;
+    const groups = new Map<string, SealMark[]>();
+    for (const mark of SEAL_MARKS) {
+      const d = frameOf(mark);
+      groups.set(d, [...(groups.get(d) ?? []), mark]);
+    }
+
+    expect([...groups.values()].map(g => g.sort()).sort()).toEqual(
+      [
+        ['gojuu', 'juu', 'mangan'],
+        ['go', 'mitsu', 'sanjuu'],
+        ['hyaku', 'ichi', 'shiki'],
+      ]
+        .map(g => g.sort())
+        .sort()
+    );
   });
 
   it('御朱印の上に押すときだけ、下の墨が透ける', () => {

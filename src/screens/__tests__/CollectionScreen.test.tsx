@@ -1,5 +1,5 @@
 import React from 'react';
-import { AccessibilityInfo, StyleSheet } from 'react-native';
+import { AccessibilityInfo, ScrollView, StyleSheet } from 'react-native';
 import { render, fireEvent, act, within } from '@testing-library/react-native';
 
 import { CollectionScreen } from '../CollectionScreen';
@@ -380,14 +380,26 @@ describe('CollectionScreen', () => {
    * 見えていないのと同じだった
    */
   it('印は横スクロールせず、ぜんぶ並べる', () => {
-    const { getAllByTestId, getByText } = render(
+    const { getAllByTestId, getByTestId, getByText } = render(
       <CollectionScreen navigation={mockNavigation} route={mockRoute} />
     );
 
-    // 縦スクロール1本だけ。バッジ用の横スクロールは無い
-    expect(getAllByTestId('ayumi-scroll')).toHaveLength(1);
-    // モックの5個ぜんぶが出ている
+    // 軸の中に横スクロールが1つも無い（スクロールの先は見えていないのと同じ）
+    for (const axis of ['practice', 'count']) {
+      const inAxis = within(getByTestId(`badge-axis-${axis}`));
+      expect(inAxis.UNSAFE_queryAllByType(ScrollView).filter(v => v.props.horizontal)).toHaveLength(
+        0
+      );
+    }
+
+    // モックの5個ぜんぶが出ている。軸ごとの内訳も見る
     expect(getAllByTestId(/^badge-(?!axis|remaining)/)).toHaveLength(5);
+    expect(
+      within(getByTestId('badge-axis-count')).getAllByTestId(/^badge-(?!axis|remaining)/)
+    ).toHaveLength(4);
+    expect(
+      within(getByTestId('badge-axis-practice')).getAllByTestId(/^badge-(?!axis|remaining)/)
+    ).toHaveLength(1);
     expect(getByText('3 / 5')).toBeTruthy();
   });
 
@@ -479,7 +491,7 @@ describe('CollectionScreen', () => {
       expect(getByTestId('collection-guest-empty-state')).toBeTruthy();
       expect(getByText('記録するとここに集計されます')).toBeTruthy();
       expect(
-        getByText('訪れた寺社の数・都道府県の埋まり方・巡礼の進捗・獲得バッジが自動でたまります')
+        getByText('訪れた寺社の数・都道府県の埋まり方・巡礼の進捗・印が自動でたまります')
       ).toBeTruthy();
     });
 
