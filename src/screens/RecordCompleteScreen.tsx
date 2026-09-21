@@ -3,16 +3,18 @@ import { Image, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
-import { CheckmarkAnimation } from '@components/animated/CheckmarkAnimation';
 import { BadgeAnimation } from '@components/animated/BadgeAnimation';
-import { ConfettiEffect } from '@components/animated/ConfettiEffect';
 import { PressableScale } from '@components/common/PressableScale';
+import { SaveMapReveal } from '@components/record/SaveMapReveal';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { spacing, borderRadius } from '@theme/spacing';
+import { formatJapaneseEraDate } from '@utils/japaneseEra';
 import type { RootStackScreenProps } from '@/navigation/types';
 
 type Props = RootStackScreenProps<'RecordComplete'>;
+
+const MAP_WIDTH = 210;
 
 /**
  * 記録を終えた人を、来た場所に返すための出口。
@@ -33,13 +35,25 @@ const EXITS = {
   },
 } as const;
 
+/**
+ * 保存した直後。感情のピークはここ。
+ *
+ * 以前はチェックマークと紙吹雪で祝っていたが、それは何のアプリでも出せる。
+ * **このアプリにしか出せないのは、いま授かった御朱印そのものと、色づく県**なので、
+ * その2つを主役にした（docs/design/2026-09-record-complete-spec.md）。
+ */
 export function RecordCompleteScreen({ navigation, route }: Props) {
   const stampImageUrl = route.params?.stampImageUrl;
   const stampCount = route.params?.stampCount ?? 1;
   const spotName = route.params?.spotName;
-  const visitCount = route.params?.visitCount;
+  const spotType = route.params?.spotType;
+  const visitedAt = route.params?.visitedAt;
   const badge = route.params?.badge;
   const countUnavailable = route.params?.countUnavailable;
+  const prefecture = route.params?.prefecture;
+  const isFirstInPrefecture = route.params?.isFirstInPrefecture;
+  const stampCountByPrefecture = route.params?.stampCountByPrefecture;
+  const totalStampCount = route.params?.totalStampCount;
   const [imageError, setImageError] = useState(false);
 
   // 記録画面は地図と御朱印帳の両方から開ける。どちらから来たか分からない
@@ -53,10 +67,8 @@ export function RecordCompleteScreen({ navigation, route }: Props) {
    * React Navigation v7 の navigate は、同じ名前の画面が履歴にあっても戻らず
    * push する（StackRouter の NAVIGATE は payload.pop のときだけ戻る）。
    * navigate のままだと「もう1枚」で記録画面が完了画面の上に積まれ、記録画面の
-   * ✕ がここへ帰ってきてしまう。出口の方も MainTabs を積み増していた（Issue #188）
+   * ✕ がここへ帰ってきてしまう（Issue #188）
    */
-
-  // 「もう1枚」を挟んでも入口を忘れない。渡さないと2周目が地図に戻る
   const handleRecordAnother = () => {
     navigation.replace('Record', { origin });
   };
@@ -65,56 +77,79 @@ export function RecordCompleteScreen({ navigation, route }: Props) {
     navigation.popTo('MainTabs', exit.target);
   };
 
+  /*
+   * 数字と地図は、取得に失敗したときは出さない。保存はできているので画面は
+   * 出すが、嘘の数字を祝わない（Issue #133）
+   */
+  const canShowMap = !countUnavailable && prefecture !== undefined && stampCountByPrefecture;
+
   return (
     <LinearGradient
-      colors={[colors.primary[400], colors.primary[500]]}
+      colors={[colors.primary[400], colors.primary[500], colors.primary[700]]}
       style={styles.gradient}
       testID="gradient-background"
     >
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-        <ConfettiEffect trigger={true} />
-
-        <View style={styles.content}>
-          <CheckmarkAnimation size={80} />
-
-          <Text style={styles.title}>登録完了！</Text>
-
-          {/* まとめて登録しても出せるのは先頭の1枚。残りがあることは枚数で示す */}
-          <View>
-            {stampImageUrl && !imageError ? (
-              <Image
-                source={{ uri: stampImageUrl }}
-                style={styles.stampImage}
-                resizeMode="cover"
-                testID="stamp-image"
-                onError={() => setImageError(true)}
-              />
-            ) : (
-              <View style={styles.imagePlaceholder} testID="stamp-image-placeholder">
-                <MaterialIcons name="photo" size={48} color="rgba(255,255,255,0.5)" />
-              </View>
-            )}
-            {stampCount > 1 && (
-              <Text style={styles.stampCount} testID="stamp-count">{`${stampCount}枚`}</Text>
-            )}
-          </View>
-
-          {spotName && (
-            <Text style={styles.spotName} testID="spot-name">
-              {spotName}
-            </Text>
+        <View style={styles.card}>
+          {stampImageUrl && !imageError ? (
+            <Image
+              source={{ uri: stampImageUrl }}
+              style={styles.stampImage}
+              resizeMode="cover"
+              testID="stamp-image"
+              onError={() => setImageError(true)}
+            />
+          ) : (
+            <View style={styles.imagePlaceholder} testID="stamp-image-placeholder">
+              <MaterialIcons name="photo" size={44} color={colors.gray[300]} />
+            </View>
           )}
 
-          <Text style={styles.countText} testID="visit-count">
-            {visitCount ? `${visitCount}箇所目の御朱印！` : '御朱印を記録しました！'}
-          </Text>
+          {!countUnavailable && totalStampCount !== undefined && (
+            <View style={styles.countRow} testID="stamp-total">
+              <Text style={styles.countNumber}>{totalStampCount}</Text>
+              <Text style={styles.countUnit}>枚目</Text>
+            </View>
+          )}
 
-          {/* 記録は保存できている。黙って件数を消すと壊れていることに気づけないので
-              理由だけを控えめに添える（Issue #133 / D-3） */}
+          {/* まとめて登録しても出せるのは先頭の1枚。残りがあることは枚数で示す */}
+          {stampCount > 1 && (
+            <Text style={styles.batch} testID="stamp-count">{`この日 ${stampCount}枚`}</Text>
+          )}
+
+          {isFirstInPrefecture && prefecture && (
+            <View style={styles.newChip} testID="first-in-prefecture">
+              <Text style={styles.newChipText}>{`🗾 ${prefecture}、はじめて`}</Text>
+            </View>
+          )}
+
+          {canShowMap && (
+            <SaveMapReveal
+              prefecture={prefecture}
+              stampCountByPrefecture={stampCountByPrefecture}
+              spotType={spotType}
+              width={MAP_WIDTH}
+            />
+          )}
+
           {countUnavailable && (
             <Text style={styles.countUnavailableText} testID="visit-count-unavailable">
               通信エラーのため記録数を表示できません
             </Text>
+          )}
+
+          {spotName && (
+            <View style={styles.spot}>
+              <Text style={styles.spotName} testID="spot-name">
+                {spotName}
+              </Text>
+              {/* DATE のまま渡す。new Date() を挟むと Issue #204 と同じ1日ずれを踏む */}
+              {visitedAt && (
+                <Text style={styles.visitedAt} testID="visited-at">
+                  {formatJapaneseEraDate(visitedAt)}
+                </Text>
+              )}
+            </View>
           )}
 
           {badge && <BadgeAnimation badge={badge} />}
@@ -128,7 +163,7 @@ export function RecordCompleteScreen({ navigation, route }: Props) {
             accessibilityRole="button"
             testID="button-record-another"
           >
-            <MaterialIcons name="add-a-photo" size={20} color={colors.white} />
+            <MaterialIcons name="add-a-photo" size={20} color={colors.primary[700]} />
             <Text style={styles.buttonRecordAnotherText}>もう1枚記録する</Text>
           </PressableScale>
 
@@ -138,7 +173,7 @@ export function RecordCompleteScreen({ navigation, route }: Props) {
             accessibilityRole="button"
             testID="button-exit"
           >
-            <MaterialIcons name={exit.icon} size={20} color={colors.primary[500]} />
+            <MaterialIcons name={exit.icon} size={20} color={colors.white} />
             <Text style={styles.buttonExitText}>{exit.label}</Text>
           </PressableScale>
         </View>
@@ -148,89 +183,59 @@ export function RecordCompleteScreen({ navigation, route }: Props) {
 }
 
 const styles = StyleSheet.create({
-  gradient: {
+  gradient: { flex: 1 },
+  container: { flex: 1 },
+  card: {
     flex: 1,
-  },
-  container: {
-    flex: 1,
-  },
-  content: {
-    flex: 1,
+    margin: spacing.lg,
+    marginBottom: 0,
+    backgroundColor: colors.white,
+    borderRadius: borderRadius['3xl'],
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: spacing['2xl'],
-    gap: spacing.xl,
-  },
-  stampCount: {
-    position: 'absolute',
-    top: spacing.sm,
-    right: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
-    overflow: 'hidden',
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    ...typography.caption,
-    color: colors.white,
-  },
-  title: {
-    ...typography.h1,
-    color: colors.white,
+    gap: spacing.md,
+    padding: spacing['2xl'],
   },
   stampImage: {
-    width: 160,
-    height: 200,
-    borderRadius: borderRadius.lg,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    width: 150,
+    aspectRatio: 3 / 4,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.gray[100],
   },
   imagePlaceholder: {
-    width: 160,
-    height: 200,
-    borderRadius: borderRadius.lg,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    width: 150,
+    aspectRatio: 3 / 4,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.gray[100],
     alignItems: 'center',
     justifyContent: 'center',
   },
-  spotName: {
-    ...typography.h3,
-    color: colors.white,
+  countRow: { flexDirection: 'row', alignItems: 'baseline' },
+  countNumber: { fontSize: 36, fontWeight: '900', color: colors.gray[900] },
+  countUnit: { ...typography.h3, color: colors.gray[900], marginLeft: 2 },
+  batch: { ...typography.bodySmall, color: colors.gray[600] },
+  newChip: {
+    backgroundColor: 'rgba(220, 38, 38, 0.1)',
+    borderRadius: borderRadius.full,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
   },
-  countText: {
-    ...typography.h3,
-    color: colors.white,
-  },
-  // お祝いの場なのでエラー画面には飛ばさず、注記として控えめに置く
-  countUnavailableText: {
-    ...typography.caption,
-    color: colors.white,
-    opacity: 0.7,
-    textAlign: 'center',
-  },
-  actions: {
-    paddingHorizontal: spacing['2xl'],
-    paddingBottom: spacing['2xl'],
-    gap: spacing.md,
-  },
+  newChipText: { ...typography.bodySmall, fontWeight: '700', color: colors.shrine[600] },
+  countUnavailableText: { ...typography.caption, color: colors.gray[500], textAlign: 'center' },
+  spot: { alignItems: 'center' },
+  spotName: { ...typography.h3, color: colors.gray[900] },
+  visitedAt: { ...typography.bodySmall, color: colors.gray[600], marginTop: 2 },
+  actions: { padding: spacing.lg, gap: spacing.md },
   button: {
+    height: 52,
+    borderRadius: borderRadius.lg,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.lg,
   },
-  buttonRecordAnother: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-  },
-  buttonRecordAnotherText: {
-    ...typography.button,
-    color: colors.white,
-  },
-  buttonExit: {
-    backgroundColor: colors.white,
-  },
-  buttonExitText: {
-    ...typography.button,
-    color: colors.primary[500],
-  },
+  buttonRecordAnother: { backgroundColor: colors.white },
+  buttonRecordAnotherText: { ...typography.button, color: colors.primary[700] },
+  buttonExit: { borderWidth: 1.5, borderColor: 'rgba(255, 255, 255, 0.65)' },
+  buttonExitText: { ...typography.button, color: colors.white },
 });

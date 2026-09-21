@@ -115,6 +115,10 @@ jest.mock('@hooks/usePhotoPicker', () => ({
 
 const mockFetchVisitedSpotIds = jest.fn();
 
+jest.mock('@services/collection', () => ({
+  fetchRegionStats: jest.fn().mockResolvedValue([]),
+}));
+
 jest.mock('@services/stamps', () => ({
   getStampImageUrl: (path: string) => `https://example.com/stamps/${path}`,
   fetchVisitedSpotIds: (...args: unknown[]) => mockFetchVisitedSpotIds(...args),

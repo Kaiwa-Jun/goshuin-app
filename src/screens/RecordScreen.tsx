@@ -28,6 +28,9 @@ import { pickAutoSelectableSpot } from '@utils/autoSelectSpot';
 import { MAX_PHOTOS_PER_RECORD } from '@/constants/record';
 import { scrollTargetToReveal, scrollTargetToShow } from '@utils/revealInScrollView';
 import { getStampImageUrl, fetchVisitedSpotIds } from '@services/stamps';
+import { fetchRegionStats, type RegionStat } from '@services/collection';
+import { buildMapParams } from '@utils/completeMapParams';
+import { useAuth } from '@hooks/useAuth';
 import { isNetworkError } from '@/utils/errorClassifier';
 import { evaluateNewBadge } from '@services/badges';
 import { colors } from '@theme/colors';
@@ -40,6 +43,7 @@ type Props = RootStackScreenProps<'Record'>;
 
 export function RecordScreen({ navigation, route }: Props) {
   const initialSpotId = route.params?.spotId;
+  const { user } = useAuth();
   const { permissionStatus } = useLocation();
   const { nearbySpots, filteredSpots, searchQuery, setSearchQuery } = useNearbySpots();
   const { takePhoto, pickFromLibrary } = usePhotoPicker();
@@ -151,6 +155,21 @@ export function RecordScreen({ navigation, route }: Props) {
       console.warn(`[record] fetchVisitedSpotIds failed: ${message}`);
     }
 
+    /*
+     * 完了画面の地図に渡す、県ごとの枚数。**保存する前**に取っておく。
+     * 完了画面が開いてから取りに行くと、祝っている最中に地図の色が後から変わる。
+     * ここも表示用なので、失敗しても記録は止めない（Issue #133 と同じ扱い）
+     */
+    let regionStats: RegionStat[] | null = null;
+    if (user) {
+      try {
+        regionStats = await fetchRegionStats(user.id);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn(`[record] fetchRegionStats failed: ${message}`);
+      }
+    }
+
     const result = await form.submit();
 
     // 1枚も残らなかったときだけ従来どおりエラー画面へ。
@@ -182,8 +201,11 @@ export function RecordScreen({ navigation, route }: Props) {
       stampImageUrl: getStampImageUrl(result.stamps[0].image_path),
       stampCount: result.stamps.length,
       spotName: form.selectedSpot?.name,
+      spotType: form.selectedSpot?.type,
+      visitedAt: toLocalDateString(form.visitedAt),
       // 完了画面は来た場所に返す
       origin: route.params?.origin,
+      ...buildMapParams(regionStats, form.selectedSpot?.prefecture, result.stamps.length),
     };
 
     // previousCount が無い以上バッジは判定できない。0 を代入して評価すると
