@@ -59,6 +59,11 @@ h2{font-size:25px;font-weight:700;color:var(--ink);text-align:center;margin-top:
 @keyframes fadeIn{to{opacity:1}}
 .pin{position:absolute;opacity:0}
 .pin.go{animation:pinDrop .5s cubic-bezier(.3,1.2,.4,1) both}
+/* 地図の中のピン。動きの基準を先端に取る */
+.pindrop{opacity:0;transform-origin:12px 31px}
+.pindrop.go{animation:pinDropSvg .5s cubic-bezier(.3,1.2,.4,1) both}
+@keyframes pinDropSvg{0%{opacity:0;transform:translateY(-20px) scale(.5)}
+  60%{opacity:1;transform:translateY(1.5px) scale(1.06)}100%{opacity:1;transform:none}}
 @keyframes pinDrop{0%{opacity:0;transform:translateY(-46px) scale(.5)}
   60%{opacity:1;transform:translateY(3px) scale(1.06)}100%{opacity:1;transform:none}}
 
@@ -140,6 +145,18 @@ const MARKS = {
 const seal = (m,size)=>`<svg viewBox="0 0 100 100" width="${size}" height="${size}" fill="var(--seal)">
   <path fill-rule="evenodd" d="${SEAL_FRAME}"/><g>${MARKS[m]()}</g></svg>`;
 
+/**
+ * 地図の中に刺す雫型のピン。**先端が (x, y) に来る**ように置く。
+ * 24×31 の形を SCALE 倍して、そのぶん左上をずらす。
+ * 外側の g が位置、内側の g が動き（transform-origin を先端に取る）
+ */
+const PIN_SCALE = 2.7;
+const svgPin = (x, y) => `<g transform="translate(${(x - 12*PIN_SCALE).toFixed(1)} ${(y - 31*PIN_SCALE).toFixed(1)}) scale(${PIN_SCALE})">
+  <g class="pindrop" id="pin1">
+    <path d="M12 0C5.4 0 0 5.4 0 12c0 8.4 12 19 12 19s12-10.6 12-19C24 5.4 18.6 0 12 0z" fill="var(--seal)"/>
+    <circle cx="12" cy="12" r="4.6" fill="#fff"/>
+  </g></g>`;
+
 /** 雫型のピン。地図タブと同じ形 */
 const pin = (size,color)=>`<svg width="${size}" height="${size*1.3}" viewBox="0 0 24 31">
   <path d="M12 0C5.4 0 0 5.4 0 12c0 8.4 12 19 12 19s12-10.6 12-19C24 5.4 18.6 0 12 0z" fill="${color}"/>
@@ -166,11 +183,11 @@ const SLIDES = [
   { title:'写真を1枚。<br>それだけ。',
     sub:'撮ると、地図にピンが刺さります',
     art:()=>`<div class="shot" id="shot">奉拝</div>
-      <div class="minimap" id="mini"><div style="position:relative">
-        <svg viewBox="0 0 ${JP_W} ${JP_H}" style="height:330px">${
-          JP_ORDER.map(n=>`<path class="pref ${['t1','t2'].includes(n)?'':''}" d="${JP_PATHS[n]}"/>`).join('')}</svg>
-        <div class="pin" id="pin1" style="left:58%;top:60%">${pin(30,'var(--seal)')}</div>
-      </div></div>`,
+      <div class="minimap" id="mini">
+        <svg viewBox="0 0 ${JP_W} ${JP_H}" style="height:330px">
+          ${JP_ORDER.map(n=>`<path class="pref" d="${JP_PATHS[n]}"/>`).join('')}
+          ${svgPin(627, 754)}
+        </svg></div>`,
     play(){
       // 写真が出る → 引っ込む → 地図が出る → ピンが刺さる。重ならないよう順に
       t(()=>document.getElementById('shot').classList.add('go'), 200);
