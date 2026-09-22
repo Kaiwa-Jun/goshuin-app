@@ -130,7 +130,7 @@ Phase 1 のあいだも Supabase バケットは最低1リリース残るので�
 
 **S1 土台**
 
-- [ ] AC-1（S1）: R2 に置いた HEIC の原本（`.jpg` の名前で中身が HEIC のもの）1枚を、**独自ドメイン経由**の `https://<独自ドメイン>/cdn-cgi/image/width=400,quality=70,format=webp/<キー>` で取得すると、HTTP 200・`Content-Type: image/webp`・画像の幅が 400px になる。`width=1200` でも同様に幅 1200px になる
+- [x] AC-1（S1）: R2 に置いた HEIC の原本（`.jpg` の名前で中身が HEIC のもの）1枚を、**独自ドメイン経由**の `https://<独自ドメイン>/cdn-cgi/image/width=400,quality=70,format=webp/<キー>` に **`Accept: image/webp` を付けて**取得すると、HTTP 200・`Content-Type: image/webp`・画像の幅が 400px になる。`width=1200` でも同様に幅 1200px になる（2026-09-23 確認: 自作 HEIC 1600×2133 → 400×533 / 1200×1599。`Accept` 無しだと `format=webp` でも JPEG が返る。下の「S1 の記録」）
 - [ ] AC-2（S1）: 署名付き URL を出す Edge Function に、Supabase のアクセストークン無しでアップロードを要求すると 401 になり、R2 にオブジェクトが増えない
 - [ ] AC-3（S1）: ユーザー A のトークンで、キーの先頭をユーザー B の `<user_id>/` にしてアップロードまたは削除を要求すると 403 になり、署名付き URL が発行されない（R2 の B の配下が変わらない）
 - [ ] AC-3b（S1）: 発行された署名付き URL で、`Content-Type` を `image/jpeg` 以外にして PUT すると R2 に拒否される。有効期限を過ぎた URL での PUT も拒否される
@@ -187,6 +187,33 @@ Phase 1 のあいだも Supabase バケットは最低1リリース残るので�
 - [ ] Q-4: `supabase/functions/delete-account` の Deno テストが通る（`deno test supabase/functions/delete-account`）
 - [ ] Q-5: 署名付き URL を出す Edge Function の Deno テストが通る
 
+## S1 の記録（2026-09-23）
+
+| 項目                          | 状態                                                                                                                     |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| ドメイン                      | `goshuinsanpo.com` を Cloudflare Registrar で取得（$10.46/年・自動更新）                                                 |
+| R2 バケット                   | `goshuin-images`（APAC・Standard）                                                                                       |
+| 配信                          | カスタムドメイン **`img.goshuinsanpo.com`** → `goshuin-images`（r2.dev の公開 URL は使わない）                           |
+| 変換                          | Transformations を `goshuinsanpo.com` ゾーンで有効化（無料枠 5,000 ユニーク変換/月）                                     |
+| CORS                          | `AllowedOrigins: http://localhost:8081` / `AllowedMethods: PUT` / `AllowedHeaders: Content-Type` / `MaxAgeSeconds: 3600` |
+| 署名付き URL の Edge Function | `supabase/functions/sign-stamp-upload/`（Deno テストあり）。**未デプロイ・secrets 未登録**                               |
+| R2 API トークン               | **未作成**。デプロイ直前に作る（下の手順）。鍵を会話に残さないため、オーナーが自分のターミナルで登録する                 |
+| テスト用オブジェクト          | バケット直下に `heic-sample.jpg`（自作 HEIC・ユーザーデータではない）。S3 のコピー前に消す                               |
+
+分かったこと:
+
+- **`format=webp` も `Accept` ヘッダを見る**。`Accept` に `image/webp` が無いと JPEG で返る（`format=auto` は `image/avif` があれば AVIF）。
+  表示できない形式が返ることはないので安全側だが、D-5 の「webp 固定なら `Accept` に左右されない」は成り立たない。S4a の実機確認では返った `Content-Type` を記録する
+- **CORS の事前確認（S3 エンドポイントへの認証無しの OPTIONS）は、許可したオリジンでも 403**。設定は保存されている。S1 の残りで、実際の署名付き URL に Expo Web から PUT して確かめる（AC-3c）
+
+S1 の残り（オーナーの作業が要る）:
+
+1. R2 API トークンを作る: ダッシュボード → R2 → Manage API Tokens → Create Account API Token。名前 `goshuin-app-edge-function`、**Object Read & Write**、**Apply to specific buckets only → `goshuin-images`**、TTL Forever
+2. **`!` を付けずに自分のターミナルで**登録する（鍵を会話に残さない）:
+   `npx supabase@latest secrets set --project-ref tvnozkpxncmnehyomoff R2_ACCOUNT_ID=eec7d419fbfbc6a58e713d2b64797cae R2_ACCESS_KEY_ID=<Access Key ID> R2_SECRET_ACCESS_KEY=<Secret Access Key>`
+3. デプロイ: `npx supabase@latest functions deploy sign-stamp-upload --project-ref tvnozkpxncmnehyomoff --use-api --no-verify-jwt`
+4. AC-2 / AC-3 / AC-3b / AC-3c を本番で確認（Claude が実施）
+
 ## 決定事項（2026-09-23 確定）
 
 **着手条件: #225 → #226 が完了してから**（「先行 Issue」の節）。
@@ -222,7 +249,7 @@ r2.dev では変換が効かない見込みが高い（Cloudflare のリファ�
 - そのため S4b 以降に旧アプリから上がった画像は R2 に無い。一覧と全画面はフォールバック（Supabase の原本）で出る。**蛇腹・スポット詳細・サムネイル帯（S4b で `getStampViewUrl` に替える3箇所）にはフォールバックが無く、そういう画像は出ない**。これは受け入れる
 - Supabase Storage の使用量が**無料枠（1GB）を超えたら再検討**する（バケット削除・旧アプリの切り捨て・最低バージョンの強制など）
 
-### D-5. 配信形式 → **まず `format=webp` 固定**
+### D-5. 配信形式 → **まず `format=webp` 固定**（⚠ `format=webp` も `Accept` を見る。「S1 の記録」参照）
 
 - RN の `Accept` ヘッダの挙動が環境差で読みにくく、`format=auto` だと S4a の検証がブレるため
 - `format=auto` への切り替えは、S4a が本番で安定してから**別スライス（S6）**でやる
