@@ -71,7 +71,7 @@ from storage.objects where bucket_id = 'goshuin-images';
 
 - [ ] AC-1: 本番で `supabase/validation/storage_upload_isolation.sql` を実行すると、エラーメッセージが `RESULT own=allowed other=denied` になる
 - [ ] AC-2: 本番の `pg_policies` に `"Allow authenticated uploads"` が無い（`select count(*) from pg_policies where schemaname='storage' and tablename='objects' and policyname='Allow authenticated uploads'` が 0）
-- [ ] AC-3: 本番の `pg_policies` に `"Users can upload own goshuin images"`（INSERT）・`"Allow public read"`（SELECT）・`"Users can update own goshuin images"`・`"Users can delete own goshuin images"` が残っている
+- [ ] AC-3: 本番の `pg_policies` に `"Users can upload own goshuin images"`（INSERT）・`"Allow public read"`（SELECT）・`"Users can view own goshuin images"`（SELECT）・`"Users can update own goshuin images"`・`"Users can delete own goshuin images"` が残っている
 - [ ] AC-4: AC-1 の実行後、本番の `storage.objects` に `name like '%/isolation-check.jpg'` の行が 0 件（検証 SQL が何も残さない）
 - [ ] AC-5: 本番の migration 履歴（`supabase_migrations.schema_migrations`）に `20260923000000` が記録されている
 - [ ] AC-6: 実機（v1.1.0 以降のビルド）で御朱印を1枚記録でき、御朱印帳タブに画像つきで表示される（自分のフォルダへのアップロードが引き続き通る）（native-only）
