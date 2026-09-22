@@ -58,12 +58,16 @@ Deno.serve(async req => {
     const admin = createClient(supabaseUrl, serviceKey);
 
     const deps: DeleteAccountDeps = {
-      // 縮小版のサブフォルダまで降りて読み切る（Issue #226）
+      // 縮小版のサブフォルダまで降りて読み切る（Issue #226）。フォルダ行は id が null。
+      // 型は string だが実際は null で来る。省略されても undefined をフォルダ扱いにする
       listImages: id =>
         collectImageNames(async (prefix, offset, limit) => {
           const { data, error } = await admin.storage.from(BUCKET).list(prefix, { limit, offset });
           if (error) return { entries: [], error: error.message };
-          return { entries: (data ?? []).map(f => ({ name: f.name, id: f.id })), error: null };
+          return {
+            entries: (data ?? []).map(f => ({ name: f.name, id: f.id ?? null })),
+            error: null,
+          };
         }, id),
       removeImages: async paths => {
         const { error } = await admin.storage.from(BUCKET).remove(paths);
