@@ -4,9 +4,11 @@
 // 契約書: docs/issues/issue-134-account-deletion.md の A 群 / B 群
 import { assertEquals } from 'jsr:@std/assert@1';
 import {
+  collectImageNames,
   extractBearerToken,
   deleteAccountForUser,
   type DeleteAccountDeps,
+  type StorageEntry,
 } from './deleteAccount.ts';
 
 const USER_ID = '11111111-2222-3333-4444-555555555555';
@@ -144,21 +146,18 @@ Deno.test(
 
 // 一覧の途中で失敗しても、そこまでに集まった分は消す。
 // 「全件消し残し」に悪化させないための保険（PR #136 の auto-review 指摘）
-Deno.test(
-  'deleteAccountForUser: list が途中で失敗しても取得済みの分は remove する',
-  async () => {
-    const { deps, removedPaths } = makeDeps({
-      names: ['1.jpg', '2.jpg'],
-      listError: 'page 2 boom',
-    });
+Deno.test('deleteAccountForUser: list が途中で失敗しても取得済みの分は remove する', async () => {
+  const { deps, removedPaths } = makeDeps({
+    names: ['1.jpg', '2.jpg'],
+    listError: 'page 2 boom',
+  });
 
-    const result = await deleteAccountForUser(deps, USER_ID);
+  const result = await deleteAccountForUser(deps, USER_ID);
 
-    assertEquals(removedPaths, [[`${USER_ID}/1.jpg`, `${USER_ID}/2.jpg`]]);
-    assertEquals(result.status, 200);
-    assertEquals(result.body, { success: true, warnings: ['画像の一覧取得に失敗: page 2 boom'] });
-  }
-);
+  assertEquals(removedPaths, [[`${USER_ID}/1.jpg`, `${USER_ID}/2.jpg`]]);
+  assertEquals(result.status, 200);
+  assertEquals(result.body, { success: true, warnings: ['画像の一覧取得に失敗: page 2 boom'] });
+});
 
 Deno.test(
   'deleteAccountForUser: remove に失敗しても deleteUser は実行し warnings に載せる',
@@ -216,4 +215,96 @@ Deno.test('deleteAccountForUser: deleteUser に失敗したら 500', async () =>
     success: false,
     error: 'アカウントの削除に失敗しました: delete boom',
   });
+});
+
+// --- Issue #226: 縮小版（thumb-400 / view-1200）まで列挙する ---
+
+/**
+ * Storage の list() の振る舞いを真似る。list(prefix) は prefix の直下だけを返し、
+ * サブフォルダは id: null の1件として返る（中身は返さない）
+ */
+function fakeStorage(tree: Record<string, StorageEntry[]>, failOn?: string) {
+  const listed: string[] = [];
+  const listPage = async (prefix: string, offset: number, limit: number) => {
+    listed.push(`${prefix}@${offset}`);
+    if (prefix === failOn) return { entries: [], error: `list boom: ${prefix}` };
+    return { entries: (tree[prefix] ?? []).slice(offset, offset + limit), error: null };
+  };
+  return { listPage, listed };
+}
+
+const file = (name: string): StorageEntry => ({ name, id: `id-${name}` });
+const folder = (name: string): StorageEntry => ({ name, id: null });
+
+Deno.test(
+  'collectImageNames: サブフォルダの中まで降りて、ユーザー起点の相対パスで返す',
+  async () => {
+    const { listPage } = fakeStorage({
+      [USER_ID]: [file('a.jpg'), folder('thumb-400'), folder('view-1200')],
+      [`${USER_ID}/thumb-400`]: [file('a.jpg')],
+      [`${USER_ID}/view-1200`]: [file('a.jpg')],
+    });
+
+    const result = await collectImageNames(listPage, USER_ID);
+
+    assertEquals(result.error, null);
+    assertEquals(result.names.sort(), ['a.jpg', 'thumb-400/a.jpg', 'view-1200/a.jpg']);
+  }
+);
+
+Deno.test('collectImageNames: フォルダ名そのものは削除対象に入れない', async () => {
+  const { listPage } = fakeStorage({
+    [USER_ID]: [folder('thumb-400')],
+    [`${USER_ID}/thumb-400`]: [],
+  });
+
+  const result = await collectImageNames(listPage, USER_ID);
+
+  assertEquals(result.names, []);
+});
+
+Deno.test('collectImageNames: ページサイズに達している間は offset を進めて読み切る', async () => {
+  const { listPage, listed } = fakeStorage({
+    [USER_ID]: [file('a.jpg'), file('b.jpg'), folder('thumb-400')],
+    [`${USER_ID}/thumb-400`]: [file('a.jpg'), file('b.jpg')],
+  });
+
+  const result = await collectImageNames(listPage, USER_ID, 2);
+
+  assertEquals(result.names.sort(), ['a.jpg', 'b.jpg', 'thumb-400/a.jpg', 'thumb-400/b.jpg']);
+  assertEquals(listed.includes(`${USER_ID}@2`), true);
+  assertEquals(listed.includes(`${USER_ID}/thumb-400@2`), true);
+});
+
+Deno.test(
+  'collectImageNames: サブフォルダの一覧に失敗しても、集めた分と error を返す',
+  async () => {
+    const { listPage } = fakeStorage(
+      {
+        [USER_ID]: [file('a.jpg'), folder('thumb-400')],
+        [`${USER_ID}/thumb-400`]: [file('a.jpg')],
+      },
+      `${USER_ID}/thumb-400`
+    );
+
+    const result = await collectImageNames(listPage, USER_ID);
+
+    assertEquals(result.names, ['a.jpg']);
+    assertEquals(result.error, `list boom: ${USER_ID}/thumb-400`);
+  }
+);
+
+Deno.test('deleteAccountForUser: 1000件を超える画像は1000件ずつに分けて消す', async () => {
+  // 縮小版を含めると1枚の御朱印で3ファイル。334枚で1000件を超える
+  const names = Array.from({ length: 2001 }, (_, i) => `${i}.jpg`);
+  const { deps, removedPaths } = makeDeps({ names });
+
+  const result = await deleteAccountForUser(deps, USER_ID);
+
+  assertEquals(
+    removedPaths.map(batch => batch.length),
+    [1000, 1000, 1]
+  );
+  assertEquals(removedPaths.flat().length, 2001);
+  assertEquals(result.status, 200);
 });

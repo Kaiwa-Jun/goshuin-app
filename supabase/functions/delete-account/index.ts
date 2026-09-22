@@ -9,6 +9,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 import {
+  collectImageNames,
   deleteAccountForUser,
   extractBearerToken,
   type DeleteAccountDeps,
@@ -57,23 +58,13 @@ Deno.serve(async req => {
     const admin = createClient(supabaseUrl, serviceKey);
 
     const deps: DeleteAccountDeps = {
-      listImages: async id => {
-        // list() は1回あたり最大 1000 件しか返さない。消し残しが出ないよう
-        // 返ってきた件数がページサイズに達している間は offset を進めて読み切る
-        const names: string[] = [];
-        const pageSize = 1000;
-        for (let offset = 0; ; offset += pageSize) {
-          const { data: files, error } = await admin.storage
-            .from(BUCKET)
-            .list(id, { limit: pageSize, offset });
-          // 途中で失敗しても、そこまでに集めた分は返して消させる
-          if (error) return { names, error: error.message };
-          const page = files ?? [];
-          names.push(...page.map(f => f.name));
-          if (page.length < pageSize) break;
-        }
-        return { names, error: null };
-      },
+      // 縮小版のサブフォルダまで降りて読み切る（Issue #226）
+      listImages: id =>
+        collectImageNames(async (prefix, offset, limit) => {
+          const { data, error } = await admin.storage.from(BUCKET).list(prefix, { limit, offset });
+          if (error) return { entries: [], error: error.message };
+          return { entries: (data ?? []).map(f => ({ name: f.name, id: f.id })), error: null };
+        }, id),
       removeImages: async paths => {
         const { error } = await admin.storage.from(BUCKET).remove(paths);
         return { error: error ? error.message : null };
