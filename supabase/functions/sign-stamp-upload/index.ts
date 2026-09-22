@@ -58,7 +58,12 @@ Deno.serve(async req => {
         deleteObjects: async keys => {
           // 1回で消すのは1〜2件。DeleteObjects の XML より1件ずつの方が単純
           const results = await Promise.all(
-            keys.map(key => r2.fetch(`${endpoint}/${key}`, { method: 'DELETE' }))
+            keys.map(key =>
+              // isOwnKey で形は絞ってあるが、URL に埋め込む前にもエンコードする（二重の守り）
+              r2.fetch(`${endpoint}/${key.split('/').map(encodeURIComponent).join('/')}`, {
+                method: 'DELETE',
+              })
+            )
           );
           // R2 は存在しないキーの DELETE も 204 を返す
           const failed = results.find(r => !r.ok);

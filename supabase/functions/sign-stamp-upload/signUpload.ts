@@ -38,10 +38,19 @@ export function newStampKey(userId: string, now: number, suffix: string): string
   return `${userId}/${now}-${suffix}.jpg`;
 }
 
-/** 本人のフォルダの下か。`..` や先頭の `/` で抜け出すものは認めない */
+/**
+ * 本人の写真のキーか。**許す形を決めて、それ以外はすべて断る**。
+ *
+ * 以前は `..` などを文字列で弾く方式だったが、`%2e%2e` のようにエンコードされた
+ * ものは素通りし、URL にした時点で `..` に正規化されて他人のキーへの削除になった
+ * （Evaluator が再現）。弾くものを数えるのをやめ、newStampKey が作る形だけを通す:
+ *   <userId>/<ミリ秒>-<英数字>.jpg
+ */
+const STAMP_FILE = /^\d{1,16}-[a-z0-9]{1,16}\.jpg$/;
+
 export function isOwnKey(key: string, userId: string): boolean {
-  if (!key.startsWith(`${userId}/`) || key.length <= userId.length + 1) return false;
-  return !key.split('/').some(part => part === '..' || part === '.' || part === '');
+  const prefix = `${userId}/`;
+  return key.startsWith(prefix) && STAMP_FILE.test(key.slice(prefix.length));
 }
 
 export async function handleSignRequest(

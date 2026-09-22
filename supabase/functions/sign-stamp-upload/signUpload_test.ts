@@ -113,7 +113,7 @@ Deno.test('アップロード: 大きさが正の整数でなければ 400', asy
 
 Deno.test('削除: 本人のフォルダの下なら消す', async () => {
   const { deps, deleted } = makeDeps();
-  const paths = [`${ME}/a.jpg`, `${ME}/b.jpg`];
+  const paths = [`${ME}/1790101744171-au09co.jpg`, `${ME}/1790101744999-x1y2z3.jpg`];
 
   const result = await handleSignRequest(deps, TOKEN, { action: 'delete', paths });
 
@@ -126,7 +126,7 @@ Deno.test('削除: 1つでも他人のフォルダが混ざっていたら 403 �
 
   const result = await handleSignRequest(deps, TOKEN, {
     action: 'delete',
-    paths: [`${ME}/a.jpg`, `${OTHER}/b.jpg`],
+    paths: [`${ME}/1790101744171-au09co.jpg`, `${OTHER}/1790101744171-au09co.jpg`],
   });
 
   assertEquals(result.status, 403);
@@ -134,7 +134,21 @@ Deno.test('削除: 1つでも他人のフォルダが混ざっていたら 403 �
 });
 
 Deno.test('削除: フォルダ名で始まるだけの他人のパスや、.. を含むパスは 403', async () => {
-  for (const path of [`${ME}x/a.jpg`, `${ME}/../${OTHER}/a.jpg`, `${ME}`, `/${ME}/a.jpg`]) {
+  for (const path of [
+    `${ME}x/1790101744171-au09co.jpg`,
+    `${ME}/../${OTHER}/1790101744171-au09co.jpg`,
+    `${ME}`,
+    `/${ME}/1790101744171-au09co.jpg`,
+    // URL にすると .. に正規化されて他人のキーに届く（Evaluator が再現）
+    `${ME}/%2e%2e/${OTHER}/1790101744171-au09co.jpg`,
+    `${ME}/.%2e/${OTHER}/1790101744171-au09co.jpg`,
+    `${ME}/%2E%2E/${OTHER}/1790101744171-au09co.jpg`,
+    `${ME}\\..\\${OTHER}\\1790101744171-au09co.jpg`,
+    // 形の違うキー（縮小版のフォルダ、別の拡張子、クエリ付き）
+    `${ME}/thumb-400/1790101744171-au09co.jpg`,
+    `${ME}/1790101744171-au09co.png`,
+    `${ME}/1790101744171-au09co.jpg?x-id=DeleteObject`,
+  ]) {
     const { deps, deleted } = makeDeps();
     const result = await handleSignRequest(deps, TOKEN, { action: 'delete', paths: [path] });
     assertEquals(result.status, 403, path);
@@ -155,7 +169,7 @@ Deno.test('削除: R2 の削除に失敗したら 500', async () => {
   const { deps } = makeDeps({ deleteError: 'boom' });
   const result = await handleSignRequest(deps, TOKEN, {
     action: 'delete',
-    paths: [`${ME}/a.jpg`],
+    paths: [`${ME}/1790101744171-au09co.jpg`],
   });
   assertEquals(result.status, 500);
 });
