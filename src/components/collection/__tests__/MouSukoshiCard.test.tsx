@@ -44,7 +44,14 @@ const areaRow: MouSukoshiRow = {
     },
   ],
   alsoInCourse: [
-    { id: 'kameoka', name: '亀岡八幡宮', address: null, type: 'shrine', distanceKm: 1.5 },
+    {
+      id: 'kameoka',
+      name: '亀岡八幡宮',
+      address: null,
+      type: 'shrine',
+      distanceKm: 1.5,
+      courseName: '仙台六芒星巡り',
+    },
   ],
 };
 const rows: MouSukoshiRow[] = [
@@ -96,6 +103,18 @@ describe('MouSukoshiCard', () => {
     expect(a.getByText('仙台のまわり')).toBeTruthy();
     expect(a.getByText('輪王寺・瑞鳳殿')).toBeTruthy();
     expect(a.getByText(/まだの\s*寺社\s*2/)).toBeTruthy();
+  });
+
+  it('巡礼は札所の数で、月参りは12の丸で、進み具合を名前の下に出す（v3 の①）', () => {
+    const { getByTestId } = render(<MouSukoshiCard rows={rows} {...handlers()} />);
+    const p = within(getByTestId('mou-sukoshi-pilgrimage-p1'));
+    const seg = p.getAllByTestId(/^progress-seg-/);
+    expect(seg).toHaveLength(6);
+    expect(seg.filter(x => x.props.testID.endsWith('-on'))).toHaveLength(5);
+    const t = within(getByTestId('mou-sukoshi-tsukimairi-takekoma'));
+    const dots = t.getAllByTestId(/^progress-dot-/);
+    expect(dots).toHaveLength(12);
+    expect(dots.filter(x => x.props.testID.endsWith('-on'))).toHaveLength(9);
   });
 
   it('印の行', () => {
@@ -152,7 +171,7 @@ describe('FrequentAreaSheet', () => {
     expect(within(items[0]).getByText('1.8km')).toBeTruthy();
     expect(within(items[1]).getByText('2.0km')).toBeTruthy();
     // 巡礼の残りは薄く添える
-    expect(within(items[2]).getByText(/巡礼の残り/)).toBeTruthy();
+    expect(within(items[2]).getByText('仙台六芒星巡りの、残りの1社')).toBeTruthy();
   });
 
   it('寺社を押すと、その寺社へ', () => {

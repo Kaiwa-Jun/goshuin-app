@@ -160,6 +160,24 @@ describe('mouSukoshi', () => {
       if (area.kind !== 'area') throw new Error();
       expect(area.spots.map(s => s.id)).toEqual(['rinnoji', 'zuihoden']);
       expect(area.alsoInCourse.map(s => s.id)).toEqual(['kameoka']);
+      // シートで「〇〇の、残りの1社」と添えるためにコース名を持つ
+      expect(area.alsoInCourse[0].courseName).toBe('コースa');
+    });
+
+    it('巡礼の残りを除いてから、近い順に最大5件', () => {
+      const rows = mouSukoshi(
+        base({
+          pilgrimages: [course('a', 6, 5, ['s1'])],
+          area: {
+            label: '仙台',
+            months: 7,
+            spots: [1, 2, 3, 4, 5, 6, 7].map(n => spot(`s${n}`, n)),
+          },
+        })
+      );
+      const area = rows.find(r => r.kind === 'area');
+      if (area?.kind !== 'area') throw new Error();
+      expect(area.spots.map(s => s.id)).toEqual(['s2', 's3', 's4', 's5', 's6']);
     });
 
     it('まだの寺社が巡礼の残りだけなら、エリアの行は出ない', () => {

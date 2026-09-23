@@ -10,6 +10,8 @@ const TSUKIMAIRI_MAX_REMAINING = 3;
 /** 印の行を出す、残りの割合 */
 const SEAL_MAX_RATIO = 0.2;
 const MAX_ROWS = 3;
+/** エリアのシートに並べる、まだの寺社の数 */
+const AREA_MAX_SPOTS = 5;
 
 export interface AreaSpot {
   id: string;
@@ -29,8 +31,8 @@ export type MouSukoshiRow =
       months: number;
       /** まだの寺社（近い順）。巡礼の行に出ている残りは含めない */
       spots: AreaSpot[];
-      /** 巡礼の行に出ている残りの寺社。シートで薄く添える */
-      alsoInCourse: AreaSpot[];
+      /** 巡礼の行に出ている残りの寺社。シートで「〇〇の、残りの1社」と薄く添える */
+      alsoInCourse: (AreaSpot & { courseName: string })[];
     };
 
 export interface MouSukoshiInput {
@@ -85,17 +87,23 @@ export function mouSukoshi(input: MouSukoshiInput): MouSukoshiRow[] {
   const out: MouSukoshiRow[] = rows.slice(0, MAX_ROWS);
 
   if (input.area && out.length < MAX_ROWS) {
-    const inCourse = new Set(
-      out.flatMap(r => (r.kind === 'pilgrimage' ? (r.pilgrimage.unvisitedSpotIds ?? []) : []))
-    );
-    const spots = input.area.spots.filter(s => !inCourse.has(s.id));
+    // まだの寺社のうち、巡礼の行に出ている残りはどのコースのものか
+    const courseOf = new Map<string, string>();
+    for (const r of out) {
+      if (r.kind !== 'pilgrimage') continue;
+      for (const id of r.pilgrimage.unvisitedSpotIds ?? []) courseOf.set(id, r.pilgrimage.name);
+    }
+    // 除いてから数を絞る（先に絞ると、残りの寺社のぶんだけ一覧が短くなる）
+    const spots = input.area.spots.filter(s => !courseOf.has(s.id)).slice(0, AREA_MAX_SPOTS);
     if (spots.length > 0) {
       out.push({
         kind: 'area',
         label: input.area.label,
         months: input.area.months,
         spots,
-        alsoInCourse: input.area.spots.filter(s => inCourse.has(s.id)),
+        alsoInCourse: input.area.spots
+          .filter(s => courseOf.has(s.id))
+          .map(s => ({ ...s, courseName: courseOf.get(s.id) as string })),
       });
     }
   }

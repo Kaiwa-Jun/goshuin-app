@@ -49,6 +49,24 @@ function Ring({ total, on }: { total: number; on: number }) {
   );
 }
 
+/** 名前の下の進み具合。巡礼は札所の数の帯、月参りは12の丸（v3 の①） */
+function Progress({ total, on, shape }: { total: number; on: number; shape: 'seg' | 'dot' }) {
+  return (
+    <View style={styles.progress}>
+      {Array.from({ length: total }, (_, i) => (
+        <View
+          key={i}
+          testID={`progress-${shape}-${i}-${i < on ? 'on' : 'off'}`}
+          style={[
+            shape === 'seg' ? styles.seg : styles.dot,
+            { backgroundColor: i < on ? colors.seal : colors.sealEmpty },
+          ]}
+        />
+      ))}
+    </View>
+  );
+}
+
 function Row({
   first,
   testID,
@@ -124,6 +142,7 @@ export function MouSukoshiCard({
                 name={p.name}
                 left={`あと${row.remaining}社`}
                 icon={<Ring total={p.totalSpots} on={p.visitedCount} />}
+                sub={<Progress total={p.totalSpots} on={p.visitedCount} shape="seg" />}
                 onPress={() => onPressPilgrimage(p.id, p.name)}
                 label={`巡礼、${p.name}、あと${row.remaining}社`}
               />
@@ -139,6 +158,7 @@ export function MouSukoshiCard({
                 name={row.entry.spotName}
                 left={`満願まで\nあと${row.remaining}ヶ月`}
                 icon={<Ring total={MANGAN_MONTHS} on={row.entry.monthsInLap} />}
+                sub={<Progress total={MANGAN_MONTHS} on={row.entry.monthsInLap} shape="dot" />}
                 onPress={() => onPressSpot(row.entry.spotId)}
                 label={`月参り、${row.entry.spotName}、満願まであと${row.remaining}ヶ月`}
               />
@@ -216,6 +236,9 @@ const styles = StyleSheet.create({
   what: { flex: 1, minWidth: 0 },
   kind: { fontSize: 10, fontWeight: '700', letterSpacing: 0.6, color: colors.gray[400] },
   name: { ...typography.bodySmall, fontWeight: '700', color: colors.gray[900] },
+  progress: { flexDirection: 'row', gap: 3, marginTop: 5 },
+  seg: { width: 16, height: 6, borderRadius: 3 },
+  dot: { width: 8, height: 8, borderRadius: borderRadius.full },
   sub: { ...typography.caption, color: colors.gray[600], marginTop: 1 },
   left: {
     ...typography.caption,

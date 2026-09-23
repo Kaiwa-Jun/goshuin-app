@@ -22,7 +22,6 @@ import { mouSukoshi, type AreaSpot, type MouSukoshiRow } from '@utils/mouSukoshi
 
 /** よく行くエリアで「まだの寺社」に数えるランク。小さな寺社まで並べると数が膨らむ */
 const AREA_MIN_RANK = 3;
-const AREA_MAX_SPOTS = 5;
 
 type AreaWithSpots = { label: string; months: number; spots: AreaSpot[] } | null;
 
@@ -58,8 +57,8 @@ async function loadArea(log: VisitLogRow[]): Promise<AreaWithSpots> {
       distanceKm: calculateDistance(lat, lng, s.lat, s.lng),
     }))
     .filter(s => s.distanceKm <= AREA_RADIUS_KM)
-    .sort((a, b) => a.distanceKm - b.distanceKm)
-    .slice(0, AREA_MAX_SPOTS);
+    // 数を絞るのは mouSukoshi（巡礼の残りを除いたあと）
+    .sort((a, b) => a.distanceKm - b.distanceKm);
   return { label: area.label, months: area.months, spots };
 }
 
