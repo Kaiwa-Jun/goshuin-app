@@ -41,7 +41,6 @@ const ITEM_SIZE = (SCREEN_WIDTH - spacing.lg * 2 - ITEM_MARGIN * (NUM_COLUMNS - 
 
 /** 詳細から「写真が出せる」合図が来なかったときに、飛ぶ1枚を諦めて引っ込めるまで */
 const HANDOVER_FALLBACK_MS = 800;
-/** サムネが無いものをまとめて焼かせるまでの待ち。1枚ごとに叩かないため */
 
 const GUEST_PREVIEW_ITEMS = [
   { icon: 'photo-camera', label: '写真で御朱印を残す' },
@@ -292,7 +291,7 @@ export function GalleryScreen({ navigation }: Props) {
             onLoad={e =>
               hero.rememberAspect(item.id, e.nativeEvent.source.width, e.nativeEvent.source.height)
             }
-            // 小さい方がまだ焼かれていない。元の写真に落として表示は続け、裏で焼かせる
+            // R2 に原本が無い（旧バージョンから Supabase にだけ上がった）。元の写真に落として表示を続ける
             onError={() => handleThumbMissing(item)}
             testID={`stamp-image-${item.id}`}
           />
