@@ -122,12 +122,17 @@ export interface VisitLogRow {
   visited_at: string;
   spotName: string;
   spotType: string;
+  /** 寺社の位置と住所。あゆみの「よく行くエリア」に使う（Issue #245） */
+  lat?: number;
+  lng?: number;
+  address?: string | null;
+  prefecture?: string | null;
 }
 
 export async function fetchVisitLog(userId: string): Promise<VisitLogRow[]> {
   const { data, error } = await supabase
     .from('stamps')
-    .select('spot_id, visited_at, spots!inner(name, type)')
+    .select('spot_id, visited_at, spots!inner(name, type, lat, lng, address, prefecture)')
     .eq('user_id', userId);
 
   if (error) {
@@ -138,7 +143,14 @@ export async function fetchVisitLog(userId: string): Promise<VisitLogRow[]> {
   const rows = data as unknown as {
     spot_id: string;
     visited_at: string;
-    spots: { name: string; type: string };
+    spots: {
+      name: string;
+      type: string;
+      lat: number;
+      lng: number;
+      address: string | null;
+      prefecture: string | null;
+    };
   }[];
 
   return rows.map(row => ({
@@ -146,5 +158,9 @@ export async function fetchVisitLog(userId: string): Promise<VisitLogRow[]> {
     visited_at: row.visited_at,
     spotName: row.spots.name,
     spotType: row.spots.type,
+    lat: row.spots.lat,
+    lng: row.spots.lng,
+    address: row.spots.address,
+    prefecture: row.spots.prefecture,
   }));
 }

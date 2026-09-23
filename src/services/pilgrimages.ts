@@ -8,6 +8,8 @@ export interface PilgrimageProgress {
   category: string | null;
   totalSpots: number;
   visitedCount: number;
+  /** まだの寺社。あゆみの「もう少し」で、エリアの一覧と重ねないために使う（Issue #245） */
+  unvisitedSpotIds?: string[];
 }
 
 type PilgrimageRow = {
@@ -55,6 +57,7 @@ export async function fetchPilgrimageProgress(userId: string): Promise<Pilgrimag
       category: pilgrimage.category,
       totalSpots: pilgrimage.total_spots,
       visitedCount,
+      unvisitedSpotIds: spotIds.filter(id => !visitedSpotIds.has(id)),
     };
   });
 

@@ -52,6 +52,7 @@ let mockCollectionStats = {
     maxSameDayVisits: 1,
   },
   tsukimairi: [],
+  mouSukoshi: [] as unknown[],
   pilgrimageProgress: [
     {
       id: 'pilgrimage-1',
@@ -185,6 +186,7 @@ describe('CollectionScreen', () => {
         maxSameDayVisits: 1,
       },
       tsukimairi: [],
+      mouSukoshi: [] as unknown[],
       pilgrimageProgress: [
         {
           id: 'pilgrimage-1',
@@ -517,6 +519,7 @@ describe('CollectionScreen', () => {
           maxSameDayVisits: 1,
         },
         tsukimairi: [],
+        mouSukoshi: [] as unknown[],
         pilgrimageProgress: [],
         isLoading: false,
         error: null,
@@ -573,5 +576,125 @@ describe('上の数字が、塗り広がりに合わせて増える', () => {
     act(() => map.props.onRevealed(1));
     expect(tree.getByText('1')).toBeTruthy();
     expect(tree.getByText('まだ 46')).toBeTruthy();
+  });
+});
+
+describe('もう少し（Issue #245）', () => {
+  const base = mockCollectionStats;
+  afterEach(() => {
+    mockCollectionStats = base;
+    mockAuth = { user: { id: 'user-1' }, isAuthenticated: true };
+  });
+
+  const area = {
+    kind: 'area',
+    label: '仙台',
+    months: 7,
+    spots: [
+      {
+        id: 'rinnoji',
+        name: '輪王寺',
+        address: '宮城県仙台市青葉区北山1-14-1',
+        type: 'temple',
+        distanceKm: 1.8,
+      },
+    ],
+    alsoInCourse: [],
+  };
+  const withRows = (rows: unknown[]) => {
+    mockCollectionStats = { ...base, mouSukoshi: rows };
+  };
+
+  it('行があれば、地図のカードより上にカードが出る', () => {
+    withRows([area]);
+    const tree = render(<CollectionScreen navigation={mockNavigation} route={mockRoute} />);
+    const scroll = tree.getByTestId('ayumi-scroll');
+    const ids: string[] = [];
+    const walk = (n: { props?: { testID?: string }; children?: unknown[] } | string) => {
+      if (typeof n === 'string') return;
+      if (n.props?.testID) ids.push(n.props.testID);
+      (n.children as never[] | undefined)?.forEach(walk);
+    };
+    walk(scroll as never);
+    expect(ids.indexOf('mou-sukoshi')).toBeGreaterThanOrEqual(0);
+    expect(ids.indexOf('mou-sukoshi')).toBeLessThan(ids.indexOf('ayumi-map-card'));
+  });
+
+  it('行が無ければカードは出ない', () => {
+    withRows([]);
+    const tree = render(<CollectionScreen navigation={mockNavigation} route={mockRoute} />);
+    expect(tree.queryByTestId('mou-sukoshi')).toBeNull();
+    expect(tree.queryByText('もう少し')).toBeNull();
+  });
+
+  it('エリアの行を押すとシートが開き、寺社を押すと地図でその寺社へ', () => {
+    withRows([area]);
+    mockParentNavigate.mockClear();
+    const tree = render(<CollectionScreen navigation={mockNavigation} route={mockRoute} />);
+    expect(tree.queryByTestId('frequent-area-sheet')).toBeNull();
+
+    fireEvent.press(tree.getByTestId('mou-sukoshi-area'));
+    expect(tree.getByText('よく行く、仙台のまわり')).toBeTruthy();
+
+    fireEvent.press(tree.getByTestId('area-spot-rinnoji'));
+    expect(mockParentNavigate).toHaveBeenCalledWith('MapTab', {
+      screen: 'Map',
+      params: { focusSpotId: 'rinnoji' },
+    });
+  });
+
+  it('巡礼の行を押すと巡礼の詳細へ', () => {
+    withRows([
+      {
+        kind: 'pilgrimage',
+        pilgrimage: {
+          id: 'p1',
+          name: '仙台六芒星巡り',
+          description: null,
+          category: null,
+          totalSpots: 6,
+          visitedCount: 5,
+        },
+        remaining: 1,
+      },
+    ]);
+    const tree = render(<CollectionScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent.press(tree.getByTestId('mou-sukoshi-pilgrimage-p1'));
+    expect(mockNavigation.navigate).toHaveBeenCalledWith('PilgrimageDetail', {
+      pilgrimageId: 'p1',
+      pilgrimageName: '仙台六芒星巡り',
+    });
+  });
+
+  it('印の行を押すと、印の欄までスクロールする', () => {
+    withRows([
+      {
+        kind: 'seal',
+        badge: { id: 'visit-50', name: '50箇所達成', mark: 'gojuu' },
+        remaining: 7,
+        unit: '箇所',
+      },
+    ]);
+    const tree = render(<CollectionScreen navigation={mockNavigation} route={mockRoute} />);
+    const scroll = tree.UNSAFE_getByType(ScrollView);
+    const scrollTo = jest.fn();
+    // ScrollView の実体の scrollTo を差し替える
+    (scroll as unknown as { instance: { scrollTo: jest.Mock } }).instance.scrollTo = scrollTo;
+    fireEvent(tree.getByTestId('seal-card'), 'layout', {
+      nativeEvent: { layout: { x: 0, y: 820, width: 0, height: 0 } },
+    });
+
+    fireEvent.press(tree.getByTestId('mou-sukoshi-seal'));
+    expect(scrollTo).toHaveBeenCalledWith(
+      expect.objectContaining({ y: expect.any(Number), animated: true })
+    );
+    expect(scrollTo.mock.calls[0][0].y).toBeLessThanOrEqual(820);
+  });
+
+  it('未ログインではカードを出さない', () => {
+    mockAuth = { user: null, isAuthenticated: false };
+    withRows([area]);
+    const guest = render(<CollectionScreen navigation={mockNavigation} route={mockRoute} />);
+    expect(guest.queryByTestId('mou-sukoshi')).toBeNull();
   });
 });

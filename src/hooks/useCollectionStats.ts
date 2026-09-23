@@ -15,6 +15,52 @@ import type { BadgeProgress } from '@/types/badge';
 import { fetchAllStamps } from '@services/stamps';
 import type { StampWithSpot } from '@/types/supabase';
 import { fetchPilgrimageProgress, type PilgrimageProgress } from '@services/pilgrimages';
+import { fetchSpotsByBounds } from '@services/spots';
+import { AREA_RADIUS_KM, frequentArea } from '@utils/frequentArea';
+import { calculateDistance, getBoundingBox } from '@utils/geo';
+import { mouSukoshi, type AreaSpot, type MouSukoshiRow } from '@utils/mouSukoshi';
+
+/** よく行くエリアで「まだの寺社」に数えるランク。小さな寺社まで並べると数が膨らむ */
+const AREA_MIN_RANK = 3;
+
+type AreaWithSpots = { label: string; months: number; spots: AreaSpot[] } | null;
+
+/**
+ * よく行くエリアと、そこのまだの寺社（Issue #245）。
+ * 端末の位置は使わない。記録した寺社の位置から割り出す
+ */
+async function loadArea(log: VisitLogRow[]): Promise<AreaWithSpots> {
+  const area = frequentArea(
+    log
+      .filter(r => typeof r.lat === 'number' && typeof r.lng === 'number')
+      .map(r => ({
+        spotId: r.spot_id,
+        visitedAt: r.visited_at,
+        lat: r.lat as number,
+        lng: r.lng as number,
+        address: r.address ?? null,
+        prefecture: r.prefecture ?? null,
+      }))
+  );
+  if (!area) return null;
+
+  const visited = new Set(log.map(r => r.spot_id));
+  const { lat, lng } = area.center;
+  const nearby = await fetchSpotsByBounds(getBoundingBox(lat, lng, AREA_RADIUS_KM));
+  const spots = nearby
+    .filter(s => s.rank >= AREA_MIN_RANK && !visited.has(s.id))
+    .map(s => ({
+      id: s.id,
+      name: s.name,
+      address: s.address,
+      type: s.type,
+      distanceKm: calculateDistance(lat, lng, s.lat, s.lng),
+    }))
+    .filter(s => s.distanceKm <= AREA_RADIUS_KM)
+    // 数を絞るのは mouSukoshi（巡礼の残りを除いたあと）
+    .sort((a, b) => a.distanceKm - b.distanceKm);
+  return { label: area.label, months: area.months, spots };
+}
 
 /** 「最近の参拝」に出す件数。増やすと画面が伸びるだけなので、まず3件で始める */
 export const RECENT_VISITS_COUNT = 3;
@@ -30,6 +76,8 @@ interface UseCollectionStatsReturn {
   /** いま続いている月参り。満願に近い順 */
   tsukimairi: TsukimairiEntry[];
   pilgrimageProgress: PilgrimageProgress[];
+  /** あゆみの「もう少し」。暮らしの中で踏み出せる一歩だけ、最大3行（Issue #245） */
+  mouSukoshi: MouSukoshiRow[];
   isLoading: boolean;
   error: string | null;
   refetch: () => void;
@@ -46,6 +94,7 @@ export function useCollectionStats(): UseCollectionStatsReturn {
   const [pilgrimageProgress, setPilgrimageProgress] = useState<PilgrimageProgress[]>([]);
   const [recentStamps, setRecentStamps] = useState<StampWithSpot[]>([]);
   const [visitLog, setVisitLog] = useState<VisitLogRow[]>([]);
+  const [area, setArea] = useState<AreaWithSpots>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -63,6 +112,7 @@ export function useCollectionStats(): UseCollectionStatsReturn {
         setPilgrimageProgress([]);
         setRecentStamps([]);
         setVisitLog([]);
+        setArea(null);
         setIsLoading(false);
         return;
       }
@@ -79,6 +129,8 @@ export function useCollectionStats(): UseCollectionStatsReturn {
             fetchAllStamps(user.id, RECENT_VISITS_COUNT),
             fetchVisitLog(user.id),
           ]);
+          // エリアの寺社は取れなくても、あゆみの他は出す
+          const nearArea = await loadArea(log).catch(() => null);
           if (!cancelled) {
             setSpotCount(stats.spotCount);
             setStampCount(stats.stampCount);
@@ -86,6 +138,7 @@ export function useCollectionStats(): UseCollectionStatsReturn {
             setPilgrimageProgress(pilgrimages);
             setRecentStamps(recent);
             setVisitLog(log);
+            setArea(nearArea);
             setError(null);
           }
         } catch (e) {
@@ -96,6 +149,7 @@ export function useCollectionStats(): UseCollectionStatsReturn {
             setPilgrimageProgress([]);
             setRecentStamps([]);
             setVisitLog([]);
+            setArea(null);
             setError(e instanceof Error ? e.message : '取得に失敗しました');
           }
         } finally {
@@ -113,6 +167,19 @@ export function useCollectionStats(): UseCollectionStatsReturn {
   const today = toLocalDateString(new Date());
   const badgeProgress = useMemo(() => buildBadgeProgress(visitLog, today), [visitLog, today]);
   const tsukimairi = useMemo(() => tsukimairiList(visitLog, today), [visitLog, today]);
+  const rows = useMemo(
+    () =>
+      mouSukoshi({
+        pilgrimages: pilgrimageProgress,
+        tsukimairi,
+        visitedThisMonth: new Set(
+          visitLog.filter(r => r.visited_at.startsWith(today.slice(0, 7))).map(r => r.spot_id)
+        ),
+        badgeProgress,
+        area,
+      }),
+    [pilgrimageProgress, tsukimairi, visitLog, today, badgeProgress, area]
+  );
 
   return {
     spotCount,
@@ -122,6 +189,7 @@ export function useCollectionStats(): UseCollectionStatsReturn {
     badgeProgress,
     tsukimairi,
     pilgrimageProgress,
+    mouSukoshi: rows,
     isLoading,
     error,
     refetch,

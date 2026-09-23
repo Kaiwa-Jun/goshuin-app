@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<title>あゆみ — 育つ地図 v2（B + A）</title>
+<style>
+:root{
+  --brand:#f27f0d; --brand700:#C2410C; --brand300:#FDBA74;
+  --seal:#C2342B; --sealEmpty:#D3D6DC;
+  --ink:#111827; --ink2:#4B5563; --ink3:#9CA3AF; --rule:#E5E7EB;
+  --paper:#F2F2F7; --card:#FFFFFF; --empty:#E3E4E8;
+}
+*{box-sizing:border-box;margin:0}
+body{background:#d9d6cf;font-family:-apple-system,"Hiragino Sans",sans-serif;color:var(--ink);padding:28px}
+h1{font-size:20px;margin:0 0 6px}
+.lead{font-size:13px;color:#3f3a33;margin-bottom:22px;line-height:1.7;max-width:1100px}
+.row{display:flex;gap:36px;align-items:flex-start}
+.col h2{font-size:15px;margin-bottom:10px}
+.phone{width:390px;background:var(--paper);border-radius:36px;overflow:hidden;box-shadow:0 18px 40px rgba(0,0,0,.18);position:relative}
+.phone.fold{height:844px}
+.phone.fold::after{content:"";position:absolute;left:0;right:0;bottom:0;height:84px;background:linear-gradient(transparent,var(--paper) 70%)}
+.status{height:44px;display:flex;justify-content:space-between;align-items:center;padding:0 28px;font-size:15px;font-weight:600}
+.hdr{font-size:28px;font-weight:800;padding:4px 20px 12px}
+.card{background:var(--card);border-radius:16px;margin:0 16px 12px;padding:16px}
+.t{font-size:15px;font-weight:700}
+.sub{font-size:12px;color:var(--ink2)}
+.sectitle{font-size:17px;font-weight:800;margin:6px 20px 8px}
+/* もう少し */
+.soon .head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px}
+.soon .head .hint{font-size:11px;color:var(--ink3)}
+.soon .item{display:flex;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--rule)}
+.soon .item:nth-of-type(2){border-top:0}
+.soon .icon{width:44px;height:44px;flex:none;display:grid;place-items:center}
+.soon .what{flex:1;min-width:0}
+.soon .name{font-size:14px;font-weight:700}
+.soon .left{font-size:13px;font-weight:800;color:var(--seal);white-space:nowrap;text-align:right;line-height:1.35}
+.soon .chev{color:var(--ink3);font-size:18px;margin-left:2px}
+.dots{display:flex;gap:3px;margin-top:6px}
+.dots i{width:8px;height:8px;border-radius:50%;background:var(--sealEmpty)}
+.dots i.on{background:var(--seal)}
+/* 地図 */
+.maphead{display:flex;justify-content:space-between;align-items:baseline}
+.maphead .big{font-size:34px;font-weight:900}
+.maphead .of{font-size:13px;color:var(--ink3);margin-left:4px}
+.maphead .r{font-size:13px;color:var(--ink2)}
+.maphead .r b{font-size:20px;font-weight:900;color:var(--ink);margin-right:2px}
+svg.map{display:block;margin:6px auto 0}
+.maplabel{font-size:11px;color:var(--seal);font-weight:800;text-align:center;margin-top:-2px}
+.legend{display:flex;gap:12px;margin:10px 0 2px;font-size:11px;color:var(--ink2);align-items:center}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.legend .dash{border:1.5px dashed var(--seal);background:rgba(194,52,43,.1)}
+.regions{border-top:1px solid var(--rule);margin-top:10px;padding-top:4px}
+.region{display:grid;grid-template-columns:84px 1fr 62px;gap:10px;align-items:center;padding:8px 0}
+.region .rn{font-size:13px;font-weight:700}
+.cells{display:flex;gap:3px}
+.cells i{flex:1;height:13px;border-radius:3px;background:var(--empty)}
+.cells i.v1{background:var(--brand300)}.cells i.v2{background:var(--brand)}.cells i.v3{background:var(--brand700)}
+.cells i.next{background:rgba(194,52,43,.1);outline:1.5px dashed var(--seal);outline-offset:-1.5px}
+.region .n{font-size:12px;color:var(--ink2);text-align:right;white-space:nowrap}
+.region .n b{color:var(--ink);font-size:14px}
+.region.near .rn,.region.near .n{color:var(--seal)}
+.region.near .n b{color:var(--seal)}
+.region.done .n{color:var(--brand700);font-weight:800}
+/* 下の既存セクション（簡略） */
+.list .li{display:flex;gap:12px;align-items:center;padding:8px 0;border-top:1px solid var(--rule)}
+.list .li:first-child{border-top:0}
+.thumb{width:40px;height:52px;border-radius:6px;background:#EFEAE0;flex:none;position:relative;overflow:hidden}
+.thumb::after{content:"";position:absolute;left:12px;top:18px;width:16px;height:16px;border:2px solid var(--seal);border-radius:3px}
+.seals{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px}
+.seals div{text-align:center;font-size:11px;color:var(--ink2)}
+.seals img{width:54px;height:54px;display:block;margin:0 auto 4px}
+.seals img.off{filter:grayscale(1) opacity(.35)}
+.tabbar{height:84px;border-top:1px solid var(--rule);background:#fff;display:flex;justify-content:space-around;padding-top:10px;font-size:10px;color:var(--ink3);position:absolute;left:0;right:0;bottom:0;z-index:2}
+.tabbar b{color:var(--brand)}
+.notes{max-width:560px;font-size:13px;line-height:1.8;color:#2f2b25}
+.notes h3{font-size:14px;margin:0 0 6px}
+.notes ul{padding-left:18px;margin-bottom:14px}
+.notes li{margin-bottom:4px}
+.notes b{color:#7a2a1c}
+</style>
+</head>
+<body>
+<h1>あゆみ — 育つ地図 v2（B を土台に、A の「もう少し」を上に）</h1>
+<p class="lead">左: 開いた瞬間に見える範囲（iPhone 16 の1画面）。中: 下までの全体。データは仮（19/47 県・43枚、関東 5/7・近畿 4/7・東北 3/7、竹駒神社の月参り 9ヶ月目）。</p>
+
+<div class="row">
+  <div class="col">
+    <h2>開いた瞬間</h2>
+    <div class="phone fold" id="p1"></div>
+  </div>
+  <div class="col">
+    <h2>下までの全体</h2>
+    <div class="phone" id="p2"></div>
+  </div>
+  <div class="notes">
+    <h3>役割の分け方</h3>
+    <ul>
+      <li><b>もう少し</b>（上）＝「あと少し」の一覧。地方・月参り・印から<b>近いものを最大3つ</b>。押すと、地方は地図へ・月参りは寺社へ・印は印の欄へ。近いものが無ければカードごと出さない</li>
+      <li><b>地図</b>＝その場所を見せる。一番近い地方の残りだけ<b>点線</b>（v1 の吹き出しは「もう少し」と重複するので外した）</li>
+      <li><b>地方の帯</b>＝地図の下。1県1マス、塗った色は地図と同じ。<b>近い順</b>に並べ、一番近い地方だけ朱。残りのマスも点線でそろえる</li>
+    </ul>
+    <h3>「近い」の決め方（案）</h3>
+    <ul>
+      <li>地方: 残り県数が <b>1〜3</b>（残り4以上は出さない＝急かさない）</li>
+      <li>月参り: 満願まで <b>1〜3ヶ月</b>、かつ今月まだ参拝していない</li>
+      <li>印: 次の印まで <b>残り2割以内</b>（例: 五十なら 40箇所から）</li>
+      <li>並びは「あと」の小さい順。同じなら 地方 → 月参り → 印</li>
+    </ul>
+    <h3>制覇したとき</h3>
+    <ul>
+      <li>帯の右が「<b>制覇</b>」になり、地方名の横に小さな朱の丸。お祝いの演出は、その地方の最後の1県を記録した完了画面で出す（あゆみでは静かに）</li>
+    </ul>
+    <h3>決めたいこと</h3>
+    <ul>
+      <li>言い回し: 「制覇」でいいか（「満願」「結願」は仏教・巡礼の言葉なので地方には使わない案）</li>
+      <li>地方の分け方: いまの6地方（北海道・東北 / 関東 / 中部 / 近畿 / 中国・四国 / 九州・沖縄）でいいか。8地方（北海道・東北を分ける等）にすると「あと1県」が出やすい</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const REGIONS = [
+  ['北海道・東北', ['北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県']],
+  ['関東', ['茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県']],
+  ['中部', ['新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県']],
+  ['近畿', ['三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県']],
+  ['中国・四国', ['鳥取県','島根県','岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県']],
+  ['九州・沖縄', ['福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県']],
+];
+const COUNT = { 東京都:6, 神奈川県:4, 埼玉県:2, 千葉県:2, 栃木県:1, 宮城県:8, 山形県:2, 岩手県:1, 京都府:5, 奈良県:3, 大阪府:1, 滋賀県:1, 静岡県:1, 長野県:1, 愛知県:2, 山梨県:1, 広島県:1, 福岡県:1 };
+const tierCls = n => n >= 6 ? 'v3' : n >= 3 ? 'v2' : n >= 1 ? 'v1' : '';
+const tier = n => n >= 6 ? '#C2410C' : n >= 3 ? '#f27f0d' : n >= 1 ? '#FDBA74' : '#E3E4E8';
+const NS = 'http://www.w3.org/2000/svg';
+
+const regions = REGIONS.map(([label, prefs]) => ({ label, prefs, done: prefs.filter(p => COUNT[p]).length }))
+  .sort((a, b) => (a.prefs.length - a.done) - (b.prefs.length - b.done));
+const near = regions[0];
+const nextPrefs = near.prefs.filter(p => !COUNT[p]);
+
+function page(fold) {
+  return `
+  <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+  <div class="hdr">あゆみ</div>
+  <div class="card soon">
+    <div class="head"><span class="t">もう少し</span><span class="hint">押すと、その場所へ</span></div>
+    <div class="item">
+      <div class="icon"><svg class="region-icon" data-region="${near.label}" width="44" height="44"></svg></div>
+      <div class="what"><div class="name">${near.label}を制覇</div><div class="sub">${nextPrefs.map(p => p.replace(/[県府都]$/, '')).join('・')}がまだ</div></div>
+      <div class="left">あと${nextPrefs.length}県</div><span class="chev">›</span>
+    </div>
+    <div class="item">
+      <div class="icon"><svg class="ring" width="40" height="40" viewBox="0 0 100 100"></svg></div>
+      <div class="what"><div class="name">竹駒神社の月参り</div><div class="dots">${Array.from({ length: 12 }, (_, i) => `<i class="${i < 9 ? 'on' : ''}"></i>`).join('')}</div></div>
+      <div class="left">満願まで<br>あと3ヶ月</div><span class="chev">›</span>
+    </div>
+    <div class="item">
+      <div class="icon"><img src="2026-09-seal-gojuu.png" width="40" height="40" style="filter:grayscale(1) opacity(.4)"></div>
+      <div class="what"><div class="name">印「五十」</div><div class="sub">50箇所で押されます</div></div>
+      <div class="left">あと7箇所</div><span class="chev">›</span>
+    </div>
+  </div>
+  <div class="card">
+    <div class="maphead"><div><span class="big">19</span><span class="of">/ 47 都道府県</span></div><div class="r"><b>43</b>枚</div></div>
+    <svg class="map" width="330" height="373"></svg>
+    <div class="legend"><span><i style="background:#E3E4E8"></i>まだ 28</span><span><i style="background:#FDBA74"></i>1〜2枚</span><span><i style="background:#f27f0d"></i>3〜5枚</span><span><i style="background:#C2410C"></i>6枚〜</span><span><i class="dash"></i>あと少し</span></div>
+    <div class="regions">${regions.map((r, i) => `
+      <div class="region ${i === 0 ? 'near' : ''}">
+        <div class="rn">${r.label}</div>
+        <div class="cells">${r.prefs.map(p => `<i class="${COUNT[p] ? tierCls(COUNT[p]) : (i === 0 ? 'next' : '')}"></i>`).join('')}</div>
+        <div class="n"><b>${r.done}</b> / ${r.prefs.length}</div>
+      </div>`).join('')}
+    </div>
+  </div>
+  ${fold ? '' : `
+  <div class="card list"><div class="t" style="margin-bottom:4px">最近の参拝</div>
+    ${['櫻岡大神宮　4月9日', '竹駒神社　4月5日', '金蛇水神社　4月5日'].map(x => `<div class="li"><div class="thumb"></div><div class="sub" style="font-size:13px;color:#111827">${x}</div></div>`).join('')}
+  </div>
+  <div class="card"><div class="t">月参り</div><div class="sub" style="margin-top:6px">竹駒神社　9ヶ月目</div></div>
+  <div class="card"><div class="maphead"><span class="t">印</span><span class="r"><b>4</b>/ 9</span></div>
+    <div class="seals">${['ichi:1枚目','go:5箇所','juu:10箇所','sanjuu:30箇所','gojuu:50箇所','hyaku:100箇所'].map((x, i) => { const [m, l] = x.split(':'); return `<div><img src="2026-09-seal-${m}.png" class="${i < 4 ? '' : 'off'}">${l}</div>`; }).join('')}</div>
+  </div>
+  <div style="height:96px"></div>`}
+  <div class="tabbar"><span>地図</span><span>御朱印帳</span><b>あゆみ</b><span>設定</span></div>`;
+}
+
+fetch('japan-paths.json').then(r => r.json()).then(({ paths }) => {
+  // 小さな島（伊豆・小笠原など）は地方の形を崩すので、小さい画でだけ落とす
+  const mainOnly = d => {
+    const subs = d.split('M').filter(Boolean).map(s => 'M' + s);
+    const area = s => { const n = s.match(/-?\d+(\.\d+)?/g).map(Number); let xs = [], ys = []; for (let i = 0; i < n.length; i += 2) { xs.push(n[i]); ys.push(n[i + 1]); } return (Math.max(...xs) - Math.min(...xs)) * (Math.max(...ys) - Math.min(...ys)); };
+    const max = Math.max(...subs.map(area));
+    return subs.filter(s => area(s) > max * 0.06).join('');
+  };
+  const draw = (svg, names, { fillOf, dashed = [], view, islands = true, stroke = 1.4 }) => {
+    const g = document.createElementNS(NS, 'g'); svg.appendChild(g);
+    const add = (d, fill, st, dash) => { const p = document.createElementNS(NS, 'path'); p.setAttribute('d', d); p.setAttribute('fill', fill); p.setAttribute('stroke', st); p.setAttribute('stroke-width', dash ? 3 : stroke); if (dash) p.setAttribute('stroke-dasharray', '7 5'); g.appendChild(p); };
+    for (const n of names) add(islands ? paths[n] : mainOnly(paths[n]), fillOf(n), '#fff');
+    for (const n of dashed) add(paths[n], 'rgba(194,52,43,0.12)', '#C2342B', true);
+    const b = view || g.getBBox(), pad = Math.max(b.width, b.height) * 0.04;
+    svg.setAttribute('viewBox', `${b.x - pad} ${b.y - pad} ${b.width + pad * 2} ${b.height + pad * 2}`);
+  };
+  for (const [id, fold] of [['p1', true], ['p2', false]]) {
+    const el = document.getElementById(id); el.innerHTML = page(fold);
+    draw(el.querySelector('svg.map'), Object.keys(paths), { fillOf: n => tier(COUNT[n] || 0), dashed: nextPrefs, view: { x: 0, y: 0, width: 1000, height: 1132 } });
+    const ic = el.querySelector('.region-icon');
+    draw(ic, REGIONS.find(r => r[0] === near.label)[1], { fillOf: n => COUNT[n] ? '#C2342B' : '#D3D6DC', islands: false, stroke: 2 });
+    const ring = el.querySelector('.ring');
+    for (let i = 0; i < 12; i++) { const a = -Math.PI / 2 + i * Math.PI / 6, c = document.createElementNS(NS, 'circle'); c.setAttribute('cx', 50 + 36 * Math.cos(a)); c.setAttribute('cy', 50 + 36 * Math.sin(a)); c.setAttribute('r', 9); c.setAttribute('fill', i < 9 ? '#C2342B' : '#D3D6DC'); ring.appendChild(c); }
+  }
+});
+</script>
+</body>
+</html>
