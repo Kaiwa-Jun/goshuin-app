@@ -12,11 +12,12 @@ import { typography } from '@theme/typography';
 import { shadows } from '@theme/shadows';
 import { spacing, borderRadius } from '@theme/spacing';
 import { formatJapaneseEraDate } from '@utils/japaneseEra';
+import { COMPLETE_LAYOUT, fitCompleteLayout, type CompleteLayout } from '@utils/fitCompleteLayout';
 import type { RootStackScreenProps } from '@/navigation/types';
 
 type Props = RootStackScreenProps<'RecordComplete'>;
 
-const MAP_WIDTH = 210;
+const CARD_PADDING = spacing['2xl'];
 /** 枚数が1つ増えるまでの間 */
 const COUNT_STEP_MS = 90;
 /** 地図が落ち着いてから朱印を押す */
@@ -63,6 +64,17 @@ export function RecordCompleteScreen({ navigation, route }: Props) {
   const stampCountByPrefecture = route.params?.stampCountByPrefecture;
   const totalStampCount = route.params?.totalStampCount;
   const [imageError, setImageError] = useState(false);
+  /*
+   * カードに入りきらないぶんは 地図 → 余白 → 写真 の順に縮める（1.2.0 の実機で、
+   * 初回投稿の写真がカードの上に飛び出した）。カードと中身の高さを測って決める
+   */
+  const [cardHeight, setCardHeight] = useState(0);
+  const [contentHeight, setContentHeight] = useState(0);
+  const [layout, setLayout] = useState<CompleteLayout>({
+    mapWidth: COMPLETE_LAYOUT.mapMaxWidth,
+    stampWidth: COMPLETE_LAYOUT.stampMaxWidth,
+    gap: COMPLETE_LAYOUT.gapMax,
+  });
 
   // 記録画面は地図と御朱印帳の両方から開ける。どちらから来たか分からない
   // ときは地図に返す（入口として多く、迷子になりにくい）
@@ -96,6 +108,30 @@ export function RecordCompleteScreen({ navigation, route }: Props) {
    */
   const canShowMap = !countUnavailable && prefecture !== undefined && stampCountByPrefecture;
 
+  // カードの中に並ぶ要素の数。間の余白の数を決める（下の JSX と同じ条件）
+  const itemCount = [
+    true,
+    !countUnavailable && totalStampCount !== undefined,
+    stampCount > 1,
+    canShowMap && isFirstInPrefecture,
+    canShowMap,
+    countUnavailable,
+    Boolean(spotName),
+    isMangan,
+    badges.length > 0,
+  ].filter(Boolean).length;
+
+  useEffect(() => {
+    setLayout(current =>
+      fitCompleteLayout({
+        available: cardHeight - CARD_PADDING * 2,
+        content: contentHeight,
+        gapCount: itemCount - 1,
+        current,
+      })
+    );
+  }, [cardHeight, contentHeight, itemCount]);
+
   const from = Math.max(0, (totalStampCount ?? 0) - stampCount);
   /*
    * 数え始めの値から出す。最終値を先に出すと、寄り終わった瞬間に戻って数え直す。
@@ -124,83 +160,93 @@ export function RecordCompleteScreen({ navigation, route }: Props) {
       testID="gradient-background"
     >
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-        <View style={styles.card}>
-          {/* 御朱印は主役。地から浮かせる（影は枠側に置く。Image に影は乗らない） */}
-          <View style={styles.stampFrame} testID="stamp-frame">
-            {stampImageUrl && !imageError ? (
-              <Image
-                source={{ uri: stampImageUrl }}
-                style={styles.stampImage}
-                resizeMode="cover"
-                testID="stamp-image"
-                onError={() => setImageError(true)}
-              />
-            ) : (
-              <View style={styles.imagePlaceholder} testID="stamp-image-placeholder">
-                <MaterialIcons name="photo" size={44} color={colors.gray[300]} />
+        <View
+          style={styles.card}
+          onLayout={e => setCardHeight(e.nativeEvent.layout.height)}
+          testID="complete-card"
+        >
+          <View
+            style={[styles.content, { gap: layout.gap }]}
+            onLayout={e => setContentHeight(e.nativeEvent.layout.height)}
+            testID="complete-content"
+          >
+            {/* 御朱印は主役。地から浮かせる（影は枠側に置く。Image に影は乗らない） */}
+            <View style={[styles.stampFrame, { width: layout.stampWidth }]} testID="stamp-frame">
+              {stampImageUrl && !imageError ? (
+                <Image
+                  source={{ uri: stampImageUrl }}
+                  style={styles.stampImage}
+                  resizeMode="cover"
+                  testID="stamp-image"
+                  onError={() => setImageError(true)}
+                />
+              ) : (
+                <View style={styles.imagePlaceholder} testID="stamp-image-placeholder">
+                  <MaterialIcons name="photo" size={44} color={colors.gray[300]} />
+                </View>
+              )}
+              {/*
+               * 朱印は**御朱印の上に**押される。写真があるときこそ本番なので、
+               * 画像とプレースホルダの両方に重ねる（分岐の中に入れると、
+               * 写真を撮った人には一度も出ない）
+               */}
+              {isMangan && <ManganSeal spotName={spotName ?? ''} delayMs={MANGAN_DELAY_MS} />}
+            </View>
+
+            {!countUnavailable && totalStampCount !== undefined && (
+              <View style={styles.countRow} testID="stamp-total">
+                <Text style={styles.countNumber}>{shownCount}</Text>
+                <Text style={styles.countUnit}>枚目</Text>
               </View>
             )}
-            {/*
-             * 朱印は**御朱印の上に**押される。写真があるときこそ本番なので、
-             * 画像とプレースホルダの両方に重ねる（分岐の中に入れると、
-             * 写真を撮った人には一度も出ない）
-             */}
-            {isMangan && <ManganSeal spotName={spotName ?? ''} delayMs={MANGAN_DELAY_MS} />}
-          </View>
 
-          {!countUnavailable && totalStampCount !== undefined && (
-            <View style={styles.countRow} testID="stamp-total">
-              <Text style={styles.countNumber}>{shownCount}</Text>
-              <Text style={styles.countUnit}>枚目</Text>
-            </View>
-          )}
+            {/* まとめて登録しても出せるのは先頭の1枚。残りがあることは枚数で示す */}
+            {stampCount > 1 && (
+              <Text style={styles.batch} testID="stamp-count">{`この日 ${stampCount}枚`}</Text>
+            )}
 
-          {/* まとめて登録しても出せるのは先頭の1枚。残りがあることは枚数で示す */}
-          {stampCount > 1 && (
-            <Text style={styles.batch} testID="stamp-count">{`この日 ${stampCount}枚`}</Text>
-          )}
+            {/* 嘘の数字を祝わないのと同じ理由で、取れていないときは出さない */}
+            {canShowMap && isFirstInPrefecture && (
+              <View style={styles.newChip} testID="first-in-prefecture">
+                <Text style={styles.newChipText}>{`🗾 ${prefecture}、はじめて`}</Text>
+              </View>
+            )}
 
-          {/* 嘘の数字を祝わないのと同じ理由で、取れていないときは出さない */}
-          {canShowMap && isFirstInPrefecture && (
-            <View style={styles.newChip} testID="first-in-prefecture">
-              <Text style={styles.newChipText}>{`🗾 ${prefecture}、はじめて`}</Text>
-            </View>
-          )}
+            {canShowMap && (
+              <SaveMapReveal
+                prefecture={prefecture}
+                stampCountByPrefecture={stampCountByPrefecture}
+                addedCount={stampCount}
+                spotType={spotType}
+                width={layout.mapWidth}
+                onSettled={startCountUp}
+              />
+            )}
 
-          {canShowMap && (
-            <SaveMapReveal
-              prefecture={prefecture}
-              stampCountByPrefecture={stampCountByPrefecture}
-              addedCount={stampCount}
-              spotType={spotType}
-              width={MAP_WIDTH}
-              onSettled={startCountUp}
-            />
-          )}
-
-          {countUnavailable && (
-            <Text style={styles.countUnavailableText} testID="visit-count-unavailable">
-              通信エラーのため記録数を表示できません
-            </Text>
-          )}
-
-          {spotName && (
-            <View style={styles.spot}>
-              <Text style={styles.spotName} testID="spot-name">
-                {spotName}
+            {countUnavailable && (
+              <Text style={styles.countUnavailableText} testID="visit-count-unavailable">
+                通信エラーのため記録数を表示できません
               </Text>
-              {/* DATE のまま渡す。new Date() を挟むと Issue #204 と同じ1日ずれを踏む */}
-              {visitedAt && (
-                <Text style={styles.visitedAt} testID="visited-at">
-                  {formatJapaneseEraDate(visitedAt)}
+            )}
+
+            {spotName && (
+              <View style={styles.spot}>
+                <Text style={styles.spotName} testID="spot-name">
+                  {spotName}
                 </Text>
-              )}
-            </View>
-          )}
+                {/* DATE のまま渡す。new Date() を挟むと Issue #204 と同じ1日ずれを踏む */}
+                {visitedAt && (
+                  <Text style={styles.visitedAt} testID="visited-at">
+                    {formatJapaneseEraDate(visitedAt)}
+                  </Text>
+                )}
+              </View>
+            )}
 
-          {isMangan && <ManganNote />}
+            {isMangan && <ManganNote />}
 
-          <NewBadgeRow badges={badges} />
+            <NewBadgeRow badges={badges} />
+          </View>
         </View>
 
         {/* 続ける / 終わる の2択だけ置く。お祝いの場に選択肢を並べない */}
@@ -239,11 +285,10 @@ const styles = StyleSheet.create({
     marginBottom: 0,
     backgroundColor: colors.white,
     borderRadius: borderRadius['3xl'],
-    alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.md,
-    padding: spacing['2xl'],
+    padding: CARD_PADDING,
   },
+  content: { alignItems: 'center' },
   stampFrame: {
     width: 150,
     aspectRatio: 3 / 4,
