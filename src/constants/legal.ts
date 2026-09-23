@@ -59,7 +59,7 @@ export const TERMS_OF_SERVICE: LegalDocument = {
 };
 
 export const PRIVACY_POLICY: LegalDocument = {
-  lastUpdated: '2026-04-04',
+  lastUpdated: '2026-09-23',
   sections: [
     {
       title: 'はじめに',
@@ -75,11 +75,11 @@ export const PRIVACY_POLICY: LegalDocument = {
     },
     {
       title: '情報の保存場所',
-      body: '収集した情報は、Supabase（Amazon Web Services ap-northeast-1 東京リージョン）のサーバーに保存されます。\n\n御朱印画像はSupabase Storageに保存されます。\n\nすべてのデータはHTTPS通信によって暗号化された状態で送受信されます。\n\n位置情報のみサーバーには保存されず、端末上での処理にのみ使用されます。',
+      body: '収集した情報は、Supabase（Amazon Web Services ap-northeast-1 東京リージョン）のサーバーに保存されます。\n\n御朱印画像はSupabase Storage、およびCloudflare R2（Cloudflare, Inc.／アジア太平洋地域）に保存されます。画像の縮小・形式変換と配信にはCloudflareのサービスを利用します。\n\nすべてのデータはHTTPS通信によって暗号化された状態で送受信されます。\n\n位置情報のみサーバーには保存されず、端末上での処理にのみ使用されます。',
     },
     {
       title: '第三者提供',
-      body: '本アプリは以下の第三者とデータを共有する場合があります。\n\n【Google LLC】\nGoogleアカウントによる認証（OAuth）のため、Googleの認証サービスを利用します。Googleのプライバシーポリシーが適用されます。\n\n【Supabase Inc.】\nデータベース、ストレージ、認証基盤としてSupabaseのサービスを利用しています。ユーザーデータはSupabaseのサーバーに保存されます。\n\n【Anthropic】\nメモテキストのAI情報抽出を目的として、ユーザーが入力したメモテキストのみをAnthropicのClaude APIに送信します。画像や個人を特定できる情報（氏名・メールアドレス等）は送信しません。AnthropicのプライバシーポリシーはAnthropicの公式サイトをご参照ください。\n\n【他のユーザー】\n御朱印を公開設定にした場合、当該御朱印の画像・メモ・訪問日・スポット情報が、表示名およびプロフィール画像とともに他のユーザーに表示されます。\n\n上記以外の第三者に個人情報を提供することはありません（法令に基づく場合を除く）。',
+      body: '本アプリは以下の第三者とデータを共有する場合があります。\n\n【Google LLC】\nGoogleアカウントによる認証（OAuth）のため、Googleの認証サービスを利用します。Googleのプライバシーポリシーが適用されます。\n\n【Supabase Inc.】\nデータベース、ストレージ、認証基盤としてSupabaseのサービスを利用しています。ユーザーデータはSupabaseのサーバーに保存されます。\n\n【Cloudflare, Inc.】\n御朱印画像の保存、縮小・形式変換および配信のため、CloudflareのR2およびImagesを利用しています。御朱印画像はCloudflareのサーバーに保存されます。Cloudflareのプライバシーポリシーが適用されます。\n\n【Anthropic】\nメモテキストのAI情報抽出を目的として、ユーザーが入力したメモテキストのみをAnthropicのClaude APIに送信します。画像や個人を特定できる情報（氏名・メールアドレス等）は送信しません。AnthropicのプライバシーポリシーはAnthropicの公式サイトをご参照ください。\n\n【他のユーザー】\n御朱印を公開設定にした場合、当該御朱印の画像・メモ・訪問日・スポット情報が、表示名およびプロフィール画像とともに他のユーザーに表示されます。\n\n上記以外の第三者に個人情報を提供することはありません（法令に基づく場合を除く）。',
     },
     {
       title: 'データセキュリティ',
