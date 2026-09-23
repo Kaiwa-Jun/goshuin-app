@@ -53,6 +53,11 @@ describe('uploadStampImage（実機の FormData 環境）', () => {
     (global as unknown as { FormData: unknown }).FormData = originalFormData;
   });
 
+  // Issue #227 S3 以降、先に sign-stamp-upload（Edge Function）も同じ fetch を通る。
+  // ここで見たいのは Storage への送信だけなので、それを取り出す
+  const storageCalls = () =>
+    fetchMock.mock.calls.filter(([url]) => String(url).includes('/storage/v1/object/'));
+
   beforeEach(() => {
     fetchMock = jest.fn(async () => ({
       ok: true,
@@ -69,13 +74,13 @@ describe('uploadStampImage（実機の FormData 環境）', () => {
     const path = await uploadStampImage('user-1', 'file:///photo.jpg');
 
     expect(path).toMatch(/^user-1\/\d+-[a-z0-9]+\.jpg$/);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(storageCalls()).toHaveLength(1);
   });
 
   it('FormData ではなくバイト列を送る', async () => {
     await uploadStampImage('user-1', 'file:///photo.jpg');
 
-    const [, init] = fetchMock.mock.calls[0];
+    const [, init] = storageCalls()[0];
     expect(init.body).toBeInstanceOf(Uint8Array);
     expect(init.body).not.toBeInstanceOf(RNFormData);
   });
@@ -83,7 +88,7 @@ describe('uploadStampImage（実機の FormData 環境）', () => {
   it('バケットの allowed_mime_types に通る content-type を付ける', async () => {
     await uploadStampImage('user-1', 'file:///photo.jpg');
 
-    const [url, init] = fetchMock.mock.calls[0];
+    const [url, init] = storageCalls()[0];
     // supabase-js は headers を Headers インスタンスに正規化する
     const headers = init.headers as Headers;
 

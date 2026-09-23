@@ -43,9 +43,59 @@ export async function fetchStampsBySpotId(spotId: string): Promise<Stamp[]> {
   return data as Stamp[];
 }
 
-export async function uploadStampImage(userId: string, imageUri: string): Promise<string> {
-  const filePath = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+/**
+ * R2 に置くためのキーと署名付き URL（Issue #227 S3）。取れなければ null。
+ *
+ * S3 のあいだ R2 は写しで、正は Supabase。ここが落ちても記録は止めない
+ */
+async function signR2Upload(
+  userId: string,
+  size: number
+): Promise<{ path: string; url: string } | null> {
+  try {
+    const { data, error } = await supabase.functions.invoke('sign-stamp-upload', {
+      body: { action: 'upload', size },
+    });
+    // キーは関数が本人のフォルダの下に決めるが、念のため食い違ったら使わない
+    if (error || typeof data?.path !== 'string' || !data.path.startsWith(`${userId}/`)) {
+      if (error) console.warn('R2 の署名を取得できませんでした:', error.message);
+      return null;
+    }
+    return { path: data.path, url: data.url };
+  } catch (error) {
+    console.warn('R2 の署名を取得できませんでした:', error);
+    return null;
+  }
+}
 
+async function putToR2(url: string, bytes: Uint8Array): Promise<void> {
+  try {
+    // Content-Type と大きさは署名に含まれている。違うと R2 が 403 を返す
+    const res = await fetch(url, {
+      method: 'PUT',
+      headers: { 'Content-Type': STAMP_IMAGE_CONTENT_TYPE },
+      // RN の fetch の型には Uint8Array が無いが、実行時は通る。supabase-js の upload も
+      // 同じバイト列をそのまま fetch に渡しており、実機で動いている（Issue #118）
+      body: bytes as unknown as BodyInit,
+    });
+    if (!res.ok) console.warn(`R2 へのアップロードに失敗しました (status=${res.status})`);
+  } catch (error) {
+    console.warn('R2 へのアップロードに失敗しました:', error);
+  }
+}
+
+async function deleteFromR2(paths: string[]): Promise<void> {
+  try {
+    const { error } = await supabase.functions.invoke('sign-stamp-upload', {
+      body: { action: 'delete', paths },
+    });
+    if (error) console.warn('R2 から削除できませんでした:', error.message);
+  } catch (error) {
+    console.warn('R2 から削除できませんでした:', error);
+  }
+}
+
+export async function uploadStampImage(userId: string, imageUri: string): Promise<string> {
   // ⚠ ここに FormData を渡してはいけない。
   // supabase-js の Storage クライアントは FormData を受け取ると内部で
   // `body.has('cacheControl')` を呼ぶが、React Native の FormData ポリフィルは
@@ -61,6 +111,12 @@ export async function uploadStampImage(userId: string, imageUri: string): Promis
   //   触るにも毎回復号が要る（Issue #196）
   const bytes = await new File(await toUploadableJpeg(imageUri)).bytes();
 
+  // R2 にも同じキーで置くため、キーは署名と一緒にもらう（Issue #227 S3）。
+  // もらえなければ今までどおり自分で作り、Supabase にだけ上げる
+  const signed = await signR2Upload(userId, bytes.length);
+  const filePath =
+    signed?.path ?? `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+
   const { data, error } = await supabase.storage
     .from('goshuin-images')
     .upload(filePath, bytes, { contentType: STAMP_IMAGE_CONTENT_TYPE });
@@ -68,6 +124,9 @@ export async function uploadStampImage(userId: string, imageUri: string): Promis
   if (error) {
     throw new Error(describeSupabaseError(error, '画像のアップロードに失敗しました'));
   }
+
+  // Supabase に入ってから写す。先に写すと、Supabase の失敗時に R2 にだけ孤児が残る
+  if (signed) await putToR2(signed.url, bytes);
 
   return data.path;
 }
@@ -248,6 +307,9 @@ export async function deleteStampImage(imagePath: string): Promise<void> {
       stampVariantPath(imagePath, VIEW_DIR),
     ]);
   if (error) throw new Error(error.message);
+
+  // R2 の写しも消す（Issue #227 S3）。失敗しても Supabase からは消えているので止めない
+  await deleteFromR2([imagePath]);
 }
 
 /**

@@ -5,6 +5,7 @@
 import { assertEquals } from 'jsr:@std/assert@1';
 import {
   collectImageNames,
+  deleteR2Prefix,
   extractBearerToken,
   deleteAccountForUser,
   type DeleteAccountDeps,
@@ -21,6 +22,7 @@ function makeDeps(
     removeError: string | null;
     detachError: string | null;
     deleteError: string | null;
+    r2Error: string | null;
   }> = {}
 ) {
   const calls: string[] = [];
@@ -37,6 +39,10 @@ function makeDeps(
       calls.push('remove');
       removedPaths.push(paths);
       return { error: overrides.removeError ?? null };
+    },
+    removeR2Images: async userId => {
+      calls.push(`r2:${userId}`);
+      return { error: overrides.r2Error ?? null };
     },
     detachCreatedSpots: async userId => {
       calls.push('detach');
@@ -83,7 +89,7 @@ Deno.test('deleteAccountForUser: 画像 → spots → auth ユーザーの順で
 
   await deleteAccountForUser(deps, USER_ID);
 
-  assertEquals(calls, [`list:${USER_ID}`, 'remove', 'detach', 'deleteUser']);
+  assertEquals(calls, [`list:${USER_ID}`, 'remove', `r2:${USER_ID}`, 'detach', 'deleteUser']);
 });
 
 // --- B-2: 画像が 0 件なら remove を呼ばない ---
@@ -94,7 +100,7 @@ Deno.test('deleteAccountForUser: 画像が 0 件のとき remove を呼ばない
   await deleteAccountForUser(deps, USER_ID);
 
   assertEquals(calls.includes('remove'), false);
-  assertEquals(calls, [`list:${USER_ID}`, 'detach', 'deleteUser']);
+  assertEquals(calls, [`list:${USER_ID}`, `r2:${USER_ID}`, 'detach', 'deleteUser']);
 });
 
 // --- B-3: remove に渡すパスの形 ---
@@ -307,4 +313,82 @@ Deno.test('deleteAccountForUser: 1000件を超える画像は1000件ずつに分
   );
   assertEquals(removedPaths.flat().length, 2001);
   assertEquals(result.status, 200);
+});
+
+// --- Issue #227 S3: R2 の写しも消す ---
+
+Deno.test(
+  'deleteAccountForUser: R2 の削除に失敗しても deleteUser は実行し warnings に載せる',
+  async () => {
+    const { deps, calls } = makeDeps({ r2Error: 'r2 boom' });
+
+    const result = await deleteAccountForUser(deps, USER_ID);
+
+    assertEquals(calls.includes('deleteUser'), true);
+    assertEquals(result.body, { success: true, warnings: ['R2 の画像の削除に失敗: r2 boom'] });
+  }
+);
+
+Deno.test('deleteAccountForUser: R2 の削除で例外が飛んでも deleteUser は実行する', async () => {
+  const { deps, calls } = makeDeps();
+  deps.removeR2Images = () => {
+    throw new Error('r2 down');
+  };
+
+  const result = await deleteAccountForUser(deps, USER_ID);
+
+  assertEquals(calls.includes('deleteUser'), true);
+  assertEquals(result.body, { success: true, warnings: ['R2 の画像の削除に失敗: r2 down'] });
+});
+
+/** R2（S3 API）の ListObjectsV2 を真似る。prefix 配下を区切り無しで全部返す */
+function fakeR2(keys: string[], pageSize: number, failDeleteOn?: string) {
+  const deleted: string[] = [];
+  const listPage = async (prefix: string, token: string | null) => {
+    const all = keys.filter(k => k.startsWith(prefix));
+    const start = token ? Number(token) : 0;
+    const page = all.slice(start, start + pageSize);
+    const next = start + pageSize < all.length ? String(start + pageSize) : null;
+    return { keys: page, next, error: null };
+  };
+  const deleteKey = async (key: string) => {
+    if (key === failDeleteOn) return { error: 'HTTP 500' };
+    deleted.push(key);
+    return { error: null };
+  };
+  return { listPage, deleteKey, deleted };
+}
+
+Deno.test('deleteR2Prefix: ページをまたいで、prefix 配下を全部消す', async () => {
+  const keys = [
+    ...Array.from({ length: 5 }, (_, i) => `${USER_ID}/${i}.jpg`),
+    `${USER_ID}-other/0.jpg`,
+    'someone-else/0.jpg',
+  ];
+  const { listPage, deleteKey, deleted } = fakeR2(keys, 2);
+
+  const result = await deleteR2Prefix(listPage, deleteKey, `${USER_ID}/`);
+
+  assertEquals(result, { deleted: 5, error: null });
+  assertEquals(deleted.sort(), keys.slice(0, 5).sort());
+});
+
+Deno.test('deleteR2Prefix: 1件の削除に失敗しても残りは消し、error を返す', async () => {
+  const keys = [`${USER_ID}/a.jpg`, `${USER_ID}/b.jpg`, `${USER_ID}/c.jpg`];
+  const { listPage, deleteKey, deleted } = fakeR2(keys, 10, `${USER_ID}/b.jpg`);
+
+  const result = await deleteR2Prefix(listPage, deleteKey, `${USER_ID}/`);
+
+  assertEquals(deleted.sort(), [`${USER_ID}/a.jpg`, `${USER_ID}/c.jpg`]);
+  assertEquals(result.deleted, 2);
+  assertEquals(result.error, `${USER_ID}/b.jpg: HTTP 500`);
+});
+
+Deno.test('deleteR2Prefix: prefix が <userId>/ の形でなければ何もしない', async () => {
+  for (const prefix of ['', '/', `${USER_ID}`]) {
+    const { listPage, deleteKey, deleted } = fakeR2([`${USER_ID}/a.jpg`, 'x/a.jpg'], 10);
+    const result = await deleteR2Prefix(listPage, deleteKey, prefix);
+    assertEquals(deleted, [], prefix);
+    assertEquals(result.error !== null, true);
+  }
 });
