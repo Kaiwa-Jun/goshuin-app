@@ -28,6 +28,8 @@ jest.mock('@hooks/useGalleryStamps', () => ({
   useGalleryStamps: jest.fn(),
 }));
 
+const mockHandleDelete = jest.fn();
+
 jest.mock('@hooks/useStampDetail', () => ({
   useStampDetail: () => ({
     stamp: null,
@@ -36,8 +38,24 @@ jest.mock('@hooks/useStampDetail', () => ({
     isUpdating: false,
     isDeleting: false,
     handleUpdate: jest.fn(),
-    handleDelete: jest.fn(),
+    handleDelete: (...args: unknown[]) => mockHandleDelete(...args),
     refresh: jest.fn(),
+  }),
+}));
+
+/*
+ * 実物の useHeroTransition は measureInWindow が返らないテスト環境では飛ばずに開く。
+ * 削除後の後始末（飛ばした1枚を手放すか）を見るため、end だけ観測できる形にする
+ */
+const mockHeroEnd = jest.fn();
+jest.mock('@hooks/useHeroTransition', () => ({
+  useHeroTransition: () => ({
+    flight: null,
+    registerTile: jest.fn(),
+    rememberAspect: jest.fn(),
+    start: (_params: unknown, onReady: (started: boolean) => void) => onReady(false),
+    turnBack: jest.fn(),
+    end: (...args: unknown[]) => mockHeroEnd(...args),
   }),
 }));
 
@@ -455,5 +473,32 @@ describe('グリッド0件時の CTA（監査 A-10）', () => {
     fireEvent.press(getByTestId('gallery-record-cta'));
 
     expect(mockNavigation.navigate).toHaveBeenCalledWith('Record', { origin: 'gallery' });
+  });
+
+  /*
+   * 1枚を詳細から削除したあと、残った1枚を押しても詳細が開かなかった（1.2.0 の実機で発覚）。
+   * 詳細は一覧のタイルから「飛ばした1枚」を持ったまま開いている。削除はその1枚を手放さずに
+   * 詳細だけ閉じていたため、次に押した1枚の飛行が、居残った状態に引きずられて終わらなかった
+   */
+  it('詳細から削除したら、飛ばした1枚も手放す（次の1枚が開けるように）', async () => {
+    const removeStamp = jest.fn();
+    mockHandleDelete.mockResolvedValue(true);
+    mockUseGalleryStamps.mockReturnValue({
+      stamps: [makeStamp({ id: '1' }), makeStamp({ id: '2', image_path: 'user-1/stamp-2.jpg' })],
+      totalCount: 2,
+      isLoading: false,
+      error: null,
+      removeStamp,
+      updateStamp: jest.fn(),
+    });
+
+    const { getByTestId, getByText } = renderGalleryScreenInGrid();
+    fireEvent.press(getByTestId('gallery-item-1'));
+    fireEvent.press(getByTestId('gallery-delete-button'));
+    mockHeroEnd.mockClear();
+    fireEvent.press(getByText('削除する'));
+
+    await waitFor(() => expect(removeStamp).toHaveBeenCalledWith('1'));
+    expect(mockHeroEnd).toHaveBeenCalled();
   });
 });

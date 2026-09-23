@@ -181,12 +181,18 @@ export function GalleryScreen({ navigation }: Props) {
     const success = await handleDelete();
     if (success) {
       setDeleteModalVisible(false);
+      // 詳細は一覧から飛ばした1枚を持ったまま開いている。詳細だけ閉じて1枚を
+      // 持ち続けると、次に押した御朱印の飛行がそれに引きずられて詳細が開かない
+      // （1.2.0 の実機で発覚）。閉じるときの後始末と同じことをする
       setSelectedImageIndex(null);
+      setFlyingStampId(null);
+      setResting(false);
+      hero.end();
       if (stampId) {
         removeStamp(stampId);
       }
     }
-  }, [handleDelete, currentStamp?.id, removeStamp]);
+  }, [handleDelete, currentStamp?.id, removeStamp, hero]);
 
   const formatDate = (dateStr: string) => dateStr.replace(/-/g, '/');
 
