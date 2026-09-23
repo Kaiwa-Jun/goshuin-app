@@ -18,12 +18,7 @@ import { useAuth } from '@hooks/useAuth';
 import { useGalleryStamps } from '@hooks/useGalleryStamps';
 import { useGalleryViewMode } from '@hooks/useGalleryViewMode';
 import { useStampDetail } from '@hooks/useStampDetail';
-import {
-  getStampImageUrl,
-  getStampThumbUrl,
-  getStampViewUrl,
-  ensureStampVariants,
-} from '@services/stamps';
+import { getStampImageUrl, getStampThumbUrl, getStampViewUrl } from '@services/stamps';
 import { Button } from '@components/common/Button';
 import { ImageGalleryModal, GalleryImage } from '@components/common/ImageGalleryModal';
 import { GoshuinchoFlipView } from '@components/gallery/GoshuinchoFlipView';
@@ -47,7 +42,6 @@ const ITEM_SIZE = (SCREEN_WIDTH - spacing.lg * 2 - ITEM_MARGIN * (NUM_COLUMNS - 
 /** 詳細から「写真が出せる」合図が来なかったときに、飛ぶ1枚を諦めて引っ込めるまで */
 const HANDOVER_FALLBACK_MS = 800;
 /** サムネが無いものをまとめて焼かせるまでの待ち。1枚ごとに叩かないため */
-const THUMB_REQUEST_DEBOUNCE_MS = 400;
 
 const GUEST_PREVIEW_ITEMS = [
   { icon: 'photo-camera', label: '写真で御朱印を残す' },
@@ -78,35 +72,16 @@ export function GalleryScreen({ navigation }: Props) {
   const [flyingStampId, setFlyingStampId] = useState<string | null>(null);
   /** 詳細を開いたまま、飛ぶ1枚を持ったままにしているか（Issue #192） */
   const [resting, setResting] = useState(false);
-  /** サムネがまだ無い御朱印。元の写真に落として表示を続ける（Issue #194） */
+  /** R2 に原本が無い御朱印。元の写真に落として表示を続ける（Issue #194 / #227） */
   const [thumbMissing, setThumbMissing] = useState<ReadonlySet<string>>(() => new Set());
-  const pendingThumbs = useRef<Set<string>>(new Set());
-  const thumbTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (thumbTimer.current) clearTimeout(thumbTimer.current);
-    };
-  }, []);
 
   /**
-   * サムネが無かった。表示は元の写真で続けつつ、裏で焼かせる。
-   * 1枚ごとに叩くと一覧を開くたび数十回になるので、少し溜めてから1回で送る
+   * 一覧のタイルが小さい方を出せなかった。元の写真に落として表示を続ける。
+   * R2 の変換は URL で頼むので焼かせる必要は無く、落ちるのは R2 に原本が無いとき
+   * （旧バージョンのアプリが Supabase にだけ上げた写真）だけ（Issue #227 S4a）
    */
-  const requestVariants = (imagePath: string) => {
-    pendingThumbs.current.add(imagePath);
-    if (thumbTimer.current) clearTimeout(thumbTimer.current);
-    thumbTimer.current = setTimeout(() => {
-      const paths = [...pendingThumbs.current];
-      pendingThumbs.current.clear();
-      ensureStampVariants(paths).catch(() => {});
-    }, THUMB_REQUEST_DEBOUNCE_MS);
-  };
-
-  /** 一覧のタイルが小さい方を出せなかった。元に落として表示を続けつつ焼かせる */
   const handleThumbMissing = (stamp: StampWithSpot) => {
     setThumbMissing(prev => (prev.has(stamp.id) ? prev : new Set(prev).add(stamp.id)));
-    requestVariants(stamp.image_path);
   };
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
@@ -461,11 +436,6 @@ export function GalleryScreen({ navigation }: Props) {
         onEdit={handleEdit}
         onDelete={handleDeletePress}
         onImageReady={handleDetailImageReady}
-        // 詳細用がまだ無い。一覧は小さい方を見ているので、ここでしか気づけない
-        onImageFallback={id => {
-          const stamp = displayStamps.find(s => s.id === id);
-          if (stamp) requestVariants(stamp.image_path);
-        }}
         // 一覧のタイルと詳細を1対1で繋いでいる。途中で別の1枚に移ると
         // その結びつきが切れて元のタイルへ戻れない。順に見る動線は
         // 蛇腹めくりが持っている（Issue #192）
