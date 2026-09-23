@@ -107,7 +107,7 @@ describe('MouSukoshiCard', () => {
     );
     const s = within(getByTestId('mou-sukoshi-seal'));
     expect(s.getByText('印')).toBeTruthy();
-    expect(s.getByText(`印「${seal.name}」`)).toBeTruthy();
+    expect(s.getByText(seal.name)).toBeTruthy();
     expect(s.getByText('あと7箇所')).toBeTruthy();
   });
 

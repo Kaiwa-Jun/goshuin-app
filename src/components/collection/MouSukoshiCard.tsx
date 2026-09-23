@@ -50,6 +50,7 @@ function Ring({ total, on }: { total: number; on: number }) {
 }
 
 function Row({
+  first,
   testID,
   kind,
   name,
@@ -59,6 +60,7 @@ function Row({
   onPress,
   label,
 }: {
+  first?: boolean;
   testID: string;
   kind: string;
   name: string;
@@ -70,7 +72,7 @@ function Row({
 }) {
   return (
     <TouchableOpacity
-      style={styles.row}
+      style={[styles.row, first && styles.firstRow]}
       onPress={onPress}
       testID={testID}
       accessibilityRole="button"
@@ -108,12 +110,14 @@ export function MouSukoshiCard({
   return (
     <View style={styles.card} testID="mou-sukoshi">
       <Text style={styles.title}>もう少し</Text>
-      {rows.map(row => {
+      {rows.map((row, index) => {
+        const first = index === 0;
         switch (row.kind) {
           case 'pilgrimage': {
             const p = row.pilgrimage;
             return (
               <Row
+                first={first}
                 key={`p-${p.id}`}
                 testID={`mou-sukoshi-pilgrimage-${p.id}`}
                 kind="巡礼"
@@ -128,6 +132,7 @@ export function MouSukoshiCard({
           case 'tsukimairi':
             return (
               <Row
+                first={first}
                 key={`t-${row.entry.spotId}`}
                 testID={`mou-sukoshi-tsukimairi-${row.entry.spotId}`}
                 kind="月参り"
@@ -141,10 +146,11 @@ export function MouSukoshiCard({
           case 'seal':
             return (
               <Row
+                first={first}
                 key="seal"
                 testID="mou-sukoshi-seal"
                 kind="印"
-                name={`印「${row.badge.name}」`}
+                name={row.badge.name}
                 left={`あと${row.remaining}${row.unit}`}
                 icon={
                   <View style={styles.icon}>
@@ -158,6 +164,7 @@ export function MouSukoshiCard({
           case 'area':
             return (
               <Row
+                first={first}
                 key="area"
                 testID="mou-sukoshi-area"
                 kind="よく行くエリア"
@@ -202,6 +209,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.gray[200],
   },
+  firstRow: { borderTopWidth: 0 },
   icon: { width: ICON, height: ICON, alignItems: 'center', justifyContent: 'center' },
   pinIcon: { borderRadius: borderRadius.full, backgroundColor: colors.primary[50] },
   ringDot: { position: 'absolute', borderRadius: borderRadius.full },
