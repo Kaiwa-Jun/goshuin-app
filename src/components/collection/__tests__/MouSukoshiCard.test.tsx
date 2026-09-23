@@ -9,6 +9,7 @@ import type { TsukimairiEntry } from '@utils/tsukimairiList';
 /*
  * あゆみの「もう少し」（Issue #245 / docs/design/mockups/2026-09-ayumi-grow-v3.html）
  */
+type AreaRowT = Extract<MouSukoshiRow, { kind: 'area' }>;
 const tsukiEntry: TsukimairiEntry = {
   spotId: 'takekoma',
   spotName: '竹駒神社',
@@ -51,6 +52,7 @@ const areaRow: MouSukoshiRow = {
       type: 'shrine',
       distanceKm: 1.5,
       courseName: '仙台六芒星巡り',
+      courseRemaining: 1,
     },
   ],
 };
@@ -172,6 +174,17 @@ describe('FrequentAreaSheet', () => {
     expect(within(items[1]).getByText('2.0km')).toBeTruthy();
     // 巡礼の残りは薄く添える
     expect(within(items[2]).getByText('仙台六芒星巡りの、残りの1社')).toBeTruthy();
+  });
+
+  it('巡礼の残りが2社なら「残り2社のひとつ」', () => {
+    const area = {
+      ...areaRow,
+      alsoInCourse: [{ ...(areaRow as AreaRowT).alsoInCourse[0], courseRemaining: 2 }],
+    } as AreaRowT;
+    const { getByText } = render(
+      <FrequentAreaSheet area={area} visible onClose={jest.fn()} onPressSpot={jest.fn()} />
+    );
+    expect(getByText('仙台六芒星巡りの、残り2社のひとつ')).toBeTruthy();
   });
 
   it('寺社を押すと、その寺社へ', () => {

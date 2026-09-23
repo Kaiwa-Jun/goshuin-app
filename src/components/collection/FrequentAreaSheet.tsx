@@ -84,7 +84,11 @@ export function FrequentAreaSheet({ area, visible, onClose, onPressSpot }: Props
           <SpotRow
             key={s.id}
             spot={s}
-            note={`${s.courseName}の、残りの1社`}
+            note={
+              s.courseRemaining === 1
+                ? `${s.courseName}の、残りの1社`
+                : `${s.courseName}の、残り${s.courseRemaining}社のひとつ`
+            }
             faint
             onPress={() => onPressSpot(s.id)}
           />

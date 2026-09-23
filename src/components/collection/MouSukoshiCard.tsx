@@ -23,7 +23,8 @@ const ICON = 40;
 
 /** 丸を n 個並べた小さな輪。月参り（12）と巡礼（札所の数）で使う */
 function Ring({ total, on }: { total: number; on: number }) {
-  const dot = total > 8 ? 7 : 9;
+  // 札所が多いコース（三十三観音など）でも輪からはみ出さないよう、数に合わせて小さくする
+  const dot = Math.max(2, Math.min(9, Math.floor((Math.PI * (ICON - 8)) / total) - 1));
   const r = ICON / 2 - dot / 2 - 1;
   return (
     <View style={styles.icon}>
@@ -237,7 +238,8 @@ const styles = StyleSheet.create({
   kind: { fontSize: 10, fontWeight: '700', letterSpacing: 0.6, color: colors.gray[400] },
   name: { ...typography.bodySmall, fontWeight: '700', color: colors.gray[900] },
   progress: { flexDirection: 'row', gap: 3, marginTop: 5 },
-  seg: { width: 16, height: 6, borderRadius: 3 },
+  // 札所が多いと幅を分け合って縮む（1本 16px まで）
+  seg: { flex: 1, maxWidth: 16, height: 6, borderRadius: 3 },
   dot: { width: 8, height: 8, borderRadius: borderRadius.full },
   sub: { ...typography.caption, color: colors.gray[600], marginTop: 1 },
   left: {

@@ -162,6 +162,7 @@ describe('mouSukoshi', () => {
       expect(area.alsoInCourse.map(s => s.id)).toEqual(['kameoka']);
       // シートで「〇〇の、残りの1社」と添えるためにコース名を持つ
       expect(area.alsoInCourse[0].courseName).toBe('コースa');
+      expect(area.alsoInCourse[0].courseRemaining).toBeGreaterThan(0);
     });
 
     it('巡礼の残りを除いてから、近い順に最大5件', () => {
