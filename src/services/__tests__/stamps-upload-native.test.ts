@@ -53,6 +53,11 @@ describe('uploadStampImage（実機の FormData 環境）', () => {
     (global as unknown as { FormData: unknown }).FormData = originalFormData;
   });
 
+  // Issue #227 S3 以降、先に sign-stamp-upload（Edge Function）も同じ fetch を通る。
+  // ここで見たいのは Storage への送信だけなので、それを取り出す
+  const storageCalls = () =>
+    fetchMock.mock.calls.filter(([url]) => String(url).includes('/storage/v1/object/'));
+
   beforeEach(() => {
     fetchMock = jest.fn(async () => ({
       ok: true,
@@ -69,13 +74,13 @@ describe('uploadStampImage（実機の FormData 環境）', () => {
     const path = await uploadStampImage('user-1', 'file:///photo.jpg');
 
     expect(path).toMatch(/^user-1\/\d+-[a-z0-9]+\.jpg$/);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(storageCalls()).toHaveLength(1);
   });
 
   it('FormData ではなくバイト列を送る', async () => {
     await uploadStampImage('user-1', 'file:///photo.jpg');
 
-    const [, init] = fetchMock.mock.calls[0];
+    const [, init] = storageCalls()[0];
     expect(init.body).toBeInstanceOf(Uint8Array);
     expect(init.body).not.toBeInstanceOf(RNFormData);
   });
@@ -83,11 +88,57 @@ describe('uploadStampImage（実機の FormData 環境）', () => {
   it('バケットの allowed_mime_types に通る content-type を付ける', async () => {
     await uploadStampImage('user-1', 'file:///photo.jpg');
 
-    const [url, init] = fetchMock.mock.calls[0];
+    const [url, init] = storageCalls()[0];
     // supabase-js は headers を Headers インスタンスに正規化する
     const headers = init.headers as Headers;
 
     expect(url).toContain('/storage/v1/object/goshuin-images/user-1/');
     expect(headers.get('content-type')).toBe('image/jpeg');
+  });
+
+  /*
+   * R2 への PUT も実機と同じ経路で確かめる（Issue #227 S3）。
+   * 署名は実物の supabase-js の functions.invoke を通し、JSON で返す
+   */
+  it('署名が取れれば、同じキーで Storage に上げ、R2 にバイト列を PUT する', async () => {
+    const signedUrl =
+      'https://r2.example/goshuin-images/user-1/1790101744171-au09co.jpg?X-Amz-Signature=s';
+    fetchMock.mockImplementation(async (url: string) => {
+      if (String(url).includes('/functions/v1/sign-stamp-upload')) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            path: 'user-1/1790101744171-au09co.jpg',
+            url: signedUrl,
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      return new Response(JSON.stringify({ Id: 'obj-1', Key: 'k' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+
+    // R2 への PUT は supabase-js ではなくアプリの fetch を通る
+    const originalFetch = global.fetch;
+    global.fetch = fetchMock as unknown as typeof fetch;
+    let path: string;
+    try {
+      path = await uploadStampImage('user-1', 'file:///photo.jpg');
+    } finally {
+      global.fetch = originalFetch;
+    }
+
+    expect(path).toBe('user-1/1790101744171-au09co.jpg');
+    expect(String(storageCalls()[0][0])).toContain(
+      '/goshuin-images/user-1/1790101744171-au09co.jpg'
+    );
+    const r2Call = fetchMock.mock.calls.find(([url]) => url === signedUrl);
+    expect(r2Call).toBeDefined();
+    const init = r2Call![1] as { method: string; headers: Record<string, string>; body: unknown };
+    expect(init.method).toBe('PUT');
+    expect(init.headers['Content-Type']).toBe('image/jpeg');
+    expect(init.body).toBeInstanceOf(Uint8Array);
   });
 });

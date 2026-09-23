@@ -214,6 +214,15 @@ S1 の残り（オーナーの作業が要る）:
 3. デプロイ: `npx supabase@latest functions deploy sign-stamp-upload --project-ref tvnozkpxncmnehyomoff --use-api --no-verify-jwt`
 4. AC-2 / AC-3 / AC-3b / AC-3c を本番で確認（Claude が実施）
 
+## S3 の実装メモ（2026-09-23）
+
+- **キーは署名と一緒にもらう**: `uploadStampImage` は先に `sign-stamp-upload` からキーと署名付き URL をもらい、**そのキーで Supabase に上げてから** R2 に PUT する（両方で同じキーにするため）。署名が取れない・キーが本人のフォルダでないときは、今までどおり自分でキーを作って Supabase にだけ上げる
+- R2 の失敗（署名・PUT・削除）は `console.warn` だけで記録を止めない。Supabase の失敗は今までどおりエラー（R2 には書かない）
+- `delete-account` は Supabase の画像のあとに R2 の `<user_id>/` 配下を列挙して消す（`deleteR2Prefix`。prefix が `<id>/` の形でなければ何もしない）。secrets は `sign-stamp-upload` と共有
+- 既存分のコピー: `supabase/scripts/r2-copy/copy.ts`（Deno・`--dry-run` あり・DB の `image_path` を正にして R2 に無いものだけ・最後に数え直して 0 件でなければ exit 1）
+- **実行順（守ること）**: ① `delete-account` を再デプロイ → ② コピー。逆だと、コピー後に退会した人の写しが R2 に残る。アプリの二重書き込みは次のビルド（1.2 以降）で効く
+- アプリの `tsconfig.json` / ESLint の対象から `supabase/scripts/` を外した（Deno のスクリプトのため）
+
 ## 決定事項（2026-09-23 確定）
 
 **着手条件: #225 → #226 が完了してから**（「先行 Issue」の節）。

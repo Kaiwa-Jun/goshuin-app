@@ -10,6 +10,8 @@ export interface DeleteAccountDeps {
   listImages(userId: string): Promise<{ names: string[]; error: string | null }>;
   /** バケット内のフルパスを渡して削除する */
   removeImages(paths: string[]): Promise<{ error: string | null }>;
+  /** R2 の <userId>/ 配下を全部消す（Issue #227 S3。R2 は Supabase の写し） */
+  removeR2Images(userId: string): Promise<{ error: string | null }>;
   /** spots.created_by_user_id を NULL に落とす */
   detachCreatedSpots(userId: string): Promise<{ error: string | null }>;
   /** auth.users の行を消す。profiles / stamps / goshuincho / wishlists は cascade */
@@ -77,6 +79,52 @@ export async function collectImageNames(
   return { names, error: null };
 }
 
+export type R2ListPage = (
+  prefix: string,
+  token: string | null
+) => Promise<{ keys: string[]; next: string | null; error: string | null }>;
+
+/** 一度に投げる DELETE の数。R2 に負荷をかけすぎない */
+const R2_DELETE_CONCURRENCY = 20;
+
+/**
+ * R2 の prefix 配下を全部消す（Issue #227 S3）。
+ *
+ * R2 にはプレフィックスごと消す API が無いので、区切り無しで列挙して（配下すべてが返る）
+ * 1件ずつ消す。1件の失敗で止めず、残りは消し切ってから最初の error を返す。
+ *
+ * prefix は `<userId>/` の形に限る。空文字や `/` が来るとバケット全体が消える
+ */
+export async function deleteR2Prefix(
+  listPage: R2ListPage,
+  deleteKey: (key: string) => Promise<{ error: string | null }>,
+  prefix: string
+): Promise<{ deleted: number; error: string | null }> {
+  if (!/^[^/]+\/$/.test(prefix)) return { deleted: 0, error: `prefix が不正: "${prefix}"` };
+
+  let deleted = 0;
+  let firstError: string | null = null;
+  let token: string | null = null;
+
+  do {
+    const page = await listPage(prefix, token);
+    if (page.error) return { deleted, error: firstError ?? page.error };
+
+    const keys = page.keys.filter(k => k.startsWith(prefix));
+    for (let i = 0; i < keys.length; i += R2_DELETE_CONCURRENCY) {
+      const batch = keys.slice(i, i + R2_DELETE_CONCURRENCY);
+      const results = await Promise.all(batch.map(deleteKey));
+      results.forEach((r, j) => {
+        if (r.error) firstError ??= `${batch[j]}: ${r.error}`;
+        else deleted++;
+      });
+    }
+    token = page.next;
+  } while (token);
+
+  return { deleted, error: firstError };
+}
+
 /** Storage の remove() が1回で受け付ける件数の上限 */
 const REMOVE_BATCH = 1000;
 
@@ -121,6 +169,14 @@ export async function deleteAccountForUser(
     }
   } catch (e) {
     warnings.push(`画像の削除に失敗: ${describe(e)}`);
+  }
+
+  // R2 の写しも消す。Supabase と同じく、失敗してもアカウント削除は止めない
+  try {
+    const { error } = await deps.removeR2Images(userId);
+    if (error) warnings.push(`R2 の画像の削除に失敗: ${error}`);
+  } catch (e) {
+    warnings.push(`R2 の画像の削除に失敗: ${describe(e)}`);
   }
 
   const { error: detachError } = await deps.detachCreatedSpots(userId);

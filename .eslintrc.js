@@ -43,5 +43,6 @@ module.exports = {
     'coverage/',
     '*.config.js',
     'supabase/functions/',
+    'supabase/scripts/',
   ],
 };

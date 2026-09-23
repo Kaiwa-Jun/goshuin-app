@@ -7,10 +7,12 @@
 //   削除対象の user_id は getUser() の結果からのみ取り、リクエストボディからは
 //   絶対に読まない（読むと他人のアカウントを消せる穴になる）。
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { AwsClient } from 'https://esm.sh/aws4fetch@1.0.20';
 
 import {
   collectImageNames,
   deleteAccountForUser,
+  deleteR2Prefix,
   extractBearerToken,
   type DeleteAccountDeps,
 } from './deleteAccount.ts';
@@ -72,6 +74,50 @@ Deno.serve(async req => {
       removeImages: async paths => {
         const { error } = await admin.storage.from(BUCKET).remove(paths);
         return { error: error ? error.message : null };
+      },
+      // R2 の写し（Issue #227 S3）。secrets は sign-stamp-upload と共有
+      removeR2Images: async id => {
+        const accountId = Deno.env.get('R2_ACCOUNT_ID');
+        const accessKeyId = Deno.env.get('R2_ACCESS_KEY_ID');
+        const secretAccessKey = Deno.env.get('R2_SECRET_ACCESS_KEY');
+        if (!accountId || !accessKeyId || !secretAccessKey) {
+          return { error: 'R2 の secrets が未設定' };
+        }
+        const endpoint = `https://${accountId}.r2.cloudflarestorage.com/${BUCKET}`;
+        const r2 = new AwsClient({
+          accessKeyId,
+          secretAccessKey,
+          service: 's3',
+          region: 'auto',
+        });
+        const { error } = await deleteR2Prefix(
+          async (prefix, token) => {
+            const q = new URLSearchParams({ 'list-type': '2', prefix });
+            if (token) q.set('continuation-token', token);
+            const res = await r2.fetch(`${endpoint}?${q}`);
+            if (!res.ok) return { keys: [], next: null, error: `list HTTP ${res.status}` };
+            const xml = await res.text();
+            const unescape = (v: string) =>
+              v
+                .replace(/&lt;/g, '<')
+                .replace(/&gt;/g, '>')
+                .replace(/&quot;/g, '"')
+                .replace(/&apos;/g, "'")
+                .replace(/&amp;/g, '&');
+            const keys = [...xml.matchAll(/<Key>([^<]*)<\/Key>/g)].map(m => unescape(m[1]));
+            const next = xml.match(/<NextContinuationToken>([^<]*)<\/NextContinuationToken>/)?.[1];
+            return { keys, next: next ? unescape(next) : null, error: null };
+          },
+          async key => {
+            const res = await r2.fetch(
+              `${endpoint}/${key.split('/').map(encodeURIComponent).join('/')}`,
+              { method: 'DELETE' }
+            );
+            return { error: res.ok ? null : `HTTP ${res.status}` };
+          },
+          `${id}/`
+        );
+        return { error };
       },
       detachCreatedSpots: async id => {
         const { error } = await admin
