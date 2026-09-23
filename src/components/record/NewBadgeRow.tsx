@@ -99,7 +99,8 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: spacing.lg,
   },
-  item: { width: 62, alignItems: 'center' },
+  // 「初めての御朱印」（7文字）が1行に入る幅。62 だと「初めての御朱／印」と途中で折れた
+  item: { width: 76, alignItems: 'center' },
   name: {
     ...typography.caption,
     fontSize: 10,

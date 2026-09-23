@@ -760,6 +760,53 @@ describe('枚数が数え上がる', () => {
   } as never;
 
   /*
+   * 初回投稿は要素が全部出るので、小さい画面で写真がカードの上にはみ出した（1.2.0 の実機）。
+   * 入りきらないぶんはまず地図を縮める（iPhone 16 相当: カード 688・中身 698）
+   */
+  it('カードに入りきらないときは、まず地図を縮めて収める', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+    const { SaveMapReveal } = require('@components/record/SaveMapReveal');
+    const { getByTestId, UNSAFE_getByType } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={routeCounting} />
+    );
+    const layout = (height: number) => ({
+      nativeEvent: { layout: { height, width: 0, x: 0, y: 0 } },
+    });
+
+    expect(UNSAFE_getByType(SaveMapReveal).props.width).toBe(210);
+
+    act(() => {
+      fireEvent(getByTestId('complete-card'), 'layout', layout(688));
+      fireEvent(getByTestId('complete-content'), 'layout', layout(698));
+    });
+
+    const width = UNSAFE_getByType(SaveMapReveal).props.width as number;
+    expect(width).toBeLessThan(210);
+    // 地図の縮んだぶんで、カードの中（688 - 余白 48）に入る
+    expect(698 - (210 - width) * (1132 / 1000)).toBeLessThanOrEqual(688 - 48);
+    // 写真はまだ縮めない
+    expect(StyleSheet.flatten(getByTestId('stamp-frame').props.style).width).toBe(150);
+  });
+
+  it('収まっているときは、地図を縮めない', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+    const { SaveMapReveal } = require('@components/record/SaveMapReveal');
+    const { getByTestId, UNSAFE_getByType } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={routeCounting} />
+    );
+    const layout = (height: number) => ({
+      nativeEvent: { layout: { height, width: 0, x: 0, y: 0 } },
+    });
+
+    act(() => {
+      fireEvent(getByTestId('complete-card'), 'layout', layout(792));
+      fireEvent(getByTestId('complete-content'), 'layout', layout(700));
+    });
+
+    expect(UNSAFE_getByType(SaveMapReveal).props.width).toBe(210);
+  });
+
+  /*
    * いきなり最後の数字が出ていると、「増えた」ではなく「そういう数字だった」に
    * 見える。地図が色づくのに合わせて数え上げる
    */
