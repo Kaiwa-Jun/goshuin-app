@@ -22,3 +22,8 @@ verify_jwt = false
 # 本人確認は関数内の getUser() で行う（index.ts の冒頭コメント参照）。
 [functions.delete-account]
 verify_jwt = false
+
+# sign-stamp-upload（Issue #227）: R2 への署名付き URL と削除。呼び出し元は「ログイン中の本人」。
+# 本人確認と「自分のフォルダ配下か」の検証は関数の中でやっている
+[functions.sign-stamp-upload]
+verify_jwt = false

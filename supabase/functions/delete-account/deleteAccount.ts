@@ -4,7 +4,7 @@
 
 export interface DeleteAccountDeps {
   /**
-   * goshuin-images/<userId>/ 配下のファイル名一覧。
+   * goshuin-images/<userId>/ 配下のファイル名一覧（サブフォルダ内は `thumb-400/a.jpg` の形）。
    * 途中で失敗した場合も、そこまでに集まった names と error の両方を返す
    */
   listImages(userId: string): Promise<{ names: string[]; error: string | null }>;
@@ -27,6 +27,58 @@ export function extractBearerToken(header: string | null): string | null {
   const token = match?.[1]?.trim();
   return token ? token : null;
 }
+
+/** Storage の list() が返す1件。サブフォルダは id が null で、中身は含まない */
+export interface StorageEntry {
+  name: string;
+  id: string | null;
+}
+
+export type ListPage = (
+  prefix: string,
+  offset: number,
+  limit: number
+) => Promise<{ entries: StorageEntry[]; error: string | null }>;
+
+/**
+ * `<userId>/` 配下の全ファイルを、userId から見た相対パスで集める（Issue #226）。
+ *
+ * list() は prefix の直下しか返さない。縮小版は `thumb-400/` `view-1200/` の
+ * サブフォルダにあり、直下だけを見るとフォルダ名しか取れず、中の JPEG が
+ * 公開 URL のまま消え残っていた。フォルダ（id: null）は中へ降りて読む。
+ *
+ * 途中で失敗しても、そこまでに集めた names と error の両方を返す
+ */
+export async function collectImageNames(
+  listPage: ListPage,
+  userId: string,
+  pageSize = 1000
+): Promise<{ names: string[]; error: string | null }> {
+  const names: string[] = [];
+  const folders = [''];
+
+  while (folders.length > 0) {
+    const folder = folders.shift()!;
+    const prefix = folder ? `${userId}/${folder}` : userId;
+
+    for (let offset = 0; ; offset += pageSize) {
+      const { entries, error } = await listPage(prefix, offset, pageSize);
+      if (error) return { names, error };
+
+      for (const entry of entries) {
+        const path = folder ? `${folder}/${entry.name}` : entry.name;
+        if (entry.id === null) folders.push(path);
+        else names.push(path);
+      }
+      if (entries.length < pageSize) break;
+    }
+  }
+
+  return { names, error: null };
+}
+
+/** Storage の remove() が1回で受け付ける件数の上限 */
+const REMOVE_BATCH = 1000;
 
 function describe(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
@@ -57,9 +109,11 @@ export async function deleteAccountForUser(
     if (error) {
       warnings.push(`画像の一覧取得に失敗: ${error}`);
     }
-    if (names.length > 0) {
+    // remove() は1回あたり1000件まで。縮小版を含めると御朱印1枚で3ファイルになる。
+    // 0件なら呼ばない（空配列を渡すと API がエラーを返す）
+    for (let i = 0; i < names.length; i += REMOVE_BATCH) {
       const { error: removeError } = await deps.removeImages(
-        names.map(name => `${userId}/${name}`)
+        names.slice(i, i + REMOVE_BATCH).map(name => `${userId}/${name}`)
       );
       if (removeError) {
         warnings.push(`画像の削除に失敗: ${removeError}`);

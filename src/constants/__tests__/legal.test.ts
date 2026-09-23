@@ -151,5 +151,12 @@ describe('legal constants', () => {
       expect(storageSection!.body).toContain('Supabase');
       expect(storageSection!.body).toContain('ap-northeast-1');
     });
+
+    // 御朱印画像を Cloudflare R2 に置く前に公開しておくこと（Issue #227 S2）
+    it('御朱印画像の保存先と第三者提供に Cloudflare が載っている', () => {
+      const find = (title: string) => PRIVACY_POLICY.sections.find(s => s.title === title)!;
+      expect(find('情報の保存場所').body).toContain('Cloudflare R2');
+      expect(find('第三者提供').body).toContain('【Cloudflare, Inc.】');
+    });
   });
 });
