@@ -78,11 +78,15 @@ Deno.serve(async req => {
       // R2 の写し（Issue #227 S3）。secrets は sign-stamp-upload と共有
       removeR2Images: async id => {
         const accountId = Deno.env.get('R2_ACCOUNT_ID');
-        if (!accountId) return { error: 'R2_ACCOUNT_ID が未設定' };
+        const accessKeyId = Deno.env.get('R2_ACCESS_KEY_ID');
+        const secretAccessKey = Deno.env.get('R2_SECRET_ACCESS_KEY');
+        if (!accountId || !accessKeyId || !secretAccessKey) {
+          return { error: 'R2 の secrets が未設定' };
+        }
         const endpoint = `https://${accountId}.r2.cloudflarestorage.com/${BUCKET}`;
         const r2 = new AwsClient({
-          accessKeyId: Deno.env.get('R2_ACCESS_KEY_ID')!,
-          secretAccessKey: Deno.env.get('R2_SECRET_ACCESS_KEY')!,
+          accessKeyId,
+          secretAccessKey,
           service: 's3',
           region: 'auto',
         });

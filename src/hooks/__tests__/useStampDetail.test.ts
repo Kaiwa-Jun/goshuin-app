@@ -5,11 +5,15 @@ import type { StampWithSpot } from '@/types/supabase';
 const mockFetchStampById = jest.fn();
 const mockUpdateStamp = jest.fn();
 const mockDeleteStamp = jest.fn();
+const mockUploadStampImage = jest.fn();
+const mockDeleteStampImage = jest.fn();
 
 jest.mock('@services/stamps', () => ({
   fetchStampById: (...args: unknown[]) => mockFetchStampById(...args),
   updateStamp: (...args: unknown[]) => mockUpdateStamp(...args),
   deleteStamp: (...args: unknown[]) => mockDeleteStamp(...args),
+  uploadStampImage: (...args: unknown[]) => mockUploadStampImage(...args),
+  deleteStampImage: (...args: unknown[]) => mockDeleteStampImage(...args),
 }));
 
 const fakeStamp: StampWithSpot = {
@@ -100,6 +104,47 @@ describe('useStampDetail', () => {
 
     expect(returnedStamp!).toBeNull();
     expect(result.current.error).toBe('update failed');
+  });
+
+  /*
+   * 写真の差し替え。uploadStampImage / deleteStampImage が Supabase と R2 の
+   * 両方を扱う（Issue #227 S3）ので、ここは「新しい写真を上げ → 行を更新 → 古い写真を消す」
+   * の順と引数を固定する（AC-10）
+   */
+  it('写真を差し替えると、新しい写真を上げて行を更新し、古い写真を消す', async () => {
+    mockFetchStampById.mockResolvedValue(fakeStamp);
+    mockUploadStampImage.mockResolvedValue('user-1/2-new.jpg');
+    mockUpdateStamp.mockResolvedValue({ ...fakeStamp, image_path: 'user-1/2-new.jpg' });
+    mockDeleteStampImage.mockResolvedValue(undefined);
+
+    const { result } = renderHook(() => useStampDetail('stamp-1'));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    await act(async () => {
+      await result.current.handleUpdate({ newImageUri: 'file:///new.jpg' });
+    });
+
+    expect(mockUploadStampImage).toHaveBeenCalledWith('user-1', 'file:///new.jpg');
+    expect(mockUpdateStamp).toHaveBeenCalledWith('stamp-1', { image_path: 'user-1/2-new.jpg' });
+    expect(mockDeleteStampImage).toHaveBeenCalledTimes(1);
+    expect(mockDeleteStampImage).toHaveBeenCalledWith('img/1.jpg');
+  });
+
+  it('写真の差し替えで行の更新に失敗したら、上げた新しい写真を消して古い写真は残す', async () => {
+    mockFetchStampById.mockResolvedValue(fakeStamp);
+    mockUploadStampImage.mockResolvedValue('user-1/2-new.jpg');
+    mockUpdateStamp.mockRejectedValue(new Error('db error'));
+    mockDeleteStampImage.mockResolvedValue(undefined);
+
+    const { result } = renderHook(() => useStampDetail('stamp-1'));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    await act(async () => {
+      await result.current.handleUpdate({ newImageUri: 'file:///new.jpg' });
+    });
+
+    expect(mockDeleteStampImage).toHaveBeenCalledTimes(1);
+    expect(mockDeleteStampImage).toHaveBeenCalledWith('user-1/2-new.jpg');
   });
 
   it('handleDelete 成功時に true が返る', async () => {
