@@ -223,6 +223,25 @@ S1 の残り（オーナーの作業が要る）:
 - **実行順（守ること）**: ① `delete-account` を再デプロイ → ② コピー。逆だと、コピー後に退会した人の写しが R2 に残る。アプリの二重書き込みは次のビルド（1.2 以降）で効く
 - アプリの `tsconfig.json` / ESLint の対象から `supabase/scripts/` を外した（Deno のスクリプトのため）
 
+## S3 のサーバー側の本番確認（2026-09-23・アプリのビルド前）
+
+テスト用アカウント（`+r2s3` のメール・確認後に削除済み）で、アプリと同じ手順を curl で再現した:
+
+- AC-5 相当: 署名 → Supabase に同じキーで上げる → R2 に PUT。両方 200、両方から配信される
+- AC-9 相当: Supabase の remove + `sign-stamp-upload` の delete。`storage.objects` から消え、R2 も 404
+- AC-11 相当: `delete-account` → `auth.users` 0 / `storage.objects` 0 / R2 404、warnings なし
+- ⚠ 削除直後は Supabase・R2 とも**数秒〜CDN のキャッシュが切れるまで 200 が返ることがある**（実体は消えている）。
+  S4a 以降、削除した写真の変換結果も Cloudflare のキャッシュに残りうる。気になるなら削除時にキャッシュの purge を足す（別 Issue）
+
+アプリの画面からの通し（AC-5/9/10/11 の本来の確認）は、S3 を含むビルドの実機で行う。
+
+## S4a の実装メモ（2026-09-23）
+
+- `getStampThumbUrl` / `getStampViewUrl` → `stampTransformUrl`（`https://img.goshuinsanpo.com/cdn-cgi/image/width=…,quality=…,format=webp/<キー>`）。幅・品質は今の thumb-400（400/70）・view-1200（1200/78）と同じ
+- `getStampImageUrl` は変えない（Supabase の原本 = フォールバック先）
+- `ensureStampVariants` を削除し、呼び出し2箇所（`useRecordForm` / `GalleryScreen`）も外した。`GalleryScreen` の「溜めてから焼かせる」仕組み（`requestVariants` / `onImageFallback`）も不要になったので削除。`thumbMissing` のフォールバックは残す
+- **S3 を含むビルドを実機で確認するまで、S4a はマージしない**（契約書の順序）
+
 ## 決定事項（2026-09-23 確定）
 
 **着手条件: #225 → #226 が完了してから**（「先行 Issue」の節）。
