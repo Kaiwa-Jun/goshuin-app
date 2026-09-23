@@ -1,5 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
@@ -16,7 +16,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '@components/common/Button';
 import { Card } from '@components/common/Card';
+import { FrequentAreaSheet } from '@components/collection/FrequentAreaSheet';
 import { JapanMap } from '@components/collection/JapanMap';
+import { MouSukoshiCard } from '@components/collection/MouSukoshiCard';
 import { RecentVisits } from '@components/collection/RecentVisits';
 import { TsukimairiList } from '@components/collection/TsukimairiList';
 import { useAuth } from '@hooks/useAuth';
@@ -29,6 +31,7 @@ import { shadows } from '@theme/shadows';
 import { borderRadius, spacing } from '@theme/spacing';
 import { typography } from '@theme/typography';
 import type { CollectionStackScreenProps } from '@/navigation/types';
+import type { MouSukoshiRow } from '@utils/mouSukoshi';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -45,8 +48,15 @@ export function CollectionScreen({ navigation }: Props) {
     badgeProgress,
     tsukimairi,
     pilgrimageProgress,
+    mouSukoshi,
     isLoading,
   } = useCollectionStats();
+
+  // 「もう少し」のエリアの行を押したときのシート
+  const [openArea, setOpenArea] = useState<Extract<MouSukoshiRow, { kind: 'area' }> | null>(null);
+  // 印の行を押したら印の欄へ。欄の位置は onLayout で覚えておく
+  const scrollRef = useRef<ScrollView>(null);
+  const sealY = useRef(0);
 
   const [showAllPilgrimages, setShowAllPilgrimages] = useState(false);
   /*
@@ -76,6 +86,15 @@ export function CollectionScreen({ navigation }: Props) {
 
   const handlePressTsukimairi = (spotId: string) => {
     navigation.getParent()?.navigate('MapTab', { screen: 'Map', params: { focusSpotId: spotId } });
+  };
+
+  const handlePressAreaSpot = (spotId: string) => {
+    setOpenArea(null);
+    handlePressTsukimairi(spotId);
+  };
+
+  const handlePressSeal = () => {
+    scrollRef.current?.scrollTo({ y: Math.max(0, sealY.current - spacing.lg), animated: true });
   };
 
   const handleSeeAllStamps = () => {
@@ -109,6 +128,7 @@ export function CollectionScreen({ navigation }: Props) {
       </View>
 
       <ScrollView
+        ref={scrollRef}
         testID="ayumi-scroll"
         scrollEnabled={scrollEnabled}
         style={styles.scrollView}
@@ -137,6 +157,15 @@ export function CollectionScreen({ navigation }: Props) {
 
         {isAuthenticated && (
           <>
+            {/* 暮らしの中で踏み出せる一歩だけ（Issue #245）。行が無ければ出さない */}
+            <MouSukoshiCard
+              rows={mouSukoshi}
+              onPressPilgrimage={handlePilgrimageDetail}
+              onPressSpot={handlePressTsukimairi}
+              onPressSeal={handlePressSeal}
+              onPressArea={setOpenArea}
+            />
+
             <View style={styles.mapCard} testID="ayumi-map-card">
               <View style={styles.mapHeader}>
                 {isLoading ? (
@@ -182,52 +211,60 @@ export function CollectionScreen({ navigation }: Props) {
         )}
 
         {/* 印 */}
-        <Card style={styles.sealCard}>
-          <View style={styles.sealHeader}>
-            <Text style={styles.sealTitle}>印</Text>
-            <Text style={styles.sealCount} testID="seal-count">
-              {earnedCount} / {badges.length}
-            </Text>
-          </View>
-          {/* 軸で分ける。訪問数だけだと物語が1本しかない（提案③） */}
-          {BADGE_AXES.map(axis => {
-            const inAxis = badgesWithStatus.filter(badge => badge.axis === axis.key);
-            if (inAxis.length === 0) return null;
-            return (
-              <View key={axis.key} style={styles.axis} testID={`badge-axis-${axis.key}`}>
-                <Text style={styles.axisTitle}>{axis.label}</Text>
-                {/*
-                 * 横スクロール3本をやめて3列に並べる。スクロールの先にあると
-                 * 見えていないのと同じで、9個しかないのに存在に気づけなかった
-                 */}
-                <View style={styles.sealGrid}>
-                  {inAxis.map(badge => (
-                    <View
-                      key={badge.id}
-                      style={styles.sealItem}
-                      testID={`badge-${badge.id}`}
-                      accessible
-                      /* 押されているかを色だけの違いにしない */
-                      accessibilityLabel={`${badge.name}、${badge.earned ? '獲得済み' : 'まだ'}`}
-                    >
-                      {/* 未獲得を鍵で塞がない。同じ印を、まだ押されていない色で出す */}
-                      <Seal mark={badge.mark} earned={badge.earned} size={SEAL_SIZE} />
-                      <Text style={[styles.sealName, !badge.earned && styles.sealNameOff]}>
-                        {badge.name}
-                      </Text>
-                      {badge.id === nearest?.id && (
-                        <Text style={styles.sealRemaining} testID={`badge-remaining-${badge.id}`}>
-                          あと{remaining}
-                          {nearestUnit}
+        {/* 「もう少し」の印の行から、ここへスクロールする */}
+        <View
+          testID="seal-card"
+          onLayout={e => {
+            sealY.current = e.nativeEvent.layout.y;
+          }}
+        >
+          <Card style={styles.sealCard}>
+            <View style={styles.sealHeader}>
+              <Text style={styles.sealTitle}>印</Text>
+              <Text style={styles.sealCount} testID="seal-count">
+                {earnedCount} / {badges.length}
+              </Text>
+            </View>
+            {/* 軸で分ける。訪問数だけだと物語が1本しかない（提案③） */}
+            {BADGE_AXES.map(axis => {
+              const inAxis = badgesWithStatus.filter(badge => badge.axis === axis.key);
+              if (inAxis.length === 0) return null;
+              return (
+                <View key={axis.key} style={styles.axis} testID={`badge-axis-${axis.key}`}>
+                  <Text style={styles.axisTitle}>{axis.label}</Text>
+                  {/*
+                   * 横スクロール3本をやめて3列に並べる。スクロールの先にあると
+                   * 見えていないのと同じで、9個しかないのに存在に気づけなかった
+                   */}
+                  <View style={styles.sealGrid}>
+                    {inAxis.map(badge => (
+                      <View
+                        key={badge.id}
+                        style={styles.sealItem}
+                        testID={`badge-${badge.id}`}
+                        accessible
+                        /* 押されているかを色だけの違いにしない */
+                        accessibilityLabel={`${badge.name}、${badge.earned ? '獲得済み' : 'まだ'}`}
+                      >
+                        {/* 未獲得を鍵で塞がない。同じ印を、まだ押されていない色で出す */}
+                        <Seal mark={badge.mark} earned={badge.earned} size={SEAL_SIZE} />
+                        <Text style={[styles.sealName, !badge.earned && styles.sealNameOff]}>
+                          {badge.name}
                         </Text>
-                      )}
-                    </View>
-                  ))}
+                        {badge.id === nearest?.id && (
+                          <Text style={styles.sealRemaining} testID={`badge-remaining-${badge.id}`}>
+                            あと{remaining}
+                            {nearestUnit}
+                          </Text>
+                        )}
+                      </View>
+                    ))}
+                  </View>
                 </View>
-              </View>
-            );
-          })}
-        </Card>
+              );
+            })}
+          </Card>
+        </View>
 
         {/* Pilgrimage Challenge Section */}
         <Text style={styles.sectionTitle}>巡礼チャレンジ</Text>
@@ -308,6 +345,13 @@ export function CollectionScreen({ navigation }: Props) {
           </>
         )}
       </ScrollView>
+
+      <FrequentAreaSheet
+        area={openArea}
+        visible={openArea !== null}
+        onClose={() => setOpenArea(null)}
+        onPressSpot={handlePressAreaSpot}
+      />
     </SafeAreaView>
   );
 }
