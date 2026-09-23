@@ -19,6 +19,11 @@ jest.mock('@services/collection', () => ({
   fetchVisitLog: (...args: unknown[]) => mockFetchVisitLog(...args),
 }));
 
+const mockFetchSpotsByBounds = jest.fn().mockResolvedValue([]);
+jest.mock('@services/spots', () => ({
+  fetchSpotsByBounds: (...args: unknown[]) => mockFetchSpotsByBounds(...args),
+}));
+
 jest.mock('@services/pilgrimages', () => ({
   fetchPilgrimageProgress: (...args: unknown[]) => mockFetchPilgrimageProgress(...args),
 }));
@@ -146,5 +151,68 @@ describe('useCollectionStats — 最近の参拝', () => {
       expect(mockFetchAllStamps).toHaveBeenCalledWith(expect.any(String), RECENT_VISITS_COUNT)
     );
     expect(RECENT_VISITS_COUNT).toBe(3);
+  });
+});
+
+describe('useCollectionStats — もう少し（Issue #245）', () => {
+  const SENDAI = { lat: 38.267, lng: 140.859 };
+  const months = ['2025-10-01', '2025-11-01', '2025-12-01', '2026-01-01'];
+  const log = months.map((d, i) => ({
+    spot_id: `visited-${i}`,
+    visited_at: d,
+    spotName: `寺社${i}`,
+    spotType: 'shrine',
+    lat: SENDAI.lat + i * 0.001,
+    lng: SENDAI.lng,
+    address: '宮城県仙台市青葉区',
+    prefecture: '宮城県',
+  }));
+  const spotRow = (id: string, rank: number, dLat: number) => ({
+    id,
+    name: `候補${id}`,
+    lat: SENDAI.lat + dLat,
+    lng: SENDAI.lng,
+    type: 'temple',
+    address: '宮城県仙台市青葉区北山1',
+    prefecture: '宮城県',
+    status: 'active',
+    rank,
+  });
+
+  beforeEach(() => {
+    mockUser = { id: 'user-1' };
+    mockFetchCollectionStats.mockResolvedValue({ spotCount: 4, stampCount: 4 });
+    mockFetchRegionStats.mockResolvedValue([]);
+    mockFetchPilgrimageProgress.mockResolvedValue([]);
+    mockFetchVisitLog.mockResolvedValue(log);
+  });
+
+  it('よく行くエリアのまだの寺社を、ランク3以上・未訪問・近い順で返す', async () => {
+    mockFetchSpotsByBounds.mockResolvedValue([
+      spotRow('far', 5, 0.03),
+      spotRow('near', 3, 0.005),
+      spotRow('lowRank', 1, 0.001),
+      spotRow('visited-0', 5, 0),
+      spotRow('outside', 5, 0.2),
+    ]);
+
+    const { result } = renderHook(() => useCollectionStats());
+
+    await waitFor(() => expect(result.current.mouSukoshi.some(r => r.kind === 'area')).toBe(true));
+    const area = result.current.mouSukoshi.find(r => r.kind === 'area');
+    if (area?.kind !== 'area') throw new Error();
+    expect(area.label).toBe('仙台');
+    expect(area.spots.map(s => s.id)).toEqual(['near', 'far']);
+  });
+
+  it('よく行くエリアが無ければ、寺社を取りに行かない', async () => {
+    mockFetchVisitLog.mockResolvedValue(log.slice(0, 2));
+    mockFetchSpotsByBounds.mockClear();
+
+    const { result } = renderHook(() => useCollectionStats());
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(mockFetchSpotsByBounds).not.toHaveBeenCalled();
+    expect(result.current.mouSukoshi).toEqual([]);
   });
 });
