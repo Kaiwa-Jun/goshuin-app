@@ -59,6 +59,16 @@ Deno.test('見えない文字を混ぜても、同じ名前として扱う', () 
   assertEquals(isSimilarName('瑞\u3164鳳殿', '瑞鳳殿'), true);
 });
 
+Deno.test('括弧だけの名前も空にせず比べる', () => {
+  assertEquals(isSimilarName('（鹿島台神社）', '鹿島台神社'), true);
+  assertEquals(isSimilarName('【鹿島台神社】', '鹿島台神社'), true);
+  assertEquals(isSimilarName('鹿島台神社【公式】', '鹿島台神社'), true);
+  assertEquals(
+    hasSimilarActiveNearby('(瑞鳳殿)', 38, 141, [{ name: '瑞鳳殿', lat: 38, lng: 141 }]),
+    true
+  );
+});
+
 Deno.test('P-4 は括弧の中も見る', () => {
   assertEquals(typeConflicts('東福（寺）', 'shrine'), true);
   assertEquals(typeConflicts('鹿島台（神社）', 'temple'), true);

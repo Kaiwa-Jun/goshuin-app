@@ -36,12 +36,16 @@ export function stripInvisible(name: string): string {
   return name.normalize('NFKC').replace(INVISIBLE, '');
 }
 
-/** 見えない文字・括弧の中身ごと・空白・「・」を除く → 異体字を寄せる */
+/**
+ * 見えない文字・括弧の中身ごと・空白・「・」を除く → 異体字を寄せる。
+ * 括弧を落として空になる名前（「（鹿島台神社）」）は括弧の記号だけを落とす
+ * （空の名前はどれとも似ないので、重複の判定をすり抜けてしまう）
+ */
 export function normalizeSpotName(name: string): string {
-  return stripInvisible(name)
-    .replace(/[（(][^）)]*[）)]/g, '')
-    .replace(/[\s・]/g, '')
-    .replace(/./g, ch => VARIANTS[ch] ?? ch);
+  const visible = stripInvisible(name).replace(/[\s・]/g, '');
+  const outside = visible.replace(/[（(【［\[〔「『][^）)】］\]〕」』]*[）)】］\]〕」』]/g, '');
+  const base = outside || visible.replace(/[（()）【】［\[\]］〔〕「」『』]/g, '');
+  return base.replace(/./g, ch => VARIANTS[ch] ?? ch);
 }
 
 /** 末尾の「神社」「寺」などを落とした芯（鹿島台神社 → 鹿島台）。落とすと空になるなら落とさない */
