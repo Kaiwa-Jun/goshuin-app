@@ -264,7 +264,11 @@ export function SpotBottomSheet({
                 onHeadingPress={toggleMode}
               />
             )}
-            <SpotThumbnailStrip stamps={stamps} publicStamps={publicStamps} onPress={toggleMode} />
+            <SpotThumbnailStrip
+              stamps={stamps}
+              publicStamps={publicStamps}
+              onPressThumbnail={toggleMode}
+            />
           </>
         )}
 
