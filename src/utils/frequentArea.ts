@@ -67,14 +67,21 @@ export function frequentArea(visits: AreaVisit[]): FrequentArea | null {
   return null;
 }
 
-const PREFECTURE = /^(東京都|北海道|(?:京都|大阪)府|.{2,3}県)/;
+export const PREFECTURE = /^(東京都|北海道|(?:京都|大阪)府|.{2,3}県)/;
 
-/** 住所から市区町村。郡は飛ばす（柴田郡村田町 → 村田町）。政令市は区まで行かない（仙台市青葉区 → 仙台市） */
-function cityOf(address: string): string | null {
+/**
+ * 住所から市区町村（接尾辞つき）。郡は飛ばす（柴田郡村田町 → 村田町）。政令市は区まで行かない（仙台市青葉区 → 仙台市）
+ */
+export function cityNameOf(address: string): string | null {
   const rest = address.replace(PREFECTURE, '').replace(/^.+?郡/, '');
   // ponytail: 「四日市市」「十日町市」のように名前に市町村の字を含むものは途中で切れる。困ったら市区町村の一覧と突き合わせる
-  const m = rest.match(/^(.+?)[市区町村]/);
+  const m = rest.match(/^(.+?[市区町村])/);
   return m ? m[1] : null;
+}
+
+/** エリアの名前用。接尾辞を落とす（仙台市 → 仙台） */
+function cityOf(address: string): string | null {
+  return cityNameOf(address)?.slice(0, -1) ?? null;
 }
 
 /**
