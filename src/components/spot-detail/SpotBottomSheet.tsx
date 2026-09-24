@@ -257,7 +257,13 @@ export function SpotBottomSheet({
         {/* compact でだけ出す要約。展開時は下の詳細が同等以上を描画する */}
         {!isExpanded && (
           <>
-            {spotInfo && <LimitedGoshuinSection info={spotInfo.limitedGoshuin} variant="compact" />}
+            {spotInfo && (
+              <LimitedGoshuinSection
+                info={spotInfo.limitedGoshuin}
+                variant="sheet"
+                onHeadingPress={toggleMode}
+              />
+            )}
             <SpotThumbnailStrip stamps={stamps} publicStamps={publicStamps} onPress={toggleMode} />
           </>
         )}

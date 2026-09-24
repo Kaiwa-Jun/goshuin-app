@@ -231,79 +231,82 @@ describe('LimitedGoshuinSection', () => {
     });
   });
 
-  describe('variant="compact"', () => {
-    it('有効3件で件数チップが表示される', () => {
-      const { getByTestId, getByText } = render(
-        <LimitedGoshuinSection
-          info={makeInfo([makeItem(), makeItem({ name: 'b' }), makeItem({ name: 'c' })])}
-          variant="compact"
-        />
-      );
-      expect(getByTestId('limited-goshuin-compact')).toBeTruthy();
-      expect(getByText('限定御朱印 3件')).toBeTruthy();
-    });
+  // Issue #253: シートでは見出しを常に出し、開いたときだけ見出しの下に中身を出す
+  describe('variant="sheet"', () => {
+    const sns = [{ id: 'sns-1', url: 'https://www.instagram.com/jinja', source_type: 'sns_link' }];
 
-    it('compact は内容（名称・期間・説明）を表示しない', () => {
-      const { queryByText } = render(
-        <LimitedGoshuinSection info={makeInfo([makeItem()])} variant="compact" />
-      );
-      expect(queryByText('夏詣限定御朱印')).toBeNull();
-      expect(queryByText('7月1日〜8月31日')).toBeNull();
-      expect(queryByText('書き置きのみ。初穂料500円')).toBeNull();
-    });
-
-    it('compact では full 用の要素を描画しない', () => {
-      const { queryByTestId } = render(
-        <LimitedGoshuinSection info={makeInfo([makeItem()])} variant="compact" />
-      );
-      expect(queryByTestId('limited-goshuin-section')).toBeNull();
-      expect(queryByTestId('limited-goshuin-fetched-at')).toBeNull();
-      expect(queryByTestId('limited-goshuin-source-0')).toBeNull();
-    });
-
-    it('有効0件（info 未指定）ならチップを描画しない', () => {
-      const { queryByTestId } = render(<LimitedGoshuinSection variant="compact" />);
-      expect(queryByTestId('limited-goshuin-compact')).toBeNull();
-    });
-
-    it('全件期限切れならチップを描画しない', () => {
-      const { queryByTestId } = render(
-        <LimitedGoshuinSection
-          info={makeInfo([makeItem({ period_end: '2026-08-01' })])}
-          variant="compact"
-        />
-      );
-      expect(queryByTestId('limited-goshuin-compact')).toBeNull();
-    });
-
-    it('SNS リンクだけの場合 compact では何も表示しない', () => {
-      const { queryByTestId } = render(
-        <LimitedGoshuinSection
-          snsLinks={[{ id: 'src-1', url: 'https://x.com/example' }]}
-          variant="compact"
-        />
-      );
-      expect(queryByTestId('limited-goshuin-compact')).toBeNull();
-      expect(queryByTestId('limited-goshuin-sns-0')).toBeNull();
-    });
-
-    it('期限切れ1件を含む3件なら「限定御朱印 2件」', () => {
-      const { getByText } = render(
+    it('見出しに有効な件数（期限切れは数えない）', () => {
+      const { getByTestId } = render(
         <LimitedGoshuinSection
           info={makeInfo([
-            makeItem({ name: 'a', period_end: '2026-07-31' }),
-            makeItem({ name: 'b', period_end: null }),
-            makeItem({ name: 'c', period_end: '2026-12-31' }),
+            makeItem(),
+            makeItem({ name: 'b' }),
+            makeItem({ period_end: '2026-07-01' }),
           ])}
-          variant="compact"
+          variant="sheet"
+          expanded={false}
         />
       );
-      expect(getByText('限定御朱印 2件')).toBeTruthy();
+      expect(getByTestId('limited-goshuin-heading')).toHaveTextContent(/限定御朱印 2件/);
+    });
+
+    it('閉じているときは中身を出さない', () => {
+      const { queryByTestId } = render(
+        <LimitedGoshuinSection info={makeInfo([makeItem()])} variant="sheet" expanded={false} />
+      );
+      expect(queryByTestId('limited-goshuin-body')).toBeNull();
+      expect(queryByTestId('limited-goshuin-item-0')).toBeNull();
+    });
+
+    it('開いているときは見出しの下に項目・取得日時・公式SNS', () => {
+      const { getByTestId } = render(
+        <LimitedGoshuinSection
+          info={makeInfo([makeItem(), makeItem({ name: 'b' })])}
+          snsLinks={sns as never}
+          variant="sheet"
+          expanded
+        />
+      );
+      const body = getByTestId('limited-goshuin-body');
+      for (const id of [
+        'limited-goshuin-item-0',
+        'limited-goshuin-item-1',
+        'limited-goshuin-fetched-at',
+        'limited-goshuin-sns-0',
+      ]) {
+        expect(body).toContainElement(getByTestId(id));
+      }
+    });
+
+    it('有効0件で公式SNSだけなら見出しは件数なし、開くと公式SNS。どちらも無ければ出さない', () => {
+      const ui = render(<LimitedGoshuinSection snsLinks={sns as never} variant="sheet" expanded />);
+      expect(ui.getByText('限定御朱印')).toBeTruthy();
+      expect(ui.getByTestId('limited-goshuin-heading')).not.toHaveTextContent(/件/);
+      expect(ui.getByTestId('limited-goshuin-sns-0')).toBeTruthy();
+      const none = render(<LimitedGoshuinSection variant="sheet" expanded />);
+      expect(none.queryByTestId('limited-goshuin-heading')).toBeNull();
+    });
+
+    it('見出しを押すと onHeadingPress', () => {
+      const onHeadingPress = jest.fn();
+      const { getByTestId } = render(
+        <LimitedGoshuinSection
+          info={makeInfo([makeItem()])}
+          variant="sheet"
+          expanded={false}
+          onHeadingPress={onHeadingPress}
+        />
+      );
+      fireEvent.press(getByTestId('limited-goshuin-heading'));
+      expect(onHeadingPress).toHaveBeenCalledTimes(1);
+    });
+
+    it('compact（チップ）は無くなった', () => {
+      // @ts-expect-error variant="compact" は Issue #253 で削除
+      render(<LimitedGoshuinSection info={makeInfo([makeItem()])} variant="compact" />);
     });
   });
 });
-
-// --- Issue #111: Instagram permalink の出典リンク文言 ---
 
 describe('sourceLinkLabel', () => {
   it('www.instagram.com の投稿 URL は「Instagramの投稿を見る」(AC-D1)', () => {

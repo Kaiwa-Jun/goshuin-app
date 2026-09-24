@@ -4,7 +4,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
-import { spacing, borderRadius } from '@theme/spacing';
+import { spacing } from '@theme/spacing';
 import type { LimitedGoshuinInfo, LimitedGoshuinItem, SpotSnsLink } from '@/types/supabase';
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -47,7 +47,13 @@ function hostLabel(url: string): string {
 interface LimitedGoshuinSectionProps {
   info?: LimitedGoshuinInfo;
   snsLinks?: SpotSnsLink[];
-  variant?: 'full' | 'compact';
+  /**
+   * full: 見出し + 中身（スポット詳細画面）。
+   * sheet: 見出しの行を常に出し、expanded のときだけ見出しの下に中身（地図のシート。Issue #253）
+   */
+  variant?: 'full' | 'sheet';
+  expanded?: boolean;
+  onHeadingPress?: () => void;
 }
 
 const INSTAGRAM_HOSTS = ['instagram.com', 'www.instagram.com', 'm.instagram.com'];
@@ -69,25 +75,16 @@ export function LimitedGoshuinSection({
   info,
   snsLinks,
   variant = 'full',
+  expanded = false,
+  onHeadingPress,
 }: LimitedGoshuinSectionProps) {
   const activeItems = filterActiveItems(info?.items ?? [], new Date());
   const links = snsLinks ?? [];
 
-  if (variant === 'compact') {
-    if (activeItems.length === 0) return null;
-    return (
-      <View style={styles.compactChip} testID="limited-goshuin-compact">
-        <MaterialIcons name="auto-awesome" size={14} color={colors.primary[500]} />
-        <Text style={styles.compactText}>{`限定御朱印 ${activeItems.length}件`}</Text>
-      </View>
-    );
-  }
-
   if (activeItems.length === 0 && links.length === 0) return null;
 
-  return (
-    <View style={styles.container} testID="limited-goshuin-section">
-      <Text style={styles.heading}>限定御朱印</Text>
+  const body = (
+    <>
       {activeItems.map((item, index) => (
         <View
           style={styles.item}
@@ -140,6 +137,43 @@ export function LimitedGoshuinSection({
           ))}
         </>
       )}
+    </>
+  );
+
+  if (variant === 'sheet') {
+    return (
+      <View style={styles.sheet} testID="limited-goshuin-section">
+        <TouchableOpacity
+          style={styles.headingRow}
+          onPress={onHeadingPress}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityState={{ expanded }}
+          testID="limited-goshuin-heading"
+        >
+          <MaterialIcons name="auto-awesome" size={14} color={colors.primary[500]} />
+          <Text style={styles.headingText}>
+            {activeItems.length > 0 ? `限定御朱印 ${activeItems.length}件` : '限定御朱印'}
+          </Text>
+          <MaterialIcons
+            name={expanded ? 'expand-more' : 'chevron-right'}
+            size={18}
+            color={colors.gray[400]}
+          />
+        </TouchableOpacity>
+        {expanded && (
+          <View style={styles.sheetBody} testID="limited-goshuin-body">
+            {body}
+          </View>
+        )}
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container} testID="limited-goshuin-section">
+      <Text style={styles.heading}>限定御朱印</Text>
+      {body}
     </View>
   );
 }
@@ -190,18 +224,22 @@ const styles = StyleSheet.create({
     color: colors.gray[500],
     marginTop: spacing.sm,
   },
-  compactChip: {
+  sheet: {
+    marginTop: spacing.md,
+  },
+  headingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    backgroundColor: colors.gray[50],
-    paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
-    borderRadius: borderRadius.sm,
-    alignSelf: 'flex-start',
   },
-  compactText: {
-    ...typography.caption,
-    color: colors.gray[600],
+  headingText: {
+    ...typography.bodySmall,
+    fontWeight: '600',
+    color: colors.gray[800],
+    flex: 1,
+  },
+  sheetBody: {
+    marginTop: spacing.sm,
   },
 });
