@@ -141,3 +141,82 @@ describe('都道府県の表示', () => {
     expect(r.getByText('名無し神社')).toBeTruthy();
   });
 });
+
+/* 見つからない寺社を調べて追加（Issue #248 / UI-1〜UI-3） */
+describe('SpotSelector — 調べて追加・もしかして', () => {
+  const base = {
+    selectedSpot: null,
+    onSearchQueryChange: jest.fn(),
+    onSelectSpot: jest.fn(),
+    error: null,
+  };
+  const open = (ui: ReturnType<typeof render>) =>
+    fireEvent(ui.getByPlaceholderText('スポット名で検索'), 'focus');
+
+  it('候補に無い名前なら「調べて追加」を出し、「候補が見つかりません」は出さない。押すと名前を渡す', () => {
+    const onResearch = jest.fn();
+    const ui = render(
+      <SpotSelector {...base} nearbySpots={[]} searchQuery=" 鹿島台神社 " onResearch={onResearch} />
+    );
+    open(ui);
+    expect(ui.getByText('「鹿島台神社」を調べて追加')).toBeTruthy();
+    expect(ui.getByText('名前から場所と住所を調べます')).toBeTruthy();
+    expect(ui.queryByText('候補が見つかりません')).toBeNull();
+    fireEvent.press(ui.getByTestId('spot-research'));
+    expect(onResearch).toHaveBeenCalledWith('鹿島台神社');
+  });
+
+  it('1文字、または同じ名前の候補があるときは出さない。部分一致の候補だけなら出す', () => {
+    const onResearch = jest.fn();
+    const one = render(
+      <SpotSelector {...base} nearbySpots={[]} searchQuery="鹿" onResearch={onResearch} />
+    );
+    open(one);
+    expect(one.queryByTestId('spot-research')).toBeNull();
+
+    const same = render(
+      <SpotSelector
+        {...base}
+        nearbySpots={[{ spot: makeSpot({ name: '鹿島台 神社' }), distanceKm: 1 }]}
+        searchQuery="鹿島台神社"
+        onResearch={onResearch}
+      />
+    );
+    open(same);
+    expect(same.queryByTestId('spot-research')).toBeNull();
+
+    const partial = render(
+      <SpotSelector
+        {...base}
+        nearbySpots={[{ spot: makeSpot({ name: '大崎八幡宮' }), distanceKm: 1 }]}
+        searchQuery="八幡"
+        onResearch={onResearch}
+      />
+    );
+    open(partial);
+    expect(partial.getByTestId('spot-research')).toBeTruthy();
+  });
+
+  it('「もしかして」を「調べて追加」の上に出し、押すとその寺社を選ぶ。距離は許可されたときだけ', () => {
+    const onSelectSpot = jest.fn();
+    const kashima = makeSpot({ id: 'kashima', name: '鹿島神宮', prefecture: '茨城県' });
+    const ui = render(
+      <SpotSelector
+        {...base}
+        onSelectSpot={onSelectSpot}
+        nearbySpots={[]}
+        searchQuery="鹿島台神社"
+        didYouMeanSpots={[{ spot: kashima, distanceKm: 228.4 }]}
+        showDistance={false}
+        onResearch={jest.fn()}
+      />
+    );
+    open(ui);
+    const maybe = within(ui.getByTestId('spot-did-you-mean'));
+    expect(maybe.getByText('もしかして')).toBeTruthy();
+    expect(maybe.getByText('茨城県')).toBeTruthy();
+    expect(maybe.queryByText(/km/)).toBeNull();
+    fireEvent.press(ui.getByTestId('spot-did-you-mean-kashima'));
+    expect(onSelectSpot).toHaveBeenCalledWith(kashima);
+  });
+});

@@ -18,6 +18,11 @@ import { Header } from '@components/common/Header';
 import { SpotSelector } from '@components/record/SpotSelector';
 import { PhotoSection } from '@components/record/PhotoSection';
 import { SavingOverlay } from '@components/record/SavingOverlay';
+import { SpotPlacePicker } from '@components/record/SpotPlacePicker';
+import { SpotResearchSheet } from '@components/record/SpotResearchSheet';
+import { useSpotAdd } from '@hooks/useSpotAdd';
+import { DEFAULT_LOCATION } from '@utils/geo';
+import { nearbyHint } from '@utils/spotHint';
 import { usePhotoPicker } from '@hooks/usePhotoPicker';
 import { useRecordForm } from '@hooks/useRecordForm';
 import { useNearbySpots } from '@hooks/useNearbySpots';
@@ -45,8 +50,11 @@ type Props = RootStackScreenProps<'Record'>;
 export function RecordScreen({ navigation, route }: Props) {
   const initialSpotId = route.params?.spotId;
   const { user } = useAuth();
-  const { permissionStatus } = useLocation();
-  const { nearbySpots, filteredSpots, searchQuery, setSearchQuery } = useNearbySpots();
+  const { location, permissionStatus } = useLocation();
+  const { nearbySpots, filteredSpots, didYouMeanSpots, searchQuery, setSearchQuery } =
+    useNearbySpots();
+  // 距離・手がかりは位置情報が許可されているときだけ（未許可でも useLocation は仙台を返す）
+  const granted = permissionStatus === 'granted';
   const { takePhoto, pickFromLibrary } = usePhotoPicker();
 
   // 境内にいるときだけ最寄りを既定選択する。位置情報が未許可でも useLocation は
@@ -57,6 +65,12 @@ export function RecordScreen({ navigation, route }: Props) {
   );
 
   const form = useRecordForm(initialSpotId ? { initialSpotId } : { autoSelectableSpot });
+
+  // 見つからない寺社を調べて追加し、そのまま記録に使う（Issue #248）。
+  // 調べる手がかりは近くの寺社の住所から取った文字だけ。位置情報そのものは送らない
+  const spotAdd = useSpotAdd(form.selectSpot);
+  const handleResearch = (name: string) =>
+    spotAdd.start(name, nearbyHint(nearbySpots, permissionStatus ?? ''));
 
   const scrollViewRef = useRef<ScrollView>(null);
   const memoRect = useRef({ y: 0, height: 0 });
@@ -313,6 +327,9 @@ export function RecordScreen({ navigation, route }: Props) {
               onSelectSpot={form.selectSpot}
               error={form.spotError}
               isAutoSelected={form.isSpotAutoSelected}
+              didYouMeanSpots={didYouMeanSpots}
+              showDistance={granted}
+              onResearch={handleResearch}
             />
           </View>
 
@@ -439,6 +456,25 @@ export function RecordScreen({ navigation, route }: Props) {
         total={form.imageUris.length}
         saved={form.savedCount}
         top={headerBottom}
+      />
+
+      <SpotResearchSheet
+        state={spotAdd.state}
+        userLocation={granted ? location : null}
+        onClose={spotAdd.close}
+        onChangeHint={spotAdd.changeHint}
+        onRetry={spotAdd.retry}
+        onChoose={spotAdd.choose}
+        onOpenManual={spotAdd.openManual}
+      />
+      <SpotPlacePicker
+        visible={spotAdd.state.placing}
+        initialName={spotAdd.state.name}
+        initialCenter={(granted && location) || DEFAULT_LOCATION}
+        saving={spotAdd.state.status === 'saving'}
+        saveFailed={spotAdd.state.saveFailed}
+        onBack={spotAdd.close}
+        onSave={spotAdd.saveManual}
       />
     </SafeAreaView>
   );

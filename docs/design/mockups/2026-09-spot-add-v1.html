@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<title>スポット追加 v1（AI で調べて、確かめて、そのまま記録）</title>
+<style>
+:root{
+  --brand:#f27f0d; --brand50:#FFF7ED; --brand100:#FFEDD5; --brand600:#EA580C;
+  --shrine100:#FEE2E2; --shrine600:#DC2626; --temple100:#F3E8FF; --temple600:#9333EA;
+  --ink:#111827; --ink2:#4B5563; --ink3:#9CA3AF; --rule:#E5E7EB; --g100:#F3F4F6;
+  --paper:#F9FAFB; --card:#FFFFFF;
+}
+*{box-sizing:border-box;margin:0}
+body{background:#d9d6cf;font-family:-apple-system,"Hiragino Sans",sans-serif;color:var(--ink);padding:28px}
+h1{font-size:20px;margin:0 0 6px}
+.lead{font-size:13px;color:#3f3a33;margin-bottom:22px;line-height:1.7;max-width:1300px}
+.row{display:flex;gap:28px;align-items:flex-start}
+.col h2{font-size:15px;margin-bottom:10px;max-width:390px}
+.phone{width:390px;height:844px;background:#fff;border-radius:36px;overflow:hidden;box-shadow:0 18px 40px rgba(0,0,0,.18);position:relative}
+.status{height:44px;display:flex;justify-content:space-between;align-items:center;padding:0 28px;font-size:15px;font-weight:600}
+.mhdr{height:52px;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;position:relative;border-bottom:1px solid var(--rule)}
+.mhdr .x{position:absolute;left:18px;font-size:22px;color:var(--ink2);font-weight:400}
+.body{padding:18px 20px}
+.lbl{font-size:13px;font-weight:700;color:var(--ink2);margin-bottom:8px}
+.search{height:46px;border-radius:999px;background:var(--g100);display:flex;align-items:center;padding:0 16px;gap:8px;font-size:16px}
+.search .q{flex:1}
+.search .c{color:var(--ink3)}
+.drop{margin-top:6px;background:#fff;border-radius:14px;box-shadow:0 6px 18px rgba(0,0,0,.12);overflow:hidden}
+.opt{display:flex;align-items:center;gap:8px;padding:13px 16px;border-bottom:1px solid var(--rule);font-size:16px}
+.opt .n{flex:1}
+.opt .p{font-size:13px;color:var(--ink2)}
+.opt .d{font-size:13px;color:var(--ink3)}
+.maybe{font-size:11px;font-weight:700;color:var(--ink3);padding:10px 16px 0;letter-spacing:.04em}
+.badge{font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px}
+.badge.s{background:var(--shrine100);color:var(--shrine600)}
+.badge.t{background:var(--temple100);color:var(--temple600)}
+.add{display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--brand50)}
+.add .plus{width:30px;height:30px;border-radius:50%;background:var(--brand);color:#fff;display:grid;place-items:center;font-size:20px;font-weight:700;flex:none}
+.add b{font-size:15px;color:var(--brand600)}
+.add span{display:block;font-size:12px;color:var(--ink2);margin-top:2px}
+.faded{opacity:.35;margin-top:22px}
+.ph{height:150px;border-radius:14px;background:var(--g100);display:grid;place-items:center;color:var(--ink3);font-size:13px}
+/* シート */
+.dim{position:absolute;inset:0;background:rgba(0,0,0,.28)}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:22px 22px 0 0;padding:10px 20px 34px;z-index:3}
+.grab{width:40px;height:5px;border-radius:3px;background:#D1D5DB;margin:0 auto 14px}
+.sheet h3{font-size:19px;font-weight:800}
+.sheet .why{font-size:13px;color:var(--ink2);margin:6px 0 14px;line-height:1.6}
+.hint{display:inline-flex;align-items:center;gap:6px;background:var(--g100);border-radius:999px;padding:7px 12px;font-size:13px;font-weight:600}
+.hint .e{color:var(--brand600);font-size:12px}
+.skel{border:1px solid var(--rule);border-radius:16px;padding:14px;margin-top:16px}
+.skel i{display:block;height:12px;border-radius:6px;background:linear-gradient(90deg,#EEF0F3,#F7F8FA,#EEF0F3);margin-bottom:9px}
+.skel .m{height:96px;border-radius:10px;margin:12px 0 0}
+.steps{font-size:12px;color:var(--ink3);margin-top:12px;line-height:1.9}
+.steps b{color:var(--ink2);font-weight:600}
+.ghost{margin-top:18px;height:50px;border-radius:12px;border:1.5px solid var(--rule);display:grid;place-items:center;font-size:15px;font-weight:700;color:var(--ink2)}
+.primary{height:52px;border-radius:12px;background:var(--brand);color:#fff;display:grid;place-items:center;font-size:16px;font-weight:800}
+.cand{border:1.5px solid var(--brand);border-radius:16px;padding:14px;margin-top:4px}
+.cand .top{display:flex;align-items:center;gap:8px}
+.cand .top b{font-size:18px}
+.cand .top .km{margin-left:auto;font-size:13px;color:var(--ink3)}
+.cand .addr{font-size:13px;color:var(--ink2);margin-top:4px}
+.cand .src{font-size:12px;color:var(--ink3);margin-top:6px}
+.mini{margin-top:12px;border-radius:10px;overflow:hidden;display:block}
+.more{font-size:13px;color:var(--ink2);text-align:center;margin:12px 0 14px}
+.note{font-size:12px;color:var(--ink3);text-align:center;margin-top:12px;line-height:1.6}
+.link{font-size:14px;font-weight:700;color:var(--ink2);text-align:center;margin-top:14px}
+/* 地図で決める */
+.bigmap{position:absolute;top:96px;left:0;right:0;height:430px}
+.center-pin{position:absolute;left:50%;top:calc(96px + 215px);transform:translate(-50%,-100%)}
+.maptip{position:absolute;top:112px;left:50%;transform:translateX(-50%);background:rgba(17,24,39,.82);color:#fff;font-size:12px;padding:7px 12px;border-radius:999px;white-space:nowrap}
+.form{position:absolute;left:0;right:0;bottom:0;top:510px;background:#fff;border-radius:22px 22px 0 0;padding:18px 20px 34px;box-shadow:0 -6px 18px rgba(0,0,0,.08)}
+.input{height:48px;border:1px solid var(--rule);border-radius:12px;display:flex;align-items:center;padding:0 14px;font-size:16px}
+.seg{display:flex;gap:10px;margin-top:10px}
+.seg div{flex:1;height:44px;border-radius:12px;border:1.5px solid var(--rule);display:grid;place-items:center;font-size:15px;font-weight:700;color:var(--ink2)}
+.seg .on{border-color:var(--shrine600);background:var(--shrine100);color:var(--shrine600)}
+.notes{max-width:1300px;font-size:13px;line-height:1.8;color:#2f2b25;margin-top:26px;display:flex;gap:40px}
+.notes > div{flex:1}
+.notes h3{font-size:14px;margin:0 0 6px}
+.notes ul{padding-left:18px;margin-bottom:14px}
+.notes b{color:#7a2a1c}
+</style>
+</head>
+<body>
+<h1>スポット追加 v1 — 調べて、確かめて、そのまま記録</h1>
+<p class="lead">
+  要件: <code>docs/design/2026-09-spot-add-spec.md</code>。例は本番の <b>鹿島台神社</b>（住所は 2026-09-24 に直した値）。<br>
+  <b>「ここです」は「私が行ったのはここ」の確認</b>。押せば自分の記録にすぐ使え、住所の情報源が2つ以上などの基準を満たせば、みんなの地図にも自動で載る。<br>
+  位置情報はサーバーに送らない。手がかりは<b>近くの寺社の住所から取った市区町村名</b>（文字）で、画面に出して直せる。地図の絵は仮（実装では react-native-maps）。
+</p>
+
+<div class="row">
+  <!-- ① -->
+  <div class="col">
+    <h2>① 検索で出ない</h2>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+      <div class="mhdr"><span class="x">✕</span>御朱印を記録</div>
+      <div class="body">
+        <div class="lbl">スポット</div>
+        <div class="search"><span class="c">⌕</span><span class="q">鹿島台神社</span><span class="c">⊗</span></div>
+        <div class="drop">
+          <div class="maybe">もしかして</div>
+          <div class="opt"><span class="n">鹿島神宮</span><span class="badge s">神社</span><span class="p">茨城県</span><span class="d">228km</span></div>
+          <div class="add">
+            <div class="plus">+</div>
+            <div><b>「鹿島台神社」を調べて追加</b><span>名前から場所と住所を調べます</span></div>
+          </div>
+        </div>
+        <div class="faded">
+          <div class="lbl">御朱印の写真</div>
+          <div class="ph">写真を撮る</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ② -->
+  <div class="col">
+    <h2>② 調べています（〜10秒）</h2>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+      <div class="mhdr"><span class="x">✕</span>御朱印を記録</div>
+      <div class="dim"></div>
+      <div class="sheet">
+        <div class="grab"></div>
+        <h3>「鹿島台神社」を調べています</h3>
+        <div class="why">公式サイトや地図の情報から、場所と住所を探しています。</div>
+        <span class="hint">📍 宮城県 大崎市 のあたり <span class="e">変える</span></span>
+        <div class="skel"><i style="width:55%"></i><i style="width:80%"></i><i class="m"></i></div>
+        <div class="steps"><b>✓ 名前で探す</b><br><b>… 住所を確かめる</b><br>地図の場所を出す</div>
+        <div class="ghost">調べずに、地図で場所を決める</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ③ -->
+  <div class="col">
+    <h2>③ これですか？</h2>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+      <div class="mhdr"><span class="x">✕</span>御朱印を記録</div>
+      <div class="dim"></div>
+      <div class="sheet">
+        <div class="grab"></div>
+        <h3>これですか？</h3>
+        <div class="why">見つかった寺社です。行った場所と合っていれば、そのまま記録に使えます。</div>
+        <div class="cand">
+          <div class="top"><b>鹿島台神社</b><span class="badge s">神社</span><span class="km">0.3km</span></div>
+          <div class="addr">宮城県大崎市鹿島台平渡</div>
+          <svg class="mini" width="100%" height="120" viewBox="0 0 320 120">
+            <rect width="320" height="120" fill="#EEF1EC"/>
+            <path d="M-10 84 C80 70 150 96 330 60" stroke="#fff" stroke-width="9" fill="none"/>
+            <path d="M120 -10 L150 130" stroke="#fff" stroke-width="6" fill="none"/>
+            <path d="M0 30 L330 20" stroke="#fff" stroke-width="4" fill="none"/>
+            <rect x="190" y="36" width="60" height="30" rx="4" fill="#D8E6D0"/>
+            <path d="M160 36c-7 0-12 5-12 11.5 0 8.5 12 19.5 12 19.5s12-11 12-19.5C172 41 167 36 160 36z" fill="#DC2626"/>
+            <circle cx="160" cy="48" r="4.5" fill="#fff"/>
+          </svg>
+          <div class="src">住所の情報源 3件（公式サイト・宮城県神社庁 ほか）</div>
+        </div>
+        <div class="more">ほかの候補を見る（1件）</div>
+        <div class="primary">ここです</div>
+        <div class="link">どれでもない（地図で決める）</div>
+        <div class="note">確かめられたら、みんなの地図にも載ります</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ④ -->
+  <div class="col">
+    <h2>④ 見つからない・どれでもない → 地図で決める</h2>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+      <div class="mhdr"><span class="x">‹</span>場所を決める</div>
+      <svg class="bigmap" width="390" height="430" viewBox="0 0 390 430">
+        <rect width="390" height="430" fill="#EEF1EC"/>
+        <path d="M-10 300 C120 260 220 330 400 230" stroke="#fff" stroke-width="14" fill="none"/>
+        <path d="M150 -10 L210 440" stroke="#fff" stroke-width="9" fill="none"/>
+        <path d="M0 110 L400 80" stroke="#fff" stroke-width="6" fill="none"/>
+        <path d="M280 0 L330 430" stroke="#fff" stroke-width="5" fill="none"/>
+        <rect x="230" y="140" width="80" height="50" rx="6" fill="#D8E6D0"/>
+        <rect x="40" y="170" width="70" height="60" rx="6" fill="#D8E6D0"/>
+        <path d="M0 380 C100 360 200 400 400 370 L400 430 L0 430Z" fill="#D6E4F0"/>
+      </svg>
+      <div class="maptip">地図を動かして、ピンを寺社の場所に合わせてください</div>
+      <svg class="center-pin" width="34" height="46" viewBox="0 0 34 46"><path d="M17 1C8.2 1 1 8 1 16.6 1 28.2 17 45 17 45s16-16.8 16-28.4C33 8 25.8 1 17 1z" fill="#f27f0d" stroke="#fff" stroke-width="2"/><circle cx="17" cy="16.5" r="6" fill="#fff"/></svg>
+      <div class="form">
+        <div class="lbl">名前</div>
+        <div class="input">鹿島台神社</div>
+        <div class="seg"><div class="on">神社</div><div>寺院</div></div>
+        <div class="primary" style="margin-top:16px">この場所で記録する</div>
+        <div class="note">この寺社は、あなたの記録にだけ出ます</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="notes">
+  <div>
+    <h3>流れ</h3>
+    <ul>
+      <li>①「もしかして」は<b>既存マスタに似た名前</b>があるときだけ（重複を作らない）。無ければ「調べて追加」の行だけ</li>
+      <li>② 手がかり（<b>宮城県 大崎市</b>）は近くの寺社の住所から。押すと直せる。無ければ全国で探す</li>
+      <li>②「調べずに、地図で場所を決める」は<b>いつでも押せる</b>。時間切れ・通信エラーでもここへ</li>
+      <li>③「ここです」→ 記録画面に戻り、その寺社が選ばれた状態（既存の寺社と同じ見た目・印は付けない）</li>
+    </ul>
+  </div>
+  <div>
+    <h3>見え方</h3>
+    <ul>
+      <li>③ で追加 → 本人にはすぐ見える。基準（情報源2つ以上・都道府県の範囲内・近くに重複なし・名前と種別が合う）を満たせば<b>みんなの地図にも自動で載る</b>。通知はしない</li>
+      <li>④ で追加 → 情報源が無いので<b>自分の記録にだけ</b>。オーナーの確認待ちに入る</li>
+      <li>③ の距離は、返ってきた座標と端末の位置から<b>端末上で</b>計算する</li>
+    </ul>
+  </div>
+</div>
+</body>
+</html>

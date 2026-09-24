@@ -210,6 +210,23 @@ describe('useRecordForm', () => {
     expect(result.current.isSubmitting).toBe(false);
   });
 
+  // Issue #248 AC-37: 追加したばかりの寺社（本人の pending）でもそのまま記録できる
+  it('本人の pending の寺社でも記録できる', async () => {
+    mockUploadStampImage.mockResolvedValue('user-1/12345.jpg');
+    mockCreateStamp.mockResolvedValue(fakeStamp);
+    const { result } = renderHook(() => useRecordForm());
+    act(() => {
+      result.current.selectSpot({ ...fakeSpot, id: 'pending-1', status: 'pending' });
+      result.current.addImages(['file:///photo.jpg']);
+    });
+    let submitResult: RecordSubmitResult;
+    await act(async () => {
+      submitResult = await result.current.submit();
+    });
+    expect(submitResult!.success).toBe(true);
+    expect(mockCreateStamp).toHaveBeenCalledWith(expect.objectContaining({ spotId: 'pending-1' }));
+  });
+
   it('submit sets submitError on upload failure', async () => {
     mockUploadStampImage.mockRejectedValue(new Error('Upload failed'));
 

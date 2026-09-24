@@ -30,6 +30,21 @@ export interface Spot {
   updated_at: string;
 }
 
+/** research-spot が返す候補（Issue #248）。住所・座標はサーバーが確かめたもの */
+export interface SpotResearchCandidate {
+  index: number;
+  name: string;
+  type: SpotType;
+  address: string;
+  prefecture: string;
+  lat: number;
+  lng: number;
+  /** 住所を載せていた情報源の数 */
+  sourceCount: number;
+  /** 「公式サイト」や検索結果の題名。最大 2 */
+  sourceLabels: string[];
+}
+
 export interface ExtractedInfo {
   parking?: { available: boolean; capacity?: number; location?: string };
   affiliated_shrines?: { name: string; details?: string }[];
