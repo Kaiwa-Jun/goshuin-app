@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
   },
   researchSub: {
     ...typography.caption,
-    color: colors.gray[500],
+    color: colors.gray[600],
     marginTop: 2,
   },
   emptyContainer: {
