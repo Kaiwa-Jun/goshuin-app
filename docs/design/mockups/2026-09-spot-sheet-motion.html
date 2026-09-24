@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>スポットのシート — 開いたときに動かない並び（2案）</title>
+<style>
+/* 値は src/theme と spot-detail の StyleSheet から（色・余白・文字の大きさ） */
+:root{
+  --brand:#f27f0d; --brand50:#FFF7ED; --brand700:#C2410C;
+  --shrine100:#FEE2E2; --shrine600:#DC2626;
+  --g50:#F9FAFB; --g100:#F3F4F6; --g200:#E5E7EB; --g300:#D1D5DB; --g400:#9CA3AF;
+  --g500:#6B7280; --g600:#4B5563; --g800:#1F2937; --g900:#111827;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:#4B5563;font-family:-apple-system,"Hiragino Sans",sans-serif;color:var(--g900);padding:22px 16px 40px}
+h1{color:#fff;font-size:19px;margin-bottom:6px}
+.lead{color:#E5E7EB;font-size:13px;line-height:1.8;max-width:1250px;margin-bottom:18px}
+.lead b{color:#FDBA74}
+.row{display:flex;gap:26px;align-items:flex-start;flex-wrap:wrap}
+.col h2{color:#fff;font-size:15px;margin-bottom:4px}
+.col p{color:#D1D5DB;font-size:12px;line-height:1.7;margin-bottom:10px;max-width:390px;min-height:62px}
+.btnbar{display:flex;gap:8px;margin-bottom:10px}
+.btnbar button{font:inherit;font-size:12px;padding:6px 12px;border-radius:999px;border:0;background:#fff;color:var(--g800);cursor:pointer}
+.phone{width:390px;height:844px;border-radius:34px;overflow:hidden;position:relative;box-shadow:0 18px 50px rgba(0,0,0,.45);background:#E8ECE6;user-select:none}
+/* 地図（背景。実装は MapLibre） */
+.map{position:absolute;inset:0}
+.pin{position:absolute;left:180px;top:250px}
+/* シート */
+.sheet{position:absolute;left:0;right:0;top:0;height:calc(844px * .85);background:#fff;border-radius:16px 16px 0 0;
+  box-shadow:0 -4px 16px rgba(0,0,0,.12);transform:translateY(844px);will-change:transform;display:flex;flex-direction:column}
+.sheet.anim{transition:transform .42s cubic-bezier(.2,.9,.3,1)}  /* Animated.spring tension 65 / friction 11 に寄せた */
+.grab{display:flex;justify-content:center;padding:8px 0;cursor:grab;flex:none}
+.grab i{width:40px;height:4px;border-radius:4px;background:var(--g300)}
+.pad{padding:0 16px}
+.scroll{flex:1;overflow:hidden;padding:0 16px 16px}
+.name{display:flex;align-items:center;gap:8px}
+.name b{font-size:18px;font-weight:600;flex:1}
+.badge{font-size:12px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--shrine100);color:var(--shrine600)}
+.badge.v{background:#DCFCE7;color:#15803D}
+.addr{font-size:14px;color:var(--g500);margin-top:4px}
+.info{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}
+.chip{display:inline-flex;gap:4px;align-items:center;background:var(--g50);border-radius:4px;padding:4px 8px;font-size:12px;color:var(--g600)}
+.chip .ic{color:var(--brand)}
+.actions{display:flex;gap:8px;margin-top:12px}
+.actions div{flex:1;height:44px;border-radius:12px;display:grid;place-items:center;font-size:16px;font-weight:600}
+.act-w{border:1.5px solid var(--brand);color:var(--brand)}
+.act-r{background:var(--brand);color:#fff}
+.thumbs{display:flex;gap:4px;margin-top:10px}
+.thumb{width:116px;height:116px;border-radius:8px;background:#F4EFE3;position:relative;overflow:hidden}
+.thumb:before{content:"";position:absolute;left:34px;top:22px;width:48px;height:62px;border:2px solid #C9B99A;border-radius:3px}
+.thumb:after{content:"";position:absolute;left:45px;top:40px;width:26px;height:26px;border-radius:50%;background:#C2342B;opacity:.85}
+.sec{font-size:18px;font-weight:600;color:var(--g800);margin:18px 0 8px}
+/* 限定御朱印: 見出しは常に同じ場所。中身は高さが伸びて開く（実装は LayoutAnimation） */
+.lim{margin-top:12px}
+.limhead{display:flex;align-items:center;gap:6px;font-size:14px;color:var(--g800);font-weight:600;cursor:pointer}
+.limhead .ic{color:var(--brand)}
+.limhead .chev{margin-left:auto;color:var(--g400);transition:transform .3s}
+.lim.open .chev{transform:rotate(90deg)}
+.limbody{display:grid;grid-template-rows:0fr;transition:grid-template-rows .32s ease-in-out}
+.lim.open .limbody{grid-template-rows:1fr}
+.limbody > div{overflow:hidden}
+.item{padding:8px 0 4px;border-top:1px solid var(--g100);margin-top:8px}
+.item b{font-size:15px;font-weight:500}
+.item .p{font-size:13px;color:var(--g600);margin-top:2px}
+.item .d{font-size:13px;color:var(--g500);margin-top:2px}
+.item .l{font-size:12px;color:var(--brand);margin-top:4px}
+.tsuki{background:var(--g50);border-radius:12px;padding:12px;font-size:13px;color:var(--g600);margin-top:14px}
+.access{height:120px;border-radius:12px;background:#E3E9E0;margin-top:4px}
+/* 案B: ボタンを下に固定 */
+.footer{position:absolute;left:0;right:0;bottom:0;z-index:3;background:#fff;padding:10px 16px 26px;border-top:1px solid var(--g200);transition:top .42s cubic-bezier(.2,.9,.3,1)}
+/* 今: 瞬時に入れ替わる */
+.cur-compact-only.hide{display:none}
+.cur-expanded-only{display:none}
+.cur-expanded-only.show{display:block}
+.note{position:absolute;left:12px;right:12px;bottom:12px;background:rgba(17,24,39,.8);color:#fff;font-size:11px;padding:6px 10px;border-radius:8px;text-align:center;pointer-events:none;z-index:5}
+</style>
+</head>
+<body>
+<h1>スポットのシート — 開いても、ものが入れ替わらない並び</h1>
+<p class="lead">
+  例は本番の <b>榴岡天満宮</b>（あなたの投稿2件・限定御朱印4件。写真は仮の絵）。<b>ハンドルを上下にドラッグ</b>するか、上のボタンで開閉できます。<br>
+  「今」は開くと、限定御朱印のチップと写真の帯が消え、ボタンが上に跳び、下に詳細とグリッドが出る。<b>案A・案B は、どの要素も開く前と同じ場所にあり、下（B は上）に続きが出てくるだけ</b>。限定御朱印は見出しの下にその場で開く。
+</p>
+
+<div class="row" id="row"></div>
+
+<template id="tpl">
+  <div class="col">
+    <h2></h2><p></p>
+    <div class="btnbar"><button data-act="open">開く</button><button data-act="close">閉じる</button></div>
+    <div class="phone">
+      <svg class="map" viewBox="0 0 390 844" preserveAspectRatio="none">
+        <rect width="390" height="844" fill="#E8ECE6"/>
+        <path d="M-10 320 C120 280 240 360 400 300" stroke="#fff" stroke-width="16" fill="none"/>
+        <path d="M150 -10 L230 860" stroke="#fff" stroke-width="10" fill="none"/>
+        <path d="M0 150 L400 120" stroke="#fff" stroke-width="7" fill="none"/>
+        <rect x="250" y="190" width="90" height="60" rx="8" fill="#D6E6CC"/>
+        <rect x="30" y="380" width="80" height="70" rx="8" fill="#D6E6CC"/>
+      </svg>
+      <svg class="pin" width="30" height="40" viewBox="0 0 30 40"><path d="M15 1C7 1 1 7 1 14.6 1 25 15 39 15 39s14-14 14-24.4C29 7 23 1 15 1z" fill="#DC2626" stroke="#fff" stroke-width="2"/><circle cx="15" cy="14.5" r="5" fill="#fff"/></svg>
+      <div class="sheet"></div>
+    </div>
+  </div>
+</template>
+
+<script>
+const H = 844, EXP = H * .85, EXPANDED_Y = H - EXP;
+const ITEMS = [
+  ['【幸せ猫切り絵】御朱印', '期間 9月20日日曜日より頒布', '初穂料 1,000円、1000体限定、頒布時間 9時から16時まで'],
+  ['九月【花札御朱印】長月', null, null],
+  ['【梅の銀箔押し】御朱印', '期間 シルバーウィーク', '初穂料 1,000円、数量限定、頒布時間 9時から16時まで'],
+  ['鷽切り絵御朱印', '期間 毎月25日', '初穂料 1000円、頒布時間 9時から16時頃'],
+];
+const header = `
+  <div class="name"><b>榴岡天満宮</b><span class="badge">神社</span><span class="badge v">参拝済み</span></div>
+  <div class="addr">📍 宮城県仙台市宮城野区榴ケ岡105-3</div>
+  <div class="info"><span class="chip"><span class="ic">🕘</span>受付 9:00〜16:00</span><span class="chip"><span class="ic">🅿</span>駐車場 あり</span></div>`;
+const actions = `<div class="actions"><div class="act-w">行きたい</div><div class="act-r">記録する</div></div>`;
+const thumbs = `<div class="thumbs"><div class="thumb"></div><div class="thumb"></div></div>`;
+const items = ITEMS.map(([n,p,d]) => `<div class="item"><b>${n}</b>${p?`<div class="p">${p}</div>`:''}${d?`<div class="d">${d}</div>`:''}<div class="l">↗ Instagramの投稿を見る</div></div>`).join('');
+const lim = `<div class="lim"><div class="limhead"><span class="ic">✦</span>限定御朱印 4件<span class="chev">›</span></div>
+  <div class="limbody"><div>${items}<div class="d" style="font-size:12px;color:var(--g400);margin-top:6px">取得 9月22日</div></div></div></div>`;
+const rest = `<div class="tsuki">月参り — 2ヶ月続いています（9月・8月）</div>
+  <div class="sec">アクセス</div><div class="access"></div>`;
+
+const variants = [
+  {
+    key: 'now', title: '今', desc: '開くと、チップと帯が消えてボタンが上へ跳び、下に詳細とグリッドが出る（瞬時）。',
+    html: `<div class="grab"><i></i></div><div class="pad">${header}
+      <div class="cur-compact-only"><div class="chip" style="margin-top:12px"><span class="ic">✦</span>限定御朱印 4件</div>${thumbs}</div>
+      ${actions}</div>
+      <div class="scroll cur-expanded-only"><div class="sec">限定御朱印</div>${items}
+      <div class="tsuki">月参り — 2ヶ月続いています（9月・8月）</div>${thumbs}<div class="sec">アクセス</div><div class="access"></div></div>`,
+    compactBottom: sheet => sheet.querySelector('.pad'),
+    set(sheet, open) {
+      sheet.querySelector('.cur-compact-only').classList.toggle('hide', open);
+      sheet.querySelector('.cur-expanded-only').classList.toggle('show', open);
+    },
+  },
+  {
+    key: 'a', title: '案A — ボタンは名前の下（おすすめ）', desc: 'ボタンは閉じても開いても同じ場所。限定御朱印は見出しの下にその場で開き、写真の帯・月参り・アクセスが下に続く。',
+    html: `<div class="grab"><i></i></div><div class="pad">${header}${actions}${lim}${thumbs}<div class="cutA"></div>${rest}</div>`,
+    compactBottom: sheet => sheet.querySelector('.cutA'),
+    set(sheet, open) { sheet.querySelector('.lim').classList.toggle('open', open); },
+  },
+  {
+    key: 'b', title: '案B — ボタンは下に固定', desc: 'ボタンは常に画面の下端。中身の並びは同じで、開くと上に伸びて限定御朱印がその場で開く。',
+    html: `<div class="grab"><i></i></div><div class="pad">${header}${lim}${thumbs}<div class="cutB"></div>${rest}<div style="height:90px"></div></div>`,
+    compactBottom: sheet => sheet.querySelector('.cutB'),
+    footer: true,
+    set(sheet, open) { sheet.querySelector('.lim').classList.toggle('open', open); },
+  },
+];
+
+const row = document.getElementById('row');
+for (const v of variants) {
+  const node = document.getElementById('tpl').content.cloneNode(true);
+  node.querySelector('h2').textContent = v.title;
+  node.querySelector('p').textContent = v.desc;
+  const phone = node.querySelector('.phone');
+  const sheet = node.querySelector('.sheet');
+  sheet.innerHTML = v.html;
+  let footer = null;
+  if (v.footer) {
+    footer = document.createElement('div');
+    footer.className = 'footer';
+    footer.innerHTML = actions.replace('class="actions"', 'class="actions" style="margin-top:0"');
+    phone.appendChild(footer);
+  }
+  row.appendChild(node);
+
+  // 閉じた状態の高さ = compactBottom までの高さ（実装は onLayout で測っている）
+  const footerH = () => (footer ? footer.offsetHeight : 0);
+  const compactY = () => {
+    const el = v.compactBottom(sheet);
+    const bottom = el.getBoundingClientRect().bottom - sheet.getBoundingClientRect().top;
+    return H - (bottom + 16) - footerH();
+  };
+  let open = false, y = H;
+  const place = (to, anim = true) => {
+    y = to;
+    sheet.classList.toggle('anim', anim);
+    sheet.style.transform = `translateY(${to}px)`;
+  };
+  const setOpen = o => {
+    open = o;
+    v.set(sheet, o);
+    place(o ? EXPANDED_Y : compactY());
+  };
+  requestAnimationFrame(() => { v.set(sheet, false); place(compactY(), false); requestAnimationFrame(() => setOpen(false)); });
+  const bar = row.lastElementChild.querySelector('.btnbar');
+  bar.querySelector('[data-act="open"]').onclick = () => setOpen(true);
+  bar.querySelector('[data-act="close"]').onclick = () => setOpen(false);
+  sheet.querySelector('.limhead')?.addEventListener('click', () => setOpen(!open));
+
+  // ドラッグ（実装の PanResponder と同じく、離したときに近い方へ）
+  const grab = sheet.querySelector('.grab');
+  let startY = 0, startSheet = 0, dragging = false;
+  grab.addEventListener('pointerdown', e => { dragging = true; startY = e.clientY; startSheet = y; grab.setPointerCapture(e.pointerId); sheet.classList.remove('anim'); });
+  grab.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    const ny = Math.max(EXPANDED_Y, startSheet + (e.clientY - startY));
+    sheet.style.transform = `translateY(${ny}px)`; y = ny;
+  });
+  grab.addEventListener('pointerup', e => {
+    if (!dragging) return; dragging = false;
+    const moved = e.clientY - startY;
+    if (Math.abs(moved) < 4) return setOpen(!open);
+    setOpen(moved < -40 ? true : moved > 40 ? false : open);
+  });
+}
+</script>
+</body>
+</html>
