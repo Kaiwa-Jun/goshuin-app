@@ -27,3 +27,11 @@ verify_jwt = false
 # 本人確認と「自分のフォルダ配下か」の検証は関数の中でやっている
 [functions.sign-stamp-upload]
 verify_jwt = false
+
+# add-spot / research-spot（Issue #248）: 寺社を調べて追加する。呼び出し元は「ログイン中の本人」。
+# 本人確認は関数の中の getUser() で行い、user_id をリクエストボディから読まない
+[functions.add-spot]
+verify_jwt = false
+
+[functions.research-spot]
+verify_jwt = false

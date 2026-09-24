@@ -132,9 +132,7 @@ jest.mock('@services/badges', () => ({
   evaluateNewBadges: jest.fn(() => null),
 }));
 
-jest.mock('@services/spots', () => ({
-  createSpot: jest.fn(),
-}));
+jest.mock('@services/spots', () => ({}));
 
 jest.mock('@react-native-community/datetimepicker', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires

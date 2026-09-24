@@ -128,7 +128,6 @@ jest.mock('@services/spots', () => ({
   fetchSpotsByBounds: jest.fn().mockResolvedValue([]),
   fetchSpotById: jest.fn().mockResolvedValue(null),
   searchSpotsByName: jest.fn().mockResolvedValue([]),
-  createSpot: jest.fn(),
 }));
 
 jest.mock('@hooks/useNearbySpots', () => ({

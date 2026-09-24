@@ -5,6 +5,10 @@ import type { BoundingBox } from '@utils/geo';
 // PostgREST の既定 max-rows(1,000)と一致させる。1リクエストで返る最大行数
 const SPOTS_PAGE_SIZE = 1000;
 
+// 本人の pending も出す（追加した寺社を自分用にはすぐ使える）。他人の pending は RLS で落ちる（#248 D-8）。
+// 寺社の追加は Edge Function add-spot だけが行う（src/services/spotAdd.ts）
+const VISIBLE_STATUSES = ['active', 'pending'];
+
 export async function fetchAllActiveSpots(): Promise<Spot[]> {
   const allSpots: Spot[] = [];
 
@@ -13,7 +17,7 @@ export async function fetchAllActiveSpots(): Promise<Spot[]> {
     const { data, error } = await supabase
       .from('spots')
       .select('*')
-      .eq('status', 'active')
+      .in('status', VISIBLE_STATUSES)
       .order('id', { ascending: true })
       .range(from, from + SPOTS_PAGE_SIZE - 1);
 
@@ -35,7 +39,7 @@ export async function fetchSpotsByBounds(bounds: BoundingBox): Promise<Spot[]> {
   const { data, error } = await supabase
     .from('spots')
     .select('*')
-    .eq('status', 'active')
+    .in('status', VISIBLE_STATUSES)
     .gte('lat', bounds.minLat)
     .lte('lat', bounds.maxLat)
     .gte('lng', bounds.minLng)
@@ -60,38 +64,11 @@ export async function fetchSpotById(id: string): Promise<Spot | null> {
   return data as Spot;
 }
 
-export async function createSpot(params: {
-  name: string;
-  type: 'shrine' | 'temple';
-  lat: number;
-  lng: number;
-  createdByUserId: string;
-}): Promise<Spot> {
-  const { data, error } = await supabase
-    .from('spots')
-    .insert({
-      name: params.name,
-      type: params.type,
-      lat: params.lat,
-      lng: params.lng,
-      status: 'pending' as const,
-      created_by_user_id: params.createdByUserId,
-    })
-    .select()
-    .single();
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return data as Spot;
-}
-
 export async function fetchSpotsByPrefecture(prefecture: string): Promise<Spot[]> {
   const { data, error } = await supabase
     .from('spots')
     .select('*')
-    .eq('status', 'active')
+    .in('status', VISIBLE_STATUSES)
     .eq('prefecture', prefecture);
 
   if (error) {
@@ -105,7 +82,7 @@ export async function searchSpotsByName(query: string): Promise<Spot[]> {
   const { data, error } = await supabase
     .from('spots')
     .select('*')
-    .eq('status', 'active')
+    .in('status', VISIBLE_STATUSES)
     .ilike('name', `%${query}%`)
     .limit(10);
 
