@@ -92,7 +92,7 @@ export function SpotThumbnailStrip({
 }: SpotThumbnailStripProps) {
   const thumbnails = selectSheetThumbnails(stamps, publicStamps);
   // 帯に出ない残りの枚数。帯は増やさず、3枚目に「+N」を重ねる（開いてもグリッドにしない）
-  const more = selectSheetThumbnails(stamps, publicStamps, Infinity).length - thumbnails.length;
+  const more = buildSpotGalleryImages(stamps, publicStamps).length - thumbnails.length;
 
   if (thumbnails.length === 0) {
     return null;

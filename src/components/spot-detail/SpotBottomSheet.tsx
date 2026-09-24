@@ -446,6 +446,9 @@ const styles = StyleSheet.create({
     borderTopColor: colors.gray[200],
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
+    // Android は重なりの順を elevation で決める。シート（shadows.lg = 5）より上に置かないと、
+    // compact のときシートの箱の裏にボタンが回って押せなくなる
+    elevation: 6,
   },
   footerActions: {
     marginTop: 0,

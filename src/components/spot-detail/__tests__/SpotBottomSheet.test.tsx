@@ -1,6 +1,8 @@
 import React from 'react';
 import { render, fireEvent, within } from '@testing-library/react-native';
-import { StyleSheet } from 'react-native';
+import '@testing-library/react-native/extend-expect';
+import { Animated, Dimensions, StyleSheet } from 'react-native';
+import { BottomTabBarHeightContext } from '@react-navigation/bottom-tabs';
 import {
   SpotBottomSheet,
   resolveCompactHeight,
@@ -67,13 +69,6 @@ jest.mock('@hooks/useSpotInfo', () => ({
   useSpotInfo: () => ({
     spotInfo: mockSpotInfo,
     isLoading: false,
-  }),
-}));
-
-jest.mock('@hooks/useAuth', () => ({
-  useAuth: () => ({
-    isAuthenticated: true,
-    user: { id: 'user-1' },
   }),
 }));
 
@@ -234,8 +229,12 @@ describe('SpotBottomSheet — 並びが入れ替わらない（Issue #253）', (
     fetched_at: '2026-09-21T00:00:00Z',
   });
   const FULL = () => {
+    // 月参り（直近の記録が今月か先月なら続いている）の判定が日付で変わらないよう、今日を固定する
+    jest.useFakeTimers().setSystemTime(new Date('2026-09-25T12:00:00+09:00'));
     mockStamps = [stamp('s1', '2026-09-01'), stamp('s2', '2026-08-01')];
+    // s2 は自分の記録と公開の両方に出る（重複を除いて 4 枚）
     mockPublicStamps = [
+      { ...stamp('s2'), profiles: { display_name: 'me' } },
       { ...stamp('p1'), profiles: { display_name: 'a' } },
       { ...stamp('p2'), profiles: { display_name: 'b' } },
     ];
@@ -249,6 +248,8 @@ describe('SpotBottomSheet — 並びが入れ替わらない（Issue #253）', (
   };
   beforeEach(FULL);
   afterEach(() => {
+    jest.useRealTimers();
+    jest.restoreAllMocks();
     mockStamps = [];
     mockPublicStamps = [];
     mockSpotInfo = null;
@@ -346,10 +347,37 @@ describe('SpotBottomSheet — 並びが入れ替わらない（Issue #253）', (
     );
   });
 
+  it('タブの外ではフッターの下に端末のセーフエリアを足す', () => {
+    const ui = render(
+      <BottomTabBarHeightContext.Provider value={undefined}>
+        <SpotBottomSheet {...props} />
+      </BottomTabBarHeightContext.Provider>
+    );
+    const style = StyleSheet.flatten(ui.getByTestId('spot-sheet-footer').props.style);
+    expect(style.paddingBottom).toBe(spacing.md + 34);
+  });
+
+  it('閉じた高さは ハンドル + 見出しまでの中身 + フッター の実測の和', () => {
+    const spring = jest.spyOn(Animated, 'spring');
+    const ui = render(<SpotBottomSheet {...props} />);
+    const layout = (id: string, height: number) =>
+      fireEvent(ui.getByTestId(id), 'layout', {
+        nativeEvent: { layout: { height, width: 390, x: 0, y: 0 } },
+      });
+    layout('sheet-handle', 20);
+    layout('spot-sheet-primary', 250);
+    layout('spot-sheet-footer', 70);
+    const available = Dimensions.get('window').height - 49;
+    const last = spring.mock.calls.at(-1)?.[1] as { toValue: number };
+    expect(last.toValue).toBe(available - 340);
+  });
+
   it('写真を押すと、その写真からギャラリーが開く。シートは開かない', () => {
     const ui = render(<SpotBottomSheet {...props} />);
     fireEvent.press(ui.getByTestId('spot-thumbnail-1'));
     expect(ui.queryByTestId('gallery-frame')).toBeTruthy();
+    // 押した2枚目から、重複を除いた4枚のうちの 2 / 4
+    expect(ui.getByTestId('gallery-counter')).toHaveTextContent('2 / 4');
     expect(ui.queryByTestId('limited-goshuin-item-0')).toBeNull();
   });
 
