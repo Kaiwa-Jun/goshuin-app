@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<title>スポットのシート — 開いたときに動かない並び（2案）</title>
+<title>スポットのシート — 開いたときに動かない並び（案B）</title>
 <style>
 /* 値は src/theme と spot-detail の StyleSheet から（色・余白・文字の大きさ） */
 :root{
@@ -79,7 +79,8 @@ h1{color:#fff;font-size:19px;margin-bottom:6px}
 <h1>スポットのシート — 開いても、ものが入れ替わらない並び</h1>
 <p class="lead">
   例は本番の <b>榴岡天満宮</b>（あなたの投稿2件・限定御朱印4件。写真は仮の絵）。<b>ハンドルを上下にドラッグ</b>するか、上のボタンで開閉できます。<br>
-  「今」は開くと、限定御朱印のチップと写真の帯が消え、ボタンが上に跳び、下に詳細とグリッドが出る。<b>案A・案B は、どの要素も開く前と同じ場所にあり、下（B は上）に続きが出てくるだけ</b>。限定御朱印は見出しの下にその場で開く。
+  「今」は開くと、限定御朱印のチップと写真の帯が消え、ボタンが上に跳び、下に詳細とグリッドが出る。<b>案B は、開いても閉じても、どの要素も同じ場所にある</b>。ボタンは親指の届く下端に固定し、伸びるのは一番下の限定御朱印だけ。<br>
+  経緯: 案A（ボタンは名前の下）は、開くとボタンが画面の上寄りに来て片手で押しにくい、とのオーナーの指摘で外した（2026-09-25）。
 </p>
 
 <div class="row" id="row"></div>
@@ -138,14 +139,8 @@ const variants = [
     },
   },
   {
-    key: 'a', title: '案A — ボタンは名前の下（おすすめ）', desc: 'ボタンは閉じても開いても同じ場所。限定御朱印は見出しの下にその場で開き、写真の帯・月参り・アクセスが下に続く。',
-    html: `<div class="grab"><i></i></div><div class="pad">${header}${actions}${lim}${thumbs}<div class="cutA"></div>${rest}</div>`,
-    compactBottom: sheet => sheet.querySelector('.cutA'),
-    set(sheet, open) { sheet.querySelector('.lim').classList.toggle('open', open); },
-  },
-  {
-    key: 'b', title: '案B — ボタンは下に固定', desc: 'ボタンは常に画面の下端。中身の並びは同じで、開くと上に伸びて限定御朱印がその場で開く。',
-    html: `<div class="grab"><i></i></div><div class="pad">${header}${lim}${thumbs}<div class="cutB"></div>${rest}<div style="height:90px"></div></div>`,
+    key: 'b2', title: '案B — ボタンは下に固定・写真は名前の下', desc: 'ボタンは開いても閉じても画面の下端。写真と限定御朱印の見出しは動かず、開くと限定御朱印がその場で下に伸び、月参り・アクセスが続く。',
+    html: `<div class="grab"><i></i></div><div class="pad">${header}${thumbs}${lim}<div class="cutB"></div>${rest}<div style="height:96px"></div></div>`,
     compactBottom: sheet => sheet.querySelector('.cutB'),
     footer: true,
     set(sheet, open) { sheet.querySelector('.lim').classList.toggle('open', open); },
