@@ -75,13 +75,15 @@ jest.mock('@hooks/useRecordForm', () => ({
   useRecordForm: () => mockFormState,
 }));
 
+let mockSearchQuery = '';
 jest.mock('@hooks/useNearbySpots', () => ({
   useNearbySpots: () => ({
     nearbySpots: [{ spot: fakeSpot, distanceKm: 1.2 }],
     filteredSpots: [{ spot: fakeSpot, distanceKm: 1.2 }],
+    didYouMeanSpots: [],
     isLoading: false,
     error: null,
-    searchQuery: '',
+    searchQuery: mockSearchQuery,
     setSearchQuery: jest.fn(),
   }),
 }));
@@ -133,6 +135,14 @@ jest.mock('@services/badges', () => ({
 }));
 
 jest.mock('@services/spots', () => ({}));
+
+const mockResearchSpot = jest.fn();
+const mockAddResearchedSpot = jest.fn();
+jest.mock('@services/spotAdd', () => ({
+  researchSpot: (...a: unknown[]) => mockResearchSpot(...a),
+  addResearchedSpot: (...a: unknown[]) => mockAddResearchedSpot(...a),
+  addManualSpot: jest.fn(),
+}));
 
 jest.mock('@react-native-community/datetimepicker', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
@@ -1885,5 +1895,57 @@ describe('保存中の覆い（Issue #190）', () => {
     });
     expect(dismiss).toHaveBeenCalled();
     dismiss.mockRestore();
+  });
+});
+
+describe('見つからない寺社を調べて追加し、そのまま記録する（Issue #248 / AC-36・UI-9）', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockSearchQuery = '鹿島台神社';
+    mockFormState = {
+      ...mockFormState,
+      selectedSpot: null,
+      isSubmitting: false,
+    } as typeof mockFormState;
+  });
+  afterEach(() => {
+    mockSearchQuery = '';
+  });
+
+  it('「調べて追加」→「ここです」で追加した寺社が選ばれ、シートが閉じる。位置情報が未許可なら手がかり無し', async () => {
+    const added = { ...fakeSpot, id: 'new-spot', name: '鹿島台神社', status: 'pending' };
+    mockResearchSpot.mockResolvedValue({
+      kind: 'ok',
+      researchId: 'r1',
+      candidates: [
+        {
+          index: 0,
+          name: '鹿島台神社',
+          type: 'shrine',
+          address: '宮城県大崎市鹿島台平渡',
+          prefecture: '宮城県',
+          lat: 38.48,
+          lng: 141.09,
+          sourceCount: 3,
+          sourceLabels: [],
+        },
+      ],
+    });
+    mockAddResearchedSpot.mockResolvedValue(added);
+
+    const ui = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent(ui.getByPlaceholderText('スポット名で検索'), 'focus');
+    await act(async () => {
+      fireEvent.press(ui.getByTestId('spot-research'));
+    });
+    expect(mockResearchSpot).toHaveBeenCalledWith('鹿島台神社', null);
+    expect(ui.getByText('これですか？')).toBeTruthy();
+    await act(async () => {
+      fireEvent.press(ui.getByText('ここです'));
+    });
+    expect(mockAddResearchedSpot).toHaveBeenCalledWith('r1', 0);
+    expect(mockSelectSpot).toHaveBeenCalledWith(added);
+    expect(ui.queryByText('これですか？')).toBeNull();
+    for (const w of [/確認待ち/, /公開/, /追加した寺社/]) expect(ui.queryByText(w)).toBeNull();
   });
 });

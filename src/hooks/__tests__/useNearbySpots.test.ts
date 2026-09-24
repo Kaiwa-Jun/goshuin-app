@@ -190,4 +190,31 @@ describe('useNearbySpots', () => {
     expect(result.current.error).toBe('位置情報の取得に失敗しました');
     expect(result.current.nearbySpots).toEqual([]);
   });
+
+  it('もしかして: 絞り込みに入らない似た名前を、近い順に。本人の pending も含む（Issue #248 UI-15）', () => {
+    const location = { latitude: 38.2682, longitude: 140.8694 };
+    const mine = makeFakeSpot({ id: 'mine', name: '鹿島台神社', status: 'pending' });
+    const kashima = makeFakeSpot({ id: 'kashima', name: '鹿島神宮' });
+    const other = makeFakeSpot({ id: 'other', name: '瑞鳳殿' });
+    mockUseLocation.mockReturnValue({
+      location,
+      isLoading: false,
+      error: null,
+      permissionStatus: null,
+      refreshLocation: jest.fn(),
+    });
+    mockUseSpots.mockReturnValue({
+      spots: [mine, kashima, other],
+      allSpots: [mine, kashima, other],
+      isLoading: false,
+      error: null,
+    });
+    mockCalculateDistance.mockImplementation((_a, _b, lat) => lat);
+
+    const { result } = renderHook(() => useNearbySpots());
+    expect(result.current.nearbySpots.map(i => i.spot.id)).toContain('mine');
+    act(() => result.current.setSearchQuery('鹿島台'));
+    expect(result.current.filteredSpots.map(i => i.spot.id)).toEqual(['mine']);
+    expect(result.current.didYouMeanSpots.map(i => i.spot.id)).toEqual(['kashima']);
+  });
 });
