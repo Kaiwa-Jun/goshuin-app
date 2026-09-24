@@ -38,11 +38,6 @@ interface SpotDetailContentProps {
   publicStamps?: PublicStampWithUser[];
   spotInfo?: ParsedSpotInfo;
   onGalleryVisibleChange?: (visible: boolean) => void;
-  /**
-   * 'sheet' はボトムシートの展開時に使う。ヘッダー・情報行・アクション行は
-   * シート側が常時描画しているため、ここでは描画しない（二重表示の防止）。
-   */
-  variant?: 'standalone' | 'sheet';
 }
 
 export function SpotDetailContent({
@@ -57,9 +52,7 @@ export function SpotDetailContent({
   publicStamps = [],
   spotInfo,
   onGalleryVisibleChange,
-  variant = 'standalone',
 }: SpotDetailContentProps) {
-  const isStandalone = variant === 'standalone';
   const showVisited = isAuthenticated && visitCount > 0;
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
 
@@ -94,24 +87,18 @@ export function SpotDetailContent({
 
   return (
     <View style={styles.content} testID="spot-detail-content">
-      {isStandalone && (
-        <>
-          <SpotSheetHeader spot={spot} isVisited={showVisited} isWishlisted={isWishlisted} />
-          {spotInfo && <SpotInfoSection spotInfo={spotInfo} />}
-        </>
-      )}
+      <SpotSheetHeader spot={spot} isVisited={showVisited} isWishlisted={isWishlisted} />
+      {spotInfo && <SpotInfoSection spotInfo={spotInfo} />}
 
       {spotInfo && (
         <LimitedGoshuinSection info={spotInfo.limitedGoshuin} snsLinks={spotInfo.snsLinks} />
       )}
 
-      {isStandalone && (
-        <SpotSheetActions
-          isWishlisted={isWishlisted}
-          onWishlistPress={onWishlistPress}
-          onRecordPress={onRecord}
-        />
-      )}
+      <SpotSheetActions
+        isWishlisted={isWishlisted}
+        onWishlistPress={onWishlistPress}
+        onRecordPress={onRecord}
+      />
 
       <SpotTsukimairi stamps={stamps} />
 

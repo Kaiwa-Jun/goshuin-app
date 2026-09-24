@@ -1,12 +1,16 @@
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
+import { render, fireEvent, within } from '@testing-library/react-native';
+import { StyleSheet } from 'react-native';
 import {
   SpotBottomSheet,
   resolveCompactHeight,
   COMPACT_MIN_HEIGHT,
   COMPACT_MAX_HEIGHT,
   COMPACT_FALLBACK_HEIGHT,
+  COMPACT_SCREEN_RATIO,
+  sumCompactParts,
 } from '../SpotBottomSheet';
+import { spacing } from '@theme/spacing';
 import type { Spot } from '@/types/supabase';
 
 jest.mock('@react-navigation/bottom-tabs', () => {
@@ -44,10 +48,15 @@ jest.mock('@hooks/useSpotDetail', () => ({
   }),
 }));
 
+// テストごとに差し替える（写真・限定御朱印あり / なし）
+let mockStamps: unknown[] = [];
+let mockPublicStamps: unknown[] = [];
+let mockSpotInfo: unknown = null;
+
 jest.mock('@hooks/useSpotStamps', () => ({
   useSpotStamps: () => ({
-    stamps: [],
-    publicStamps: [],
+    stamps: mockStamps,
+    publicStamps: mockPublicStamps,
     visitCount: 2,
     latestVisitDate: '2024-06-15',
     isLoading: false,
@@ -56,7 +65,7 @@ jest.mock('@hooks/useSpotStamps', () => ({
 
 jest.mock('@hooks/useSpotInfo', () => ({
   useSpotInfo: () => ({
-    spotInfo: null,
+    spotInfo: mockSpotInfo,
     isLoading: false,
   }),
 }));
@@ -111,17 +120,6 @@ describe('SpotBottomSheet', () => {
       expect(getByTestId('spot-sheet-header')).toBeTruthy();
     });
 
-    it('compact では詳細を描画しない', () => {
-      const { queryByTestId } = render(<SpotBottomSheet {...defaultProps} />);
-      expect(queryByTestId('spot-detail-content')).toBeNull();
-    });
-
-    it('ハンドルのタップで詳細が現れる', () => {
-      const { getByTestId } = render(<SpotBottomSheet {...defaultProps} />);
-      fireEvent.press(getByTestId('sheet-handle'));
-      expect(getByTestId('spot-detail-content')).toBeTruthy();
-    });
-
     it('展開してもヘッダーが同じ testID のまま残る', () => {
       const { getByTestId } = render(<SpotBottomSheet {...defaultProps} />);
       fireEvent.press(getByTestId('sheet-handle'));
@@ -132,13 +130,6 @@ describe('SpotBottomSheet', () => {
       const { getByTestId } = render(<SpotBottomSheet {...defaultProps} />);
       fireEvent.press(getByTestId('sheet-handle'));
       expect(getByTestId('spot-sheet-actions')).toBeTruthy();
-    });
-
-    it('ハンドルを2回タップすると詳細が閉じる', () => {
-      const { getByTestId, queryByTestId } = render(<SpotBottomSheet {...defaultProps} />);
-      fireEvent.press(getByTestId('sheet-handle'));
-      fireEvent.press(getByTestId('sheet-handle'));
-      expect(queryByTestId('spot-detail-content')).toBeNull();
     });
 
     it('展開時にヘッダーが二重に描画されない', () => {
@@ -195,14 +186,182 @@ describe('resolveCompactHeight', () => {
     expect(resolveCompactHeight(999, SCREEN)).toBe(COMPACT_MAX_HEIGHT);
   });
 
-  it('小型端末では画面の半分を超えない', () => {
-    // iPhone SE 相当。380 ではなく 334 が上限になる
-    expect(resolveCompactHeight(999, 667)).toBe(334);
+  it('小型端末では画面の 6 割を超えない（フッターを含めるため 0.5 → 0.6。Issue #253）', () => {
+    expect(COMPACT_SCREEN_RATIO).toBe(0.6);
+    expect(resolveCompactHeight(999, 618)).toBe(371);
+    expect(resolveCompactHeight(999, 800)).toBe(380);
   });
 
   it('不正な値はフォールバックする', () => {
     expect(resolveCompactHeight(0, SCREEN)).toBe(COMPACT_FALLBACK_HEIGHT);
     expect(resolveCompactHeight(-10, SCREEN)).toBe(COMPACT_FALLBACK_HEIGHT);
     expect(resolveCompactHeight(NaN, SCREEN)).toBe(COMPACT_FALLBACK_HEIGHT);
+  });
+});
+
+describe('sumCompactParts', () => {
+  it('ハンドル・中身・フッターの和。未計測は 0', () => {
+    expect(sumCompactParts({ handle: 20, primary: 250, footer: 70 })).toBe(340);
+    expect(sumCompactParts({ handle: 20, primary: 0, footer: 70 })).toBe(90);
+  });
+});
+
+/* Issue #253: 閉じても開いても並びが同じ。ボタンは下端に固定 */
+describe('SpotBottomSheet — 並びが入れ替わらない（Issue #253）', () => {
+  const props = {
+    spotId: 'spot-1' as string | null,
+    visitedSpotIds: new Set(['spot-1']),
+    onDismiss: jest.fn(),
+    onRecord: jest.fn(),
+    wishlistSpotIds: new Set<string>(),
+    onWishlistToggle: jest.fn(),
+  };
+  const stamp = (id: string, visited = '2026-09-01') => ({
+    id,
+    user_id: 'user-1',
+    spot_id: 'spot-1',
+    image_path: `user-1/${id}.jpg`,
+    visited_at: visited,
+    memo: null,
+  });
+  const item = (name: string) => ({
+    name,
+    period: null,
+    period_start: null,
+    period_end: null,
+    description: null,
+    source_url: 'https://www.instagram.com/p/x/',
+    fetched_at: '2026-09-21T00:00:00Z',
+  });
+  const FULL = () => {
+    mockStamps = [stamp('s1', '2026-09-01'), stamp('s2', '2026-08-01')];
+    mockPublicStamps = [
+      { ...stamp('p1'), profiles: { display_name: 'a' } },
+      { ...stamp('p2'), profiles: { display_name: 'b' } },
+    ];
+    mockSpotInfo = {
+      receptionHours: { open: '9:00', close: '16:00' },
+      limitedGoshuin: {
+        items: [item('猫切り絵'), item('花札')],
+        fetched_at: '2026-09-21T00:00:00Z',
+      },
+    };
+  };
+  beforeEach(FULL);
+  afterEach(() => {
+    mockStamps = [];
+    mockPublicStamps = [];
+    mockSpotInfo = null;
+  });
+
+  const ORDER = [
+    'spot-sheet-header',
+    'spot-info-section',
+    'spot-thumbnails',
+    'limited-goshuin-heading',
+    'tsukimairi-card',
+  ];
+  type Node = { props: { testID?: string }; children: (Node | string)[] };
+  /** 木を深さ優先でたどって、見たい testID の出てくる順 */
+  const orderOf = (root: Node) => {
+    const seen: string[] = [];
+    const walk = (node: Node) => {
+      const id = node.props?.testID;
+      if (id && ORDER.includes(id) && !seen.includes(id)) seen.push(id);
+      node.children.forEach(c => typeof c !== 'string' && walk(c));
+    };
+    walk(root);
+    return seen;
+  };
+
+  it('閉じても開いても同じ並び。閉じたときにあった要素が開いても消えない', () => {
+    const ui = render(<SpotBottomSheet {...props} />);
+    expect(orderOf(ui.getByTestId('bottom-sheet') as unknown as Node)).toEqual(ORDER);
+    fireEvent.press(ui.getByTestId('sheet-handle'));
+    expect(orderOf(ui.getByTestId('bottom-sheet') as unknown as Node)).toEqual(ORDER);
+    expect(ui.queryByTestId('stamp-grid')).toBeNull();
+    expect(ui.queryByTestId('spot-detail-content')).toBeNull();
+    expect(ui.queryByTestId('mini-map')).toBeNull();
+  });
+
+  it('限定御朱印の中身は、開いたときだけ見出しの下に出る。見出しを押しても開く', () => {
+    const ui = render(<SpotBottomSheet {...props} />);
+    expect(ui.queryByTestId('limited-goshuin-item-0')).toBeNull();
+    fireEvent.press(ui.getByTestId('sheet-handle'));
+    expect(ui.getByTestId('limited-goshuin-item-0')).toBeTruthy();
+    fireEvent.press(ui.getByTestId('sheet-handle'));
+    expect(ui.queryByTestId('limited-goshuin-item-0')).toBeNull();
+    fireEvent.press(ui.getByTestId('limited-goshuin-heading'));
+    expect(ui.getByTestId('limited-goshuin-item-0')).toBeTruthy();
+  });
+
+  it('ボタンはシートの外の下端のフッターに1つだけ。開いても、スクロールしても', () => {
+    const ui = render(<SpotBottomSheet {...props} />);
+    const check = () => {
+      expect(ui.getAllByTestId('spot-sheet-actions')).toHaveLength(1);
+      expect(
+        within(ui.getByTestId('spot-sheet-footer')).getByTestId('spot-sheet-actions')
+      ).toBeTruthy();
+      expect(within(ui.getByTestId('bottom-sheet')).queryByTestId('spot-sheet-actions')).toBeNull();
+    };
+    check();
+    fireEvent.press(ui.getByTestId('sheet-handle'));
+    check();
+    fireEvent.scroll(ui.getByTestId('spot-sheet-scroll'), {
+      nativeEvent: {
+        contentOffset: { y: 200 },
+        contentSize: { height: 1000, width: 390 },
+        layoutMeasurement: { height: 500, width: 390 },
+      },
+    });
+    check();
+  });
+
+  it('スポットが無くなるとシートもフッターも消える', () => {
+    const ui = render(<SpotBottomSheet {...props} />);
+    ui.rerender(<SpotBottomSheet {...props} spotId={null} />);
+    expect(ui.queryByTestId('bottom-sheet')).toBeNull();
+    expect(ui.queryByTestId('spot-sheet-footer')).toBeNull();
+  });
+
+  it('閉じているときはスクロールしない。中身の最後にフッターの高さ分の余白', () => {
+    const ui = render(<SpotBottomSheet {...props} />);
+    expect(ui.getByTestId('spot-sheet-scroll').props.scrollEnabled).toBe(false);
+    fireEvent(ui.getByTestId('spot-sheet-footer'), 'layout', {
+      nativeEvent: { layout: { height: 70, width: 390, x: 0, y: 0 } },
+    });
+    fireEvent.press(ui.getByTestId('sheet-handle'));
+    const scroll = ui.getByTestId('spot-sheet-scroll');
+    expect(scroll.props.scrollEnabled).toBe(true);
+    expect(StyleSheet.flatten(scroll.props.contentContainerStyle).paddingBottom).toBe(
+      70 + spacing.lg
+    );
+  });
+
+  it('タブの中ではフッターの下の余白は spacing.md（タブバーがセーフエリアを持つ）', () => {
+    const ui = render(<SpotBottomSheet {...props} />);
+    const style = [ui.getByTestId('spot-sheet-footer').props.style].flat(3);
+    expect(style).toEqual(
+      expect.arrayContaining([expect.objectContaining({ paddingBottom: spacing.md })])
+    );
+  });
+
+  it('写真を押すと、その写真からギャラリーが開く。シートは開かない', () => {
+    const ui = render(<SpotBottomSheet {...props} />);
+    fireEvent.press(ui.getByTestId('spot-thumbnail-1'));
+    expect(ui.queryByTestId('gallery-frame')).toBeTruthy();
+    expect(ui.queryByTestId('limited-goshuin-item-0')).toBeNull();
+  });
+
+  it('限定御朱印も公式SNSも無ければ見出しを出さない。写真が無ければ帯を出さない', () => {
+    mockSpotInfo = { receptionHours: { open: '9:00' } };
+    mockStamps = [];
+    mockPublicStamps = [];
+    const ui = render(<SpotBottomSheet {...props} />);
+    expect(ui.queryByTestId('limited-goshuin-heading')).toBeNull();
+    expect(ui.queryByTestId('spot-thumbnails')).toBeNull();
+    fireEvent.press(ui.getByTestId('sheet-handle'));
+    expect(ui.queryByTestId('limited-goshuin-heading')).toBeNull();
+    expect(ui.queryByTestId('spot-thumbnails')).toBeNull();
   });
 });
