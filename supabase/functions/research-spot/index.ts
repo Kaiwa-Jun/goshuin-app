@@ -42,23 +42,14 @@ Deno.serve(async req => {
           const { data, error } = await authClient.auth.getUser(token);
           return error || !data?.user ? null : data.user.id;
         },
-        countToday: async (userId, sinceIso) => {
-          const { count, error } = await admin
-            .from('spot_research_requests')
-            .select('id', { count: 'exact', head: true })
-            .eq('user_id', userId)
-            .gte('created_at', sinceIso);
+        claimRequest: async (userId, sinceIso, limit) => {
+          const { data, error } = await admin.rpc('claim_spot_research', {
+            p_user: userId,
+            p_since: sinceIso,
+            p_limit: limit,
+          });
           if (error) throw new Error(error.message);
-          return count ?? 0;
-        },
-        insertRequest: async userId => {
-          const { data, error } = await admin
-            .from('spot_research_requests')
-            .insert({ user_id: userId })
-            .select('id')
-            .single();
-          if (error) throw new Error(error.message);
-          return data.id as string;
+          return (data as string | null) ?? null;
         },
         updateCandidates: async (id, candidates) => {
           const { error } = await admin

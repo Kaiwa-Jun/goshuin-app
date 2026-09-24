@@ -5,7 +5,7 @@
 --
 -- ⚠ 必ずエラーで終わる。それで正しい。最後に RAISE EXCEPTION して、試しに入れた行をすべて巻き戻す。
 --   期待値:
---     RESULT own_pending=visible other_pending=hidden active=visible own_pending_stamp_join=visible insert=denied research_select=denied
+--     RESULT own_pending=visible other_pending=hidden active=visible own_pending_stamp_join=visible insert=denied research_select=denied claim=denied
 --
 -- SELECT の拒否は例外にならず 0 行になるので、見える・見えないは件数で測る（例外で測るのは INSERT だけ）。
 -- created_by_user_id は auth.users への FK なので、既存のユーザーを2人使う
@@ -19,7 +19,7 @@ DECLARE
   other_spot uuid := gen_random_uuid();
   active_spot uuid;
   n int;
-  own_pending text; other_pending text; active_v text; stamp_join text; insert_v text; research_v text;
+  own_pending text; other_pending text; active_v text; stamp_join text; insert_v text; research_v text; claim_v text;
 BEGIN
   SELECT id INTO me FROM auth.users ORDER BY created_at LIMIT 1;
   SELECT id INTO other FROM auth.users ORDER BY created_at OFFSET 1 LIMIT 1;
@@ -53,6 +53,14 @@ BEGIN
     insert_v := 'denied';
   END;
 
-  RAISE EXCEPTION 'RESULT own_pending=% other_pending=% active=% own_pending_stamp_join=% insert=% research_select=%',
-    own_pending, other_pending, active_v, stamp_join, insert_v, research_v;
+  -- 回数の台帳に入れる関数は service role だけ（直接呼んで他人の枠を使わせない）
+  BEGIN
+    PERFORM public.claim_spot_research(other, now(), 10);
+    claim_v := 'allowed';
+  EXCEPTION WHEN insufficient_privilege THEN
+    claim_v := 'denied';
+  END;
+
+  RAISE EXCEPTION 'RESULT own_pending=% other_pending=% active=% own_pending_stamp_join=% insert=% research_select=% claim=%',
+    own_pending, other_pending, active_v, stamp_join, insert_v, research_v, claim_v;
 END $$;

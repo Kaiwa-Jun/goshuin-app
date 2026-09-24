@@ -39,10 +39,11 @@ const CITY = /^[^\s]{1,20}[市区町村]$/;
 
 export interface ResearchDeps {
   getUserId(token: string): Promise<string | null>;
-  /** sinceIso 以降の本人の行の数 */
-  countToday(userId: string, sinceIso: string): Promise<number>;
-  /** 1行記録して id を返す（回数の台帳。hint は渡さない） */
-  insertRequest(userId: string): Promise<string>;
+  /**
+   * sinceIso 以降の本人の行が limit 未満なら1行記録して id を、limit 以上なら null を返す（回数の台帳。hint は渡さない）。
+   * 数えると入れるを**1回で**やる（別々だと、同時に投げた10本がどれも「9回目」に見えて上限を抜ける）
+   */
+  claimRequest(userId: string, sinceIso: string, limit: number): Promise<string | null>;
   updateCandidates(id: string, candidates: StoredCandidate[]): Promise<void>;
   fetch: typeof fetch;
   anthropicApiKey: string;
@@ -255,11 +256,9 @@ export async function handleResearchRequest(
   if (!name) return fail(400, 'invalid name');
   const hint = cleanHint(body.hint);
 
-  if ((await deps.countToday(userId, startOfTodayJstIso(deps.now()))) >= DAILY_LIMIT) {
-    return fail(429, 'daily limit');
-  }
   // 先に数える（Claude が失敗しても1回）
-  const researchId = await deps.insertRequest(userId);
+  const researchId = await deps.claimRequest(userId, startOfTodayJstIso(deps.now()), DAILY_LIMIT);
+  if (!researchId) return fail(429, 'daily limit');
 
   const claude = await callClaude(deps, buildClaudeBody(name, hint));
   if (!claude.ok) return fail(claude.status, claude.status === 504 ? 'timeout' : 'research failed');

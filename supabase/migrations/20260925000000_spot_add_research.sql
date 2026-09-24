@@ -25,3 +25,27 @@ CREATE INDEX idx_spot_research_requests_user_created
   ON public.spot_research_requests (user_id, created_at DESC);
 
 ALTER TABLE public.spot_research_requests ENABLE ROW LEVEL SECURITY;
+
+-- 回数の上限（1人1日10回）を数えて1行入れるのを、本人ごとのロックの中で1回でやる。
+-- 数えるのと入れるのを別々にすると、同時に投げた何本もがどれも「上限未満」に見えて抜ける
+CREATE FUNCTION public.claim_spot_research(p_user UUID, p_since TIMESTAMPTZ, p_limit INT)
+RETURNS UUID
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+DECLARE
+  new_id UUID;
+BEGIN
+  PERFORM pg_advisory_xact_lock(hashtextextended('spot_research:' || p_user::text, 0));
+  IF (SELECT count(*) FROM spot_research_requests
+      WHERE user_id = p_user AND created_at >= p_since) >= p_limit THEN
+    RETURN NULL;
+  END IF;
+  INSERT INTO spot_research_requests (user_id) VALUES (p_user) RETURNING id INTO new_id;
+  RETURN new_id;
+END;
+$$;
+
+-- service role（research-spot）だけが呼べる。ログインしたユーザーが直接呼んで他人の枠を使わせない
+REVOKE EXECUTE ON FUNCTION public.claim_spot_research(UUID, TIMESTAMPTZ, INT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.claim_spot_research(UUID, TIMESTAMPTZ, INT) TO service_role;

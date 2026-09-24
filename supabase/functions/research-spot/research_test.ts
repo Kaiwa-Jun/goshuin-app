@@ -81,11 +81,10 @@ function makeDeps(opts: Opts = {}) {
   let countSince = '';
   const deps: ResearchDeps = {
     getUserId: async token => (token === TOKEN ? ME : null),
-    countToday: async (_userId, sinceIso) => {
+    // 本物は DB の関数 claim_spot_research（本人ごとの advisory lock の中で数えて1行入れる）
+    claimRequest: async (userId, sinceIso, limit) => {
       countSince = sinceIso;
-      return opts.countToday ?? 0;
-    },
-    insertRequest: async userId => {
+      if ((opts.countToday ?? 0) >= limit) return null;
       inserted.push(userId);
       return 'req-1';
     },
