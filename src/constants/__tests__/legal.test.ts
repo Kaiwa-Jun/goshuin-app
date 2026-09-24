@@ -165,9 +165,9 @@ describe('legal constants', () => {
     const body = (doc: typeof PRIVACY_POLICY, title: string) =>
       doc.sections.find((s: LegalSection) => s.title === title)!.body;
 
-    it('Anthropic に送るのは名前と市区町村名で、位置情報そのものは送らない', () => {
+    it('Anthropic に送るのは名前と、本人が絞った地域だけで、位置情報そのものは送らない', () => {
       expect(body(PRIVACY_POLICY, '第三者提供')).toContain(
-        'スポットを追加するとき、調べる手がかりとして、入力したスポット名と市区町村名をAnthropicのClaude APIに送信します。位置情報そのものは送信しません。'
+        'スポットを追加するとき、調べる手がかりとして、入力したスポット名と、地域を絞ったときはその都道府県・市区町村名をAnthropicのClaude APIに送信します。位置情報そのものは送信しません。'
       );
       expect(body(PRIVACY_POLICY, '情報の利用目的')).toContain('【スポットの追加】');
     });

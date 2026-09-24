@@ -51,10 +51,10 @@ Deno.serve(async req => {
           if (error) throw new Error(error.message);
           return (data as string | null) ?? null;
         },
-        updateCandidates: async (id, candidates) => {
+        updateCandidates: async (id, candidates, diagnostics) => {
           const { error } = await admin
             .from('spot_research_requests')
-            .update({ candidates })
+            .update({ candidates, diagnostics })
             .eq('id', id);
           if (error) throw new Error(error.message);
         },

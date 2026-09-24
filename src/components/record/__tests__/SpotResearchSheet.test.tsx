@@ -42,17 +42,18 @@ describe('SpotResearchSheet', () => {
     const h = handlers();
     const ui = render(<SpotResearchSheet state={state({})} userLocation={null} {...h} />);
     expect(ui.getByText('「鹿島台神社」を調べています')).toBeTruthy();
-    expect(ui.getByText('宮城県 大崎市 のあたり')).toBeTruthy();
+    expect(ui.getByText('宮城県 大崎市 を優先して探しています')).toBeTruthy();
     expect(ui.getByText('変える')).toBeTruthy();
     fireEvent.press(ui.getByText('調べずに、地図で場所を決める'));
     expect(h.onOpenManual).toHaveBeenCalled();
   });
 
-  it('手がかりが無ければ「全国から探しています」', () => {
+  it('手がかりが無ければ「全国から探しています」と「地域を絞る」', () => {
     const ui = render(
       <SpotResearchSheet state={state({ hint: null })} userLocation={null} {...handlers()} />
     );
     expect(ui.getByText('全国から探しています')).toBeTruthy();
+    expect(ui.getByText('地域を絞る')).toBeTruthy();
   });
 
   it('「変える」で直した手がかりで調べ直す。空なら null', () => {
