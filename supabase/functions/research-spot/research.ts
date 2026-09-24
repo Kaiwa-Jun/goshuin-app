@@ -52,6 +52,9 @@ export interface ResearchDeps {
   now(): number;
 }
 
+/** 調べるのに要る I/O だけ（スクリプトからも使う） */
+export type ResearchIo = Pick<ResearchDeps, 'fetch' | 'anthropicApiKey' | 'setTimer'>;
+
 export interface ResponseCandidate {
   index: number;
   name: string;
@@ -183,7 +186,7 @@ function toDraft(value: unknown, titles: Map<string, string>): Draft | null {
 
 /** 住所から座標。都道府県が合う最初の1件だけ。無い・失敗・時間切れは null */
 async function geocode(
-  deps: ResearchDeps,
+  deps: ResearchIo,
   address: string,
   prefecture: string
 ): Promise<{ lat: number; lng: number } | null> {
@@ -209,7 +212,7 @@ async function geocode(
 }
 
 async function callClaude(
-  deps: ResearchDeps,
+  deps: ResearchIo,
   body: unknown
 ): Promise<{ ok: true; blocks: ContentBlock[] } | { ok: false; status: number }> {
   const controller = new AbortController();
@@ -244,6 +247,33 @@ async function callClaude(
   }
 }
 
+/**
+ * 名前と手がかりから候補を調べる（Claude + ウェブ検索 → スキーマ検証 → 検索結果との突き合わせ → 国土地理院）。
+ * 既存の pending に同じ判定を当てるスクリプト（supabase/scripts/judge-pending-spots.ts）も使う
+ */
+export async function researchCandidates(
+  deps: ResearchIo,
+  name: string,
+  hint: { prefecture: string | null; city: string | null }
+): Promise<{ ok: true; candidates: StoredCandidate[] } | { ok: false; status: number }> {
+  const claude = await callClaude(deps, buildClaudeBody(name, hint));
+  if (!claude.ok) return claude;
+
+  const titles = searchResultTitles(claude.blocks);
+  const drafts = parseCandidatesJson(claude.blocks)
+    .map(c => toDraft(c, titles))
+    .filter((d): d is Draft => d !== null)
+    .slice(0, MAX_CANDIDATES);
+
+  const located = await Promise.all(
+    drafts.map(async d => {
+      const point = await geocode(deps, d.address, d.prefecture);
+      return point ? { ...d, ...point } : null;
+    })
+  );
+  return { ok: true, candidates: located.filter((c): c is StoredCandidate => c !== null) };
+}
+
 export async function handleResearchRequest(
   deps: ResearchDeps,
   token: string | null,
@@ -260,22 +290,9 @@ export async function handleResearchRequest(
   const researchId = await deps.claimRequest(userId, startOfTodayJstIso(deps.now()), DAILY_LIMIT);
   if (!researchId) return fail(429, 'daily limit');
 
-  const claude = await callClaude(deps, buildClaudeBody(name, hint));
-  if (!claude.ok) return fail(claude.status, claude.status === 504 ? 'timeout' : 'research failed');
-
-  const titles = searchResultTitles(claude.blocks);
-  const drafts = parseCandidatesJson(claude.blocks)
-    .map(c => toDraft(c, titles))
-    .filter((d): d is Draft => d !== null)
-    .slice(0, MAX_CANDIDATES);
-
-  const located = await Promise.all(
-    drafts.map(async d => {
-      const point = await geocode(deps, d.address, d.prefecture);
-      return point ? { ...d, ...point } : null;
-    })
-  );
-  const stored = located.filter((c): c is StoredCandidate => c !== null);
+  const found = await researchCandidates(deps, name, hint);
+  if (!found.ok) return fail(found.status, found.status === 504 ? 'timeout' : 'research failed');
+  const stored = found.candidates;
   await deps.updateCandidates(researchId, stored);
 
   const candidates: ResponseCandidate[] = stored.map((c, index) => ({
