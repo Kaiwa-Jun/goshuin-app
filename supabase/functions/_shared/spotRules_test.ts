@@ -20,6 +20,9 @@ Deno.test('P-1: 独立したドメインを数える', () => {
   assertEquals(countIndependentDomains(['https://a.sakura.ne.jp', 'https://b.sakura.ne.jp']), 1);
   assertEquals(countIndependentDomains(['https://jinja.or.jp', 'https://city.osaki.miyagi.jp']), 2);
   assertEquals(countIndependentDomains(['http://a.example.com', 'https://localhost/x']), 0);
+  // 末尾のドット・大文字で同じ運営を2つに数えさせない。IP は数えない
+  assertEquals(countIndependentDomains(['https://example.jp/a', 'https://EXAMPLE.jp./b']), 1);
+  assertEquals(countIndependentDomains(['https://8.8.8.8/a', 'https://1.1.1.1/b']), 0);
 });
 
 Deno.test('P-2: 都道府県の範囲（validate_spots.sql と同じ値）', () => {
@@ -41,6 +44,15 @@ Deno.test('P-3: 300m 以内の似た名前の active', () => {
   assertEquals(hasSimilarActiveNearby('鹿島台神社', 38, 141, at(299)), true);
   assertEquals(hasSimilarActiveNearby('鹿島台神社', 38, 141, at(301)), false);
   assertEquals(hasSimilarActiveNearby('鹿島台神社', 38, 141, at(10, '瑞鳳殿')), false);
+});
+
+Deno.test('見えない文字を混ぜても、同じ名前として扱う', () => {
+  assertEquals(isSimilarName('鹿島\u200B台神社', '鹿島台神社'), true);
+  assertEquals(
+    hasSimilarActiveNearby('瑞\u200D鳳殿', 38, 141, [{ name: '瑞鳳殿', lat: 38, lng: 141 }]),
+    true
+  );
+  assertEquals(typeConflicts('東福\u200B寺', 'shrine'), true);
 });
 
 Deno.test('P-4: 名前と種別の矛盾', () => {

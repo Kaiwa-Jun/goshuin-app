@@ -14,7 +14,10 @@ const JP_SECOND_LEVEL = new Set(['co', 'or', 'ne', 'ac', 'go', 'lg', 'gr', 'ed',
 /** 同じ運営とみなす単位。a.sakura.ne.jp と b.sakura.ne.jp は同じ（厳しい側に倒す） */
 export function registrableDomain(url: string): string | null {
   if (!isAllowedSourceUrl(url)) return null;
-  const labels = new URL(url).hostname.replace(/^www\./, '').split('.');
+  // 末尾のドット（example.jp.）で同じ運営を別に数えさせない。IP アドレスは運営の単位にならないので数えない
+  const host = new URL(url).hostname.toLowerCase().replace(/\.+$/, '');
+  if (/^[\d.]+$/.test(host) || host.startsWith('[') || !host.includes('.')) return null;
+  const labels = host.replace(/^www\./, '').split('.');
   const take = labels.at(-1) === 'jp' && JP_SECOND_LEVEL.has(labels.at(-2) ?? '') ? 3 : 2;
   return labels.slice(-take).join('.');
 }
