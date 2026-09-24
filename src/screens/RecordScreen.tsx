@@ -22,7 +22,6 @@ import { SpotPlacePicker } from '@components/record/SpotPlacePicker';
 import { SpotResearchSheet } from '@components/record/SpotResearchSheet';
 import { useSpotAdd } from '@hooks/useSpotAdd';
 import { DEFAULT_LOCATION } from '@utils/geo';
-import { nearbyHint } from '@utils/spotHint';
 import { usePhotoPicker } from '@hooks/usePhotoPicker';
 import { useRecordForm } from '@hooks/useRecordForm';
 import { useNearbySpots } from '@hooks/useNearbySpots';
@@ -67,10 +66,11 @@ export function RecordScreen({ navigation, route }: Props) {
   const form = useRecordForm(initialSpotId ? { initialSpotId } : { autoSelectableSpot });
 
   // 見つからない寺社を調べて追加し、そのまま記録に使う（Issue #248）。
-  // 調べる手がかりは近くの寺社の住所から取った文字だけ。位置情報そのものは送らない
+  // 最初は全国から探す。家に帰ってから記録することも多いので、いまいる場所を手がかりにしない
+  // （東京の自宅で仙台の寺社を調べると「東京都 狛江市のあたり」になって見つからなかった）。
+  // 地域は本人が「地域を絞る」で指定したときだけ送る。位置情報そのものは送らない
   const spotAdd = useSpotAdd(form.selectSpot);
-  const handleResearch = (name: string) =>
-    spotAdd.start(name, nearbyHint(nearbySpots, permissionStatus ?? ''));
+  const handleResearch = (name: string) => spotAdd.start(name, null);
 
   const scrollViewRef = useRef<ScrollView>(null);
   const memoRect = useRef({ y: 0, height: 0 });

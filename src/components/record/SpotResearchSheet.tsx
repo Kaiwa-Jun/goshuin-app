@@ -72,7 +72,7 @@ function HintChip({
         <TextInput
           value={text}
           onChangeText={setText}
-          placeholder="例: 宮城県 大崎市（空なら全国）"
+          placeholder="例: 宮城県 仙台市（空なら全国）"
           placeholderTextColor={colors.gray[400]}
           style={styles.hintInput}
           autoFocus
@@ -93,9 +93,11 @@ function HintChip({
   return (
     <View style={styles.hint} testID="hint-chip">
       <MaterialIcons name="place" size={16} color={colors.gray[600]} />
-      <Text style={styles.hintText}>{label ? `${label} のあたり` : '全国から探しています'}</Text>
+      <Text style={styles.hintText}>
+        {label ? `${label} を優先して探しています` : '全国から探しています'}
+      </Text>
       <TouchableOpacity onPress={() => setEditing(true)} testID="hint-change">
-        <Text style={styles.hintChange}>変える</Text>
+        <Text style={styles.hintChange}>{label ? '変える' : '地域を絞る'}</Text>
       </TouchableOpacity>
     </View>
   );

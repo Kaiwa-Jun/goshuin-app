@@ -1,4 +1,4 @@
-import { addressToHint, formatHint, nearbyHint, parseHintText } from '@utils/spotHint';
+import { addressToHint, formatHint, parseHintText } from '@utils/spotHint';
 
 /* 契約書: docs/issues/issue-248-spot-add-research.md（S1 / AC-2〜AC-4） */
 describe('addressToHint', () => {
@@ -11,24 +11,6 @@ describe('addressToHint', () => {
     [null, null, null],
   ])('%s / %s', (address, prefecture, expected) => {
     expect(addressToHint(address, prefecture)).toEqual(expected);
-  });
-});
-
-describe('nearbyHint', () => {
-  const near = (distanceKm: number) => [
-    { spot: { address: '宮城県大崎市鹿島台平渡', prefecture: '宮城県' }, distanceKm },
-  ];
-  it('位置情報が許可されていなければ、近くに寺社があっても null（仙台の既定位置を手がかりにしない）', () => {
-    expect(nearbyHint(near(1), 'denied')).toBeNull();
-    expect(nearbyHint(near(1), 'undetermined')).toBeNull();
-  });
-  it('10km 以内で一番近い寺社の住所から', () => {
-    expect(nearbyHint(near(9.9), 'granted')).toEqual({ prefecture: '宮城県', city: '大崎市' });
-    expect(nearbyHint(near(10.1), 'granted')).toBeNull();
-  });
-  it('住所も県も無い寺社は飛ばす', () => {
-    const items = [{ spot: { address: null, prefecture: null }, distanceKm: 0.2 }, ...near(3)];
-    expect(nearbyHint(items, 'granted')).toEqual({ prefecture: '宮城県', city: '大崎市' });
   });
 });
 

@@ -1912,7 +1912,7 @@ describe('見つからない寺社を調べて追加し、そのまま記録す�
     mockSearchQuery = '';
   });
 
-  it('「調べて追加」→「ここです」で追加した寺社が選ばれ、シートが閉じる。位置情報が未許可なら手がかり無し', async () => {
+  it('「調べて追加」→「ここです」で追加した寺社が選ばれ、シートが閉じる。最初は全国から（いまいる場所を手がかりにしない）', async () => {
     const added = { ...fakeSpot, id: 'new-spot', name: '鹿島台神社', status: 'pending' };
     mockResearchSpot.mockResolvedValue({
       kind: 'ok',

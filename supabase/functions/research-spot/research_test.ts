@@ -79,6 +79,8 @@ function makeDeps(opts: Opts = {}) {
   const inserted: string[] = [];
   const updated: { id: string; candidates: StoredCandidate[] }[] = [];
   let countSince = '';
+  // deno-lint-ignore no-explicit-any
+  let lastDiagnostics: any = null;
   const deps: ResearchDeps = {
     getUserId: async token => (token === TOKEN ? ME : null),
     // 本物は DB の関数 claim_spot_research（本人ごとの advisory lock の中で数えて1行入れる）
@@ -88,8 +90,9 @@ function makeDeps(opts: Opts = {}) {
       inserted.push(userId);
       return 'req-1';
     },
-    updateCandidates: async (id, candidates) => {
+    updateCandidates: async (id, candidates, diagnostics) => {
       updated.push({ id, candidates });
+      lastDiagnostics = diagnostics;
     },
     fetch: async (input, init) => {
       const url = String(input);
@@ -119,7 +122,14 @@ function makeDeps(opts: Opts = {}) {
     },
     now: () => NOW,
   };
-  return { deps, calls, inserted, updated, countSince: () => countSince };
+  return {
+    deps,
+    calls,
+    inserted,
+    updated,
+    countSince: () => countSince,
+    diagnostics: () => lastDiagnostics,
+  };
 }
 
 const body = (extra: Record<string, unknown> = {}) => ({
@@ -426,3 +436,38 @@ Deno.test('モデルが返した名前・住所の見えない文字は落とし
   assertEquals(updated[0].candidates[0].name, '鹿島台神社');
   assertEquals(updated[0].candidates[0].address, '宮城県大崎市鹿島台平渡');
 });
+
+Deno.test(
+  '候補が0件でも理由を追えるよう、応答の形だけを残す（本文・手がかりは残さない）',
+  async () => {
+    const { deps, diagnostics } = makeDeps({
+      claude: claudeResponse(json([{ ...GOOD, type: 'church' }]), {
+        type: 'web_search_tool_result_error',
+        error_code: 'unavailable',
+      } as unknown as unknown[]),
+    });
+    await handleResearchRequest(deps, TOKEN, body());
+    assertEquals(diagnostics(), {
+      stopReason: 'end_turn',
+      blockTypes: { text: 2, server_tool_use: 1, web_search_tool_result: 1 },
+      searchResults: 0,
+      searchErrors: ['unavailable'],
+      parsed: 1,
+      schemaDropped: 1,
+      geocodeDropped: 0,
+    });
+    const saved = JSON.stringify(diagnostics());
+    for (const w of ['大崎市', '鹿島台', '宮城県']) assertEquals(saved.includes(w), false);
+  }
+);
+
+Deno.test(
+  '手がかりは並べ順だけに使い、その地域に無くても外さないようプロンプトで伝える',
+  async () => {
+    const { deps, calls } = makeDeps();
+    await handleResearchRequest(deps, TOKEN, body());
+    const system = (calls[0].body as { system: string }).system;
+    assertEquals(system.includes('地域を問わず'), true);
+    assertEquals(system.includes('候補から外さない'), true);
+  }
+);
