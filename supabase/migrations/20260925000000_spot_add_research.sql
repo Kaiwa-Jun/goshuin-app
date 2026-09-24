@@ -7,12 +7,17 @@
 -- 3. spot_research_requests: research-spot の候補の置き場 + 1日の回数の台帳。
 --    ポリシーを作らない = anon / authenticated からは読めず書けない（service role だけ）。
 --    調べる手がかり（都道府県・市区町村）は保存しない
-DROP POLICY "Active spots are viewable by everyone" ON public.spots;
-CREATE POLICY "Active spots and own spots are viewable"
+--
+-- ⚠ 本番の SELECT ポリシーは migration の外で「Spots are viewable by everyone or own pending」に
+--   差し替わっていた（2026-09-24 に pg_policies で確認）。どちらの状態からでも同じ形になるよう
+--   旧名は両方 IF EXISTS で落とす。条件は本番のものに合わせる（merged は本人にも見せない）
+DROP POLICY IF EXISTS "Active spots are viewable by everyone" ON public.spots;
+DROP POLICY IF EXISTS "Spots are viewable by everyone or own pending" ON public.spots;
+CREATE POLICY "Active spots and own pending spots are viewable"
   ON public.spots FOR SELECT
-  USING (status = 'active' OR created_by_user_id = auth.uid());
+  USING (status = 'active' OR (status = 'pending' AND created_by_user_id = auth.uid()));
 
-DROP POLICY "Authenticated users can add pending spots" ON public.spots;
+DROP POLICY IF EXISTS "Authenticated users can add pending spots" ON public.spots;
 
 CREATE TABLE public.spot_research_requests (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
