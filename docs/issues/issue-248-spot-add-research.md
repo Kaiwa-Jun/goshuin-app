@@ -112,11 +112,14 @@ SpotSelector のドロップダウン
 
 ```sql
 -- spots: 本人には pending も見せる。クライアントからの INSERT はやめる（add-spot が service role で入れる）
-DROP POLICY "Active spots are viewable by everyone" ON public.spots;
-CREATE POLICY "Active spots and own spots are viewable"
+-- 本番は migration の外で SELECT ポリシーが「Spots are viewable by everyone or own pending」に
+-- 差し替わっていた（H-1 の実行で判明）。旧名は両方 IF EXISTS で落とし、条件も本番に合わせる
+DROP POLICY IF EXISTS "Active spots are viewable by everyone" ON public.spots;
+DROP POLICY IF EXISTS "Spots are viewable by everyone or own pending" ON public.spots;
+CREATE POLICY "Active spots and own pending spots are viewable"
   ON public.spots FOR SELECT
-  USING (status = 'active' OR created_by_user_id = auth.uid());
-DROP POLICY "Authenticated users can add pending spots" ON public.spots;
+  USING (status = 'active' OR (status = 'pending' AND created_by_user_id = auth.uid()));
+DROP POLICY IF EXISTS "Authenticated users can add pending spots" ON public.spots;
 
 -- 調べた記録（候補の置き場 + 回数の上限の台帳）。手がかりは保存しない
 CREATE TABLE public.spot_research_requests (
