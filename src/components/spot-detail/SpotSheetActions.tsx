@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, type ViewStyle } from 'react-native';
 
 import { Button } from '@components/common/Button';
 import { colors } from '@theme/colors';
@@ -9,6 +9,8 @@ interface SpotSheetActionsProps {
   isWishlisted?: boolean;
   onWishlistPress?: () => void;
   onRecordPress: () => void;
+  /** シートの下端のフッターでは上の余白を消す（Issue #253） */
+  style?: ViewStyle;
 }
 
 /**
@@ -20,11 +22,12 @@ export function SpotSheetActions({
   isWishlisted,
   onWishlistPress,
   onRecordPress,
+  style,
 }: SpotSheetActionsProps) {
   const showWishlist = onWishlistPress != null && isWishlisted != null;
 
   return (
-    <View style={styles.container} testID="spot-sheet-actions">
+    <View style={[styles.container, style]} testID="spot-sheet-actions">
       {showWishlist && (
         <Button
           title="行きたい"
