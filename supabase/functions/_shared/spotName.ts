@@ -23,21 +23,25 @@ const VARIANTS: Record<string, string> = {
 /** 長い順。末尾から1つだけ落とす */
 const SUFFIXES = ['大神宮', '神社', '神宮', '大社', '宮', '寺', '院', '堂', '社'];
 
-/** NFKC → 見えない文字・括弧の中身ごと・空白・「・」を除く → 異体字を寄せる */
+/**
+ * NFKC → 見えない文字を除く。表示する名前にも、判定にも、これを通してから使う。
+ * 混ぜると重複・公開の判定をすり抜けられる（見た目は同じで文字列が違う）:
+ * 制御文字 / ソフトハイフン / ゼロ幅・方向制御 / 異体字セレクタ（VS1〜16, IVS）/ ハングルや点字の空白
+ * （\p{Cf} はアプリの Hermes で使える保証が無いので範囲で書く）
+ */
+const INVISIBLE =
+  /[\u0000-\u001F\u007F-\u009F\u00AD\u034F\u061C\u115F\u1160\u17B4\u17B5\u180B-\u180F\u200B-\u200F\u202A-\u202E\u2060-\u206F\u2800\u3164\uFE00-\uFE0F\uFEFF\uFFA0]|\uDB40[\uDC00-\uDFFF]/g;
+
+export function stripInvisible(name: string): string {
+  return name.normalize('NFKC').replace(INVISIBLE, '');
+}
+
+/** 見えない文字・括弧の中身ごと・空白・「・」を除く → 異体字を寄せる */
 export function normalizeSpotName(name: string): string {
-  return (
-    name
-      .normalize('NFKC')
-      // 制御文字とゼロ幅空白・方向制御などの見えない文字。混ぜると重複の判定をすり抜けられる
-      // （\p{Cf} はアプリの Hermes で使える保証が無いので範囲で書く）
-      .replace(
-        /[\u0000-\u001F\u007F-\u009F\u00AD\u061C\u180E\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/g,
-        ''
-      )
-      .replace(/[（(][^）)]*[）)]/g, '')
-      .replace(/[\s・]/g, '')
-      .replace(/./g, ch => VARIANTS[ch] ?? ch)
-  );
+  return stripInvisible(name)
+    .replace(/[（(][^）)]*[）)]/g, '')
+    .replace(/[\s・]/g, '')
+    .replace(/./g, ch => VARIANTS[ch] ?? ch);
 }
 
 /** 末尾の「神社」「寺」などを落とした芯（鹿島台神社 → 鹿島台）。落とすと空になるなら落とさない */
@@ -59,7 +63,8 @@ export function isSimilarName(a: string, b: string): boolean {
 
 /** P-4。validate_spots.sql の 5 と同じ規則（「宮城」の宮は数えない） */
 export function typeConflicts(rawName: string, type: 'shrine' | 'temple'): boolean {
-  const name = normalizeSpotName(rawName);
+  // 括弧の中も見る（normalizeSpotName は括弧の中身を落とすので使わない。「東福（寺）」を神社で通さない）
+  const name = stripInvisible(rawName);
   if (type === 'temple') return /神社|大社/.test(name) || /宮/.test(name.replace(/宮城/g, ''));
   return /[寺院堂]/.test(name);
 }

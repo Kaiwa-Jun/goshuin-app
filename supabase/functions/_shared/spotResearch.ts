@@ -1,5 +1,6 @@
 // research-spot が保存し、add-spot が読む候補の形（Issue #248 / D-1）。
 // 候補はサーバーだけが作る。add-spot はクライアントから researchId と候補番号しか受け取らない
+import { stripInvisible } from './spotName.ts';
 
 export interface StoredCandidate {
   /** 1〜50 文字 */
@@ -19,13 +20,9 @@ export interface StoredCandidate {
 
 export const SPOT_NAME_MAX = 50;
 
-/** NFKC・制御文字除去・前後の空白除去のあと 1〜50 文字なら、その文字列。外れたら null */
+/** NFKC・見えない文字の除去・前後の空白除去のあと 1〜50 文字なら、その文字列。外れたら null */
 export function cleanSpotName(value: unknown): string | null {
   if (typeof value !== 'string') return null;
-  // deno-lint-ignore no-control-regex
-  const s = value
-    .normalize('NFKC')
-    .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
-    .trim();
+  const s = stripInvisible(value).trim();
   return s.length >= 1 && s.length <= SPOT_NAME_MAX ? s : null;
 }

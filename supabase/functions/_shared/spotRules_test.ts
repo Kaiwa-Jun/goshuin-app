@@ -3,6 +3,7 @@
 import { assertEquals } from 'jsr:@std/assert@1';
 import cases from './spot_name_cases.json' with { type: 'json' };
 import { inPrefectureBounds, PREFECTURE_BOUNDS } from './prefectures.ts';
+import { cleanSpotName } from './spotResearch.ts';
 import {
   countIndependentDomains,
   hasSimilarActiveNearby,
@@ -53,6 +54,21 @@ Deno.test('見えない文字を混ぜても、同じ名前として扱う', () 
     true
   );
   assertEquals(typeConflicts('東福\u200B寺', 'shrine'), true);
+  // 異体字セレクタ（IVS）・ハングルの空白
+  assertEquals(isSimilarName('瑞鳳殿\uDB40\uDD00', '瑞鳳殿'), true);
+  assertEquals(isSimilarName('瑞\u3164鳳殿', '瑞鳳殿'), true);
+});
+
+Deno.test('P-4 は括弧の中も見る', () => {
+  assertEquals(typeConflicts('東福（寺）', 'shrine'), true);
+  assertEquals(typeConflicts('鹿島台（神社）', 'temple'), true);
+});
+
+Deno.test('cleanSpotName は見えない文字を落とし、1〜50 文字だけ通す', () => {
+  assertEquals(cleanSpotName(' 鹿島\u200B台神社 '), '鹿島台神社');
+  assertEquals(cleanSpotName('\u200B\u3164'), null);
+  assertEquals(cleanSpotName('あ'.repeat(51)), null);
+  assertEquals(cleanSpotName(3), null);
 });
 
 Deno.test('P-4: 名前と種別の矛盾', () => {
