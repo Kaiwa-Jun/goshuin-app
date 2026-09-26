@@ -348,7 +348,7 @@ goshuin-evaluator がこの基準に基づいて合否判定を行う。
 S2 のコミット後、PR の前に:
 
 ```bash
-! npx supabase@latest db push --linked            # 20260926000000_create_visit_plans.sql を本番に適用
+! npx -y supabase@latest db query --linked -f supabase/migrations/20260926000000_create_visit_plans.sql && npx -y supabase@latest migration repair --status applied 20260926000000   # 本番に適用（このリポジトリでは db push が使えないので query -f + repair）
 ! npx supabase@latest db query --linked -f supabase/validation/visit_plans_owner_only.sql   # AC-19（エラーで終わるのが正しい。RESULT 行を見る）
 ```
 
