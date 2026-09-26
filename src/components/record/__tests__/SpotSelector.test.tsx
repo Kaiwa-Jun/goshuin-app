@@ -1,7 +1,9 @@
 import React from 'react';
+import { StyleSheet } from 'react-native';
 import { render, fireEvent, within } from '@testing-library/react-native';
 import { SpotSelector } from '../SpotSelector';
 import type { Spot } from '@/types/supabase';
+import { colors } from '@theme/colors';
 
 const makeSpot = (overrides: Partial<Spot> = {}): Spot => ({
   id: 'spot-1',
@@ -142,7 +144,8 @@ describe('都道府県の表示', () => {
   });
 });
 
-/* 見つからない寺社を調べて追加（Issue #248 / UI-1〜UI-3） */
+/* 見つからない寺社を調べて追加（Issue #248 / UI-1〜UI-3）
+   同じ名前の寺社が一覧にあっても出す（Issue #278 / UI-1〜UI-5。契約書 docs/issues/issue-278-same-name-research.md） */
 describe('SpotSelector — 調べて追加・もしかして', () => {
   const base = {
     selectedSpot: null,
@@ -152,6 +155,14 @@ describe('SpotSelector — 調べて追加・もしかして', () => {
   };
   const open = (ui: ReturnType<typeof render>) =>
     fireEvent(ui.getByPlaceholderText('スポット名で検索'), 'focus');
+  // 描いた順の testID。FlatList の props は React 要素を持つので JSON.stringify できない
+  type Node = { props: { testID?: unknown }; children: (Node | string)[] | null };
+  const testIdsInOrder = (node: Node | Node[] | string | null): string[] => {
+    if (!node || typeof node === 'string') return [];
+    if (Array.isArray(node)) return node.flatMap(testIdsInOrder);
+    const own = typeof node.props.testID === 'string' ? [node.props.testID] : [];
+    return [...own, ...(node.children ?? []).flatMap(testIdsInOrder)];
+  };
 
   it('候補に無い名前なら「調べて追加」を出し、「候補が見つかりません」は出さない。押すと名前を渡す', () => {
     const onResearch = jest.fn();
@@ -166,7 +177,7 @@ describe('SpotSelector — 調べて追加・もしかして', () => {
     expect(onResearch).toHaveBeenCalledWith('鹿島台神社');
   });
 
-  it('1文字、または同じ名前の候補があるときは出さない。部分一致の候補だけなら出す', () => {
+  it('1文字なら出さない。同じ名前の候補があれば「ほかの〇〇」、部分一致だけなら「「〇〇」を調べて追加」', () => {
     const onResearch = jest.fn();
     const one = render(
       <SpotSelector {...base} nearbySpots={[]} searchQuery="鹿" onResearch={onResearch} />
@@ -174,6 +185,7 @@ describe('SpotSelector — 調べて追加・もしかして', () => {
     open(one);
     expect(one.queryByTestId('spot-research')).toBeNull();
 
+    // 正規化して一致すれば同じ名前（UI-2）
     const same = render(
       <SpotSelector
         {...base}
@@ -183,8 +195,11 @@ describe('SpotSelector — 調べて追加・もしかして', () => {
       />
     );
     open(same);
-    expect(same.queryByTestId('spot-research')).toBeNull();
+    expect(
+      within(same.getByTestId('spot-research')).getByText('ほかの鹿島台神社を調べて追加')
+    ).toBeTruthy();
 
+    // 部分一致の候補（「八幡」で他の八幡）は同じ名前に数えない（UI-3 ②）
     const partial = render(
       <SpotSelector
         {...base}
@@ -194,7 +209,129 @@ describe('SpotSelector — 調べて追加・もしかして', () => {
       />
     );
     open(partial);
-    expect(partial.getByTestId('spot-research')).toBeTruthy();
+    expect(
+      within(partial.getByTestId('spot-research')).getByText('「八幡」を調べて追加')
+    ).toBeTruthy();
+  });
+
+  // 同じ名前が各地にある寺社（マスタの値。seed_kyoto_rank_spots.sql・02_kanto.sql）
+  const kyoto = makeSpot({
+    id: 'kyoto-yasaka',
+    name: '八坂神社',
+    lat: 35.0036,
+    lng: 135.778,
+    prefecture: '京都府',
+  });
+  const gunma = makeSpot({
+    id: 'gunma-yasaka',
+    name: '八坂神社',
+    lat: 36.2679,
+    lng: 139.2786,
+    prefecture: '群馬県',
+  });
+  const yasakaList = [
+    { spot: kyoto, distanceKm: 612 },
+    { spot: gunma, distanceKm: 305 },
+  ];
+
+  it('同じ名前の寺社が一覧にあるときは「ほかの〇〇を調べて追加」を一覧の下に出し、押すと名前を渡す（UI-1）', () => {
+    const onResearch = jest.fn();
+    const ui = render(
+      <SpotSelector
+        {...base}
+        nearbySpots={yasakaList}
+        searchQuery=" 八坂神社 "
+        onResearch={onResearch}
+      />
+    );
+    open(ui);
+
+    const row = within(ui.getByTestId('spot-research'));
+    expect(row.getByText('ほかの八坂神社を調べて追加')).toBeTruthy();
+    expect(row.getByText('一覧にない場所の八坂神社を探します')).toBeTruthy();
+    expect(ui.queryByText('「八坂神社」を調べて追加')).toBeNull();
+    expect(ui.queryByText('名前から場所と住所を調べます')).toBeNull();
+
+    const ids = testIdsInOrder(ui.toJSON());
+    const research = ids.indexOf('spot-research');
+    const kyotoAt = ids.indexOf('spot-option-kyoto-yasaka');
+    const gunmaAt = ids.indexOf('spot-option-gunma-yasaka');
+    expect(kyotoAt).toBeGreaterThan(-1);
+    expect(gunmaAt).toBeGreaterThan(-1);
+    expect(kyotoAt).toBeLessThan(research);
+    expect(gunmaAt).toBeLessThan(research);
+
+    fireEvent.press(ui.getByTestId('spot-research'));
+    expect(onResearch).toHaveBeenCalledTimes(1);
+    expect(onResearch).toHaveBeenCalledWith('八坂神社');
+  });
+
+  it('同じ名前が無いときは今の文言のまま。「もしかして」は同じ名前に数えない（UI-3）', () => {
+    const none = render(
+      <SpotSelector {...base} nearbySpots={[]} searchQuery=" 鹿島台神社 " onResearch={jest.fn()} />
+    );
+    open(none);
+    expect(none.getByText('「鹿島台神社」を調べて追加')).toBeTruthy();
+    expect(none.getByText('名前から場所と住所を調べます')).toBeTruthy();
+    expect(none.queryAllByText(/^ほかの/)).toHaveLength(0);
+
+    const maybe = render(
+      <SpotSelector
+        {...base}
+        nearbySpots={[]}
+        didYouMeanSpots={[
+          { spot: makeSpot({ id: 'kashima', name: '鹿島神宮' }), distanceKm: 228.4 },
+        ]}
+        searchQuery="鹿島台神社"
+        onResearch={jest.fn()}
+      />
+    );
+    open(maybe);
+    expect(
+      within(maybe.getByTestId('spot-research')).getByText('「鹿島台神社」を調べて追加')
+    ).toBeTruthy();
+  });
+
+  it('1文字なら同じ名前が一覧にあっても出さない。onResearch が無ければ出さない（UI-4）', () => {
+    const oneSame = render(
+      <SpotSelector
+        {...base}
+        nearbySpots={[{ spot: makeSpot({ name: '鹿' }), distanceKm: 1 }]}
+        searchQuery="鹿"
+        onResearch={jest.fn()}
+      />
+    );
+    open(oneSame);
+    expect(oneSame.queryByTestId('spot-research')).toBeNull();
+
+    const noHandler = render(
+      <SpotSelector
+        {...base}
+        nearbySpots={[{ spot: kyoto, distanceKm: 612 }]}
+        searchQuery="八坂神社"
+      />
+    );
+    open(noHandler);
+    expect(noHandler.queryByTestId('spot-research')).toBeNull();
+  });
+
+  it.each([
+    ['同じ名前あり', yasakaList, '八坂神社', 'ほかの八坂神社を調べて追加'],
+    ['同じ名前なし', [], '鹿島台神社', '「鹿島台神社」を調べて追加'],
+  ])('%s でも行の見た目は同じ。題は1行・朱の太字、地は薄い朱（UI-5）', (_, spots, query, title) => {
+    const ui = render(
+      <SpotSelector {...base} nearbySpots={spots} searchQuery={query} onResearch={jest.fn()} />
+    );
+    open(ui);
+
+    const titleText = within(ui.getByTestId('spot-research')).getByText(title);
+    expect(titleText.props.numberOfLines).toBe(1);
+    const titleStyle = StyleSheet.flatten(titleText.props.style);
+    expect(titleStyle.color).toBe(colors.primary[600]);
+    expect(titleStyle.fontWeight).toBe('700');
+    expect(StyleSheet.flatten(ui.getByTestId('spot-research').props.style).backgroundColor).toBe(
+      colors.primary[50]
+    );
   });
 
   it('「もしかして」を「調べて追加」の上に出し、押すとその寺社を選ぶ。距離は許可されたときだけ', () => {
