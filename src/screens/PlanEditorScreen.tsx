@@ -180,9 +180,11 @@ export function PlanEditorScreen({ navigation, route }: Props) {
 
   const handlePressSpot = useCallback(
     (spotId: string) => {
-      if (mode === 'build') setSelectedId(spotId);
+      if (mode !== 'build') return;
+      setSelectedId(spotId);
+      if (!editor.reception.has(spotId)) editor.peekReception(spotId);
     },
-    [mode]
+    [mode, editor]
   );
   const handlePressCluster = useCallback((center: [number, number], zoom: number) => {
     cameraRef.current?.flyTo({ center, zoom, duration: 400 });

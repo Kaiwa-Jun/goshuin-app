@@ -182,8 +182,9 @@ function DragHandle({
       },
       onPanResponderTerminate: () => {
         if (timer.current) clearTimeout(timer.current);
+        // ドラッグ中に取られたときだけ元に戻す（軽く押しただけなら何もしない）
+        if (armed.current) onDrop(index);
         armed.current = false;
-        onDrop(index);
       },
     })
   ).current;

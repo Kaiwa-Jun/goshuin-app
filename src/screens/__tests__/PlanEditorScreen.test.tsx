@@ -168,6 +168,18 @@ describe('② 寺社を選ぶ', () => {
     expect(within(r.getByTestId('plan-spot-card')).getByText('予定から外す')).toBeTruthy();
   });
 
+  it('ピンのカードに受付時間と「行きたい」を出す', async () => {
+    const r = renderScreen({ date: '2026-10-03' });
+    await act(async () => {});
+    await act(async () => {
+      pressPin(r, 'yasaka');
+    });
+    expect(
+      within(r.getByTestId('plan-spot-card')).getByText('受付 〜17:00・行きたい')
+    ).toBeTruthy();
+    expect(mockReception).toHaveBeenCalledWith(['yasaka']);
+  });
+
   it('AC-31: Reduce Motion オンなら即座に足される', async () => {
     reduceMotion = true;
     const r = renderScreen({ date: '2026-10-03' });
@@ -310,6 +322,19 @@ describe('③ 順番', () => {
     expect(r.queryByText('9:39')).toBeTruthy();
     expect(r.queryByText('10:26')).toBeNull();
     expect(r.queryByText(/近い順・受付の早い順/)).toBeNull();
+  });
+
+  it('動かない並べ替え（1番目に moveUp）ではバナーを消さない', async () => {
+    reduceMotion = true;
+    const r = renderScreen({ date: '2026-10-03' });
+    await act(async () => {});
+    addAllFromWishlist(r);
+    await decide(r);
+    fireEvent(r.getByTestId('plan-stop-0'), 'accessibilityAction', {
+      nativeEvent: { actionName: 'moveUp' },
+    });
+    expect(stopNames(r)).toEqual(SUGGESTED);
+    expect(r.getByTestId('plan-suggest-banner')).toBeTruthy();
   });
 
   it('AC-39: 「Google マップで」で1区間の URL を開き、失敗したら Alert', async () => {

@@ -128,15 +128,29 @@ export function usePlanEditor({ planId, date, spots, today }: Params) {
     setMode('order');
   }, [chosen, spotIndex]);
 
-  const move = useCallback((from: number, to: number) => {
-    setOrder(o => {
-      if (to < 0 || to >= o.length || from === to) return o;
-      const next = [...o];
-      const [m] = next.splice(from, 1);
-      next.splice(to, 0, m);
-      return next;
-    });
-    setSuggested(false);
+  const move = useCallback(
+    (from: number, to: number) => {
+      // 動かない並べ替え（⋮⋮ を軽く押しただけ・端から外へ）では提案のバナーを消さない
+      if (to < 0 || to >= order.length || from === to) return;
+      setOrder(o => {
+        const next = [...o];
+        const [m] = next.splice(from, 1);
+        next.splice(to, 0, m);
+        return next;
+      });
+      setSuggested(false);
+    },
+    [order.length]
+  );
+
+  /** カードを開いた寺社の受付時間を先に引く（② のカードに「受付 〜」を出す） */
+  const peekReception = useCallback((id: string) => {
+    fetchReceptionHours([id])
+      .then(m => {
+        const close = m.get(id);
+        if (close) setReception(r => new Map(r).set(id, close));
+      })
+      .catch(() => {});
   }, []);
 
   /** 選び直す: 今の順番のまま②へ */
@@ -190,6 +204,7 @@ export function usePlanEditor({ planId, date, spots, today }: Params) {
     remove,
     decide,
     move,
+    peekReception,
     reselect,
     edit,
     save,
