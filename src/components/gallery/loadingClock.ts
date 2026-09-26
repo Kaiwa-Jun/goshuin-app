@@ -174,6 +174,14 @@ const FLIP_POINTS = [
 ];
 const FLIP_PROGRESS = FLIP_POINTS.map(turnProgressInPhase);
 
+/**
+ * 左へ倒れきった紙の角度。**ちょうど 180 にしない**。iOS はちょうど 180° のとき、
+ * 裏（最後に 180deg 足して表を向く面）も向こう向きとみなして描かず、
+ * 紙が消えて下の左ページ（前の印）が次の周まで見える（S6 のシミュレータで見つけた）
+ */
+const LEAF_REST_DEG = 179.9;
+const leafDeg = (q: number) => (q >= 1 ? -LEAF_REST_DEG : -180 * q);
+
 const flipNode = (outputRange: number[] | string[]) =>
   flipPhase.interpolate({ inputRange: FLIP_POINTS, outputRange, extrapolate: 'clamp' });
 
@@ -181,9 +189,9 @@ const flipNode = (outputRange: number[] | string[]) =>
 const BREATH_POINTS = Array.from({ length: BREATH_PERIOD_MS / 100 + 1 }, (_, i) => i * 100);
 
 export const loadingMotion = {
-  /** 紙の回転。0 → −180deg で、右のページの上から手前に起き上がって左へ倒れる */
+  /** 紙の回転。0 → −180deg（倒れきったら −179.9deg）で、右のページの上から手前に起き上がって左へ倒れる */
   leafRotateY: flipNode(
-    FLIP_PROGRESS.map(q => `${-180 * q}deg`)
+    FLIP_PROGRESS.map(q => `${leafDeg(q)}deg`)
   ) as unknown as Animated.AnimatedInterpolation<string>,
   /** 紙が真横を向くときに少し縮む */
   leafScaleX: flipNode(FLIP_PROGRESS.map(q => 1 - 0.08 * Math.sin(q * Math.PI))),

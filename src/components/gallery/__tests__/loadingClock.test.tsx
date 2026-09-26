@@ -246,8 +246,8 @@ describe('loadingClock', () => {
     it.each([
       [0, 0],
       [425, -90],
-      [850, -180],
-      [1200, -180],
+      [850, -179.9],
+      [1200, -179.9],
       [1500, 0],
       [1925, -90],
     ])('t = %d で紙の回転が %d deg', (t, deg) => {
@@ -258,7 +258,17 @@ describe('loadingClock', () => {
     it('回転の点は flipProgressAt から作っている', () => {
       for (let i = 0; i <= 10; i++) {
         at(85 * i);
-        expect(read(loadingMotion.leafRotateY)).toBeCloseTo(-180 * flipProgressAt(85 * i), 3);
+        const q = flipProgressAt(85 * i);
+        expect(read(loadingMotion.leafRotateY)).toBeCloseTo(q >= 1 ? -179.9 : -180 * q, 3);
+      }
+    });
+
+    it('倒れきった紙は、ちょうど −180deg にしない（iOS はちょうど 180° で紙の裏も描かず、下の左ページが透ける。S6 のシミュレータで見つけた）', () => {
+      for (const t of [850, 1000, 1499]) {
+        at(t);
+        const deg = read(loadingMotion.leafRotateY);
+        expect(deg).toBeGreaterThan(-180);
+        expect(deg).toBeLessThan(-179.5);
       }
     });
 

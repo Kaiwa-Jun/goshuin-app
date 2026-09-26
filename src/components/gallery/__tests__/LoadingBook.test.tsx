@@ -140,7 +140,7 @@ describe('LoadingBook', () => {
       const { getByTestId } = setup();
       at(1000);
 
-      expect(firstRotateY(getByTestId('b-leaf-front'))).toBeCloseTo(-180, 3);
+      expect(firstRotateY(getByTestId('b-leaf-front'))).toBeCloseTo(-179.9, 3);
     });
 
     it.each([100, 1600, 3100])('t = %d で、各面は sealMarkAt の印だけが見えている', t => {
