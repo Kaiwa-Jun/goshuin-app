@@ -143,7 +143,7 @@ export function PlanEditorScreen({ navigation, route }: Props) {
       [Math.min(...lngs), Math.min(...lats), Math.max(...lngs), Math.max(...lats)],
       {
         padding: {
-          top: insets.top + FIT_PADDING,
+          top: insets.top + TOP_BAR_HEIGHT + FIT_PADDING,
           right: FIT_PADDING,
           bottom: drawerHeight + FIT_PADDING / 2,
           left: FIT_PADDING,
@@ -347,7 +347,7 @@ export function PlanEditorScreen({ navigation, route }: Props) {
           <Text style={styles.headerHint}>社・ピンを押して足す</Text>
         </View>
       )}
-      {mode === 'order' && <Text style={styles.headerHint}>⋮⋮ で並べ替え</Text>}
+      {mode === 'order' && <Text style={styles.headerHint}>長押しで並べ替え</Text>}
       {readonly && editor.past && (
         <Text style={styles.pastCount} testID="plan-past-count">
           {`${visitedCount} / ${points.length}社 回れた`}
@@ -416,7 +416,7 @@ export function PlanEditorScreen({ navigation, route }: Props) {
     >
       {mode === 'order' && editor.suggested && (
         <Text style={styles.banner} testID="plan-suggest-banner">
-          ✦ 近い順・受付の早い順に並べました。つまんで変えられます
+          ✦ 近い順・受付の早い順に並べました。長押しで入れ替えられます
         </Text>
       )}
       <PlanStopList
