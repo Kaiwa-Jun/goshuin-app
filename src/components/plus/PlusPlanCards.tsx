@@ -13,9 +13,16 @@ const LIFT_MS = 500;
 
 /**
  * 無料とプラスのカード2枚（Issue #270 D-14）。有料の機能を足すときは両方に行を足す。
- * 値段は App Store の表示（priceString）をそのまま出す
+ * 値段は App Store の表示（priceString）をそのまま出す。
+ * 札「いまのプラン」は今のプランのカードに付け、プラスのときは「おすすめ」を出さない（Issue #272 D-2）
  */
-export function PlusPlanCards({ priceString }: { priceString: string | null }) {
+export function PlusPlanCards({
+  priceString,
+  isPlus,
+}: {
+  priceString: string | null;
+  isPlus: boolean;
+}) {
   const reduceMotion = useReduceMotion();
   const lift = useRef(new Animated.Value(reduceMotion ? 1 : 0)).current;
 
@@ -39,6 +46,7 @@ export function PlusPlanCards({ priceString }: { priceString: string | null }) {
   return (
     <View style={styles.row}>
       <View style={[styles.card, styles.free]} testID="plus-card-free">
+        {!isPlus && <NowTag />}
         <Text style={styles.name}>無料</Text>
         <Text style={styles.price}>0円</Text>
         <Rows plus={false} />
@@ -56,9 +64,13 @@ export function PlusPlanCards({ priceString }: { priceString: string | null }) {
         ]}
         testID="plus-card-plus"
       >
-        <View style={styles.tag} testID="plus-card-tag">
-          <Text style={styles.tagText}>おすすめ</Text>
-        </View>
+        {isPlus ? (
+          <NowTag />
+        ) : (
+          <View style={styles.tag} testID="plus-card-tag">
+            <Text style={styles.tagText}>おすすめ</Text>
+          </View>
+        )}
         <Text style={[styles.name, styles.plusName]}>プラス</Text>
         <Text style={styles.price}>
           {priceString ?? '—'}
@@ -66,6 +78,15 @@ export function PlusPlanCards({ priceString }: { priceString: string | null }) {
         </Text>
         <Rows plus />
       </Animated.View>
+    </View>
+  );
+}
+
+/** 札「いまのプラン」。「おすすめ」と同じ位置・外寸で、塗らずに teal の枠と字（Issue #272 D-3） */
+function NowTag() {
+  return (
+    <View style={[styles.tag, styles.nowTag]} testID="plus-card-tag-now">
+      <Text style={[styles.tagText, styles.nowTagText]}>いまのプラン</Text>
     </View>
   );
 }
@@ -109,6 +130,15 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   tagText: { ...typography.caption, fontSize: 10, fontWeight: '800', color: colors.white },
+  // 枠の 1px ぶん内側を減らし、外寸を「おすすめ」と揃える
+  nowTag: {
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.pin.wishlisted,
+    paddingHorizontal: spacing.sm - 1,
+    paddingVertical: 1,
+  },
+  nowTagText: { color: colors.pin.wishlisted },
   name: { ...typography.caption, fontWeight: '800', color: colors.gray[500] },
   plusName: { color: colors.primary[700] },
   price: { ...typography.h3, fontWeight: '800', color: colors.gray[900], marginTop: 2 },

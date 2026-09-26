@@ -8,7 +8,8 @@ import { PlusScreen } from '@screens/PlusScreen';
 import { PlusMiniCalendar } from '@components/plus/PlusMiniCalendar';
 import { resetPurchasesForTests } from '@services/purchases';
 
-/* 契約書: docs/issues/issue-270-plus-purchase.md（S5 / AC-41〜48） */
+/* 契約書: docs/issues/issue-270-plus-purchase.md（S5 / AC-41〜48）・
+   docs/issues/issue-272-plus-restore-link.md（AC-6・7・11〜17・UI-2） */
 jest.mock('react-native-safe-area-context', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
   const RN = require('react-native');
@@ -67,6 +68,12 @@ it('AC-41: 見出し・カード・購入・復元・規約。「あとで」は
   expect(ui.queryByText('あとで')).toBeNull();
 });
 
+it('#272 AC-6: 無料のカードに「いまのプラン」、プラスのカードに「おすすめ」', async () => {
+  const { ui } = await renderScreen();
+  expect(within(ui.getByTestId('plus-card-free')).getByText('いまのプラン')).toBeTruthy();
+  expect(within(ui.getByTestId('plus-card-plus')).getByText('おすすめ')).toBeTruthy();
+});
+
 it('AC-42: 将来の約束を書かない', async () => {
   const { ui } = await renderScreen();
   for (const t of [/今後/, /追加の支払いなし/, /将来/]) expect(ui.queryByText(t)).toBeNull();
@@ -116,6 +123,10 @@ it('AC-45: プラスで開くとボタンは「購入済み」で押せない', 
   expect(ui.getByTestId('plus-buy')).toBeDisabled();
   fireEvent.press(ui.getByTestId('plus-buy'));
   expect(P.purchasePackage).not.toHaveBeenCalled();
+  // #272 AC-7: 札はプラスのカードへ移り、「おすすめ」は無い
+  expect(within(ui.getByTestId('plus-card-plus')).getByText('いまのプラン')).toBeTruthy();
+  expect(within(ui.getByTestId('plus-card-free')).queryByText('いまのプラン')).toBeNull();
+  expect(ui.queryByText('おすすめ')).toBeNull();
 });
 
 describe('PlusMiniCalendar', () => {

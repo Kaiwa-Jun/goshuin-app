@@ -9,7 +9,8 @@ import { resetPurchasesForTests } from '@services/purchases';
 import type { VisitPlan } from '@/types/visitPlan';
 import { colors } from '@theme/colors';
 
-/* 契約書: docs/issues/issue-270-plus-purchase.md（S4 / AC-19〜33・UI-1〜3） */
+/* 契約書: docs/issues/issue-270-plus-purchase.md（S4 / AC-19〜33・UI-1〜3）・
+   docs/issues/issue-272-plus-restore-link.md（AC-3・8〜10） */
 jest.mock('@react-navigation/native', () => {
   const React = jest.requireActual('react');
   return { useFocusEffect: (cb: () => void) => React.useEffect(cb, [cb]) };
@@ -306,6 +307,13 @@ describe('AC-32: 値段が取れないとき', () => {
     fireEvent.press(ui.getByTestId('plan-new'));
     expect(ui.getByTestId('plus-restore')).toBeDisabled();
   });
+});
+
+it('#272 AC-3: シートの札は、無料のカードに「いまのプラン」、プラスのカードに「おすすめ」', async () => {
+  const { ui } = await renderScreen();
+  fireEvent.press(ui.getByTestId('plan-new'));
+  expect(within(ui.getByTestId('plus-card-free')).getByText('いまのプラン')).toBeTruthy();
+  expect(within(ui.getByTestId('plus-card-plus')).getByText('おすすめ')).toBeTruthy();
 });
 
 describe('見た目', () => {

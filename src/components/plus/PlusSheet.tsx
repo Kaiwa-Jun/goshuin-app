@@ -84,7 +84,7 @@ export function PlusSheet({
             </View>
           )}
         </View>
-        <PlusPlanCards priceString={plus.priceString} />
+        <PlusPlanCards priceString={plus.priceString} isPlus={shown.isPlus} />
         <PlusPurchasePanel
           plus={{ ...plus, isPlus: shown.isPlus }}
           onLater={onClose}
