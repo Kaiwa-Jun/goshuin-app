@@ -52,6 +52,8 @@ type Props = PlanStackScreenProps<'PlanEditor'>;
 export const REVEAL_STEP_MS = 200;
 const INITIAL_ZOOM = 13;
 const FIT_PADDING = 56;
+/** 上のバーの高さ（safe area の下。44 のボタン + 上下の余白） */
+const TOP_BAR_HEIGHT = 52;
 
 /**
  * 予定を組む（Issue #258）。上が地図・下がドロワー。
@@ -81,6 +83,8 @@ export function PlanEditorScreen({ navigation, route }: Props) {
   const [saving, setSaving] = useState(false);
   const [drawerHeight, setDrawerHeight] = useState(screenHeight * DRAWER_LOW);
   const [revealed, setRevealed] = useState(Number.POSITIVE_INFINITY);
+  // 上のバーと下のドロワーに隠れる分。現在地などは「見えている地図」の真ん中に出す
+  const viewPadding = { top: insets.top + TOP_BAR_HEIGHT, right: 0, bottom: drawerHeight, left: 0 };
   const cameraRef = useRef<CameraRef>(null);
 
   // ── 件数が弾む（D-12） ──
@@ -159,8 +163,10 @@ export function PlanEditorScreen({ navigation, route }: Props) {
     cameraRef.current?.flyTo({
       center: [location.longitude, location.latitude],
       zoom: INITIAL_ZOOM,
+      padding: viewPadding,
       duration: 0,
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location, planId]);
 
   // ── 地図のソース ──
@@ -206,7 +212,12 @@ export function PlanEditorScreen({ navigation, route }: Props) {
     if (wishlistSpots.length === 0) return;
     if (wishlistSpots.length === 1) {
       const [s] = wishlistSpots;
-      cameraRef.current?.flyTo({ center: [s.lng, s.lat], zoom: 14, duration: 500 });
+      cameraRef.current?.flyTo({
+        center: [s.lng, s.lat],
+        zoom: 14,
+        padding: viewPadding,
+        duration: 500,
+      });
       return;
     }
     const lngs = wishlistSpots.map(s => s.lng);
@@ -215,7 +226,8 @@ export function PlanEditorScreen({ navigation, route }: Props) {
       [Math.min(...lngs), Math.min(...lats), Math.max(...lngs), Math.max(...lats)],
       {
         padding: {
-          top: insets.top + FIT_PADDING * 2,
+          // 上のバー・右上のボタン・ピンの頭の分を空ける
+          top: insets.top + TOP_BAR_HEIGHT + FIT_PADDING * 2,
           right: FIT_PADDING,
           bottom: drawerHeight + FIT_PADDING / 2,
           left: FIT_PADDING,
@@ -230,6 +242,7 @@ export function PlanEditorScreen({ navigation, route }: Props) {
     cameraRef.current?.flyTo({
       center: [location.longitude, location.latitude],
       zoom: INITIAL_ZOOM,
+      padding: viewPadding,
       duration: reduceMotion ? 0 : 500,
     });
   };
@@ -464,7 +477,10 @@ export function PlanEditorScreen({ navigation, route }: Props) {
   return (
     <View style={styles.container} testID="plan-editor">
       <Map style={styles.map} mapStyle={MAP_STYLE} logo={false} compass={false} testID="map-view">
-        <Camera ref={cameraRef} initialViewState={{ center, zoom: INITIAL_ZOOM }} />
+        <Camera
+          ref={cameraRef}
+          initialViewState={{ center, zoom: INITIAL_ZOOM, padding: viewPadding }}
+        />
         <CurrentLocationLayer coords={myLocation} />
         <SpotMapLayers
           clustered={clustered}

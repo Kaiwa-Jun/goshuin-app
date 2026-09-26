@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert } from 'react-native';
+import { Alert, ScrollView } from 'react-native';
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import '@testing-library/react-native/extend-expect';
 
@@ -180,4 +180,10 @@ it('カレンダーを横にスワイプすると月が送られる', async () =
     ui.UNSAFE_getByType(PlanCalendar).props.onSwipeMonth(-1);
   });
   expect(ui.getByText('2026年8月')).toBeTruthy();
+});
+
+it('カレンダーの画面は上下に動かない（横スワイプのときに縦に揺れない）', async () => {
+  const ui = renderScreen();
+  await waitFor(() => expect(mockFetchPlans).toHaveBeenCalled());
+  expect(ui.UNSAFE_queryAllByType(ScrollView)).toHaveLength(0);
 });

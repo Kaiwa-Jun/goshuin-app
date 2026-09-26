@@ -6,7 +6,7 @@ import { spacing, borderRadius } from '@theme/spacing';
 import { shadows } from '@theme/shadows';
 
 /** ドロワーの2段（画面の高さに対する割合） */
-export const DRAWER_LOW = 0.45;
+export const DRAWER_LOW = 0.36;
 export const DRAWER_HIGH = 0.8;
 
 interface Props {
