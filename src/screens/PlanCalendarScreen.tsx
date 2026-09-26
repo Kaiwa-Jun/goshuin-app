@@ -10,8 +10,8 @@ import { useAuth } from '@hooks/useAuth';
 import { useVisitPlans } from '@hooks/useVisitPlans';
 import type { PlanStackScreenProps } from '@/navigation/types';
 import type { VisitPlan } from '@/types/visitPlan';
-import { BILLING_ENABLED, IS_PLUS } from '@/constants/plus';
-import { canAddPlan } from '@utils/plus';
+import { BILLING_ENABLED } from '@/constants/plus';
+import { canAddPlan, countUpcomingPlans } from '@utils/plus';
 import { formatPlanDate } from '@utils/planDate';
 import { toLocalDateString } from '@utils/localDate';
 import { colors } from '@theme/colors';
@@ -63,7 +63,9 @@ export function PlanCalendarScreen({ navigation, route }: Props) {
 
   /** 予定を足せるか（課金をオンにするまでは誰でも。D-14） */
   const guardAdd = (): boolean => {
-    if (canAddPlan(plans.length, IS_PLUS, BILLING_ENABLED)) return true;
+    // 購入の状態は S4 で usePlus から渡す
+    const isPlus = false;
+    if (canAddPlan(countUpcomingPlans(plans, todayKey), isPlus, BILLING_ENABLED)) return true;
     Alert.alert(
       '予定をいくつでも入れるのはプラスです',
       '無料では予定を1つまで入れられます。いまの予定を消すと、新しい予定を組めます。',

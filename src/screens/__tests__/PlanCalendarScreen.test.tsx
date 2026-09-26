@@ -26,7 +26,7 @@ jest.mock('@/constants/plus', () => ({
     return mockBilling;
   },
   FREE_PLAN_LIMIT: 1,
-  IS_PLUS: false,
+  PLUS_ENTITLEMENT: 'plus',
 }));
 
 const stop = (id: string, i: number) => ({
