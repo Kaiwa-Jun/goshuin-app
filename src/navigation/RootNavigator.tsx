@@ -9,6 +9,7 @@ import { RecordCompleteScreen } from '@screens/RecordCompleteScreen';
 import { TermsOfServiceScreen } from '@screens/TermsOfServiceScreen';
 import { PrivacyPolicyScreen } from '@screens/PrivacyPolicyScreen';
 import { PlusScreen } from '@screens/PlusScreen';
+import { AnnualReportScreen } from '@screens/AnnualReportScreen';
 import { AccountDeletionScreen } from '@screens/AccountDeletionScreen';
 import { ErrorScreen } from '@screens/ErrorScreen';
 import { useOnboarding } from '@hooks/useOnboarding';
@@ -51,6 +52,15 @@ export function RootNavigator() {
       <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
       <Stack.Screen name="AccountDeletion" component={AccountDeletionScreen} />
       <Stack.Screen name="Plus" component={PlusScreen} />
+      {/*
+       * 年報（Issue #274 D-13）。下へのスワイプで閉じない（✕ で閉じる）。
+       * 開く動きは画面の中の動き（薄く小さい → はっきり）だけにするので、遷移の動きは消す
+       */}
+      <Stack.Screen
+        name="AnnualReport"
+        component={AnnualReportScreen}
+        options={{ presentation: 'fullScreenModal', animation: 'none', gestureEnabled: false }}
+      />
       <Stack.Screen name="Error" component={ErrorScreen} />
     </Stack.Navigator>
   );

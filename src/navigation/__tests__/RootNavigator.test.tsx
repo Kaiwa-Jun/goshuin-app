@@ -252,6 +252,25 @@ describe('RootNavigator', () => {
     await waitFor(() => expect(getByText('予定を、先までいくつでも')).toBeTruthy());
   });
 
+  it('AC-26（#274）: 年報の画面が登録されている', async () => {
+    mockUseOnboarding.mockReturnValue({
+      isCompleted: true,
+      isLoading: false,
+      completeOnboarding: jest.fn(),
+      resetOnboarding: jest.fn(),
+    });
+
+    const { getByTestId, getByText } = renderWithNavigation();
+    await waitFor(() => expect(getByTestId('map-screen')).toBeTruthy());
+
+    act(() => {
+      navigationRef.navigate('AnnualReport', { year: 2026, sample: 'full' });
+    });
+
+    await waitFor(() => expect(getByTestId('annual-report')).toBeTruthy());
+    expect(getByText('2026年のふりかえり')).toBeTruthy();
+  });
+
   it('shows Map screen (MainTabs) when onboarding is completed', async () => {
     mockUseOnboarding.mockReturnValue({
       isCompleted: true,
