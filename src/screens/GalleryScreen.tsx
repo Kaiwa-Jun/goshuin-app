@@ -30,6 +30,7 @@ import { GoshuinchoFlipView } from '@components/gallery/GoshuinchoFlipView';
 import { GalleryTileImage } from '@components/gallery/GalleryTileImage';
 import { HeroFlyer } from '@components/gallery/HeroFlyer';
 import { useHeroTransition } from '@hooks/useHeroTransition';
+import { useReduceMotion } from '@hooks/useReduceMotion';
 import { ViewModeToggle } from '@components/gallery/ViewModeToggle';
 import { getWebPreviewStamps, previewImageUrl } from '@components/gallery/webPreview';
 import { EditStampModal } from '@components/stamp-detail/EditStampModal';
@@ -66,6 +67,11 @@ export function GalleryScreen({ navigation }: Props) {
     updateStamp: updateGalleryStamp,
   } = useGalleryStamps(sortOrder);
   const { viewMode, setViewMode } = useGalleryViewMode();
+  /*
+   * 写真が届くまでの動き（Issue #275）。設定の購読はここで1回だけにし、
+   * タイルやページごとに作らない
+   */
+  const reduceMotion = useReduceMotion();
 
   // Expo Web の検証イネーブラ（Issue #116 S-7）。native では常に null
   const previewStamps = getWebPreviewStamps();
@@ -322,7 +328,7 @@ export function GalleryScreen({ navigation }: Props) {
             stampId={item.id}
             uri={imageUrl}
             size={ITEM_SIZE}
-            reduceMotion={false}
+            reduceMotion={reduceMotion}
             // 読み込んだついでに縦横比を控える。飛ぶ先の高さがこれで決まる
             onLoad={(w, h) => hero.rememberAspect(item.id, w, h)}
             // 小さい方がまだ焼かれていない。元の写真に落として表示は続け、裏で焼かせる
@@ -404,6 +410,7 @@ export function GalleryScreen({ navigation }: Props) {
             registerNode={(id, part, node) => hero.registerTile(id, part, node)}
             onImageLoad={(id, w, h) => hero.rememberAspect(id, w, h)}
             hiddenStampId={flyingStampId}
+            reduceMotion={reduceMotion}
             onPressBlank={() => navigation.navigate('Record', { origin: 'gallery' })}
           />
         ) : displayStamps.length === 0 ? (

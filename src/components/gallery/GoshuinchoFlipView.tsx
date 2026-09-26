@@ -82,6 +82,8 @@ interface GoshuinchoFlipViewProps {
   onImageLoad?: (stampId: string, width: number, height: number) => void;
   /** 飛んでいる最中の1枚。出したままだと同じ御朱印が二重に見える */
   hiddenStampId?: string | null;
+  /** 視差効果を減らす。オンなら写真が届くまでの本は止まる（Issue #275） */
+  reduceMotion?: boolean;
 }
 
 // Animated.FlatList の型は総称を保てないので、ここで Page 版として与え直す
@@ -97,6 +99,7 @@ export function GoshuinchoFlipView({
   registerNode,
   onImageLoad,
   hiddenStampId,
+  reduceMotion = false,
 }: GoshuinchoFlipViewProps) {
   const { width } = useWindowDimensions();
   const layout = useMemo(() => computePageLayout(width || Dimensions.get('window').width), [width]);
@@ -243,6 +246,7 @@ export function GoshuinchoFlipView({
               onImageLoad={(w, h) => onImageLoad?.(item.stamp.id, w, h)}
               hidden={hiddenStampId === item.stamp.id}
               loadingBook={loadingBook}
+              reduceMotion={reduceMotion}
               imageUrl={
                 resolveImageUrl
                   ? resolveImageUrl(item.stamp)
@@ -267,6 +271,7 @@ export function GoshuinchoFlipView({
       layout.snapInterval,
       onImageLoad,
       pages.length,
+      reduceMotion,
       registerNode,
       resolveImageUrl,
       scrollX,

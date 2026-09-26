@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, fireEvent, waitFor, act, within } from '@testing-library/react-native';
-import { Animated, Image, StyleSheet } from 'react-native';
+import { AccessibilityInfo, Animated, Image, StyleSheet } from 'react-native';
 import { GalleryScreen } from '@screens/GalleryScreen';
 import { useGalleryStamps } from '@hooks/useGalleryStamps';
 import { ensureStampVariants } from '@services/stamps';
@@ -112,6 +112,15 @@ beforeEach(() => {
   loopSpy = jest
     .spyOn(Animated, 'loop')
     .mockImplementation(() => stubAnim() as unknown as Animated.CompositeAnimation);
+  /*
+   * 視差効果を減らす は既定でオフ。読み出しは終わらないままにして、オフのまま置く
+   * （false を返すと、同期で終わる検査のあとに届いて act の外で描き直しが走る）。
+   * オンの検査はそれぞれで上書きする
+   */
+  jest
+    .spyOn(AccessibilityInfo, 'isReduceMotionEnabled')
+    .mockReturnValue(new Promise<boolean>(() => {}));
+  jest.spyOn(AccessibilityInfo, 'addEventListener').mockReturnValue({ remove: jest.fn() } as never);
 });
 
 afterEach(() => {
@@ -669,5 +678,161 @@ describe('タイル表示の読み込み中（Issue #275）', () => {
       expect(utils.queryByTestId('stamp-image-loading-1', hidden)).toBeNull();
       expect(flat(utils.getByTestId('stamp-image-1')).backgroundColor).toBe(colors.gray[200]);
     });
+  });
+});
+
+describe('視差効果を減らす（Issue #275）', () => {
+  /** 下地は読み上げない（飾り）ので、既定の検索からは外れる。外れたものも探す */
+  const hidden = { includeHiddenElements: true };
+  const IDS = ['1', '2', '3'];
+  const withStamps = (isLoading: boolean) =>
+    mockUseGalleryStamps.mockReturnValue({
+      stamps: isLoading
+        ? []
+        : IDS.map(id => makeStamp({ id, image_path: `user-1/stamp-${id}.jpg` })),
+      totalCount: isLoading ? 0 : IDS.length,
+      isLoading,
+      error: null,
+      removeStamp: jest.fn(),
+      updateStamp: jest.fn(),
+    });
+
+  let timingSpy: jest.SpyInstance;
+  /** 時計ではない timing（下地のふわっと） */
+  let fades: Animated.TimingAnimationConfig[];
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // 本を描くぶん1件が延び、FlatList が 50ms 後に回す描き直しが検査の途中で走る。時間を止める
+    jest.useFakeTimers();
+    mockAuth = { user: { id: 'user-1' }, isAuthenticated: true };
+    fades = [];
+    timingSpy = jest.spyOn(Animated, 'timing').mockImplementation((value, config) => {
+      if (value !== loadingClock) fades.push(config);
+      return stubAnim() as unknown as Animated.CompositeAnimation;
+    });
+  });
+
+  afterEach(() => {
+    timingSpy.mockRestore();
+    jest.useRealTimers();
+  });
+
+  const flat = (el: { props: { style?: unknown } }) =>
+    (StyleSheet.flatten(el.props.style) ?? {}) as Record<string, unknown>;
+  const read = (value: unknown): number => {
+    const v =
+      value && typeof value === 'object' && '__getValue' in value
+        ? (value as { __getValue: () => unknown }).__getValue()
+        : value;
+    return typeof v === 'string' ? parseFloat(v) : (v as number);
+  };
+  const lastBookRotate = (utils: ReturnType<typeof renderGalleryScreen>) => {
+    const leaf = utils.getByTestId('flip-page-loading-3-book-leaf-front', hidden);
+    const transform = (flat(leaf).transform ?? []) as Record<string, unknown>[];
+    return read(transform.find(t => 'rotateY' in t)?.rotateY);
+  };
+
+  /*
+   * 御朱印帳は一覧の取得中は ActivityIndicator を出しているので、ふつうは設定を
+   * 読み終えてから下地が出る。その順で描く（SavingOverlay.test.tsx と同じ）
+   */
+  const renderWithReduceMotion = async () => {
+    jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
+    withStamps(true);
+    const utils = renderGalleryScreen();
+    await waitFor(() => expect(AccessibilityInfo.isReduceMotionEnabled).toHaveBeenCalled());
+
+    withStamps(false);
+    utils.rerender(<GalleryScreen navigation={mockNavigation as never} route={mockRoute} />);
+    return utils;
+  };
+
+  it('めくる表示の本は開いた形で止まり、時計を回さない（AC-29）', async () => {
+    const utils = await renderWithReduceMotion();
+
+    expect(loopSpy).not.toHaveBeenCalled();
+    expect(isLoadingClockRunning()).toBe(false);
+
+    act(() => loadingClock.setValue(425));
+    expect(lastBookRotate(utils)).toBe(0);
+    const seals = utils
+      .getAllByTestId(/-book-seal-/, hidden)
+      .filter(el => (el.props.testID as string).startsWith('flip-page-loading-3-'));
+    expect(seals).toHaveLength(4);
+  });
+
+  it('タイルの下地は明滅しない（AC-30）', async () => {
+    const utils = await renderWithReduceMotion();
+    fireEvent.press(utils.getByTestId('view-mode-grid'));
+
+    expect(loopSpy).not.toHaveBeenCalled();
+    act(() => loadingClock.setValue(800));
+    for (const id of IDS) {
+      expect(
+        read(flat(utils.getByTestId(`stamp-image-loading-${id}-ground`, hidden)).opacity)
+      ).toBe(1);
+    }
+  });
+
+  /*
+   * ふわっとの timing を呼ばず、その場で外す。めくる表示のページは開いた直後に
+   * 覗きの不透明度を動かすので、写真が届く直前からの呼び出しを見る
+   */
+  it('めくる表示で写真が届いたら、下地をその場で外す（AC-31）', async () => {
+    const utils = await renderWithReduceMotion();
+    fades.length = 0;
+
+    fireEvent(utils.getByTestId('flip-page-image-3'), 'load', {
+      nativeEvent: { source: { width: 600, height: 800 } },
+    });
+
+    expect(utils.queryByTestId('flip-page-loading-3', hidden)).toBeNull();
+    expect(fades).toEqual([]);
+  });
+
+  it('タイル表示で写真が届いたら、下地をその場で外す（AC-31）', async () => {
+    const utils = await renderWithReduceMotion();
+    fireEvent.press(utils.getByTestId('view-mode-grid'));
+    fades.length = 0;
+
+    fireEvent(utils.getByTestId('stamp-image-2'), 'load', {
+      nativeEvent: { source: { width: 600, height: 800 } },
+    });
+
+    expect(utils.queryByTestId('stamp-image-loading-2', hidden)).toBeNull();
+    expect(fades).toEqual([]);
+  });
+
+  it('途中でオンになったら時計を止めて本を止め、オフに戻すとまた回す（AC-32）', async () => {
+    withStamps(false);
+    const utils = renderGalleryScreen();
+    await waitFor(() => expect(AccessibilityInfo.isReduceMotionEnabled).toHaveBeenCalled());
+    expect(isLoadingClockRunning()).toBe(true);
+
+    const handler = (AccessibilityInfo.addEventListener as jest.Mock).mock.calls.find(
+      ([event]) => event === 'reduceMotionChanged'
+    )?.[1] as (enabled: boolean) => void;
+    const clock = loopSpy.mock.results[loopSpy.mock.results.length - 1].value as Anim;
+
+    act(() => handler(true));
+    expect(clock.stop).toHaveBeenCalledTimes(1);
+    expect(isLoadingClockRunning()).toBe(false);
+    act(() => loadingClock.setValue(425));
+    expect(lastBookRotate(utils)).toBe(0);
+
+    act(() => handler(false));
+    expect(isLoadingClockRunning()).toBe(true);
+  });
+
+  // タイルやページごとに設定の購読を作らない
+  it('設定は画面で1回だけ読む（AC-33）', async () => {
+    withStamps(false);
+    const utils = renderGalleryScreen();
+    fireEvent.press(utils.getByTestId('view-mode-grid'));
+    await waitFor(() => expect(AccessibilityInfo.isReduceMotionEnabled).toHaveBeenCalled());
+
+    expect(utils.getAllByTestId(/^stamp-image-loading-\d$/, hidden)).toHaveLength(3);
+    expect(AccessibilityInfo.isReduceMotionEnabled).toHaveBeenCalledTimes(1);
   });
 });

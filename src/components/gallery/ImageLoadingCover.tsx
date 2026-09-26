@@ -33,22 +33,25 @@ export function ImageLoadingCover({
   loading,
   variant,
   book = 'still',
+  reduceMotion,
   testID,
 }: ImageLoadingCoverProps) {
   const opacity = useRef(new Animated.Value(1)).current;
   const [fading, setFading] = useState(false);
 
-  // 読み込み中が終わった描画でふわっとを始める。戻ったらやめる
+  // 読み込み中が終わった描画でふわっとを始める。戻ったらやめる。
+  // 視差効果を減らす がオンなら、ふわっとさせずにその場で外す
   const [wasLoading, setWasLoading] = useState(loading);
   if (wasLoading !== loading) {
     setWasLoading(loading);
-    setFading(!loading);
+    setFading(!loading && !reduceMotion);
   }
 
   const shown = loading || fading;
-  const bookMoves = variant === 'page' && book === 'flip';
+  // 視差効果を減らす がオンなら本は周 0 の形で止まり、時計を登録しない
+  const bookMoves = variant === 'page' && book === 'flip' && !reduceMotion;
   // タイルは下地が明滅する。すべての下地が同じ時計でそろう
-  const moving = shown && (variant === 'tile' || bookMoves);
+  const moving = shown && !reduceMotion && (variant === 'tile' || bookMoves);
   useLoadingClock(moving);
 
   useEffect(() => {
