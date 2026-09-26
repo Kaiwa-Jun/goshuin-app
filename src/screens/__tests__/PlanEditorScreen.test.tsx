@@ -8,6 +8,7 @@ import { DRAWER_LOW } from '@components/plan/PlanDrawer';
 import type { Spot } from '@/types/supabase';
 import type { VisitPlan } from '@/types/visitPlan';
 import { colors } from '@theme/colors';
+import { Line } from 'react-native-svg';
 
 /* 契約書: docs/issues/issue-258-visit-plan.md（S4〜S6 / AC-31〜46・UI-7） */
 
@@ -372,8 +373,10 @@ describe('③ 順番', () => {
       '電車などで移動・約3.3km',
     ])
       expect(r.getByText(l)).toBeTruthy();
-    expect(r.getByText('✦ 近い順・受付の早い順に並べました。つまんで変えられます')).toBeTruthy();
-    expect(r.getByText('⋮⋮ で並べ替え')).toBeTruthy();
+    expect(
+      r.getByText('✦ 近い順・受付の早い順に並べました。長押しで入れ替えられます')
+    ).toBeTruthy();
+    expect(r.getByText('長押しで並べ替え')).toBeTruthy();
   });
 
   it('UI-4: 番号の丸は朱、「この予定を保存」は primary[500]', async () => {
@@ -470,6 +473,25 @@ describe('③ 順番', () => {
     });
     expect(stopNames(r)).toEqual(SUGGESTED);
     expect(r.getByTestId('plan-suggest-banner')).toBeTruthy();
+  });
+
+  it('番号の丸を朱の点線でつなぐ（地図の点線と同じステップ感）', async () => {
+    reduceMotion = true;
+    const r = renderScreen({ date: '2026-10-03' });
+    await act(async () => {});
+    addAllFromWishlist(r);
+    await decide(r);
+    // 1番目の上と5番目の下には線が無い。あいだは丸の上下と区間の行でつながる
+    expect(r.queryByTestId('plan-rail-top-0')).toBeNull();
+    expect(r.getByTestId('plan-rail-bottom-0')).toBeTruthy();
+    expect(r.getByTestId('plan-rail-leg-0')).toBeTruthy();
+    expect(r.getByTestId('plan-rail-top-1')).toBeTruthy();
+    expect(r.queryByTestId('plan-rail-bottom-4')).toBeNull();
+    expect(r.getAllByTestId(/^plan-rail-leg-\d+$/)).toHaveLength(4);
+    // 描かれた後の props は SVG が色を数値に変えるので、渡した側（Line）で見る
+    const line = within(r.getByTestId('plan-rail-leg-0')).UNSAFE_getByType(Line);
+    expect(line.props.stroke).toBe(colors.seal);
+    expect(line.props.strokeDasharray).toBeTruthy();
   });
 
   it('AC-39: 「Google マップで」で1区間の URL を開き、失敗したら Alert', async () => {

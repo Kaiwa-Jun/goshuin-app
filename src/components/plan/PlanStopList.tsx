@@ -23,11 +23,16 @@ import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { spacing, borderRadius } from '@theme/spacing';
 import { shadows } from '@theme/shadows';
+import Svg, { Line } from 'react-native-svg';
 
 /** 並べ替えを始めるまでの長押し（D-5） */
 const LONG_PRESS_MS = 250;
 /** ほかの行がよける・持った行が収まる動きの長さ */
 const SHIFT_MS = 120;
+/** 番号の丸をつなぐ点線の太さ */
+const RAIL_WIDTH = 2;
+/** 番号の丸の直径。点線の列の幅もこれにそろえる */
+const NUM_SIZE = 26;
 
 interface Props {
   points: PlanPoint[];
@@ -143,6 +148,8 @@ export function PlanStopList({
         const done = visited.has(s.spotId);
         const next = points[i + 1];
         const held = dragging === i;
+        // 次の寺社まで描けているときだけ、区間と点線を出す（順に描く途中 / D-12）
+        const hasLeg = Boolean(s.leg && next && i + 1 < revealed);
         return (
           <Animated.View
             key={s.spotId}
@@ -178,8 +185,13 @@ export function PlanStopList({
                   onMove(i, e.nativeEvent.actionName === 'moveUp' ? i - 1 : i + 1)
                 }
               >
-                <View style={[styles.num, past && !done && styles.numMissed]}>
-                  <Text style={styles.numText}>{i + 1}</Text>
+                {/* 番号の丸を朱の点線でつなぐ（地図の点線と同じステップ感） */}
+                <View style={styles.numCol}>
+                  <Rail visible={i > 0} testID={`plan-rail-top-${i}`} />
+                  <View style={[styles.num, past && !done && styles.numMissed]}>
+                    <Text style={styles.numText}>{i + 1}</Text>
+                  </View>
+                  <Rail visible={hasLeg} testID={`plan-rail-bottom-${i}`} />
                 </View>
                 <View style={styles.nameBox}>
                   <Text style={styles.name}>{spot?.name}</Text>
@@ -199,12 +211,15 @@ export function PlanStopList({
                 {!readonly && <Text style={styles.handle}>⋮⋮</Text>}
               </View>
             </DraggableRow>
-            {s.leg && next && i + 1 < revealed && (
+            {hasLeg && s.leg && (
               // 並べ替えの途中は区間が変わるので薄くする（離すと計算し直す）
               <View
                 style={[styles.leg, dragging !== null && styles.legStale]}
                 testID={`plan-leg-${i}`}
               >
+                <View style={styles.numCol}>
+                  <Rail visible testID={`plan-rail-leg-${i}`} />
+                </View>
                 <Text style={styles.legText}>{s.leg.label}</Text>
                 {!past && (
                   <TouchableOpacity
@@ -221,6 +236,27 @@ export function PlanStopList({
           </Animated.View>
         );
       })}
+    </View>
+  );
+}
+
+/** 丸と丸のあいだの縦の点線。iOS は View の片側だけの点線の枠を描けないので SVG で引く */
+function Rail({ visible, testID }: { visible: boolean; testID: string }) {
+  if (!visible) return <View style={styles.rail} />;
+  return (
+    <View style={styles.rail} testID={testID}>
+      <Svg width={RAIL_WIDTH} height="100%">
+        <Line
+          x1={RAIL_WIDTH / 2}
+          y1={0}
+          x2={RAIL_WIDTH / 2}
+          y2="100%"
+          stroke={colors.seal}
+          strokeWidth={RAIL_WIDTH}
+          strokeDasharray="3 4"
+          testID={`${testID}-line`}
+        />
+      </Svg>
     </View>
   );
 }
@@ -299,9 +335,17 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     backgroundColor: colors.white,
   },
+  // 丸の列。行の上下の余白まで伸ばして、前後の行の点線とつなげる
+  numCol: {
+    width: NUM_SIZE,
+    alignSelf: 'stretch',
+    alignItems: 'center',
+    marginVertical: -spacing.sm,
+  },
+  rail: { flex: 1, width: RAIL_WIDTH, minHeight: spacing.sm },
   num: {
-    width: 26,
-    height: 26,
+    width: NUM_SIZE,
+    height: NUM_SIZE,
     borderRadius: borderRadius.full,
     backgroundColor: colors.seal,
     alignItems: 'center',
@@ -321,12 +365,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    marginLeft: 12,
-    paddingLeft: spacing.lg,
     paddingVertical: spacing.xs,
-    borderLeftWidth: 2,
-    borderStyle: 'dashed',
-    borderLeftColor: colors.gray[300],
   },
   legText: { ...typography.caption, color: colors.gray[600], flex: 1 },
   gm: {
