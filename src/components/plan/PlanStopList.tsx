@@ -163,8 +163,8 @@ function DragHandle({
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const responder = useRef(
     PanResponder.create({
+      // ⋮⋮ に触れた時点で指を取る（長押しの時間を測るため）。ドラッグは armed になってから
       onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => armed.current,
       onPanResponderTerminationRequest: () => !armed.current,
       onPanResponderGrant: () => {
         timer.current = setTimeout(() => (armed.current = true), LONG_PRESS_MS);

@@ -67,7 +67,7 @@ BEGIN
 
   -- 他人の予定の id を渡しても書き換えられない
   BEGIN
-    PERFORM public.save_visit_plan(other_id, DATE '2099-01-03', '乗っ取り', ARRAY[s1]);
+    PERFORM public.save_visit_plan(other_id, DATE '2099-01-03', '乗っ取り', ARRAY[s1, s2]);
     rpc_other := 'allowed';
   EXCEPTION WHEN OTHERS THEN
     rpc_other := 'denied';
@@ -75,7 +75,7 @@ BEGIN
 
   -- 同じ日（本人の 2099-01-01）に2つ目は入らない
   BEGIN
-    PERFORM public.save_visit_plan(NULL, DATE '2099-01-01', '検証用・同じ日', ARRAY[s1]);
+    PERFORM public.save_visit_plan(NULL, DATE '2099-01-01', '検証用・同じ日', ARRAY[s1, s2]);
     same_day := 'allowed';
   EXCEPTION WHEN unique_violation THEN
     same_day := 'denied';

@@ -85,6 +85,11 @@ AS $$
 DECLARE
   v_id UUID;
 BEGIN
+  -- 予定は2社から（D-23。アプリは「順番を決める」を2社未満で押せなくしている）
+  IF coalesce(array_length(p_spot_ids, 1), 0) < 2 THEN
+    RAISE EXCEPTION 'visit plan needs at least 2 spots';
+  END IF;
+
   IF p_plan_id IS NULL THEN
     INSERT INTO visit_plans (planned_on, name)
     VALUES (p_planned_on, p_name)

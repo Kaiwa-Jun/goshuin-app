@@ -179,7 +179,7 @@ export function usePlanEditor({ planId, date, spots, today }: Params) {
     [plan, plannedOn, order]
   );
 
-  const remove_ = useCallback(async () => {
+  const removePlan = useCallback(async () => {
     if (plan) await deleteVisitPlan(plan.id);
   }, [plan]);
 
@@ -208,6 +208,6 @@ export function usePlanEditor({ planId, date, spots, today }: Params) {
     reselect,
     edit,
     save,
-    deletePlan: remove_,
+    deletePlan: removePlan,
   };
 }
