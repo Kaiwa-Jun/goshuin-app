@@ -74,8 +74,8 @@ export type MainTabParamList = {
 export type PlanStackParamList = {
   /** savedOn: 保存した日（YYYY-MM-DD）。その月を開いて「に保存しました」を出す */
   PlanCalendar: { savedOn?: string } | undefined;
-  /** planId: 保存済みの予定を開く / date: その日付で組む（YYYY-MM-DD） */
-  PlanEditor: { planId?: string; date?: string };
+  /** planId: 保存済みの予定を開く / date: その日付で組む（YYYY-MM-DD）/ purchased: プラスを買った直後（Issue #270） */
+  PlanEditor: { planId?: string; date?: string; purchased?: boolean };
 };
 
 export type MapStackParamList = {

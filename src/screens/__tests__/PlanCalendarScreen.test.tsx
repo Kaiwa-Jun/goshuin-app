@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, ScrollView } from 'react-native';
+import { ScrollView } from 'react-native';
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import '@testing-library/react-native/extend-expect';
 
@@ -101,28 +101,12 @@ it('AC-29: 予定の無い過ぎた日は押せない', async () => {
   expect(ui.getByTestId('plan-day-2026-09-25')).toBeDisabled();
 });
 
-it('AC-30: 課金オンで無料の上限なら Alert、オフなら何件でも組める', async () => {
-  const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
-  mockBilling = true;
+it('AC-30: 課金オフなら何件でも組める（課金オンのときの案内は PlanCalendarPlus.test.tsx / #270）', async () => {
   const n = nav();
   const ui = renderScreen(n);
   await waitFor(() => expect(mockFetchPlans).toHaveBeenCalled());
-  await act(async () => {});
   fireEvent.press(ui.getByTestId('plan-new'));
-  expect(alert).toHaveBeenCalledWith(
-    '予定をいくつでも入れるのはプラスです',
-    expect.any(String),
-    expect.any(Array)
-  );
-  expect(n.navigate).not.toHaveBeenCalled();
-
-  mockBilling = false;
-  const n2 = nav();
-  const ui2 = renderScreen(n2);
-  await waitFor(() => expect(mockFetchPlans).toHaveBeenCalled());
-  fireEvent.press(ui2.getAllByTestId('plan-new')[0]);
-  expect(n2.navigate).toHaveBeenCalledWith('PlanEditor', { date: '2026-09-26' });
-  alert.mockRestore();
+  expect(n.navigate).toHaveBeenCalledWith('PlanEditor', { date: '2026-09-26' });
 });
 
 it('AC-47: 読み込めなかったら案内と「もう一度」', async () => {

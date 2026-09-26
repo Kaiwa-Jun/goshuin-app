@@ -9,6 +9,7 @@ import type { Spot } from '@/types/supabase';
 import type { VisitPlan } from '@/types/visitPlan';
 import { colors } from '@theme/colors';
 import { Line } from 'react-native-svg';
+import { MaterialIcons } from '@expo/vector-icons';
 
 /* 契約書: docs/issues/issue-258-visit-plan.md（S4〜S6 / AC-31〜46・UI-7） */
 
@@ -97,7 +98,10 @@ const planOf = (id: string, plannedOn: string, name: string, ids: string[]): Vis
 });
 
 const nav = () => ({ navigate: jest.fn(), setParams: jest.fn(), goBack: jest.fn() });
-const renderScreen = (params: { planId?: string; date?: string }, n = nav()) => {
+const renderScreen = (
+  params: { planId?: string; date?: string; purchased?: boolean },
+  n = nav()
+) => {
   const r = render(
     <PlanEditorScreen
       navigation={n as never}
@@ -252,6 +256,29 @@ describe('地図の現在地と「行きたい」', () => {
         padding: expect.objectContaining({ bottom: expect.any(Number) }),
       })
     );
+  });
+});
+
+describe('プラスを買った直後（#270 / AC-34・UI-4）', () => {
+  it('purchased で一言を出し、3.2秒で消える。params から消す', async () => {
+    const r = renderScreen({ date: '2026-10-10', purchased: true });
+    await act(async () => {});
+    expect(r.getByText('プラスになりました。ありがとうございます')).toBeTruthy();
+    expect(r.nav.setParams).toHaveBeenCalledWith({ purchased: undefined });
+    const toast = r.getByTestId('plus-thanks-toast');
+    expect(StyleSheet.flatten(toast.props.style).backgroundColor).toBe(colors.gray[900]);
+    const icon = within(toast).UNSAFE_getByType(MaterialIcons);
+    expect(icon.props).toMatchObject({ name: 'auto-awesome', color: colors.primary[300] });
+    act(() => {
+      jest.advanceTimersByTime(3200);
+    });
+    expect(r.queryByText('プラスになりました。ありがとうございます')).toBeNull();
+  });
+
+  it('purchased が無ければ出さない', async () => {
+    const r = renderScreen({ date: '2026-10-10' });
+    await act(async () => {});
+    expect(r.queryByTestId('plus-thanks-toast')).toBeNull();
   });
 });
 

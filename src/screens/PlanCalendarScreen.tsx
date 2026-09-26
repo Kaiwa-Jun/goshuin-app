@@ -1,12 +1,14 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { Button } from '@components/common/Button';
 import { Card } from '@components/common/Card';
 import { PlanCalendar } from '@components/plan/PlanCalendar';
+import { PlusSheet } from '@components/plus/PlusSheet';
 import { useAuth } from '@hooks/useAuth';
+import { usePlus } from '@hooks/usePlus';
 import { useVisitPlans } from '@hooks/useVisitPlans';
 import type { PlanStackScreenProps } from '@/navigation/types';
 import type { VisitPlan } from '@/types/visitPlan';
@@ -23,6 +25,8 @@ type Props = PlanStackScreenProps<'PlanCalendar'>;
 
 /** 「に保存しました」を出しておく長さ */
 const SAVED_TOAST_MS = 3200;
+/** プラスの案内のシートが閉じる動きの長さ。onDismiss が来ないときはこのあとに次の画面へ */
+const SHEET_DISMISS_MS = 350;
 
 /**
  * 予定タブ（Issue #258）。開くとカレンダー。空いた日を押すとその日付で予定を組む。
@@ -61,21 +65,39 @@ export function PlanCalendarScreen({ navigation, route }: Props) {
   const todayKey = toLocalDateString(today);
   const nextPlan: VisitPlan | undefined = plans.find(p => p.plannedOn >= todayKey);
 
-  /** 予定を足せるか（課金をオンにするまでは誰でも。D-14） */
-  const guardAdd = (): boolean => {
-    // 購入の状態は S4 で usePlus から渡す
-    const isPlus = false;
-    if (canAddPlan(countUpcomingPlans(plans, todayKey), isPlus, BILLING_ENABLED)) return true;
-    Alert.alert(
-      '予定をいくつでも入れるのはプラスです',
-      '無料では予定を1つまで入れられます。いまの予定を消すと、新しい予定を組めます。',
-      [{ text: '閉じる' }]
-    );
+  // ── プラスの案内（Issue #270 の ①）。これからの予定が無料の枠を使い切っているときだけ ──
+  const plus = usePlus();
+  const [sheetDate, setSheetDate] = useState<string | null>(null);
+  // シートが閉じきってから次の画面へ進む（開いたまま push すると画面がシートの裏に出る / D-9）
+  const afterClose = useRef<(() => void) | null>(null);
+  const [closing, setClosing] = useState(false);
+  const runAfterClose = useCallback(() => {
+    const next = afterClose.current;
+    afterClose.current = null;
+    setClosing(false);
+    next?.();
+  }, []);
+  useEffect(() => {
+    if (!closing || sheetDate !== null) return;
+    // onDismiss は iOS だけ。来なくても閉じる動きの長さのあとに進む
+    const t = setTimeout(runAfterClose, SHEET_DISMISS_MS);
+    return () => clearTimeout(t);
+  }, [closing, sheetDate, runAfterClose]);
+  const closeSheetThen = (next: () => void) => {
+    afterClose.current = next;
+    setClosing(true);
+    setSheetDate(null);
+  };
+
+  /** 予定を足せるか。足せなければプラスの案内を出す（課金をオンにするまでは誰でも足せる） */
+  const guardAdd = (ymd: string): boolean => {
+    if (canAddPlan(countUpcomingPlans(plans, todayKey), plus.isPlus, BILLING_ENABLED)) return true;
+    setSheetDate(ymd);
     return false;
   };
 
   const handleNew = () => {
-    if (guardAdd()) navigation.navigate('PlanEditor', { date: todayKey });
+    if (guardAdd(todayKey)) navigation.navigate('PlanEditor', { date: todayKey });
   };
 
   const handlePressDay = (ymd: string) => {
@@ -84,7 +106,7 @@ export function PlanCalendarScreen({ navigation, route }: Props) {
       navigation.navigate('PlanEditor', { planId: plan.id });
       return;
     }
-    if (guardAdd()) navigation.navigate('PlanEditor', { date: ymd });
+    if (guardAdd(ymd)) navigation.navigate('PlanEditor', { date: ymd });
   };
 
   const shiftMonth = (delta: number) =>
@@ -181,6 +203,24 @@ export function PlanCalendarScreen({ navigation, route }: Props) {
       <TouchableOpacity style={styles.fab} onPress={handleNew} testID="plan-new">
         <Text style={styles.fabText}>＋ 予定を組む</Text>
       </TouchableOpacity>
+
+      <PlusSheet
+        targetDate={sheetDate}
+        nextPlan={nextPlan}
+        plus={plus}
+        onClose={() => setSheetDate(null)}
+        onDismiss={runAfterClose}
+        onPurchased={() => {
+          const date = sheetDate ?? todayKey;
+          closeSheetThen(() => navigation.navigate('PlanEditor', { date, purchased: true }));
+        }}
+        onRestored={() => {
+          const date = sheetDate ?? todayKey;
+          closeSheetThen(() => navigation.navigate('PlanEditor', { date }));
+        }}
+        onTerms={() => closeSheetThen(() => navigation.navigate('TermsOfService'))}
+        onPrivacy={() => closeSheetThen(() => navigation.navigate('PrivacyPolicy'))}
+      />
 
       {toast && (
         <View style={styles.toast} testID="plan-saved-toast">
