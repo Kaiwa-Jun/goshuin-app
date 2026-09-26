@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
-import { spacing, borderRadius } from '@theme/spacing';
+import { spacing } from '@theme/spacing';
 import { useAuth } from '@hooks/useAuth';
 import { useGalleryStamps } from '@hooks/useGalleryStamps';
 import { useGalleryViewMode } from '@hooks/useGalleryViewMode';
@@ -27,6 +27,7 @@ import {
 import { Button } from '@components/common/Button';
 import { ImageGalleryModal, GalleryImage } from '@components/common/ImageGalleryModal';
 import { GoshuinchoFlipView } from '@components/gallery/GoshuinchoFlipView';
+import { GalleryTileImage } from '@components/gallery/GalleryTileImage';
 import { HeroFlyer } from '@components/gallery/HeroFlyer';
 import { useHeroTransition } from '@hooks/useHeroTransition';
 import { ViewModeToggle } from '@components/gallery/ViewModeToggle';
@@ -316,16 +317,16 @@ export function GalleryScreen({ navigation }: Props) {
           }}
           style={isFlying && styles.flying}
         >
-          <Image
-            source={{ uri: imageUrl }}
-            style={styles.stampImage}
+          {/* 写真が届くまでは和紙の下地が明滅する（Issue #275） */}
+          <GalleryTileImage
+            stampId={item.id}
+            uri={imageUrl}
+            size={ITEM_SIZE}
+            reduceMotion={false}
             // 読み込んだついでに縦横比を控える。飛ぶ先の高さがこれで決まる
-            onLoad={e =>
-              hero.rememberAspect(item.id, e.nativeEvent.source.width, e.nativeEvent.source.height)
-            }
+            onLoad={(w, h) => hero.rememberAspect(item.id, w, h)}
             // 小さい方がまだ焼かれていない。元の写真に落として表示は続け、裏で焼かせる
             onError={() => handleThumbMissing(item)}
-            testID={`stamp-image-${item.id}`}
           />
         </View>
         <View
@@ -545,12 +546,6 @@ const styles = StyleSheet.create({
   },
   flying: {
     opacity: 0,
-  },
-  stampImage: {
-    width: ITEM_SIZE,
-    height: ITEM_SIZE,
-    backgroundColor: colors.gray[200],
-    borderRadius: borderRadius.md,
   },
   itemSpotName: {
     ...typography.caption,

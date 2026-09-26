@@ -3,7 +3,7 @@ import { Animated, Easing, StyleSheet, View } from 'react-native';
 
 import { colors } from '@theme/colors';
 import { LoadingBook } from '@components/gallery/LoadingBook';
-import { CROSSFADE_MS, useLoadingClock } from '@components/gallery/loadingClock';
+import { CROSSFADE_MS, loadingMotion, useLoadingClock } from '@components/gallery/loadingClock';
 
 /** CSS の ease。RN の Easing.ease は別の曲線なので使わない */
 const CROSSFADE_EASING = Easing.bezier(0.25, 0.1, 0.25, 1);
@@ -47,7 +47,9 @@ export function ImageLoadingCover({
 
   const shown = loading || fading;
   const bookMoves = variant === 'page' && book === 'flip';
-  useLoadingClock(shown && bookMoves);
+  // タイルは下地が明滅する。すべての下地が同じ時計でそろう
+  const moving = shown && (variant === 'tile' || bookMoves);
+  useLoadingClock(moving);
 
   useEffect(() => {
     if (!fading) {
@@ -77,12 +79,22 @@ export function ImageLoadingCover({
       importantForAccessibility="no-hide-descendants"
       style={[StyleSheet.absoluteFill, { opacity }]}
     >
-      <View testID={`${testID}-ground`} style={styles.ground}>
-        <View testID={`${testID}-frame`} style={[styles.frame, styles.framePage]} />
+      <Animated.View
+        testID={`${testID}-ground`}
+        style={[
+          styles.ground,
+          // めくる表示の地は明滅しない（本が動いている）
+          { opacity: variant === 'tile' && moving ? loadingMotion.breathOpacity : 1 },
+        ]}
+      >
+        <View
+          testID={`${testID}-frame`}
+          style={[styles.frame, variant === 'page' ? styles.framePage : styles.frameTile]}
+        />
         {variant === 'page' && book !== 'none' && (
           <LoadingBook animated={bookMoves} testID={`${testID}-book`} />
         )}
-      </View>
+      </Animated.View>
     </Animated.View>
   );
 }
@@ -105,5 +117,12 @@ const styles = StyleSheet.create({
     right: 10,
     bottom: 10,
     borderRadius: 8,
+  },
+  frameTile: {
+    top: 6,
+    left: 6,
+    right: 6,
+    bottom: 6,
+    borderRadius: 5,
   },
 });

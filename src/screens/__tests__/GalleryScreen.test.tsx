@@ -1,8 +1,15 @@
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import { Image } from 'react-native';
+import { render, fireEvent, waitFor, act, within } from '@testing-library/react-native';
+import { Animated, Image, StyleSheet } from 'react-native';
 import { GalleryScreen } from '@screens/GalleryScreen';
 import { useGalleryStamps } from '@hooks/useGalleryStamps';
+import { ensureStampVariants } from '@services/stamps';
+import {
+  isLoadingClockRunning,
+  loadingClock,
+  resetLoadingClockForTests,
+} from '@components/gallery/loadingClock';
+import { colors } from '@theme/colors';
 import type { StampWithSpot } from '@/types/supabase';
 
 jest.mock('react-native-safe-area-context', () => {
@@ -91,6 +98,26 @@ const mockNavigation = {
 };
 
 const mockRoute = { key: 'test', name: 'Gallery' as const, params: undefined };
+
+/*
+ * 読み込み中の動きの時計（Issue #275）。本物の loop を回すと値がネイティブ扱いになり、
+ * 後のテストで setValue が描画に届かなくなることがある。呼ぶたびに新しいスタブを返す
+ */
+type Anim = { start: jest.Mock; stop: jest.Mock; reset: jest.Mock };
+const stubAnim = (): Anim => ({ start: jest.fn(), stop: jest.fn(), reset: jest.fn() });
+let loopSpy: jest.SpyInstance;
+
+beforeEach(() => {
+  resetLoadingClockForTests();
+  loopSpy = jest
+    .spyOn(Animated, 'loop')
+    .mockImplementation(() => stubAnim() as unknown as Animated.CompositeAnimation);
+});
+
+afterEach(() => {
+  loopSpy.mockRestore();
+  act(() => resetLoadingClockForTests());
+});
 
 function renderGalleryScreen() {
   return render(<GalleryScreen navigation={mockNavigation as never} route={mockRoute} />);
@@ -500,5 +527,147 @@ describe('グリッド0件時の CTA（監査 A-10）', () => {
 
     await waitFor(() => expect(removeStamp).toHaveBeenCalledWith('1'));
     expect(mockHeroEnd).toHaveBeenCalled();
+  });
+});
+
+describe('タイル表示の読み込み中（Issue #275）', () => {
+  /** 下地は読み上げない（飾り）ので、既定の検索からは外れる。外れたものも探す */
+  const hidden = { includeHiddenElements: true };
+  const IDS = ['1', '2', '3'];
+
+  let timingSpy: jest.SpyInstance;
+  /** 時計ではない timing（下地のふわっと） */
+  let fades: { config: Animated.TimingAnimationConfig; anim: Anim }[];
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockAuth = { user: { id: 'user-1' }, isAuthenticated: true };
+    mockUseGalleryStamps.mockReturnValue({
+      stamps: IDS.map(id => makeStamp({ id, image_path: `user-1/stamp-${id}.jpg` })),
+      totalCount: IDS.length,
+      isLoading: false,
+      error: null,
+      removeStamp: jest.fn(),
+      updateStamp: jest.fn(),
+    });
+    fades = [];
+    timingSpy = jest.spyOn(Animated, 'timing').mockImplementation((value, config) => {
+      const anim = stubAnim();
+      if (value !== loadingClock) fades.push({ config, anim });
+      return anim as unknown as Animated.CompositeAnimation;
+    });
+  });
+
+  afterEach(() => {
+    timingSpy.mockRestore();
+  });
+
+  /*
+   * 既定はめくる表示で、そちらも読み込み中の本で時計を回している。タイルに切り替えると
+   * めくる表示が外れて時計がいったん止まり、タイルの登録で回し直す（想定どおり。
+   * 回数そのものは縛らない）。ここではタイルに切り替えてからの呼び出しを数える。
+   * timing も同じ。めくる表示のページは開いた直後に覗きの不透明度を動かす
+   */
+  const renderGrid = () => {
+    const utils = renderGalleryScreen();
+    loopSpy.mockClear();
+    fireEvent.press(utils.getByTestId('view-mode-grid'));
+    fades.length = 0;
+    return utils;
+  };
+
+  const flat = (el: { props: { style?: unknown } }) =>
+    (StyleSheet.flatten(el.props.style) ?? {}) as Record<string, unknown>;
+  const read = (value: unknown): number => {
+    const v =
+      value && typeof value === 'object' && '__getValue' in value
+        ? (value as { __getValue: () => unknown }).__getValue()
+        : value;
+    return v as number;
+  };
+  const groundOpacities = (utils: ReturnType<typeof renderGrid>) =>
+    IDS.map(id =>
+      read(flat(utils.getByTestId(`stamp-image-loading-${id}-ground`, hidden)).opacity)
+    );
+
+  const loadAndFinish = (utils: ReturnType<typeof renderGrid>, id: string) => {
+    fireEvent(utils.getByTestId(`stamp-image-${id}`), 'load', {
+      nativeEvent: { source: { width: 600, height: 800 } },
+    });
+    const fade = fades[fades.length - 1];
+    act(() => fade.anim.start.mock.calls[0][0]({ finished: true }));
+  };
+
+  it('各タイルの写真の上に和紙の下地を重ねる（本は置かない）（AC-22）', () => {
+    const utils = renderGrid();
+
+    for (const id of IDS) {
+      const item = within(utils.getByTestId(`gallery-item-${id}`));
+      expect(item.getByTestId(`stamp-image-loading-${id}`, hidden)).toBeTruthy();
+      expect(item.getByTestId(`stamp-image-loading-${id}-ground`, hidden)).toBeTruthy();
+      expect(item.getByTestId(`stamp-image-loading-${id}-frame`, hidden)).toBeTruthy();
+      expect(item.queryByTestId(`stamp-image-loading-${id}-book`, hidden)).toBeNull();
+    }
+    expect(
+      utils.getAllByTestId(/^stamp-image-(loading-)?1$/, hidden).map(el => el.props.testID)
+    ).toEqual(['stamp-image-1', 'stamp-image-loading-1']);
+  });
+
+  it('すべての下地がそろって明滅する（AC-23）', () => {
+    const utils = renderGrid();
+
+    act(() => loadingClock.setValue(800));
+    groundOpacities(utils).forEach(o => expect(o).toBeCloseTo(0.72, 3));
+    act(() => loadingClock.setValue(400));
+    groundOpacities(utils).forEach(o => expect(o).toBeCloseTo(0.86, 3));
+    act(() => loadingClock.setValue(0));
+    groundOpacities(utils).forEach(o => expect(o).toBeCloseTo(1, 3));
+  });
+
+  it('時計は1本で、最後の1枚が消え終わったら止まる（AC-24）', () => {
+    const utils = renderGrid();
+
+    expect(loopSpy).toHaveBeenCalledTimes(1);
+    expect(isLoadingClockRunning()).toBe(true);
+    const clock = loopSpy.mock.results[0].value as Anim;
+
+    loadAndFinish(utils, '1');
+    loadAndFinish(utils, '2');
+    expect(isLoadingClockRunning()).toBe(true);
+
+    loadAndFinish(utils, '3');
+    expect(clock.stop).toHaveBeenCalledTimes(1);
+    expect(isLoadingClockRunning()).toBe(false);
+    expect(utils.queryAllByTestId(/^stamp-image-loading-/, hidden)).toHaveLength(0);
+  });
+
+  describe('小さい写真が無かったとき（AC-25）', () => {
+    beforeEach(() => jest.useFakeTimers());
+    afterEach(() => jest.useRealTimers());
+
+    it('元の写真を読みにいく間も下地のまま。元も届かなければ消えて今と同じ灰色', () => {
+      const utils = renderGrid();
+
+      fireEvent(utils.getByTestId('stamp-image-1'), 'error');
+
+      expect(utils.getByTestId('stamp-image-1').props.source.uri).toBe(
+        'https://example.com/user-1/stamp-1.jpg'
+      );
+      expect(utils.getByTestId('stamp-image-loading-1', hidden)).toBeTruthy();
+      expect(fades).toEqual([]);
+      expect(isLoadingClockRunning()).toBe(true);
+
+      // 裏で焼かせる流れは今と同じ
+      act(() => jest.advanceTimersByTime(400));
+      expect(ensureStampVariants).toHaveBeenCalledWith(['user-1/stamp-1.jpg']);
+
+      fireEvent(utils.getByTestId('stamp-image-1'), 'error');
+      expect(fades).toHaveLength(1);
+      expect(fades[0].config).toEqual(expect.objectContaining({ toValue: 0, duration: 250 }));
+      act(() => fades[0].anim.start.mock.calls[0][0]({ finished: true }));
+
+      expect(utils.queryByTestId('stamp-image-loading-1', hidden)).toBeNull();
+      expect(flat(utils.getByTestId('stamp-image-1')).backgroundColor).toBe(colors.gray[200]);
+    });
   });
 });
