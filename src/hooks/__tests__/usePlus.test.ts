@@ -14,7 +14,7 @@ jest.mock('@/constants/plus', () => ({
   FREE_PLAN_LIMIT: 1,
   PLUS_ENTITLEMENT: 'plus',
 }));
-let mockAuth: { user: { id: string } | null } = { user: { id: 'me' } };
+let mockAuth: { user: { id: string } | null; isLoading?: boolean } = { user: { id: 'me' } };
 jest.mock('@hooks/useAuth', () => ({ useAuth: () => mockAuth }));
 
 const P = jest.mocked(Purchases);
@@ -65,6 +65,22 @@ it('AC-14: 読み込み中 → 値段が取れたら ready', async () => {
     canRestore: true,
   });
   expect(P.configure).toHaveBeenCalledWith({ apiKey: 'appl_x', appUserID: 'me' });
+});
+
+// S6 のシミュレータで見つけた: useAuth は画面ごとに user=null（読み込み中）から始まるので、
+// 待たずに同期すると画面を開くたびに logOut → logIn になり、RevenueCat に匿名の利用者ができていた
+it('S6: ログインの読み込み中に開いた画面は、ログアウトしない', async () => {
+  await ready();
+  mockAuth = { user: null, isLoading: true };
+  const second = renderHook(() => usePlus());
+  await act(async () => {});
+  expect(second.result.current.status).toBe('loading');
+  expect(P.logOut).not.toHaveBeenCalled();
+  mockAuth = { user: { id: 'me' }, isLoading: false };
+  second.rerender({});
+  await waitFor(() => expect(second.result.current.status).toBe('ready'));
+  expect(P.logOut).not.toHaveBeenCalled();
+  expect(P.logIn).not.toHaveBeenCalled();
 });
 
 it('AC-15: CustomerInfo の更新で isPlus が変わり、アンマウントで外す', async () => {

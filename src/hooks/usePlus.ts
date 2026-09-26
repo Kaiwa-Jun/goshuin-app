@@ -22,7 +22,7 @@ export type RestoreResult = 'restored' | 'none' | 'failed';
  * （グローバル状態は入れない）。スイッチ（BILLING_ENABLED）が切れている間は SDK を呼ばない
  */
 export function usePlus() {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const userId = user?.id ?? null;
   const [isPlus, setIsPlus] = useState(false);
   const [status, setStatus] = useState<PlusStatus>(BILLING_ENABLED ? 'loading' : 'unavailable');
@@ -31,7 +31,9 @@ export function usePlus() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!BILLING_ENABLED) return;
+    // useAuth は画面ごとに user=null から始まる。読み込み中に同期すると logOut → logIn になり、
+    // RevenueCat に匿名の利用者ができるので、ログインの状態が決まるまで待つ
+    if (!BILLING_ENABLED || authLoading) return;
     let cancelled = false;
     let unsubscribe = () => {};
     setStatus('loading');
@@ -66,7 +68,7 @@ export function usePlus() {
       cancelled = true;
       unsubscribe();
     };
-  }, [userId]);
+  }, [userId, authLoading]);
 
   const purchase = useCallback(async (): Promise<PurchaseResult> => {
     if (!pkg) return 'failed';
