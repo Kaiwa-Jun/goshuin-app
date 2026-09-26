@@ -158,8 +158,8 @@
     {
       "id": "ISSUE-282",
       "title": "「調べずに、地図で場所を決める」を、AI で見つからなかったときだけ出す",
-      "note": "契約書 docs/issues/issue-282-manual-after-research.md。地域を聞く画面・調べている間から地図のボタンを外し、見つからない・調べられない・回数の上限・どれでもない のときだけ出す。useSpotAdd・add-spot は変えない（地図で決めた寺社は今までどおり本人だけ）。",
-      "passes": false
+      "note": "契約書 docs/issues/issue-282-manual-after-research.md。地域を聞く画面・調べている間から地図のボタンを外し、見つからない・調べられない・回数の上限・どれでもない のときだけ出す。useSpotAdd・add-spot は変えない（地図で決めた寺社は今までどおり本人だけ）。goshuin-evaluator PASS（AC 1/1・UI 11/11・Q 5/5）・オーナーが実機で確認。",
+      "passes": true
     }
   ]
 }
