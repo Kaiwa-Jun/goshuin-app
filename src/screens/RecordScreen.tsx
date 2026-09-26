@@ -30,6 +30,7 @@ import { useLocation } from '@hooks/useLocation';
 import { formatJapaneseEraDate } from '@utils/japaneseEra';
 import { toLocalDateString } from '@utils/localDate';
 import { pickAutoSelectableSpot } from '@utils/autoSelectSpot';
+import { findRegisteredSpot } from '@utils/registeredSpot';
 import { MAX_PHOTOS_PER_RECORD } from '@/constants/record';
 import { scrollTargetToReveal, scrollTargetToShow } from '@utils/revealInScrollView';
 import { getStampImageUrl, fetchVisitedSpotIds } from '@services/stamps';
@@ -73,6 +74,16 @@ export function RecordScreen({ navigation, route }: Props) {
   // 見つからなかった）。位置情報そのものは送らない
   const spotAdd = useSpotAdd(form.selectSpot);
   const handleResearch = (name: string) => spotAdd.start(name);
+  // 調べた候補がアプリに登録済みの寺社と同じなら、追加せずにその寺社を選ぶ（Issue #278）。
+  // 比べるのは読み込み済みの全国の寺社（検索語で絞る前）。registeredSpots[i] は index が i の候補
+  const registeredSpots = useMemo(() => {
+    const loaded = nearbySpots.map(i => i.spot);
+    return spotAdd.state.candidates.map(c => findRegisteredSpot(c, loaded));
+  }, [spotAdd.state.candidates, nearbySpots]);
+  const handleChoose = (index: number) => {
+    const existing = registeredSpots[index];
+    return existing ? spotAdd.chooseExisting(existing) : spotAdd.choose(index);
+  };
   // 記録画面を開いたときに1回だけ取る（押してから取るとチップが後から出て並びが動く）
   const recentPrefectures = useRecentPrefectures(user?.id ?? null);
 
@@ -470,8 +481,9 @@ export function RecordScreen({ navigation, route }: Props) {
         onPick={spotAdd.pick}
         onChangeRegion={spotAdd.changeRegion}
         onRetry={spotAdd.retry}
-        onChoose={spotAdd.choose}
+        onChoose={handleChoose}
         onOpenManual={spotAdd.openManual}
+        registeredSpots={registeredSpots}
       />
       <SpotPlacePicker
         visible={spotAdd.state.placing}

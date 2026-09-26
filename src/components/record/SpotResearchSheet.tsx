@@ -17,7 +17,7 @@ import { Button } from '@components/common/Button';
 import { Modal } from '@components/common/Modal';
 import { MAP_STYLE } from '@components/map/mapStyle';
 import type { SpotAddState } from '@hooks/useSpotAdd';
-import type { SpotResearchCandidate } from '@/types/supabase';
+import type { Spot, SpotResearchCandidate } from '@/types/supabase';
 import { calculateDistance } from '@utils/geo';
 import { formatHint, parseHintText, type SpotHint } from '@utils/spotHint';
 import { colors } from '@theme/colors';
@@ -43,6 +43,11 @@ interface Props {
   onRetry: () => void;
   onChoose: (index: number) => void;
   onOpenManual: () => void;
+  /**
+   * 候補ごとの、アプリに登録済みの同じ寺社（registeredSpots[i] は index が i の候補）。無ければ null。
+   * 省略時は []（Issue #278）
+   */
+  registeredSpots?: (Spot | null)[];
 }
 
 function Steps() {
@@ -197,11 +202,14 @@ function RegionAsk({
 function CandidateCard({
   candidate,
   selected,
+  registered,
   distanceKm,
   onPress,
 }: {
   candidate: SpotResearchCandidate;
   selected: boolean;
+  /** アプリに登録済みの寺社と同じ（Issue #278）。札と、情報源の代わりに注記を出す */
+  registered: boolean;
   distanceKm: number | null;
   onPress: () => void;
 }) {
@@ -218,6 +226,7 @@ function CandidateCard({
           {candidate.name}
         </Text>
         <Badge type={candidate.type} />
+        {registered && <Badge type="registered" />}
         {distanceKm !== null && (
           <Text style={styles.cardKm} testID={`candidate-${candidate.index}-km`}>
             {`${distanceKm.toFixed(1)}km`}
@@ -251,9 +260,18 @@ function CandidateCard({
           </View>
         </View>
       )}
-      <Text style={styles.cardSource}>
-        {`住所の情報源 ${candidate.sourceCount}件${labels ? `（${labels} ほか）` : ''}`}
-      </Text>
+      {registered ? (
+        <View style={styles.registered} testID={`candidate-${candidate.index}-registered`}>
+          <MaterialIcons name="check-circle" size={14} color={colors.gray[500]} />
+          <Text style={styles.registeredText}>
+            アプリに登録済みの寺社です。「ここです」で、この寺社を選びます（新しく追加しません）
+          </Text>
+        </View>
+      ) : (
+        <Text style={styles.cardSource}>
+          {`住所の情報源 ${candidate.sourceCount}件${labels ? `（${labels} ほか）` : ''}`}
+        </Text>
+      )}
     </TouchableOpacity>
   );
 }
@@ -273,6 +291,7 @@ export function SpotResearchSheet({
   onRetry,
   onChoose,
   onOpenManual,
+  registeredSpots = [],
 }: Props) {
   const [selected, setSelected] = useState(0);
   const [showOthers, setShowOthers] = useState(false);
@@ -383,6 +402,7 @@ export function SpotResearchSheet({
               key={c.index}
               candidate={c}
               selected={c.index === selected}
+              registered={!!registeredSpots[c.index]}
               distanceKm={distanceOf(c)}
               onPress={() => setSelected(c.index)}
             />
@@ -405,7 +425,10 @@ export function SpotResearchSheet({
           <TouchableOpacity onPress={onOpenManual} disabled={saving} testID="research-none">
             <Text style={styles.none}>どれでもない（地図で決める）</Text>
           </TouchableOpacity>
-          <Text style={styles.note}>確かめられたら、みんなの地図にも載ります</Text>
+          {/* 登録済みの寺社を選ぶときは新しく追加しないので当てはまらない（Issue #278） */}
+          {!registeredSpots[selected] && (
+            <Text style={styles.note}>確かめられたら、みんなの地図にも載ります</Text>
+          )}
         </>
       );
       break;
@@ -515,6 +538,13 @@ const styles = StyleSheet.create({
     paddingBottom: 30,
   },
   cardSource: { ...typography.caption, color: colors.gray[400], marginTop: spacing.sm },
+  registered: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+  },
+  registeredText: { ...typography.caption, color: colors.gray[600], flexShrink: 1 },
   more: {
     ...typography.bodySmall,
     color: colors.gray[600],

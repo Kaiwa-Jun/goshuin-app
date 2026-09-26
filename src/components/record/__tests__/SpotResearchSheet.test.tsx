@@ -4,14 +4,15 @@ import { fireEvent, render, within } from '@testing-library/react-native';
 
 import { SpotResearchSheet } from '@components/record/SpotResearchSheet';
 import type { SpotAddState } from '@hooks/useSpotAdd';
-import type { SpotResearchCandidate } from '@/types/supabase';
+import type { Spot, SpotResearchCandidate } from '@/types/supabase';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { borderRadius } from '@theme/spacing';
 
 /* 契約書: docs/issues/issue-248-spot-add-research.md（S4 / UI-4〜UI-8・UI-10）
  *        docs/issues/issue-277-spot-research-region.md（S2・S3 / UI-1〜UI-12）
- *        docs/issues/issue-282-manual-after-research.md（S1 / UI-1〜UI-8） */
+ *        docs/issues/issue-282-manual-after-research.md（S1 / UI-1〜UI-8）
+ *        docs/issues/issue-278-same-name-research.md（S3 / UI-6〜UI-9） */
 const cand = (index: number, over: Partial<SpotResearchCandidate> = {}): SpotResearchCandidate => ({
   index,
   name: '鹿島台神社',
@@ -579,5 +580,129 @@ describe('地図で決めるのは調べたあとだけ（Issue #282）', () => 
     );
     fireEvent.press(ui.getByTestId('research-none'));
     expect(h.onOpenManual).toHaveBeenCalledTimes(1);
+  });
+});
+
+/* 調べた候補が登録済みの寺社と同じとき（Issue #278 / UI-6〜UI-9） */
+describe('SpotResearchSheet — 登録済みの寺社', () => {
+  const kyoto: Spot = {
+    id: 'kyoto-yasaka',
+    name: '八坂神社',
+    lat: 35.0036,
+    lng: 135.778,
+    type: 'shrine',
+    address: null,
+    prefecture: '京都府',
+    status: 'active',
+    rank: 3,
+    created_by_user_id: null,
+    merged_into_spot_id: null,
+    created_at: '2024-01-01',
+    updated_at: '2024-01-01',
+  };
+  const candidates = [
+    cand(0, {
+      name: '八坂神社',
+      address: '京都府京都市東山区祇園町北側625',
+      prefecture: '京都府',
+      lat: 35.0036,
+      lng: 135.7785,
+    }),
+    cand(1, {
+      name: '八坂神社',
+      address: '京都府福知山市',
+      prefecture: '京都府',
+      lat: 35.2966,
+      lng: 135.1264,
+    }),
+  ];
+  const s = state({ status: 'candidates', researchId: 'r1', candidates });
+  const NOTE =
+    'アプリに登録済みの寺社です。「ここです」で、この寺社を選びます（新しく追加しません）';
+  const PUBLIC_NOTE = '確かめられたら、みんなの地図にも載ります';
+
+  const renderSheet = (h = handlers(), registeredSpots?: (Spot | null)[]) =>
+    render(
+      <SpotResearchSheet
+        state={s}
+        userLocation={null}
+        recentPrefectures={[]}
+        registeredSpots={registeredSpots}
+        {...h}
+      />
+    );
+
+  it('登録済みの候補は、種別の札のすぐ後ろに灰色の「登録済み」の札（UI-6）', () => {
+    const ui = renderSheet(handlers(), [kyoto, null]);
+
+    const card = within(ui.getByTestId('candidate-0'));
+    expect(within(card.getByTestId('badge-shrine')).getByText('神社')).toBeTruthy();
+    const badge = card.getByTestId('badge-registered');
+    expect(within(badge).getByText('登録済み')).toBeTruthy();
+
+    const tree = JSON.stringify(ui.toJSON());
+    const shrine = tree.indexOf('"testID":"badge-shrine"');
+    expect(shrine).toBeGreaterThan(-1);
+    expect(shrine).toBeLessThan(tree.indexOf('"testID":"badge-registered"'));
+
+    const badgeStyle = StyleSheet.flatten(badge.props.style);
+    expect(badgeStyle.backgroundColor).toBe(colors.gray[100]);
+    expect(badgeStyle.borderRadius).toBe(borderRadius.full);
+    expect(StyleSheet.flatten(within(badge).getByText('登録済み').props.style).color).toBe(
+      colors.gray[600]
+    );
+  });
+
+  it('登録済みの候補は、住所の情報源の代わりに ✓ の注記。下の「みんなの地図」の注記は出さない（UI-7）', () => {
+    const ui = renderSheet(handlers(), [kyoto, null]);
+
+    const row = within(ui.getByTestId('candidate-0-registered'));
+    const note = row.getByText(NOTE);
+    expect(row.UNSAFE_getByType(MaterialIcons).props).toMatchObject({
+      name: 'check-circle',
+      size: 14,
+      color: colors.gray[500],
+    });
+    const noteStyle = StyleSheet.flatten(note.props.style);
+    expect(noteStyle.color).toBe(colors.gray[600]);
+    expect(noteStyle.fontSize).toBe(typography.caption.fontSize);
+    expect(within(ui.getByTestId('candidate-0')).queryByText(/住所の情報源/)).toBeNull();
+    expect(ui.queryByText(PUBLIC_NOTE)).toBeNull();
+  });
+
+  it('登録済みでない候補は今のまま。並べ替えず、選んだ候補で「ここです」の番号と下の注記が変わる（UI-8）', () => {
+    const h = handlers();
+    const ui = renderSheet(h, [kyoto, null]);
+
+    fireEvent.press(ui.getByText('ほかの候補を見る（1件）'));
+    const other = within(ui.getByTestId('candidate-1'));
+    expect(other.queryByTestId('badge-registered')).toBeNull();
+    expect(other.queryByTestId('candidate-1-registered')).toBeNull();
+    expect(other.getByText('住所の情報源 3件（公式サイト・宮城県神社庁 ほか）')).toBeTruthy();
+
+    const tree = JSON.stringify(ui.toJSON());
+    expect(tree.indexOf('"testID":"candidate-0"')).toBeLessThan(
+      tree.indexOf('"testID":"candidate-1"')
+    );
+
+    fireEvent.press(ui.getByTestId('candidate-1'));
+    expect(ui.getByText(PUBLIC_NOTE)).toBeTruthy();
+    fireEvent.press(ui.getByText('ここです'));
+    expect(h.onChoose).toHaveBeenLastCalledWith(1);
+
+    fireEvent.press(ui.getByTestId('candidate-0'));
+    expect(ui.queryByText(PUBLIC_NOTE)).toBeNull();
+    fireEvent.press(ui.getByText('ここです'));
+    expect(h.onChoose).toHaveBeenLastCalledWith(0);
+  });
+
+  it('registeredSpots を渡さないときは今のまま（UI-9）', () => {
+    const ui = renderSheet();
+
+    fireEvent.press(ui.getByText('ほかの候補を見る（1件）'));
+    expect(ui.queryByTestId('badge-registered')).toBeNull();
+    expect(ui.queryByText(/アプリに登録済みの寺社です/)).toBeNull();
+    expect(within(ui.getByTestId('candidate-0')).getByText(/住所の情報源/)).toBeTruthy();
+    expect(ui.getByText(PUBLIC_NOTE)).toBeTruthy();
   });
 });

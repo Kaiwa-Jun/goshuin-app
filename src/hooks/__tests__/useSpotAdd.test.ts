@@ -1,9 +1,11 @@
 import { act, renderHook } from '@testing-library/react-native';
 
 import { RESEARCH_TIMEOUT_MS, useSpotAdd } from '@hooks/useSpotAdd';
+import type { Spot } from '@/types/supabase';
 
 /* 契約書: docs/issues/issue-248-spot-add-research.md（S4 / AC-35・AC-36）
- *        docs/issues/issue-277-spot-research-region.md（S2・S3 / AC-8〜AC-17） */
+ *        docs/issues/issue-277-spot-research-region.md（S2・S3 / AC-8〜AC-17）
+ *        docs/issues/issue-278-same-name-research.md（S3 / AC-7・AC-8） */
 const mockResearch = jest.fn();
 const mockAddResearched = jest.fn();
 const mockAddManual = jest.fn();
@@ -199,6 +201,50 @@ it('openManual は状態を見ない（出すかどうかはシートが決め�
   expect(mockResearch).not.toHaveBeenCalled();
 });
 
+describe('登録済みの寺社を選ぶ（Issue #278 / AC-7）', () => {
+  const kyoto: Spot = {
+    id: 'kyoto-yasaka',
+    name: '八坂神社',
+    lat: 35.0036,
+    lng: 135.778,
+    type: 'shrine',
+    address: null,
+    prefecture: '京都府',
+    status: 'active',
+    rank: 3,
+    created_by_user_id: null,
+    merged_into_spot_id: null,
+    created_at: '2024-01-01',
+    updated_at: '2024-01-01',
+  };
+  const gion = {
+    ...candidate,
+    name: '八坂神社',
+    address: '京都府京都市東山区祇園町北側625',
+    prefecture: '京都府',
+    lat: 35.0036,
+    lng: 135.7785,
+  };
+
+  it('候補のあとに chooseExisting で、add-spot を呼ばずにその寺社を渡して閉じる', async () => {
+    const onAdded = jest.fn();
+    mockResearch.mockResolvedValue({ kind: 'ok', researchId: 'r1', candidates: [gion] });
+    const { result } = renderHook(() => useSpotAdd(onAdded));
+    await startAndPick(result, '八坂神社', null);
+    expect(result.current.state.status).toBe('candidates');
+
+    act(() => result.current.chooseExisting(kyoto));
+
+    expect(onAdded).toHaveBeenCalledTimes(1);
+    expect(onAdded.mock.calls[0][0]).toBe(kyoto);
+    expect(mockAddResearched).not.toHaveBeenCalled();
+    expect(mockAddManual).not.toHaveBeenCalled();
+    expect(result.current.state.status).toBe('idle');
+    expect(result.current.state.candidates).toEqual([]);
+    expect(mockResearch).toHaveBeenCalledTimes(1);
+  });
+});
+
 it('返り値は state と操作だけ（地域は pick・changeRegion で変える。途中で手がかりを変える操作は無い）', () => {
   const { result } = renderHook(() => useSpotAdd(jest.fn()));
   expect(Object.keys(result.current).sort()).toEqual(
@@ -209,6 +255,7 @@ it('返り値は state と操作だけ（地域は pick・changeRegion で変え
       'changeRegion',
       'retry',
       'choose',
+      'chooseExisting',
       'openManual',
       'saveManual',
       'close',
