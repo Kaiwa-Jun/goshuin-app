@@ -1,0 +1,43 @@
+# 参拝の予定（Issue #258 / E-2）: 予定タブ → 予定を組む → 順番 → 保存 → 消す（後片付け）
+#
+# 前提（このフローでは用意しない）:
+# - シミュレータの dev build でログイン済み。Google ログインは自動化できないので、
+#   先に手で一度ログインしておく（e2e/README.md にログイン状態を作る仕組みは無い）
+# - 「行きたい」に寺社が2件以上ある
+# - 次の土曜に予定が入っていない（同じ日には1つまで / D-2）
+# - 次の土曜より前に予定が無い（「次の予定」のカードからこの予定を開くため）
+# 前提を満たさないときは assertVisible で落ちる。runFlow の when で飛ばして
+# 静かに緑にしない
+appId: com.goshuin.app
+---
+- launchApp:
+    permissions:
+      location: allow
+- tapOn: "予定"
+# ゲストだと「ログインして始める」が出てここで落ちる（前提のログインが無い）
+- assertVisible: "＋ 予定を組む"
+- tapOn: "＋ 予定を組む"
+- assertVisible: "社・ピンを押して足す"
+- assertVisible: "行きたいから選ぶ"
+# 足した寺社は一覧から消えるので、同じ位置（先頭の「＋」）を2回押す
+- tapOn:
+    id: "plan-wish-add-.*"
+    index: 0
+- tapOn:
+    id: "plan-wish-add-.*"
+    index: 0
+- tapOn: "順番を決める"
+- assertVisible: "Google マップで"
+- tapOn: "この予定を保存"
+- tapOn:
+    id: "plan-name-input"
+- inputText: "E2Eの予定"
+- tapOn: "保存してカレンダーに入れる"
+- assertVisible: ".*に保存しました"
+# 後片付け: 次の予定のカードから開いて消す
+- tapOn: ".*E2Eの予定"
+- tapOn: "編集"
+- tapOn: "この予定を保存"
+- tapOn: "この予定を消す"
+- tapOn: "消す"
+- assertVisible: "＋ 予定を組む"

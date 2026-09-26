@@ -64,9 +64,18 @@ export type CollectionStackParamList = {
 
 export type MainTabParamList = {
   MapTab: NavigatorScreenParams<MapStackParamList>;
+  /** 参拝の予定（Issue #258）。地図の次 */
+  PlanTab: NavigatorScreenParams<PlanStackParamList>;
   GalleryTab: NavigatorScreenParams<GalleryStackParamList>;
   CollectionTab: NavigatorScreenParams<CollectionStackParamList>;
   Settings: undefined;
+};
+
+export type PlanStackParamList = {
+  /** savedOn: 保存した日（YYYY-MM-DD）。その月を開いて「に保存しました」を出す */
+  PlanCalendar: { savedOn?: string } | undefined;
+  /** planId: 保存済みの予定を開く / date: その日付で組む（YYYY-MM-DD） */
+  PlanEditor: { planId?: string; date?: string };
 };
 
 export type MapStackParamList = {
@@ -98,6 +107,11 @@ export type MapStackScreenProps<T extends keyof MapStackParamList> = CompositeSc
 
 export type GalleryStackScreenProps<T extends keyof GalleryStackParamList> = CompositeScreenProps<
   NativeStackScreenProps<GalleryStackParamList, T>,
+  MainTabScreenProps<keyof MainTabParamList>
+>;
+
+export type PlanStackScreenProps<T extends keyof PlanStackParamList> = CompositeScreenProps<
+  NativeStackScreenProps<PlanStackParamList, T>,
   MainTabScreenProps<keyof MainTabParamList>
 >;
 

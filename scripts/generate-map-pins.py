@@ -81,6 +81,41 @@ def render(rgb: tuple[int, int, int]) -> Image.Image:
     return img.resize((W, H), Image.LANCZOS)
 
 
+def read_color(pattern: str, label: str) -> tuple[int, int, int]:
+    """colors.ts から1色だけ読む（予定で選んだピンの印。pin ブロックには足さない / Issue #258 D-13）"""
+    m = re.search(pattern, THEME.read_text(), re.S)
+    if not m:
+        sys.exit(f"{THEME} に {label} が見つからない")
+    h = m.group(1)
+    return tuple(int(h[i : i + 2], 16) for i in (0, 2, 4))
+
+
+def render_chosen_check(rgb: tuple[int, int, int]) -> Image.Image:
+    """頭の右上の ✓（ピンと同じ大きさの画像に描き、同じ anchor・大きさで重ねる）"""
+    img = Image.new("RGBA", (W * S, H * S), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    bx, by, br = (CX + R * 0.78) * S, (CY - R * 0.78) * S, 15 * S
+    draw.ellipse([bx - br - 3 * S, by - br - 3 * S, bx + br + 3 * S, by + br + 3 * S], fill=(255, 255, 255, 255))
+    draw.ellipse([bx - br, by - br, bx + br, by + br], fill=rgb + (255,))
+    draw.line(
+        [(bx - 7 * S, by + 0.5 * S), (bx - 2 * S, by + 6 * S), (bx + 8 * S, by - 6 * S)],
+        fill=(255, 255, 255, 255),
+        width=int(4.5 * S),
+        joint="curve",
+    )
+    return img.resize((W, H), Image.LANCZOS)
+
+
+def render_chosen_ring(rgb: tuple[int, int, int]) -> Image.Image:
+    """頭のまわりの輪"""
+    img = Image.new("RGBA", (W * S, H * S), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    rr = (R + RING - 1.5) * S
+    cx, cy = CX * S, CY * S
+    draw.ellipse([cx - rr, cy - rr, cx + rr, cy + rr], outline=rgb + (255,), width=int(4 * S))
+    return img.resize((W, H), Image.LANCZOS)
+
+
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     colors = read_pin_colors()
@@ -88,6 +123,13 @@ def main() -> None:
         path = OUT / f"pin-{name}.png"
         render(rgb).save(path)
         print(f"{path.relative_to(ROOT)}  #{''.join(f'{c:02X}' for c in rgb)}")
+
+    primary = read_color(r"primary:\s*\{.*?500:\s*'#([0-9A-Fa-f]{6})'", "primary[500]")
+    seal = read_color(r"\n  seal:\s*'#([0-9A-Fa-f]{6})'", "seal")
+    for name, img in (("chosen-check", render_chosen_check(primary)), ("chosen-ring", render_chosen_ring(seal))):
+        path = OUT / f"pin-{name}.png"
+        img.save(path)
+        print(f"{path.relative_to(ROOT)}")
 
     # どの色で焼いたかを残す。PNG は中身を読まないと色が分からないので、
     # colors.ts を変えて焼き直しを忘れた状態をテストで検出できるようにする

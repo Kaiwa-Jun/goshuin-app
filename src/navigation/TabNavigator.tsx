@@ -3,6 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { TabBarIcon } from '@components/animated/TabBarIcon';
 
 import { MapStack } from '@/navigation/MapStack';
+import { PlanStack } from '@/navigation/PlanStack';
 import { GalleryStack } from '@/navigation/GalleryStack';
 import { CollectionStack } from '@/navigation/CollectionStack';
 import { SettingsScreen } from '@screens/SettingsScreen';
@@ -29,6 +30,22 @@ export function TabNavigator() {
               name="explore"
               routeName="MapTab"
               motion="spin"
+              color={color}
+              focused={focused}
+            />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="PlanTab"
+        component={PlanStack}
+        options={{
+          title: '予定',
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon
+              name="event"
+              routeName="PlanTab"
+              motion="draw"
               color={color}
               focused={focused}
             />

@@ -21,6 +21,9 @@ const PIN_IMAGES = {
   'spot-pin-wishlist': require('../../../assets/map-pins/pin-wishlist.png'),
   'spot-pin-visited-shrine': require('../../../assets/map-pins/pin-visited-shrine.png'),
   'spot-pin-visited-temple': require('../../../assets/map-pins/pin-visited-temple.png'),
+  // 予定を組む画面で選んだピンに重ねる印（Issue #258 D-13）。ピンと同じ大きさの画像
+  'spot-pin-chosen-check': require('../../../assets/map-pins/pin-chosen-check.png'),
+  'spot-pin-chosen-ring': require('../../../assets/map-pins/pin-chosen-ring.png'),
 };
 /* eslint-enable @typescript-eslint/no-require-imports */
 
@@ -28,6 +31,26 @@ const PIN_IMAGES = {
 export function SpotPinImages() {
   return <Images images={PIN_IMAGES} />;
 }
+
+/** ピンの大きさ（ズームで変える）。予定で選んだピンはこれに倍率を掛ける */
+type SymbolLayout = NonNullable<SymbolLayerSpecification['layout']>;
+
+export function pinIconSize(scale = 1): SymbolLayout['icon-size'] {
+  return ['interpolate', ['linear'], ['zoom'], 8, 0.2 * scale, 12, 0.26 * scale, 16, 0.32 * scale];
+}
+
+/** ピンの色（状態ごとの画像） */
+export const PIN_IMAGE_BY_STATE: SymbolLayout['icon-image'] = [
+  'match',
+  ['get', 'state'],
+  'visited-shrine',
+  'spot-pin-visited-shrine',
+  'visited-temple',
+  'spot-pin-visited-temple',
+  'wishlist',
+  'spot-pin-wishlist',
+  'spot-pin-unvisited',
+];
 
 const ICON_LAYOUT: SymbolLayerSpecification['layout'] = {
   'icon-image': [

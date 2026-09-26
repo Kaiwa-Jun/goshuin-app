@@ -50,7 +50,12 @@ interface Props {
   pinned: SpotFeatureCollection;
   onPressSpot: (spotId: string) => void;
   onPressCluster: (center: [number, number], expansionZoom: number) => void;
+  /** 薄く出す（予定の順番を見ているとき、選んでいない寺社。Issue #258 D-21） */
+  dimmed?: boolean;
 }
+
+/** 予定の順番を見ているときの、選んでいない寺社の濃さ */
+export const DIMMED_OPACITY = 0.45;
 
 type SourcePress = NativeSyntheticEvent<PressEventWithFeatures>;
 
@@ -64,7 +69,16 @@ type SourcePress = NativeSyntheticEvent<PressEventWithFeatures>;
  * - 訪問済み・行きたいは団子に入れない（ソースを分ける）。
  *   先に宣言してあるのはラベルの配置優先度を取るため
  */
-export function SpotMapLayers({ clustered, pinned, onPressSpot, onPressCluster }: Props) {
+export function SpotMapLayers({
+  clustered,
+  pinned,
+  onPressSpot,
+  onPressCluster,
+  dimmed = false,
+}: Props) {
+  const pinPaint = dimmed
+    ? { ...LABEL_PAINT, 'icon-opacity': DIMMED_OPACITY, 'text-opacity': DIMMED_OPACITY }
+    : LABEL_PAINT;
   const spotsSourceRef = useRef<GeoJSONSourceRef>(null);
 
   const handlePinnedPress = useCallback(
@@ -102,7 +116,7 @@ export function SpotMapLayers({ clustered, pinned, onPressSpot, onPressCluster }
 
       {/* 自分の記録。団子に吸収させない。ラベルの配置もこちらが先に取る */}
       <GeoJSONSource id="goshuin-pinned" data={pinned} onPress={handlePinnedPress}>
-        <Layer id="goshuin-pinned-pin" type="symbol" layout={PIN_LAYOUT} paint={LABEL_PAINT} />
+        <Layer id="goshuin-pinned-pin" type="symbol" layout={PIN_LAYOUT} paint={pinPaint} />
       </GeoJSONSource>
 
       {/* 未訪問。広域だけ団子にする */}
@@ -134,7 +148,7 @@ export function SpotMapLayers({ clustered, pinned, onPressSpot, onPressCluster }
           type="symbol"
           filter={VISIBLE_SPOT_FILTER}
           layout={RANKED_PIN_LAYOUT}
-          paint={LABEL_PAINT}
+          paint={pinPaint}
         />
       </GeoJSONSource>
     </>
