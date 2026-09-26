@@ -127,14 +127,18 @@ const styles = StyleSheet.create({
     color: colors.gray[500],
     marginBottom: spacing.sm,
   },
+  // iOS の TextInput は lineHeight があると文字と placeholder が下にずれる。
+  // 文字の大きさだけ使い、高さを決めて中央に置く
   input: {
-    ...typography.body,
+    fontSize: typography.body.fontSize,
     color: colors.gray[900],
+    height: 52,
+    paddingVertical: 0,
+    paddingHorizontal: spacing.md,
+    textAlignVertical: 'center',
     borderWidth: 1,
     borderColor: colors.gray[200],
     borderRadius: borderRadius.lg,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
   },
   submit: { marginTop: spacing.lg },
   deleteRow: { alignItems: 'center', marginTop: spacing.lg },
