@@ -146,3 +146,21 @@ it('保存して戻ったら、その月を開いて「に保存しました」'
   await waitFor(() => expect(ui.getByText('10月3日（土） に保存しました')).toBeTruthy());
   expect(ui.getByText('2026年10月')).toBeTruthy();
 });
+
+it('setParams で savedOn が消えても、トーストは 3.2 秒で消える', async () => {
+  const n = nav();
+  const ui = renderScreen(n, { savedOn: '2026-10-03' });
+  await waitFor(() => expect(ui.getByText('10月3日（土） に保存しました')).toBeTruthy());
+  expect(n.setParams).toHaveBeenCalledWith({ savedOn: undefined });
+  // 本物の navigation と同じく params が消えた状態で描き直す
+  ui.rerender(
+    <PlanCalendarScreen
+      navigation={n as never}
+      route={{ key: 'k', name: 'PlanCalendar', params: { savedOn: undefined } } as never}
+    />
+  );
+  act(() => {
+    jest.advanceTimersByTime(3200);
+  });
+  expect(ui.queryByText('10月3日（土） に保存しました')).toBeNull();
+});

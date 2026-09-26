@@ -134,7 +134,7 @@ export interface ScheduledStop {
 | `fetchVisitPlans(): Promise<VisitPlan[]>`                | `visit_plans` を `select('id, planned_on, name, visit_plan_stops(position, spot_id, spots(id, name, type, lat, lng))')`・`planned_on` 昇順。`spots` が null の stop を落とす。error は throw |
 | `saveVisitPlan({ planId?, plannedOn, name, spotIds })`   | `supabase.rpc('save_visit_plan', {...})` → id。一意制約違反は `code === '23505'` を `VisitPlanDateTakenError` にして throw                                                                   |
 | `deleteVisitPlan(id)`                                    | `visit_plans` を DELETE（stops は CASCADE）。error は throw                                                                                                                                  |
-| `fetchVisitedSpotIdsByDate(dates)`                       | D-11                                                                                                                                                                                         |
+| `fetchVisitedSpotIdsByDate(userId, dates)`               | D-11                                                                                                                                                                                         |
 | `fetchReceptionHours(spotIds)`（`services/spotInfo.ts`） | D-9                                                                                                                                                                                          |
 
 ### 純関数（S1）
@@ -270,7 +270,7 @@ goshuin-evaluator がこの基準に基づいて合否判定を行う。
 - [ ] AC-20: `saveVisitPlan` が `supabase.rpc('save_visit_plan', { p_plan_id: null, p_planned_on: '2026-10-03', p_name: '東山めぐり', p_spot_ids: [...] })` を呼び、error の `code: '23505'` のときは `VisitPlanDateTakenError` を throw する（Jest）
 - [ ] AC-21: `fetchVisitPlans` は `spots` が null の stop を結果から除き、残りを `position` 昇順で返す（Jest）
 - [ ] AC-22: `fetchReceptionHours(['a', 'b'])` が `spot_aggregated_info` に `info_type = 'reception_hours'` と `spot_id in (a, b)` で1回だけ問い合わせ、`info_data.close` を持つ寺社だけの Map を返す（Jest）
-- [ ] AC-23: `fetchVisitedSpotIdsByDate(['2026-09-20'])` が `stamps` を `visited_at in ('2026-09-20')` で1回だけ問い合わせ、日付ごとの Set を返す（Jest）
+- [ ] AC-23: `fetchVisitedSpotIdsByDate(userId, ['2026-09-20'])` が `stamps` を `user_id = userId`・`visited_at in ('2026-09-20')` で（公開の記録は RLS で他人にも見えるので user_id で絞る）1回だけ問い合わせ、日付ごとの Set を返す（Jest）
 
 ### 機能基準 — 画面（S3〜S6・Jest）
 

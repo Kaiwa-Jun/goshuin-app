@@ -154,7 +154,9 @@ describe('② 寺社を選ぶ', () => {
   it('AC-31: ピンを押すとカード。「＋ 予定に入れる」は 400ms 後に行が足され、同じピンは「予定から外す」', async () => {
     const r = renderScreen({ date: '2026-10-03' });
     await act(async () => {});
-    pressPin(r, 'yasaka');
+    await act(async () => {
+      pressPin(r, 'yasaka');
+    });
     const card = r.getByTestId('plan-spot-card');
     expect(within(card).getByText('八坂神社')).toBeTruthy();
     fireEvent.press(within(card).getByText('＋ 予定に入れる'));
@@ -164,7 +166,9 @@ describe('② 寺社を選ぶ', () => {
     });
     expect(r.getByTestId('plan-chosen-row-yasaka')).toBeTruthy();
     expect(r.getByTestId('plan-count')).toHaveTextContent('1');
-    pressPin(r, 'yasaka');
+    await act(async () => {
+      pressPin(r, 'yasaka');
+    });
     expect(within(r.getByTestId('plan-spot-card')).getByText('予定から外す')).toBeTruthy();
   });
 
@@ -172,7 +176,9 @@ describe('② 寺社を選ぶ', () => {
     const r = renderScreen({ date: '2026-10-03' });
     await act(async () => {});
     await act(async () => {
-      pressPin(r, 'yasaka');
+      await act(async () => {
+        pressPin(r, 'yasaka');
+      });
     });
     expect(
       within(r.getByTestId('plan-spot-card')).getByText('受付 〜17:00・行きたい')
@@ -184,7 +190,9 @@ describe('② 寺社を選ぶ', () => {
     reduceMotion = true;
     const r = renderScreen({ date: '2026-10-03' });
     await act(async () => {});
-    pressPin(r, 'yasaka');
+    await act(async () => {
+      pressPin(r, 'yasaka');
+    });
     fireEvent.press(r.getByText('＋ 予定に入れる'));
     expect(r.getByTestId('plan-chosen-row-yasaka')).toBeTruthy();
     expect(r.getByTestId('plan-count')).toHaveTextContent('1');
@@ -252,6 +260,19 @@ describe('③ 順番', () => {
       expect(r.getByText(l)).toBeTruthy();
     expect(r.getByText('✦ 近い順・受付の早い順に並べました。つまんで変えられます')).toBeTruthy();
     expect(r.getByText('⋮⋮ で並べ替え')).toBeTruthy();
+  });
+
+  it('UI-4: 番号の丸は朱、「この予定を保存」は primary[500]', async () => {
+    reduceMotion = true;
+    const r = renderScreen({ date: '2026-10-03' });
+    await act(async () => {});
+    addAllFromWishlist(r);
+    await decide(r);
+    const num = within(r.getByTestId('plan-stop-0')).getByText('1').parent?.parent;
+    expect(StyleSheet.flatten(num?.props.style).backgroundColor).toBe(colors.seal);
+    expect(StyleSheet.flatten(r.getByTestId('plan-save').props.style).backgroundColor).toBe(
+      colors.primary[500]
+    );
   });
 
   it('AC-35: 200ms ごとに1つずつ描き、1000ms で 5 / 4', async () => {

@@ -59,6 +59,8 @@ export function useVisitPlans(today: Date = new Date()): UseVisitPlansReturn {
       return () => {
         cancelled = true;
       };
+      // nonce は中で使わないが、「もう一度」で取り直すための鍵
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isAuthenticated, user, nonce, todayKey])
   );
 

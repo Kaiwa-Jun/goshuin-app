@@ -47,10 +47,15 @@ export function PlanCalendarScreen({ navigation, route }: Props) {
     const [y, m] = savedOn.split('-').map(Number);
     setMonth({ year: y, month: m });
     setToast(`${formatPlanDate(savedOn)} に保存しました`);
-    const t = setTimeout(() => setToast(null), SAVED_TOAST_MS);
     navigation.setParams({ savedOn: undefined });
-    return () => clearTimeout(t);
   }, [navigation, savedOn]);
+
+  // 消すタイマーは params と切り離す（setParams で上の effect が走り直しても消える）
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), SAVED_TOAST_MS);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   const plansByDate = useMemo(() => new Map(plans.map(p => [p.plannedOn, p])), [plans]);
   const todayKey = toLocalDateString(today);
