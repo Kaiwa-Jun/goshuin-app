@@ -77,6 +77,7 @@ jest.mock('@hooks/useCollectionStats', () => ({
     isLoading: false,
     error: null,
     refetch: jest.fn(),
+    annualReports: { card: null, shelf: [] },
   }),
 }));
 
