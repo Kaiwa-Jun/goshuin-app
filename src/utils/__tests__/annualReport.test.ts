@@ -1,12 +1,22 @@
 import {
+  SCENE_MS,
+  annualReportEntries,
+  autoPlayStorageKey,
   buildAnnualReport,
+  decideAutoPlay,
+  fitPrefectures,
   formatMonthDay,
+  mapStepMs,
   pickEvenly,
   prefectureNamesLine,
+  sceneCopy,
+  sealStepMs,
   shortPrefectureName,
+  toViewTransform,
   type AnnualPilgrimage,
   type AnnualVisit,
 } from '@utils/annualReport';
+import { JAPAN_PREFECTURE_NAMES } from '@/constants/japanMap';
 import type { SpotType } from '@/types/supabase';
 
 /* ── 集計の基本のデータ F（契約書「テスト方針」） ── */
@@ -192,5 +202,370 @@ describe('名前の補助', () => {
   it('AC-15: 日付は「5月2日」の形', () => {
     expect(formatMonthDay('2026-05-02')).toBe('5月2日');
     expect(formatMonthDay('2026-12-31')).toBe('12月31日');
+  });
+});
+
+describe('buildAnnualReport（後半: 印象・印・満願・シーン）', () => {
+  it('AC-6: いちばん多く参った寺社は、日付の種類の数で数える（同じ日は1回）', () => {
+    expect(build(2026)?.memory.top).toEqual({
+      spotName: '大崎八幡宮',
+      prefecture: '宮城県',
+      days: 2,
+      imagePath: 'u/a9.jpg',
+    });
+  });
+
+  it('AC-6: 同じ寺社で同じ日に3枚だけなら、いちばん多く参った は無い', () => {
+    const report = buildAnnualReport({
+      year: 2026,
+      currentYear: 2026,
+      visits: [
+        quick('x1', '2026-04-01', 's1'),
+        quick('x2', '2026-04-01', 's1'),
+        quick('x3', '2026-04-01', 's1'),
+      ],
+      pilgrimages: [],
+    });
+    expect(report?.memory.top).toBeNull();
+  });
+
+  it('AC-6: 同じ回数なら先に参った方', () => {
+    const report = buildAnnualReport({
+      year: 2026,
+      currentYear: 2026,
+      visits: [
+        quick('x1', '2026-03-01', 's1'),
+        quick('x2', '2026-03-02', 's1'),
+        quick('x3', '2026-02-01', 's2'),
+        quick('x4', '2026-02-02', 's2'),
+      ],
+      pilgrimages: [],
+    });
+    expect(report?.memory.top?.spotName).toBe('寺社s2');
+  });
+
+  it('AC-7: はじめて足を運んだ県は、前の年までの記録に無い県のうち最初の1県', () => {
+    expect(build(2026)?.memory.newPrefecture).toEqual({
+      name: '山形県',
+      visitedAt: '2026-03-10',
+      spotName: '立石寺',
+    });
+  });
+
+  it('AC-7: 前の年の記録が1件も無い年（使い始めた年）は出さない', () => {
+    expect(build(2025)?.memory.newPrefecture).toBeNull();
+  });
+
+  it('AC-7: すべて前にある県なら出さない', () => {
+    expect(build(2027)?.memory.newPrefecture).toBeNull();
+  });
+
+  it('AC-7: はじめての県が同じ日に2つ始まるなら createdAt の早い方', () => {
+    const report = buildAnnualReport({
+      year: 2026,
+      currentYear: 2026,
+      visits: [
+        quick('x0', '2025-10-01', 's0', '宮城県'),
+        visit('x1', '2026-06-01', '2026-06-01T05:00:00Z', 's1', '後の社', 'shrine', '福島県'),
+        visit('x2', '2026-06-01', '2026-06-01T02:00:00Z', 's2', '先の寺', 'temple', '岩手県'),
+      ],
+      pilgrimages: [],
+    });
+    expect(report?.memory.newPrefecture).toEqual({
+      name: '岩手県',
+      visitedAt: '2026-06-01',
+      spotName: '先の寺',
+    });
+  });
+
+  it('AC-8: F の印。2026 は 5箇所', () => {
+    expect(build(2026)?.badges).toEqual([{ id: 'visit-5', name: '5箇所達成', mark: 'go' }]);
+    expect(build(2025)?.badges.map(b => b.id)).toEqual(['first-stamp']);
+    expect(build(2027)?.badges.map(b => b.id)).toEqual([]);
+  });
+
+  it('AC-8: 翌年の記録で前の年の印が変わらない', () => {
+    const visits = [
+      quick('x1', '2026-02-01', 's1'),
+      quick('x2', '2026-02-02', 's2'),
+      quick('x3', '2026-02-03', 's3'),
+      quick('x4', '2026-02-04', 's4'),
+      quick('x5', '2027-01-02', 's5'),
+    ];
+    const at = (year: number) =>
+      buildAnnualReport({ year, currentYear: year, visits, pilgrimages: [] })?.badges.map(
+        b => b.id
+      );
+    expect(at(2026)).toEqual(['first-stamp']);
+    expect(at(2027)).toEqual(['visit-5']);
+  });
+
+  it('AC-9: 月参りが年をまたいで満願になった年に、満願の印', () => {
+    const visits = Array.from({ length: 12 }, (_, i) => {
+      const month = ((i + 1) % 12) + 1;
+      const year = i < 11 ? 2025 : 2026;
+      return quick(`x${i}`, `${year}-${String(month).padStart(2, '0')}-10`, 's1');
+    });
+    const at = (year: number) =>
+      buildAnnualReport({ year, currentYear: year, visits, pilgrimages: [] })?.badges.map(
+        b => b.id
+      );
+    expect(at(2025)).toEqual(['first-stamp', 'four-seasons']);
+    expect(at(2026)).toEqual(['mangan']);
+  });
+
+  it('AC-9: 並びは BADGE_DEFINITIONS の順', () => {
+    const report = buildAnnualReport({
+      year: 2026,
+      currentYear: 2026,
+      visits: [
+        quick('x1', '2026-04-01', 's1'),
+        quick('x2', '2026-04-01', 's2'),
+        quick('x3', '2026-04-01', 's3'),
+      ],
+      pilgrimages: [],
+    });
+    expect(report?.badges.map(b => b.id)).toEqual(['first-stamp', 'same-day-3']);
+  });
+
+  it('AC-10: 満願した巡礼。満願の日は札所ごとの最初の記録のうちいちばん遅い日', () => {
+    expect(build(2026)?.pilgrimages).toEqual([
+      { id: 'p1', name: '奈良と京都の三社', spots: 3, completedAt: '2026-05-03' },
+    ]);
+    expect(build(2025)?.pilgrimages).toEqual([
+      { id: 'p3', name: '大崎の一社', spots: 1, completedAt: '2025-06-01' },
+    ]);
+    expect(build(2027)?.pilgrimages).toEqual([]);
+  });
+
+  it('AC-10: 同じ年に2つ満願したら満願の日の新しい順', () => {
+    const report = buildAnnualReport({
+      year: 2026,
+      currentYear: 2026,
+      visits: [quick('x1', '2026-03-01', 's1'), quick('x2', '2026-07-01', 's2')],
+      pilgrimages: [
+        { id: 'q1', name: '三月の巡り', spotIds: ['s1'] },
+        { id: 'q2', name: '七月の巡り', spotIds: ['s2', 's1'] },
+      ],
+    });
+    expect(report?.pilgrimages.map(p => p.id)).toEqual(['q2', 'q1']);
+  });
+
+  it('AC-11: F のシーン', () => {
+    expect(build(2026)?.scenes).toEqual([
+      'cover',
+      'count',
+      'months',
+      'map',
+      'photos',
+      'memory',
+      'badges',
+      'end',
+    ]);
+    expect(build(2025)?.scenes).toEqual(['cover', 'count', 'map', 'badges', 'end']);
+    expect(build(2027)?.scenes).toEqual(['cover', 'count', 'map', 'end']);
+    expect(build(2024)).toBeNull();
+  });
+
+  describe('AC-12: 飛ばす規則', () => {
+    const scenesOf = (visits: AnnualVisit[], pilgrimages: AnnualPilgrimage[] = []) =>
+      buildAnnualReport({ year: 2026, currentYear: 2026, visits, pilgrimages })?.scenes ?? [];
+
+    it('記録のある月が1つなら月ごとは無く、2つならある', () => {
+      expect(
+        scenesOf([quick('x1', '2026-04-01', 's1'), quick('x2', '2026-04-02', 's2')])
+      ).not.toContain('months');
+      expect(
+        scenesOf([quick('x1', '2026-04-01', 's1'), quick('x2', '2026-05-02', 's2')])
+      ).toContain('months');
+    });
+
+    it('枚数2なら写真は無く、3ならある', () => {
+      const two = [quick('x1', '2026-04-01', 's1'), quick('x2', '2026-04-02', 's2')];
+      expect(scenesOf(two)).not.toContain('photos');
+      expect(scenesOf([...two, quick('x3', '2026-04-03', 's3')])).toContain('photos');
+    });
+
+    it('すべての記録の県が null なら地図は無い', () => {
+      expect(scenesOf([quick('x1', '2026-04-01', 's1', null)])).not.toContain('map');
+    });
+
+    it('印が0・満願1つなら達成はあり、どちらも0なら無い', () => {
+      const visits = [
+        quick('x0', '2025-04-01', 's1'),
+        quick('x1', '2025-04-02', 's2'),
+        quick('x2', '2026-04-01', 's1'),
+      ];
+      const report = buildAnnualReport({
+        year: 2026,
+        currentYear: 2026,
+        visits: [...visits, quick('x3', '2026-05-01', 's3')],
+        pilgrimages: [{ id: 'q', name: '巡り', spotIds: ['s1', 's3'] }],
+      });
+      // s3 で2026に初めての寺社が増えるが、3箇所では新しい印は無い
+      expect(report?.badges).toEqual([]);
+      expect(report?.pilgrimages).toHaveLength(1);
+      expect(report?.scenes).toContain('badges');
+
+      const none = buildAnnualReport({
+        year: 2026,
+        currentYear: 2026,
+        visits,
+        pilgrimages: [],
+      });
+      expect(none?.badges).toEqual([]);
+      expect(none?.scenes).not.toContain('badges');
+    });
+
+    it('いちばん多く参った も はじめての県 も無ければ印象は無い', () => {
+      expect(scenesOf([quick('x1', '2026-04-01', 's1')])).not.toContain('memory');
+    });
+  });
+});
+
+describe('地図の寄り', () => {
+  it('AC-13: 宮城県だけなら 4倍まで寄る', () => {
+    const fit = fitPrefectures(['宮城県']);
+    expect(fit.scale).toBe(4);
+    expect(fit.tx).toBeCloseTo(-2373, 1);
+    expect(fit.ty).toBeCloseTo(-1666.6, 1);
+  });
+
+  it('AC-13: 全国と、県が0のときは寄らない', () => {
+    expect(fitPrefectures([...JAPAN_PREFECTURE_NAMES])).toEqual({ scale: 1, tx: 0, ty: 0 });
+    expect(fitPrefectures([])).toEqual({ scale: 1, tx: 0, ty: 0 });
+  });
+
+  it('AC-13: 画面の transform（中心が基準）に直す', () => {
+    const view = toViewTransform({ scale: 4, tx: -2373, ty: -1666.6 }, 300);
+    expect(view.scale).toBe(4);
+    expect(view.translateX).toBeCloseTo(-261.9, 1);
+    expect(view.translateY).toBeCloseTo(9.42, 1);
+  });
+});
+
+describe('間隔', () => {
+  it('AC-14: 県の塗りの間隔', () => {
+    expect(mapStepMs(1)).toBe(380);
+    expect(mapStepMs(6)).toBe(380);
+    expect(mapStepMs(7)).toBe(325);
+    expect(mapStepMs(12)).toBe(190);
+    expect(mapStepMs(47)).toBe(48);
+  });
+
+  it('AC-14: 印の間隔', () => {
+    expect(sealStepMs(3)).toBe(650);
+    expect(sealStepMs(6)).toBe(650);
+    expect(sealStepMs(7)).toBe(585);
+    expect(sealStepMs(9)).toBe(455);
+  });
+
+  it('AC-14: シーンの長さは試作の値', () => {
+    expect(SCENE_MS).toEqual({
+      cover: 4800,
+      count: 5200,
+      months: 5200,
+      map: 6400,
+      photos: 5400,
+      memory: 5200,
+      badges: 5600,
+      end: 0,
+    });
+  });
+});
+
+describe('sceneCopy', () => {
+  it('AC-16: 今の年は「今年」', () => {
+    expect(sceneCopy(2026, true)).toEqual({
+      countKick: '今年めぐった寺社',
+      photosKick: '今年の御朱印',
+      badgesKick: '今年いただいた印',
+      manganKick: '今年の満願',
+    });
+  });
+
+  it('AC-16: 過ぎた年は「{年}年」', () => {
+    expect(sceneCopy(2026, false)).toEqual({
+      countKick: '2026年にめぐった寺社',
+      photosKick: '2026年の御朱印',
+      badgesKick: '2026年にいただいた印',
+      manganKick: '2026年の満願',
+    });
+  });
+});
+
+describe('annualReportEntries', () => {
+  const rows = F.map(v => ({ visited_at: v.visitedAt, spot_id: v.spotId }));
+
+  it('AC-17: 12月は今の年がカード', () => {
+    expect(annualReportEntries(rows, { year: 2026, month: 12 })).toEqual({
+      card: { year: 2026, spots: 6, stamps: 8 },
+      shelf: [],
+    });
+  });
+
+  it('AC-17: 12月より前はどちらも無い（2025 は最初の年より前）', () => {
+    expect(annualReportEntries(rows, { year: 2026, month: 9 })).toEqual({ card: null, shelf: [] });
+  });
+
+  it('AC-17: 1月からは過ぎた年が欄に並ぶ', () => {
+    expect(annualReportEntries(rows, { year: 2027, month: 1 })).toEqual({
+      card: null,
+      shelf: [{ year: 2026, spots: 6, stamps: 8 }],
+    });
+  });
+
+  it('AC-17: 次の12月はその年がカード、過ぎた年は欄', () => {
+    expect(annualReportEntries(rows, { year: 2027, month: 12 })).toEqual({
+      card: { year: 2027, spots: 1, stamps: 1 },
+      shelf: [{ year: 2026, spots: 6, stamps: 8 }],
+    });
+  });
+
+  it('AC-17: 今の年の記録が無ければ12月でもカードは無い', () => {
+    const without2026 = rows.filter(r => !r.visited_at.startsWith('2026'));
+    expect(annualReportEntries(without2026, { year: 2026, month: 12 }).card).toBeNull();
+  });
+
+  it('欄は新しい年から', () => {
+    const more = [...rows, { visited_at: '2028-03-01', spot_id: 's1' }];
+    expect(annualReportEntries(more, { year: 2029, month: 2 }).shelf.map(s => s.year)).toEqual([
+      2028, 2027, 2026,
+    ]);
+  });
+});
+
+describe('decideAutoPlay', () => {
+  const base = { now: { year: 2026, month: 12 }, userId: 'u1', shown: false, stampsInYear: 3 };
+
+  it('AC-18: 12月・ログイン済み・まだ・記録あり なら出す', () => {
+    expect(decideAutoPlay(base)).toEqual({ play: true, year: 2026 });
+  });
+
+  it.each([
+    [{ userId: null }, 'guest'],
+    [{ now: { year: 2026, month: 11 } }, 'not-december'],
+    [{ shown: true }, 'already-shown'],
+    [{ stampsInYear: null }, 'error'],
+    [{ stampsInYear: 0 }, 'no-records'],
+  ] as const)('AC-18: %o なら %s', (patch, reason) => {
+    expect(decideAutoPlay({ ...base, ...patch })).toEqual({ play: false, reason });
+  });
+
+  it('判定の順は guest → not-december → already-shown → error → no-records', () => {
+    expect(
+      decideAutoPlay({ now: { year: 2026, month: 11 }, userId: null, shown: true, stampsInYear: 0 })
+    ).toEqual({ play: false, reason: 'guest' });
+    expect(
+      decideAutoPlay({ now: { year: 2026, month: 11 }, userId: 'u1', shown: true, stampsInYear: 0 })
+    ).toEqual({ play: false, reason: 'not-december' });
+    expect(decideAutoPlay({ ...base, shown: true, stampsInYear: null })).toEqual({
+      play: false,
+      reason: 'already-shown',
+    });
+  });
+
+  it('AC-18: 印のキー', () => {
+    expect(autoPlayStorageKey(2026, 'u1')).toBe('annual_report_autoplayed:2026:u1');
   });
 });

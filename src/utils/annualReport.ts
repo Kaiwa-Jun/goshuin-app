@@ -1,5 +1,13 @@
 import type { SealMark } from '@components/common/Seal';
 import { prefectureTier } from '@components/collection/JapanMap';
+import {
+  JAPAN_MAP_HEIGHT,
+  JAPAN_MAP_WIDTH,
+  JAPAN_PREFECTURE_BOXES,
+  type PrefectureBox,
+} from '@/constants/japanMap';
+import { evaluateNewBadges } from '@services/badges';
+import { buildBadgeProgress } from '@utils/badgeProgress';
 import type { SpotType } from '@/types/supabase';
 
 /**
@@ -124,9 +132,103 @@ interface BuildInput {
   pilgrimages: AnnualPilgrimage[];
 }
 
-export function buildAnnualReport({ year, currentYear, visits }: BuildInput): AnnualReport | null {
+type Memory = AnnualReport['memory'];
+
+/**
+ * いちばん多く参った寺社（D-5）。同じ日に何枚いただいても1回と数える。
+ * 2回以上のときだけ。同じ回数なら Y の中で先に参った方
+ */
+function mostVisited(inYear: AnnualVisit[]): Memory['top'] {
+  const days = new Map<string, Set<string>>();
+  for (const v of inYear) days.set(v.spotId, (days.get(v.spotId) ?? new Set()).add(v.visitedAt));
+
+  let best: { spotId: string; days: number } | null = null;
+  // days は inYear の並び（最初に参った順）で入っているので、> だけで「先に参った方」が残る
+  for (const [spotId, set] of days) {
+    if (set.size >= 2 && (best === null || set.size > best.days)) best = { spotId, days: set.size };
+  }
+  if (best === null) return null;
+
+  const records = inYear.filter(v => v.spotId === best.spotId);
+  const latest = records[records.length - 1];
+  return {
+    spotName: latest.spotName,
+    prefecture: latest.prefecture,
+    days: best.days,
+    imagePath: latest.imagePath,
+  };
+}
+
+/**
+ * はじめて足を運んだ県（D-5）。Y より前の記録に無い県のうち、Y の中でいちばん早い1県。
+ * Y より前の記録が1件も無い人（使い始めた年）は出さない
+ */
+function firstNewPrefecture(inYear: AnnualVisit[], before: AnnualVisit[]): Memory['newPrefecture'] {
+  if (before.length === 0) return null;
+  const known = new Set(before.map(v => v.prefecture));
+  const found = inYear.find(v => v.prefecture !== null && !known.has(v.prefecture));
+  if (!found || found.prefecture === null) return null;
+  return { name: found.prefecture, visitedAt: found.visitedAt, spotName: found.spotName };
+}
+
+const toBadgeRows = (visits: AnnualVisit[]) =>
+  visits.map(v => ({ visited_at: v.visitedAt, spot_id: v.spotId }));
+
+/**
+ * その年に取った印（D-6）。取った日はどこにも保存していないので、
+ * 「Y より前」と「Y の終わりまで」の判定の差を Y に取った印とする
+ */
+function badgesOfYear(
+  year: number,
+  before: AnnualVisit[],
+  upToYear: AnnualVisit[]
+): AnnualReport['badges'] {
+  const was = buildBadgeProgress(toBadgeRows(before), `${year - 1}-12-31`);
+  const now = buildBadgeProgress(toBadgeRows(upToYear), `${year}-12-31`);
+  return evaluateNewBadges(was, now).map(({ id, name, mark }) => ({ id, name, mark }));
+}
+
+/**
+ * その年に満願した巡礼（D-7）。札所がすべて記録済みのとき、
+ * 満願の日 = 札所ごとの最初の記録のうちいちばん遅い日
+ */
+function completedPilgrimages(
+  year: number,
+  upToYear: AnnualVisit[],
+  pilgrimages: AnnualPilgrimage[]
+): AnnualReport['pilgrimages'] {
+  const firstVisit = new Map<string, string>();
+  for (const v of upToYear) {
+    const known = firstVisit.get(v.spotId);
+    if (known === undefined || v.visitedAt < known) firstVisit.set(v.spotId, v.visitedAt);
+  }
+
+  const done: AnnualReport['pilgrimages'] = [];
+  for (const p of pilgrimages) {
+    if (p.spotIds.length === 0) continue;
+    const dates = p.spotIds.map(id => firstVisit.get(id));
+    if (dates.some(d => d === undefined)) continue;
+    const completedAt = (dates as string[]).reduce((a, b) => (a > b ? a : b));
+    if (yearOf(completedAt) !== year) continue;
+    done.push({ id: p.id, name: p.name, spots: p.spotIds.length, completedAt });
+  }
+  return done.sort((a, b) =>
+    a.completedAt === b.completedAt ? 0 : a.completedAt > b.completedAt ? -1 : 1
+  );
+}
+
+export function buildAnnualReport({
+  year,
+  currentYear,
+  visits,
+  pilgrimages,
+}: BuildInput): AnnualReport | null {
   const inYear = visits.filter(v => yearOf(v.visitedAt) === year).sort(compareVisits);
   if (inYear.length === 0) return null;
+
+  // 翌年以降の記録は必ず落とす（2027年に見ても 2026年の印・満願が変わらない）
+  const before = visits.filter(v => yearOf(v.visitedAt) < year);
+  const upToYear = visits.filter(v => yearOf(v.visitedAt) <= year);
 
   const spotTypes = new Map(inYear.map(v => [v.spotId, v.spotType]));
   const shrines = [...spotTypes.values()].filter(t => t === 'shrine').length;
@@ -143,11 +245,26 @@ export function buildAnnualReport({ year, currentYear, visits }: BuildInput): An
   }
 
   const first = inYear[0];
+  const memory: Memory = {
+    top: mostVisited(inYear),
+    newPrefecture: firstNewPrefecture(inYear, before),
+  };
+  const badges = badgesOfYear(year, before, upToYear);
+  const completed = completedPilgrimages(year, upToYear, pilgrimages);
+
+  // シーンと飛ばす規則（D-8）。順は固定
+  const scenes: AnnualSceneId[] = ['cover', 'count'];
+  if (months.filter(n => n > 0).length >= 2) scenes.push('months');
+  if (byPrefecture.size >= 1) scenes.push('map');
+  if (inYear.length >= 3) scenes.push('photos');
+  if (memory.top !== null || memory.newPrefecture !== null) scenes.push('memory');
+  if (badges.length >= 1 || completed.length >= 1) scenes.push('badges');
+  scenes.push('end');
 
   return {
     year,
     isCurrentYear: year === currentYear,
-    scenes: ['cover', 'count', 'end'],
+    scenes,
     cover: { visitedAt: first.visitedAt, spotName: first.spotName, imagePath: first.imagePath },
     count: {
       spots: spotTypes.size,
@@ -169,10 +286,170 @@ export function buildAnnualReport({ year, currentYear, visits }: BuildInput): An
         imagePath: inYear[i].imagePath,
       })),
     },
-    memory: { top: null, newPrefecture: null },
-    badges: [],
-    pilgrimages: [],
+    memory,
+    badges,
+    pilgrimages: completed,
   };
+}
+
+/* ── 地図の寄り（D-10） ── */
+
+/** 寄りの余白（viewBox の単位） */
+const FIT_PAD = 70;
+/** これより寄らない */
+const FIT_MAX_SCALE = 4;
+
+export interface MapFit {
+  scale: number;
+  tx: number;
+  ty: number;
+}
+
+const NO_FIT: MapFit = { scale: 1, tx: 0, ty: 0 };
+
+/**
+ * 足を運んだ県すべてが収まるように寄る（viewBox の単位。試作の fitTransform）。
+ * 1倍以下になるとき（ほぼ全国）と県が0のときは寄らない
+ */
+export function fitPrefectures(names: string[]): MapFit {
+  const boxes = names
+    .map(name => JAPAN_PREFECTURE_BOXES[name])
+    .filter((b): b is PrefectureBox => b !== undefined);
+  if (boxes.length === 0) return { ...NO_FIT };
+
+  const x0 = Math.min(...boxes.map(b => b.x)) - FIT_PAD;
+  const y0 = Math.min(...boxes.map(b => b.y)) - FIT_PAD;
+  const x1 = Math.max(...boxes.map(b => b.x + b.width)) + FIT_PAD;
+  const y1 = Math.max(...boxes.map(b => b.y + b.height)) + FIT_PAD;
+  const scale = Math.min(FIT_MAX_SCALE, JAPAN_MAP_WIDTH / (x1 - x0), JAPAN_MAP_HEIGHT / (y1 - y0));
+  if (scale <= 1) return { ...NO_FIT };
+
+  return {
+    scale,
+    tx: JAPAN_MAP_WIDTH / 2 - (scale * (x0 + x1)) / 2,
+    ty: JAPAN_MAP_HEIGHT / 2 - (scale * (y0 + y1)) / 2,
+  };
+}
+
+/**
+ * viewBox の寄りを、RN の transform（中心が基準・[translateX, translateY, scale] の順）に直す。
+ * `SaveMapReveal` と同じ並び
+ */
+export function toViewTransform(
+  fit: MapFit,
+  width: number
+): { scale: number; translateX: number; translateY: number } {
+  const k = width / JAPAN_MAP_WIDTH;
+  const height = (width * JAPAN_MAP_HEIGHT) / JAPAN_MAP_WIDTH;
+  return {
+    scale: fit.scale,
+    translateX: fit.tx * k + ((fit.scale - 1) * width) / 2,
+    translateY: fit.ty * k + ((fit.scale - 1) * height) / 2,
+  };
+}
+
+/* ── 間隔（D-9）。多い人でもシーンの長さの中に収める ── */
+
+/** 県の塗りの間隔。6県までは試作と同じ */
+export function mapStepMs(n: number): number {
+  return Math.min(380, Math.floor(2280 / n));
+}
+
+/** 印の間隔。6つまでは試作と同じ */
+export function sealStepMs(n: number): number {
+  return Math.min(650, Math.floor(4100 / n));
+}
+
+/** 見出しの「今年」。過ぎた年は「{年}年」にする（D-15） */
+export function sceneCopy(
+  year: number,
+  isCurrentYear: boolean
+): { countKick: string; photosKick: string; badgesKick: string; manganKick: string } {
+  if (isCurrentYear) {
+    return {
+      countKick: '今年めぐった寺社',
+      photosKick: '今年の御朱印',
+      badgesKick: '今年いただいた印',
+      manganKick: '今年の満願',
+    };
+  }
+  return {
+    countKick: `${year}年にめぐった寺社`,
+    photosKick: `${year}年の御朱印`,
+    badgesKick: `${year}年にいただいた印`,
+    manganKick: `${year}年の満願`,
+  };
+}
+
+/* ── あゆみの入口（D-16） ── */
+
+export interface AnnualYearSummary {
+  year: number;
+  spots: number;
+  stamps: number;
+}
+
+/**
+ * card = 12月 かつ 今の年に記録があるとき、その年。
+ * shelf = 最初の年から去年までで記録のある年（新しい順）
+ */
+export function annualReportEntries(
+  visits: { visited_at: string; spot_id: string }[],
+  now: { year: number; month: number }
+): { card: AnnualYearSummary | null; shelf: AnnualYearSummary[] } {
+  const byYear = new Map<number, { spots: Set<string>; stamps: number }>();
+  for (const v of visits) {
+    const y = yearOf(v.visited_at);
+    const acc = byYear.get(y) ?? { spots: new Set<string>(), stamps: 0 };
+    acc.spots.add(v.spot_id);
+    acc.stamps += 1;
+    byYear.set(y, acc);
+  }
+  const summary = (y: number): AnnualYearSummary | null => {
+    const acc = byYear.get(y);
+    return acc ? { year: y, spots: acc.spots.size, stamps: acc.stamps } : null;
+  };
+
+  const shelf = [...byYear.keys()]
+    .filter(y => y >= ANNUAL_REPORT_FIRST_YEAR && y < now.year)
+    .sort((a, b) => b - a)
+    .map(y => summary(y) as AnnualYearSummary);
+
+  return { card: now.month === 12 ? summary(now.year) : null, shelf };
+}
+
+/* ── 自動再生（D-17） ── */
+
+export type AutoPlayDecision =
+  | { play: true; year: number }
+  | {
+      play: false;
+      reason: 'guest' | 'not-december' | 'already-shown' | 'error' | 'no-records';
+    };
+
+/** 判定の順: guest → not-december → already-shown → error（null）→ no-records（0）→ 出す */
+export function decideAutoPlay({
+  now,
+  userId,
+  shown,
+  stampsInYear,
+}: {
+  now: { year: number; month: number };
+  userId: string | null;
+  shown: boolean;
+  stampsInYear: number | null;
+}): AutoPlayDecision {
+  if (userId === null) return { play: false, reason: 'guest' };
+  if (now.month !== 12) return { play: false, reason: 'not-december' };
+  if (shown) return { play: false, reason: 'already-shown' };
+  if (stampsInYear === null) return { play: false, reason: 'error' };
+  if (stampsInYear === 0) return { play: false, reason: 'no-records' };
+  return { play: true, year: now.year };
+}
+
+/** 自動再生を出したかの印。その年・そのアカウントごと */
+export function autoPlayStorageKey(year: number, userId: string): string {
+  return `annual_report_autoplayed:${year}:${userId}`;
 }
 
 /** 末尾の「都」「府」「県」を取る。北海道はそのまま */
