@@ -47,6 +47,11 @@ export type RootStackParamList = {
   AccountDeletion: undefined;
   /** 「御朱印さんぽ プラス」（Issue #270）。設定から開く */
   Plus: undefined;
+  /**
+   * 年報「{年}年のふりかえり」（Issue #274）。あゆみ・12月の自動再生・開発用から開く。
+   * sample: 開発用と Expo Web の確認のための見本（本番の分岐には使わない）
+   */
+  AnnualReport: { year: number; sample?: 'full' | 'few' };
   Error: {
     type: 'network' | 'location' | 'upload';
     origin?: 'record';

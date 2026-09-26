@@ -150,6 +150,28 @@ describe('Theme', () => {
       expect(colors.pin.unvisited).not.toBe(colors.gray[400]);
     });
 
+    /*
+     * 年報（Issue #274 D-21）。和紙の上の控えめな字と、「まだ」の面。
+     * gray[500] は青みで和紙に合わないので、試作の色をトークンにした
+     */
+    it('和紙の上の控えめな字と、まだの面を持つ', () => {
+      expect(colors.washiSub).toBe('#6B6356');
+      expect(colors.washiShade).toBe('#D9D2C3');
+    });
+
+    it('和紙の上の控えめな字は、和紙との対比が 4.5 以上', () => {
+      const luminance = (hex: string) => {
+        const [r, g, b] = [1, 3, 5]
+          .map(i => parseInt(hex.slice(i, i + 2), 16) / 255)
+          .map(c => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      };
+      const [light, dark] = [luminance(colors.washi), luminance(colors.washiSub)].sort(
+        (a, b) => b - a
+      );
+      expect((light + 0.05) / (dark + 0.05)).toBeGreaterThanOrEqual(4.5);
+    });
+
     it('should export semantic colors', () => {
       expect(colors.background).toBe('#FFFFFF');
       expect(colors.surface).toBe('#F9FAFB');

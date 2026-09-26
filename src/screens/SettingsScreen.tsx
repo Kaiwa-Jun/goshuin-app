@@ -2,7 +2,18 @@ import { MaterialIcons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import * as Location from 'expo-location';
 import { useEffect, useState } from 'react';
-import { Alert, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  Alert,
+  DevSettings,
+  Linking,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Card } from '@components/common/Card';
@@ -12,6 +23,11 @@ import { usePlus } from '@hooks/usePlus';
 import { PlusSettingsCard } from '@components/plus/PlusSettingsCard';
 import { PlusThanksToast } from '@components/plus/PlusThanksToast';
 import { BILLING_ENABLED } from '@/constants/plus';
+import { clearAutoPlayShown } from '@services/annualReport';
+import { DEV_AS_DECEMBER_KEY } from '@utils/annualReport';
+import { annualReportNow } from '@utils/annualReportNow';
+import { ANNUAL_SAMPLE_YEAR } from '@utils/annualReportSample';
+import { jstYearMonth } from '@utils/jstDate';
 import { colors } from '@theme/colors';
 import { spacing } from '@theme/spacing';
 import { typography } from '@theme/typography';
@@ -83,6 +99,39 @@ export function SettingsScreen({ navigation, route }: Props) {
   const handleReplayOnboarding = async () => {
     await resetOnboarding();
     navigation.getParent()?.navigate('Onboarding');
+  };
+
+  /*
+   * 開発用。年報（Issue #274 D-19）。ゲストは見本を開く（Expo Web はログインできないので、
+   * Web で年報を見るにはこれが要る）
+   */
+  const handleOpenAnnualReport = () => {
+    const year = jstYearMonth(annualReportNow()).year;
+    navigation
+      .getParent()
+      ?.navigate(
+        'AnnualReport',
+        isAuthenticated ? { year } : { year: ANNUAL_SAMPLE_YEAR, sample: 'full' }
+      );
+  };
+
+  /** 開発用。記録が2枚の見本で、データの足りないシーンを飛ばす形を見る */
+  const handleOpenAnnualReportFew = () => {
+    navigation.getParent()?.navigate('AnnualReport', { year: ANNUAL_SAMPLE_YEAR, sample: 'few' });
+  };
+
+  /**
+   * 開発用。今の年の印を消し、読み込み直したアプリを12月として扱う。
+   * スプラッシュ → メインのタブ → 判定 → 再生 の本物の起動の経路をそのまま通して確かめる
+   */
+  const handleTryAutoPlay = async () => {
+    if (!user) {
+      Alert.alert('ログインしてから試してください');
+      return;
+    }
+    await clearAutoPlayShown(jstYearMonth(annualReportNow()).year, user.id);
+    await AsyncStorage.setItem(DEV_AS_DECEMBER_KEY, '1');
+    DevSettings.reload();
   };
 
   return (
@@ -197,6 +246,36 @@ export function SettingsScreen({ navigation, route }: Props) {
                 <Text style={styles.rowLabel}>オンボーディングをもう一度見る</Text>
                 <MaterialIcons name="chevron-right" size={24} color={colors.gray[400]} />
               </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.row}
+                accessibilityRole="button"
+                onPress={handleOpenAnnualReport}
+                testID="dev-annual-report-row"
+              >
+                <Text style={styles.rowLabel}>年報を見る</Text>
+                <MaterialIcons name="chevron-right" size={24} color={colors.gray[400]} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.row}
+                accessibilityRole="button"
+                onPress={handleOpenAnnualReportFew}
+                testID="dev-annual-report-few-row"
+              >
+                <Text style={styles.rowLabel}>年報の見本を見る（記録が2枚）</Text>
+                <MaterialIcons name="chevron-right" size={24} color={colors.gray[400]} />
+              </TouchableOpacity>
+              {/* Web はログインできず、react-native-web には DevSettings が無い */}
+              {Platform.OS !== 'web' && (
+                <TouchableOpacity
+                  style={styles.row}
+                  accessibilityRole="button"
+                  onPress={handleTryAutoPlay}
+                  testID="dev-annual-autoplay-row"
+                >
+                  <Text style={styles.rowLabel}>12月として自動再生を試す</Text>
+                  <MaterialIcons name="chevron-right" size={24} color={colors.gray[400]} />
+                </TouchableOpacity>
+              )}
             </Card>
           </View>
         )}
