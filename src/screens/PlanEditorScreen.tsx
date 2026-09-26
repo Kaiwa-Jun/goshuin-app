@@ -145,6 +145,19 @@ export function PlanEditorScreen({ navigation, route }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, setKey]);
 
+  // ── カメラ: 新しく組むときは、現在地が取れた最初の一度だけ寄せる ──
+  // （開いた瞬間はまだ取れておらず、初期値の仙台のままになる。地図タブと同じ）
+  const didCenterRef = useRef(false);
+  useEffect(() => {
+    if (!location || didCenterRef.current || planId) return;
+    didCenterRef.current = true;
+    cameraRef.current?.flyTo({
+      center: [location.longitude, location.latitude],
+      zoom: INITIAL_ZOOM,
+      duration: 0,
+    });
+  }, [location, planId]);
+
   // ── 地図のソース ──
   const { clustered, pinned } = useMemo(
     () => buildSpotSources({ spots: allSpots, visitedSpotIds, wishlistSpotIds }),

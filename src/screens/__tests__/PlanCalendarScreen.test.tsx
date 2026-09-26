@@ -84,8 +84,9 @@ it('AC-28: 「＋ 予定を組む」は次の土曜日、空いた日はその�
   const n = nav();
   const ui = renderScreen(n);
   await waitFor(() => expect(mockFetchPlans).toHaveBeenCalled());
+  // 「＋ 予定を組む」は今日の日付で開く（オーナーの判断で次の土曜から変更）
   fireEvent.press(ui.getByTestId('plan-new'));
-  expect(n.navigate).toHaveBeenLastCalledWith('PlanEditor', { date: '2026-10-03' });
+  expect(n.navigate).toHaveBeenLastCalledWith('PlanEditor', { date: '2026-09-26' });
   fireEvent.press(ui.getByTestId('plan-day-2026-10-05'));
   expect(n.navigate).toHaveBeenLastCalledWith('PlanEditor', { date: '2026-10-05' });
   fireEvent.press(ui.getByTestId('plan-day-2026-09-20'));
@@ -119,7 +120,7 @@ it('AC-30: 課金オンで無料の上限なら Alert、オフなら何件でも
   const ui2 = renderScreen(n2);
   await waitFor(() => expect(mockFetchPlans).toHaveBeenCalled());
   fireEvent.press(ui2.getAllByTestId('plan-new')[0]);
-  expect(n2.navigate).toHaveBeenCalledWith('PlanEditor', { date: '2026-10-03' });
+  expect(n2.navigate).toHaveBeenCalledWith('PlanEditor', { date: '2026-09-26' });
   alert.mockRestore();
 });
 
