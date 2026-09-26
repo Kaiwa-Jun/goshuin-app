@@ -1155,6 +1155,8 @@ describe('表示の切り替わりの動き（Issue #276）', () => {
   type Rect = [number, number, number, number];
   let viewportRect: Rect;
   let measureAnswers: boolean;
+  /** gallery-content を測ると返す矩形（既定は測れない = 0） */
+  let contentRect: Rect;
   const tileRect = (i: number): Rect => [
     spacing.lg + (i % 3) * (T + spacing.xs),
     140 + Math.floor(i / 3) * 300,
@@ -1162,6 +1164,7 @@ describe('表示の切り替わりの動き（Issue #276）', () => {
     T,
   ];
   const rectOf = (testID: string | undefined): Rect => {
+    if (testID === 'gallery-content') return contentRect;
     if (testID === 'gallery-flip-pane') return [0, 100, W, 1000];
     if (testID?.startsWith('flip-page-surface-')) return [(W - P) / 2, 250, P, 1.5 * P];
     if (testID === 'gallery-list-viewport') return viewportRect;
@@ -1191,6 +1194,7 @@ describe('表示の切り替わりの動き（Issue #276）', () => {
     mockAuth = { user: { id: 'user-1' }, isAuthenticated: true };
     withStamps(STAMPS);
     viewportRect = [0, 140, W, 960];
+    contentRect = [0, 0, 0, 0];
     measureAnswers = true;
     measureSpy = jest.spyOn(View.prototype, 'measureInWindow').mockImplementation(function (
       this: { props: { testID?: string } },
@@ -1342,6 +1346,23 @@ describe('表示の切り替わりの動き（Issue #276）', () => {
       fireEvent.press(utils.getByTestId('view-mode-grid'));
       expectSwitchedInPlace(utils);
     });
+  });
+
+  /*
+   * 中身の onLayout は、取り直しのあとで描き直した中身には届かないことがある（S6 のシミュレータで、
+   * 再読み込み直後の最初の切り替えがその場で切り替わった）。届いていなければその場で測る
+   */
+  it('中身の大きさが届いていなくても、その場で測れて大きさがあれば動かす', () => {
+    contentRect = [0, 100, W, 1000];
+    const utils = renderGalleryScreen();
+    flipTo(utils, 4);
+
+    fireEvent.press(utils.getByTestId('view-mode-grid'));
+    expect(utils.getByTestId('gallery-flip-pane')).toBeTruthy();
+    layoutGrid(utils);
+    advance(50);
+
+    expect(clockCalls()).toHaveLength(1);
   });
 
   it('押したら入ってくる側を見えないまま描き足し、測れたら時計を1回だけ回す（AC-30）', () => {

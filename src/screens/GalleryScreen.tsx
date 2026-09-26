@@ -649,6 +649,7 @@ export function GalleryScreen({ navigation }: Props) {
             testID="gallery-content"
             style={styles.content}
             onLayout={transition.onContentLayout}
+            ref={transition.registerContent}
           >
             {/*
              * 静かなときは表示している面だけを描く。準備中と動いている間だけ両方を描き、

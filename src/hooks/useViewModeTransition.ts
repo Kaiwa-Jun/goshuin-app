@@ -130,6 +130,7 @@ export function useViewModeTransition({
   const prepared = useRef<Prepared | null>(null);
 
   const contentSize = useRef<Size | null>(null);
+  const contentNode = useRef<View | null>(null);
   const panes = useRef<{ flip: View | null; viewport: View | null }>({
     flip: null,
     viewport: null,
@@ -305,6 +306,18 @@ export function useViewModeTransition({
    * 何もせず false（呼んだ側はその場で切り替える）
    */
   const begin = (request: ViewModeTransitionRequest): boolean => {
+    /*
+     * 中身の onLayout は、取り直しのあとで描き直した中身には届かないことがある（S6 のシミュレータで、
+     * 再読み込み直後の最初の切り替えがその場で切り替わった）。届いていなければその場で測る。
+     * 新しいアーキテクチャの measureInWindow はその場で返す。返らなければ今までどおり動かさない
+     */
+    if (!contentSize.current) {
+      const measured: { size: Size | null } = { size: null };
+      contentNode.current?.measureInWindow((_x, _y, width, height) => {
+        measured.size = { width, height };
+      });
+      if (measured.size && hasArea(measured.size)) contentSize.current = measured.size;
+    }
     const size = contentSize.current;
     if (
       phaseRef.current ||
@@ -398,6 +411,10 @@ export function useViewModeTransition({
     /** ボタンを押しても何もしない間 */
     locked: phase !== null || blocked,
     begin,
+    /** `gallery-content`。onLayout が届いていないときに、押したその場で測る */
+    registerContent: useCallback((node: View | null) => {
+      contentNode.current = node;
+    }, []),
     /** `gallery-content` の onLayout。レイアウトが決まる前には動かさない */
     onContentLayout: useCallback((event: LayoutChangeEvent) => {
       const { width, height } = event.nativeEvent.layout;
