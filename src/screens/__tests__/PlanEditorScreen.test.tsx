@@ -1,9 +1,10 @@
 import React from 'react';
-import { AccessibilityInfo, Alert, Linking, StyleSheet } from 'react-native';
+import { AccessibilityInfo, Alert, Dimensions, Linking, StyleSheet } from 'react-native';
 import { act, fireEvent, render, within } from '@testing-library/react-native';
 import '@testing-library/react-native/extend-expect';
 
 import { PlanEditorScreen } from '@screens/PlanEditorScreen';
+import { DRAWER_LOW } from '@components/plan/PlanDrawer';
 import type { Spot } from '@/types/supabase';
 import type { VisitPlan } from '@/types/visitPlan';
 import { colors } from '@theme/colors';
@@ -149,6 +150,10 @@ afterEach(() => {
   jest.useRealTimers();
 });
 
+it('ドロワーは低い段で画面の 36%（地図を広く見せる）', () => {
+  expect(DRAWER_LOW).toBe(0.36);
+});
+
 describe('最初のカメラ', () => {
   const { __cameraMocks: cameraMocks } = jest.requireMock('@maplibre/maplibre-react-native') as {
     __cameraMocks: Record<string, jest.Mock>;
@@ -168,6 +173,10 @@ describe('最初のカメラ', () => {
     expect(cameraMocks.flyTo).toHaveBeenCalledWith(
       expect.objectContaining({ center: [139.54, 35.65], zoom: 13 })
     );
+    // 上のバーと下のドロワーを除いた、見えている地図の真ん中に出す
+    const { padding } = cameraMocks.flyTo.mock.calls.at(-1)[0];
+    expect(padding.top).toBeGreaterThan(0);
+    expect(padding.bottom).toBeCloseTo(Dimensions.get('window').height * DRAWER_LOW);
   });
 
   it('保存済みの予定を開いたときは、現在地ではなく予定の寺社に寄せる', async () => {
@@ -237,7 +246,10 @@ describe('地図の現在地と「行きたい」', () => {
     await act(async () => {});
     fireEvent.press(r.getByTestId('plan-map-locate'));
     expect(cameraMocks.flyTo).toHaveBeenLastCalledWith(
-      expect.objectContaining({ center: [139.54, 35.65] })
+      expect.objectContaining({
+        center: [139.54, 35.65],
+        padding: expect.objectContaining({ bottom: expect.any(Number) }),
+      })
     );
   });
 });

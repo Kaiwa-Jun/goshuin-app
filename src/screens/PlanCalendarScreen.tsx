@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 
@@ -114,7 +114,8 @@ export function PlanCalendarScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.scroll}>
+      {/* 上下には動かさない（横スワイプの月送りのときに縦に揺れるため）。6週と次の予定は画面に収まる */}
+      <View style={styles.scroll}>
         <View style={styles.monthRow}>
           <Text style={styles.monthTitle}>{`${month.year}年${month.month}月`}</Text>
           <View style={styles.monthNav}>
@@ -173,7 +174,7 @@ export function PlanCalendarScreen({ navigation, route }: Props) {
             }
           </Text>
         )}
-      </ScrollView>
+      </View>
 
       <TouchableOpacity style={styles.fab} onPress={handleNew} testID="plan-new">
         <Text style={styles.fabText}>＋ 予定を組む</Text>
