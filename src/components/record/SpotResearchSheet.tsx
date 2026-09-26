@@ -128,13 +128,11 @@ function RegionAsk({
   redo,
   recentPrefectures,
   onPick,
-  children,
 }: {
   name: string;
   redo: boolean;
   recentPrefectures: string[];
   onPick: (hint: SpotHint | null) => void;
-  children: React.ReactNode;
 }) {
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState('');
@@ -192,8 +190,6 @@ function RegionAsk({
           調べ直すと、今日の回数（10回）を1回使います
         </Text>
       )}
-      <View style={styles.gap} />
-      {children}
     </>
   );
 }
@@ -264,7 +260,8 @@ function CandidateCard({
 
 /**
  * 見つからない寺社を調べる下からのシート（Issue #248 の ②③。⓪ 地域を聞くは Issue #277）。
- * 「調べずに、地図で場所を決める」はどの状態でも押せる（④へ）
+ * 地図で決める（④）へは、調べたあと（見つからない・調べられない・回数の上限・どれでもない）からだけ
+ * 進める。⓪・② には出さない（Issue #282。地図で決めた寺社は確かめられていないため）
  */
 export function SpotResearchSheet({
   state,
@@ -311,9 +308,7 @@ export function SpotResearchSheet({
           redo={state.redo}
           recentPrefectures={recentPrefectures}
           onPick={onPick}
-        >
-          {manualButton('調べずに、地図で場所を決める', 'outline')}
-        </RegionAsk>
+        />
       );
       break;
     case 'researching':
@@ -326,7 +321,6 @@ export function SpotResearchSheet({
             <ActivityIndicator color={colors.gray[400]} />
           </View>
           <Steps />
-          {manualButton('調べずに、地図で場所を決める', 'outline')}
         </>
       );
       break;

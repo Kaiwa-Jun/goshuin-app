@@ -10,7 +10,8 @@ import { typography } from '@theme/typography';
 import { borderRadius } from '@theme/spacing';
 
 /* 契約書: docs/issues/issue-248-spot-add-research.md（S4 / UI-4〜UI-8・UI-10）
- *        docs/issues/issue-277-spot-research-region.md（S2・S3 / UI-1〜UI-12） */
+ *        docs/issues/issue-277-spot-research-region.md（S2・S3 / UI-1〜UI-12）
+ *        docs/issues/issue-282-manual-after-research.md（S1 / UI-1〜UI-8） */
 const cand = (index: number, over: Partial<SpotResearchCandidate> = {}): SpotResearchCandidate => ({
   index,
   name: '鹿島台神社',
@@ -46,7 +47,7 @@ const handlers = () => ({
 });
 
 describe('SpotResearchSheet', () => {
-  it('調べている間: 名前・「{地域} で探しています」・「調べずに、地図で場所を決める」。地域を変えるボタン・入力欄は無い', () => {
+  it('調べている間: 名前・「{地域} で探しています」。地域を変えるボタン・入力欄・地図のボタンは無い（#282 UI-4）', () => {
     const h = handlers();
     const ui = render(
       <SpotResearchSheet state={state({})} userLocation={null} recentPrefectures={[]} {...h} />
@@ -59,8 +60,8 @@ describe('SpotResearchSheet', () => {
     expect(ui.queryByText('変える')).toBeNull();
     expect(ui.queryByText('地域を絞る')).toBeNull();
     expect(ui.UNSAFE_queryAllByType(TextInput)).toHaveLength(0);
-    fireEvent.press(ui.getByText('調べずに、地図で場所を決める'));
-    expect(h.onOpenManual).toHaveBeenCalled();
+    expect(ui.queryByTestId('research-open-manual')).toBeNull();
+    expect(ui.queryAllByText(/地図で/)).toHaveLength(0);
   });
 
   it('手がかりが無ければ「全国から探しています」。「地域を絞る」は無い', () => {
@@ -166,7 +167,7 @@ describe('SpotResearchSheet — 調べる前に地域を聞く（⓪）', () => 
     state({ status: 'asking', name: '八幡神社', hint: null, ...over });
   const RECENT = ['宮城県', '京都府', '東京都'];
 
-  it('見出し・説明・あなたの記録から・ほかの地域を入れる・地図で。県（新しい順）→「全国から」の順', () => {
+  it('見出し・説明・あなたの記録から・ほかの地域を入れる。県（新しい順）→「全国から」の順。地図のボタンは無い（#282 UI-1）', () => {
     const ui = render(
       <SpotResearchSheet
         state={asking()}
@@ -180,10 +181,12 @@ describe('SpotResearchSheet — 調べる前に地域を聞く（⓪）', () => 
       'どのあたりの寺社ですか？ 選ぶとすぐ調べ始めます。',
       'あなたの記録から',
       'ほかの地域を入れる',
-      '調べずに、地図で場所を決める',
     ]) {
       expect(ui.getByText(t)).toBeTruthy();
     }
+    expect(ui.queryByTestId('research-open-manual')).toBeNull();
+    expect(ui.queryByTestId('research-none')).toBeNull();
+    expect(ui.queryAllByText(/地図で/)).toHaveLength(0);
     const chips = ui.getAllByTestId(/^region-(recent-\d|all)$/);
     expect(chips.map(c => c.props.testID)).toEqual([
       'region-recent-0',
@@ -285,14 +288,20 @@ describe('SpotResearchSheet — 調べる前に地域を聞く（⓪）', () => 
     expect(h.onPick).toHaveBeenCalledTimes(3);
   });
 
-  it('「調べずに、地図で場所を決める」は onOpenManual だけ（調べない）', () => {
-    const h = handlers();
+  it('「ほかの地域を入れる」で入力欄を開いたあとも、地図のボタンは無い（#282 UI-2）', () => {
     const ui = render(
-      <SpotResearchSheet state={asking()} userLocation={null} recentPrefectures={RECENT} {...h} />
+      <SpotResearchSheet
+        state={asking()}
+        userLocation={null}
+        recentPrefectures={[]}
+        {...handlers()}
+      />
     );
-    fireEvent.press(ui.getByTestId('research-open-manual'));
-    expect(h.onOpenManual).toHaveBeenCalledTimes(1);
-    expect(h.onPick).not.toHaveBeenCalled();
+    fireEvent.press(ui.getByTestId('region-other'));
+    expect(ui.getByTestId('region-input')).toBeTruthy();
+    expect(ui.getByTestId('region-submit')).toBeTruthy();
+    expect(ui.queryByTestId('research-open-manual')).toBeNull();
+    expect(ui.queryAllByText(/地図で/)).toHaveLength(0);
   });
 
   it('開いている間に県が届いたら、「全国から」の前に加わる（調べない）', () => {
@@ -426,7 +435,7 @@ describe('SpotResearchSheet — 「変える」で地域を選び直す', () => 
     expect(h.onChangeRegion).toHaveBeenCalledTimes(1);
   });
 
-  it('調べ直し（redo）: 見出し・説明が変わり、回数の知らせが「ほかの地域を入れる」と地図のボタンの間に出る', () => {
+  it('調べ直し（redo）: 見出し・説明が変わり、回数の知らせが「ほかの地域を入れる」の下に出る。地図のボタンは無い（#282 UI-3）', () => {
     const ui = render(
       <SpotResearchSheet
         state={state({ status: 'asking', redo: true, name: '八幡神社', hint: null })}
@@ -444,16 +453,131 @@ describe('SpotResearchSheet — 「変える」で地域を選び直す', () => 
       color: colors.gray[500],
       fontSize: typography.caption.fontSize,
     });
-    for (const id of ['region-recent-0', 'region-all', 'region-other', 'research-open-manual']) {
+    for (const id of ['region-recent-0', 'region-all', 'region-other']) {
       expect(ui.getByTestId(id)).toBeTruthy();
     }
-    expect(ui.getByText('調べずに、地図で場所を決める')).toBeTruthy();
+    expect(ui.queryByTestId('research-open-manual')).toBeNull();
+    expect(ui.queryAllByText(/地図で/)).toHaveLength(0);
     const tree = JSON.stringify(ui.toJSON());
     expect(tree.indexOf('"testID":"region-other"')).toBeLessThan(
       tree.indexOf('"testID":"region-quota"')
     );
-    expect(tree.indexOf('"testID":"region-quota"')).toBeLessThan(
+  });
+});
+
+describe('地図で決めるのは調べたあとだけ（Issue #282）', () => {
+  const styleOf = (el: { props: { style: unknown } }) =>
+    StyleSheet.flatten(el.props.style as never) as Record<string, unknown>;
+
+  it('UI-4: 全国から調べている間も、地図のボタンは無い', () => {
+    const ui = render(
+      <SpotResearchSheet
+        state={state({ hint: null })}
+        userLocation={null}
+        recentPrefectures={[]}
+        {...handlers()}
+      />
+    );
+    expect(ui.getByText('「鹿島台神社」を調べています')).toBeTruthy();
+    expect(ui.getByTestId('hint-line')).toBeTruthy();
+    expect(ui.queryByTestId('research-open-manual')).toBeNull();
+    expect(ui.queryAllByText(/地図で/)).toHaveLength(0);
+  });
+
+  it('UI-5: 見つからないときは地域の行の下に「地図で場所を決める」（主ボタン）。押すと onOpenManual だけ', () => {
+    const h = handlers();
+    const ui = render(
+      <SpotResearchSheet
+        state={state({ status: 'notFound', hint: null })}
+        userLocation={null}
+        recentPrefectures={[]}
+        {...h}
+      />
+    );
+    const button = ui.getByTestId('research-open-manual');
+    expect(within(button).getByText('地図で場所を決める')).toBeTruthy();
+    expect(styleOf(button).backgroundColor).toBe(colors.primary[500]);
+    const tree = JSON.stringify(ui.toJSON());
+    expect(tree.indexOf('"testID":"hint-line"')).toBeLessThan(
       tree.indexOf('"testID":"research-open-manual"')
     );
+    fireEvent.press(button);
+    expect(h.onOpenManual).toHaveBeenCalledTimes(1);
+    expect(h.onChangeRegion).not.toHaveBeenCalled();
+    expect(ui.queryByText('調べずに、地図で場所を決める')).toBeNull();
+  });
+
+  it('UI-6: 調べられなかったときは「もう一度調べる」の下に「地図で場所を決める」（枠のボタン）', () => {
+    const h = handlers();
+    const ui = render(
+      <SpotResearchSheet
+        state={state({ status: 'error' })}
+        userLocation={null}
+        recentPrefectures={[]}
+        {...h}
+      />
+    );
+    expect(within(ui.getByTestId('research-retry')).getByText('もう一度調べる')).toBeTruthy();
+    const button = ui.getByTestId('research-open-manual');
+    expect(within(button).getByText('地図で場所を決める')).toBeTruthy();
+    const tree = JSON.stringify(ui.toJSON());
+    expect(tree.indexOf('"testID":"research-retry"')).toBeLessThan(
+      tree.indexOf('"testID":"research-open-manual"')
+    );
+    expect(styleOf(button)).toMatchObject({
+      borderWidth: 1,
+      borderColor: colors.primary[500],
+      backgroundColor: colors.transparent,
+    });
+    fireEvent.press(button);
+    expect(h.onOpenManual).toHaveBeenCalledTimes(1);
+  });
+
+  it('UI-7: 回数の上限のときは「地図で場所を決める」（主ボタン）', () => {
+    const h = handlers();
+    const ui = render(
+      <SpotResearchSheet
+        state={state({ status: 'limit' })}
+        userLocation={null}
+        recentPrefectures={[]}
+        {...h}
+      />
+    );
+    expect(ui.getByText('今日調べられる回数（10回）を使い切りました')).toBeTruthy();
+    const button = ui.getByTestId('research-open-manual');
+    expect(within(button).getByText('地図で場所を決める')).toBeTruthy();
+    expect(styleOf(button).backgroundColor).toBe(colors.primary[500]);
+    fireEvent.press(button);
+    expect(h.onOpenManual).toHaveBeenCalledTimes(1);
+  });
+
+  it('UI-8: 候補では「どれでもない（地図で決める）」だけ。保存中は押しても開かない', () => {
+    const h = handlers();
+    const candidates = [cand(0), cand(1, { name: '鹿島神社' })];
+    const ui = render(
+      <SpotResearchSheet
+        state={state({ status: 'candidates', researchId: 'r1', candidates })}
+        userLocation={null}
+        recentPrefectures={[]}
+        {...h}
+      />
+    );
+    expect(
+      within(ui.getByTestId('research-none')).getByText('どれでもない（地図で決める）')
+    ).toBeTruthy();
+    expect(ui.queryByTestId('research-open-manual')).toBeNull();
+    fireEvent.press(ui.getByTestId('research-none'));
+    expect(h.onOpenManual).toHaveBeenCalledTimes(1);
+
+    ui.rerender(
+      <SpotResearchSheet
+        state={state({ status: 'saving', researchId: 'r1', candidates })}
+        userLocation={null}
+        recentPrefectures={[]}
+        {...h}
+      />
+    );
+    fireEvent.press(ui.getByTestId('research-none'));
+    expect(h.onOpenManual).toHaveBeenCalledTimes(1);
   });
 });

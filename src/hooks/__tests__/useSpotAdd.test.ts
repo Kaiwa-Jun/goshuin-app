@@ -161,15 +161,13 @@ it('「ここです」で add-spot の結果を渡して閉じる', async () => 
   expect(result.current.state.status).toBe('idle');
 });
 
-it('地図で決める → 保存で add-spot（manual）の結果を渡す。調べている最中からでも開ける', async () => {
+it('AC-1（#282）: 見つからなかったあと、地図で決める → 保存で add-spot（manual）の結果を渡す', async () => {
   const onAdded = jest.fn();
-  mockResearch.mockReturnValue(new Promise(() => {}));
+  mockResearch.mockResolvedValue({ kind: 'ok', researchId: 'r1', candidates: [] });
   mockAddManual.mockResolvedValue({ id: 'm1' });
   const { result } = renderHook(() => useSpotAdd(onAdded));
-  act(() => result.current.start('鹿島台神社'));
-  act(() => {
-    result.current.pick(null);
-  });
+  await startAndPick(result, '鹿島台神社', null);
+  expect(result.current.state.status).toBe('notFound');
   act(() => result.current.openManual());
   expect(result.current.state.status).toBe('manual');
   expect(result.current.state.placing).toBe(true);
@@ -192,7 +190,7 @@ it('地域を聞いている間に閉じると idle に戻り、調べない（�
   expect(mockResearch).not.toHaveBeenCalled();
 });
 
-it('地域を聞いている間に「調べずに、地図で場所を決める」を開ける。調べない', () => {
+it('openManual は状態を見ない（出すかどうかはシートが決める。#282 D-2）。地域を聞いている間に呼んでも調べない', () => {
   const { result } = renderHook(() => useSpotAdd(jest.fn()));
   act(() => result.current.start('八幡神社'));
   act(() => result.current.openManual());
