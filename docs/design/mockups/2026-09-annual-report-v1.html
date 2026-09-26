@@ -124,7 +124,7 @@ th{background:var(--g100);font-weight:800;color:var(--g700)}
 <div class="doc">
 
 <h1>年報 — 一年の参拝をふりかえる</h1>
-<div class="status">v1・2026-09-26 オーナー確認（方向はこれで）・動きの試作はこのあと</div>
+<div class="status">v1・動きの試作 v1 とも 2026-09-26 オーナー確認（方向はこれで）</div>
 <p class="meta">関連: <code>docs/design/2026-09-annual-report-spec.md</code>（同じ内容の Markdown）/ direction.md Phase 1「パーソナル年報」/ 収益化の設計 §4 / feature-list P1-04。画面は<b>動きの前の静止画</b>で、中の数字は例。写真の枠には実物の御朱印の写真が入る。</p>
 
 <h2>0. 決めたこと <small>2026-09-26 オーナーと</small></h2>
@@ -134,6 +134,9 @@ th{background:var(--g100);font-weight:800;color:var(--g700)}
 <li><b>12月から、その年の分が見られる。過ぎた年はいつでも</b>（年末の行事にする）</li>
 <li><b>共有は、まとめの画像1枚</b>を iOS の共有シートで。動画の書き出しはしない</li>
 <li><b>音はなし</b>。動きだけで動画らしさを出す</li>
+<li><b>お知らせは出さない</b>（アプリの中の案内・バナーも、通知も）</li>
+<li><b>12月に初めてアプリを開いたとき、1回だけ自動で再生する</b>。あとはあゆみから見る</li>
+<li><b>1月からは、あゆみの下の方へ移す</b>（12月の間だけ、あゆみのいちばん上）</li>
 </ol></div>
 
 <h2>1. 何をするか</h2>
@@ -148,11 +151,32 @@ th{background:var(--g100);font-weight:800;color:var(--g700)}
 <div class="row" id="scenes"></div>
 
 <h2>3. 入口と時期</h2>
+<table><tr><th>時期</th><th>自動で再生</th><th>あゆみの入口</th></tr>
+<tr><td>1月〜11月</td><td>しない</td><td>過ぎた年の年報だけ、あゆみの<b>下の方</b>の「年報」の欄（2026年はまだ無い）</td></tr>
+<tr><td><b>12月</b>（日本時間の1日〜31日）</td><td><b>12月に初めてアプリを開いたとき、1回だけ</b>。✕ で閉じたら、あとはあゆみから</td><td>あゆみの<b>いちばん上</b>に「2026年の年報」のカード</td></tr>
+<tr><td>翌年の1月から</td><td>しない</td><td>「2026年の年報」は、あゆみの<b>下の方</b>の「年報」の欄へ移る。いつでも見られる</td></tr></table>
 <div class="row">
   <div class="shot">
-    <div class="phone app" id="entryPhone"></div>
-    <div class="cap"><b>12月1日から</b>、あゆみタブのいちばん上に「2026年の年報」。押すと再生。1月以降も、その年の分は残る。<br>過ぎた年は、あゆみの中の「年報」の一覧から（2026年は最初の年なので、まだ無い）。<br>その年の記録が0件なら出さない。通知では知らせない。</div>
+    <div class="phone light" id="autoPhone"></div>
+    <div class="cap"><b>12月に初めて開いたとき</b>: メインのタブの画面が出たところで、年報がそのまま流れ始める（1回だけ）。<br>オンボーディング・ログイン・記録の途中では出さず、次にメインのタブが出たときに出す。ログインしている人だけ。途中で ✕ を押しても、もう自動では出さない（その年・そのアカウントごとに端末に覚えておく）。</div>
   </div>
+  <div class="shot">
+    <div class="phone app" id="entryPhone"></div>
+    <div class="cap"><b>12月のあゆみ</b>: いちばん上に「2026年の年報」。押すと再生。その年の記録が0件なら、自動再生もカードも無し。</div>
+  </div>
+  <div class="shot">
+    <div class="phone app" id="janPhone"></div>
+    <div class="cap"><b>1月からのあゆみ</b>: 「2026年の年報」は下の方の「年報」の欄へ。過ぎた年はいつでも見られる（年が増えたら並ぶ）。</div>
+  </div>
+</div>
+<ul style="margin-top:14px">
+<li><b>気づいてもらう入口は「12月に1回だけの自動再生」と「あゆみのカード」だけ</b>。アプリの中のお知らせも、通知も出さない</li>
+<li><b>12月より前に確かめる手段</b>: 設定の「開発用」に「年報を見る」「12月として自動再生を試す」（開発用のアプリだけ）</li>
+<li><b>App Store の審査</b>（11月）には見えないので、審査のメモに「12月1日から自動で流れ、あゆみにも入口が出る」と書く（Guideline 2.3.1 の「隠れた機能」と見なされないように）</li>
+<li>12月かどうかはアプリの中で日本時間の日付を見る。<b>12月1日に作業は要らない</b>。新しいストア用ビルドが要るので、<b>11月中旬に審査</b>に出す想定</li>
+</ul>
+<h3>操作と共有</h3>
+<div class="row">
   <div class="shot">
     <div class="phone light" id="zonePhone"></div>
     <div class="cap"><b>操作</b>: 自動で次のシーンへ。<b>押している間は止まる</b>。左の3分の1で前のシーンの頭へ、右で次へ。✕ でいつでも閉じる（開き直すと最初から）。最後のシーン（締め）で止まる。<br><span class="mv">視差効果を減らす: 動きを止め、各シーンの最後の形をすぐ出す。自動では進まず、押して進める</span></div>
@@ -199,7 +223,7 @@ th{background:var(--g100);font-weight:800;color:var(--g700)}
 <ul>
 <li>動画の書き出し・音</li>
 <li>他人の年報を見る・比べる・ランキング</li>
-<li>通知で知らせる</li>
+<li>通知・アプリの中のお知らせで知らせる（気づいてもらうのは、12月に1回だけの自動再生とあゆみのカード）</li>
 <li>年の途中の「今年ここまで」（12月より前には出さない）</li>
 <li>印刷向けの書き出し（プラスの候補として将来）</li>
 </ul>
@@ -311,6 +335,17 @@ document.getElementById('entryPhone').innerHTML = `<div class="sb" style="color:
  <div class="hd">あゆみ</div>
  <div class="entry"><div style="flex:1"><div style="font-size:11px;font-weight:800;color:var(--seal)">12月の特別編</div><b>2026年の年報</b><span>24社・31枚の一年を、動くふりかえりで</span></div><div class="play"><span class="mi">play_arrow</span></div></div>
  <div class="block">もう少し（今の画面のまま）</div><div class="block" style="height:190px">日本地図（今の画面のまま）</div><div class="block">最近の参拝（今の画面のまま）</div>
+ <div class="tabs"><div><span class="mi">explore</span>地図</div><div><span class="mi">event</span>予定</div><div><span class="mi">menu_book</span>御朱印帳</div><div class="on"><span class="mi">show_chart</span>あゆみ</div><div><span class="mi">settings</span>設定</div></div>`;
+
+/* 12月に初めて開いたとき（表紙が流れ始めたところ） */
+document.getElementById('autoPhone').innerHTML = chrome(8,0) + `<div class="stage">${SCENES[0].html('light')}</div>`;
+
+/* 1月からのあゆみ */
+document.getElementById('janPhone').innerHTML = `<div class="sb" style="color:var(--g900)"><span>9:41</span><span>▮▮▮ ◠ ▭</span></div>
+ <div class="hd">あゆみ</div>
+ <div class="block">もう少し（今の画面のまま）</div><div class="block" style="height:190px">日本地図（今の画面のまま）</div><div class="block">最近の参拝（今の画面のまま）</div>
+ <div style="margin:18px 16px 0;font-size:13px;font-weight:800;color:var(--g700)">年報</div>
+ <div class="entry" style="margin-top:6px;padding:12px"><div style="flex:1"><b style="font-size:14px">2026年の年報</b><span>24社・31枚</span></div><div class="play" style="width:32px;height:32px"><span class="mi" style="font-size:20px">play_arrow</span></div></div>
  <div class="tabs"><div><span class="mi">explore</span>地図</div><div><span class="mi">event</span>予定</div><div><span class="mi">menu_book</span>御朱印帳</div><div class="on"><span class="mi">show_chart</span>あゆみ</div><div><span class="mi">settings</span>設定</div></div>`;
 
 /* 操作の図 */
