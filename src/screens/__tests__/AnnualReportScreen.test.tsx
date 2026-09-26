@@ -127,6 +127,10 @@ describe('AnnualReportScreen — 再生の骨組み', () => {
     expect(fill(1)).toBeLessThan(3);
   });
 
+  /*
+   * 約38秒ぶんのフレームを JS の driver で描くので、ほかのテストより遅い（手元で約7秒）。
+   * 既定の5秒で CI が揺れないように、このテストだけ長くしておく
+   */
   it('AC-28: months → map → photos → memory → badges → end の順に進み、締めで止まる', async () => {
     const { scene, fill } = setup();
     await settle();
@@ -138,6 +142,8 @@ describe('AnnualReportScreen — 再生の骨組み', () => {
       if (now !== seen[seen.length - 1]) seen.push(now);
     }
     expect(seen).toEqual(ALL);
+    // 合計 37800ms の少し後（シーンの切り替えごとに1フレームほど遅れる）には締め
+    expect(scene()).toBe('end');
 
     const total = ALL.reduce((sum, id) => sum + SCENE_MS[id], 0);
     expect(total).toBe(37800);
@@ -145,7 +151,7 @@ describe('AnnualReportScreen — 再生の骨組み', () => {
     advance(60000);
     expect(scene()).toBe('end');
     expect(fill(7)).toBe(100);
-  });
+  }, 30000);
 
   it('AC-29: 押している間は止まり、260ms 後に「止まっています」。離すと続きから', async () => {
     const { ui, scene, fill, stage } = setup();
