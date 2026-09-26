@@ -1,4 +1,5 @@
 import { supabase } from '@services/supabase';
+import { PREFECTURE_NAMES } from '../../supabase/functions/_shared/prefectures';
 
 export async function fetchCollectionStats(userId: string): Promise<{
   spotCount: number;
@@ -163,4 +164,37 @@ export async function fetchVisitLog(userId: string): Promise<VisitLogRow[]> {
     address: row.spots.address,
     prefecture: row.spots.prefecture,
   }));
+}
+
+/**
+ * 寺社を調べる前に聞く地域の選択肢（Issue #277）。自分の記録にある県を、新しい順に最大3つ。
+ *
+ * 「新しい順」は御朱印帳と同じ 参拝日 → 記録した日。同じ県ばかり記録している人の2つ目・3つ目が
+ * 落ちないよう、件数は絞らずに取って端末で重複を除く。手入力で追加した寺社（県が null）と、
+ * 47都道府県に無い値（research-spot が捨てて全国になる）は飛ばす
+ */
+export const RECENT_PREFECTURE_COUNT = 3;
+const PREFECTURES = new Set(PREFECTURE_NAMES);
+
+export async function fetchRecentPrefectures(userId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('stamps')
+    .select('spots!inner(prefecture)')
+    .eq('user_id', userId)
+    .order('visited_at', { ascending: false })
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.warn('fetchRecentPrefectures error:', error.message);
+    return [];
+  }
+
+  const found: string[] = [];
+  for (const row of data as unknown as { spots: { prefecture: string | null } }[]) {
+    const prefecture = row.spots.prefecture;
+    if (!prefecture || !PREFECTURES.has(prefecture) || found.includes(prefecture)) continue;
+    found.push(prefecture);
+    if (found.length === RECENT_PREFECTURE_COUNT) break;
+  }
+  return found;
 }

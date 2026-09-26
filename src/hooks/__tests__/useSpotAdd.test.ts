@@ -2,7 +2,8 @@ import { act, renderHook } from '@testing-library/react-native';
 
 import { RESEARCH_TIMEOUT_MS, useSpotAdd } from '@hooks/useSpotAdd';
 
-/* 契約書: docs/issues/issue-248-spot-add-research.md（S4 / AC-35・AC-36） */
+/* 契約書: docs/issues/issue-248-spot-add-research.md（S4 / AC-35・AC-36）
+ *        docs/issues/issue-277-spot-research-region.md（S2・S3 / AC-8〜AC-17） */
 const mockResearch = jest.fn();
 const mockAddResearched = jest.fn();
 const mockAddManual = jest.fn();
@@ -33,10 +34,87 @@ beforeEach(() => {
 });
 afterEach(() => jest.useRealTimers());
 
+/** 地域を聞いてから（⓪）選ぶ（Issue #277） */
+async function startAndPick(
+  result: { current: ReturnType<typeof useSpotAdd> },
+  name: string,
+  h: typeof hint | null
+) {
+  act(() => result.current.start(name));
+  await act(async () => result.current.pick(h));
+}
+
+it('start では調べずに、地域を聞く（asking）', () => {
+  const { result } = renderHook(() => useSpotAdd(jest.fn()));
+  act(() => result.current.start('八幡神社'));
+  expect(result.current.state.status).toBe('asking');
+  expect(result.current.state.name).toBe('八幡神社');
+  expect(result.current.state.redo).toBe(false);
+  expect(mockResearch).not.toHaveBeenCalled();
+});
+
+it('asking で県を選ぶと、その手がかりで調べ始める', () => {
+  mockResearch.mockReturnValue(new Promise(() => {}));
+  const pref = { prefecture: '宮城県', city: null };
+  const { result } = renderHook(() => useSpotAdd(jest.fn()));
+  act(() => result.current.start('八幡神社'));
+  act(() => {
+    result.current.pick(pref);
+  });
+  expect(mockResearch).toHaveBeenCalledTimes(1);
+  expect(mockResearch).toHaveBeenCalledWith('八幡神社', pref);
+  expect(result.current.state.status).toBe('researching');
+  expect(result.current.state.hint).toEqual(pref);
+});
+
+it('asking で「全国から」（null）を選ぶと、null で調べる', () => {
+  mockResearch.mockReturnValue(new Promise(() => {}));
+  const { result } = renderHook(() => useSpotAdd(jest.fn()));
+  act(() => result.current.start('八幡神社'));
+  act(() => {
+    result.current.pick(null);
+  });
+  expect(mockResearch).toHaveBeenCalledWith('八幡神社', null);
+});
+
+it('同じ描画の中で2回選んでも、調べるのは1回だけ（1回目の値で）', () => {
+  mockResearch.mockReturnValue(new Promise(() => {}));
+  const pref = { prefecture: '宮城県', city: null };
+  const { result } = renderHook(() => useSpotAdd(jest.fn()));
+  act(() => result.current.start('八幡神社'));
+  act(() => {
+    result.current.pick(pref);
+    result.current.pick(null);
+  });
+  expect(mockResearch).toHaveBeenCalledTimes(1);
+  expect(mockResearch).toHaveBeenCalledWith('八幡神社', pref);
+});
+
+it('researching と candidates では pick は何もしない', async () => {
+  let resolve: (v: unknown) => void = () => {};
+  mockResearch.mockReturnValue(new Promise(r => (resolve = r)));
+  const { result } = renderHook(() => useSpotAdd(jest.fn()));
+  act(() => result.current.start('八幡神社'));
+  act(() => {
+    result.current.pick(hint);
+  });
+  act(() => {
+    result.current.pick(null);
+  });
+  expect(mockResearch).toHaveBeenCalledTimes(1);
+  expect(result.current.state.status).toBe('researching');
+  await act(async () => resolve({ kind: 'ok', researchId: 'r1', candidates: [candidate] }));
+  act(() => {
+    result.current.pick(null);
+  });
+  expect(mockResearch).toHaveBeenCalledTimes(1);
+  expect(result.current.state.status).toBe('candidates');
+});
+
 it('調べて、候補が返れば candidates', async () => {
   mockResearch.mockResolvedValue({ kind: 'ok', researchId: 'r1', candidates: [candidate] });
   const { result } = renderHook(() => useSpotAdd(jest.fn()));
-  await act(async () => result.current.start('鹿島台神社', hint));
+  await startAndPick(result, '鹿島台神社', hint);
   expect(mockResearch).toHaveBeenCalledWith('鹿島台神社', hint);
   expect(result.current.state.status).toBe('candidates');
   expect(result.current.state.candidates).toEqual([candidate]);
@@ -45,13 +123,13 @@ it('調べて、候補が返れば candidates', async () => {
 it('0件は notFound、429 は limit、失敗は error', async () => {
   const { result } = renderHook(() => useSpotAdd(jest.fn()));
   mockResearch.mockResolvedValueOnce({ kind: 'ok', researchId: 'r1', candidates: [] });
-  await act(async () => result.current.start('x', null));
+  await startAndPick(result, 'x', null);
   expect(result.current.state.status).toBe('notFound');
   mockResearch.mockResolvedValueOnce({ kind: 'limit' });
-  await act(async () => result.current.start('x', null));
+  await startAndPick(result, 'x', null);
   expect(result.current.state.status).toBe('limit');
   mockResearch.mockResolvedValueOnce({ kind: 'error' });
-  await act(async () => result.current.start('x', null));
+  await startAndPick(result, 'x', null);
   expect(result.current.state.status).toBe('error');
 });
 
@@ -59,8 +137,9 @@ it('25 秒で返らなければ error。あとから返っても上書きしな�
   let resolve: (v: unknown) => void = () => {};
   mockResearch.mockReturnValue(new Promise(r => (resolve = r)));
   const { result } = renderHook(() => useSpotAdd(jest.fn()));
+  act(() => result.current.start('x'));
   act(() => {
-    result.current.start('x', null);
+    result.current.pick(null);
   });
   expect(result.current.state.status).toBe('researching');
   await act(async () => jest.advanceTimersByTime(RESEARCH_TIMEOUT_MS));
@@ -70,33 +149,26 @@ it('25 秒で返らなければ error。あとから返っても上書きしな�
   expect(result.current.state.status).toBe('error');
 });
 
-it('手がかりを変えると、その手がかりで調べ直す', async () => {
-  mockResearch.mockResolvedValue({ kind: 'ok', researchId: 'r1', candidates: [] });
-  const { result } = renderHook(() => useSpotAdd(jest.fn()));
-  await act(async () => result.current.start('鹿島台神社', hint));
-  await act(async () => result.current.changeHint(null));
-  expect(mockResearch).toHaveBeenLastCalledWith('鹿島台神社', null);
-});
-
 it('「ここです」で add-spot の結果を渡して閉じる', async () => {
   const onAdded = jest.fn();
   mockResearch.mockResolvedValue({ kind: 'ok', researchId: 'r1', candidates: [candidate] });
   mockAddResearched.mockResolvedValue({ id: 'new' });
   const { result } = renderHook(() => useSpotAdd(onAdded));
-  await act(async () => result.current.start('鹿島台神社', hint));
+  await startAndPick(result, '鹿島台神社', hint);
   await act(async () => result.current.choose(0));
   expect(mockAddResearched).toHaveBeenCalledWith('r1', 0);
   expect(onAdded).toHaveBeenCalledWith({ id: 'new' });
   expect(result.current.state.status).toBe('idle');
 });
 
-it('地図で決める → 保存で add-spot（manual）の結果を渡す。どの状態からでも開ける', async () => {
+it('地図で決める → 保存で add-spot（manual）の結果を渡す。調べている最中からでも開ける', async () => {
   const onAdded = jest.fn();
   mockResearch.mockReturnValue(new Promise(() => {}));
   mockAddManual.mockResolvedValue({ id: 'm1' });
   const { result } = renderHook(() => useSpotAdd(onAdded));
+  act(() => result.current.start('鹿島台神社'));
   act(() => {
-    result.current.start('鹿島台神社', null);
+    result.current.pick(null);
   });
   act(() => result.current.openManual());
   expect(result.current.state.status).toBe('manual');
@@ -107,4 +179,121 @@ it('地図で決める → 保存で add-spot（manual）の結果を渡す。�
   expect(onAdded).toHaveBeenCalledWith({ id: 'm1' });
   expect(result.current.state.status).toBe('idle');
   expect(result.current.state.placing).toBe(false);
+});
+
+it('地域を聞いている間に閉じると idle に戻り、調べない（回数を使わない）', () => {
+  const { result } = renderHook(() => useSpotAdd(jest.fn()));
+  act(() => result.current.start('八幡神社'));
+  act(() => result.current.close());
+  expect(result.current.state.status).toBe('idle');
+  act(() => {
+    result.current.pick(null);
+  });
+  expect(mockResearch).not.toHaveBeenCalled();
+});
+
+it('地域を聞いている間に「調べずに、地図で場所を決める」を開ける。調べない', () => {
+  const { result } = renderHook(() => useSpotAdd(jest.fn()));
+  act(() => result.current.start('八幡神社'));
+  act(() => result.current.openManual());
+  expect(result.current.state.status).toBe('manual');
+  expect(result.current.state.placing).toBe(true);
+  expect(mockResearch).not.toHaveBeenCalled();
+});
+
+it('返り値は state と操作だけ（地域は pick・changeRegion で変える。途中で手がかりを変える操作は無い）', () => {
+  const { result } = renderHook(() => useSpotAdd(jest.fn()));
+  expect(Object.keys(result.current).sort()).toEqual(
+    [
+      'state',
+      'start',
+      'pick',
+      'changeRegion',
+      'retry',
+      'choose',
+      'openManual',
+      'saveManual',
+      'close',
+    ].sort()
+  );
+});
+
+describe('「変える」で地域を選び直す（Issue #277 / S3）', () => {
+  const pref = { prefecture: '宮城県', city: null };
+
+  it('candidates で changeRegion → 調べずに asking（redo）。選ぶと同じ名前で調べ直す', async () => {
+    mockResearch.mockResolvedValueOnce({ kind: 'ok', researchId: 'r1', candidates: [candidate] });
+    const { result } = renderHook(() => useSpotAdd(jest.fn()));
+    await startAndPick(result, '鹿島台神社', hint);
+    expect(result.current.state.status).toBe('candidates');
+
+    act(() => result.current.changeRegion());
+    expect(result.current.state).toMatchObject({
+      status: 'asking',
+      redo: true,
+      name: '鹿島台神社',
+      candidates: [],
+      researchId: null,
+    });
+    expect(mockResearch).toHaveBeenCalledTimes(1);
+
+    mockResearch.mockReturnValueOnce(new Promise(() => {}));
+    act(() => {
+      result.current.pick(pref);
+    });
+    expect(mockResearch).toHaveBeenCalledTimes(2);
+    expect(mockResearch).toHaveBeenLastCalledWith('鹿島台神社', pref);
+    expect(result.current.state.status).toBe('researching');
+    expect(result.current.state.redo).toBe(false);
+  });
+
+  it('notFound で changeRegion → asking（redo）', async () => {
+    mockResearch.mockResolvedValueOnce({ kind: 'ok', researchId: 'r1', candidates: [] });
+    const { result } = renderHook(() => useSpotAdd(jest.fn()));
+    await startAndPick(result, '鹿島台神社', null);
+    expect(result.current.state.status).toBe('notFound');
+
+    act(() => result.current.changeRegion());
+    expect(result.current.state.status).toBe('asking');
+    expect(result.current.state.redo).toBe(true);
+  });
+
+  it('調べ直しの地域選びでも、二度押しで調べるのは1回だけ', async () => {
+    mockResearch.mockResolvedValueOnce({ kind: 'ok', researchId: 'r1', candidates: [] });
+    const { result } = renderHook(() => useSpotAdd(jest.fn()));
+    await startAndPick(result, '鹿島台神社', null);
+    act(() => result.current.changeRegion());
+    mockResearch.mockReturnValue(new Promise(() => {}));
+    act(() => {
+      result.current.pick(pref);
+      result.current.pick(null);
+    });
+    expect(mockResearch).toHaveBeenCalledTimes(2);
+    expect(mockResearch).toHaveBeenLastCalledWith('鹿島台神社', pref);
+  });
+
+  it('researching では何もしない（調べものを捨てない）', async () => {
+    let resolve: (v: unknown) => void = () => {};
+    mockResearch.mockReturnValue(new Promise(r => (resolve = r)));
+    const { result } = renderHook(() => useSpotAdd(jest.fn()));
+    act(() => result.current.start('鹿島台神社'));
+    act(() => {
+      result.current.pick(null);
+    });
+    act(() => result.current.changeRegion());
+    expect(result.current.state.status).toBe('researching');
+    await act(async () => resolve({ kind: 'ok', researchId: 'r1', candidates: [candidate] }));
+    expect(result.current.state.status).toBe('candidates');
+  });
+
+  it.each(['error', 'limit'] as const)('%s では何もしない', async kind => {
+    mockResearch.mockResolvedValueOnce({ kind });
+    const { result } = renderHook(() => useSpotAdd(jest.fn()));
+    await startAndPick(result, '鹿島台神社', null);
+    expect(result.current.state.status).toBe(kind);
+    const before = result.current.state;
+
+    act(() => result.current.changeRegion());
+    expect(result.current.state).toEqual(before);
+  });
 });
