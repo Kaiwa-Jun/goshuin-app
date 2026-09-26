@@ -14,11 +14,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Camera, Map } from '@maplibre/maplibre-react-native';
 import type { CameraRef } from '@maplibre/maplibre-react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { PermissionStatus } from 'expo-location';
 
 import { Badge } from '@components/common/Badge';
 import { Button } from '@components/common/Button';
 import { MAP_STYLE } from '@components/map/mapStyle';
 import { SpotMapLayers } from '@components/map/SpotMapLayers';
+import { CurrentLocationLayer } from '@components/map/CurrentLocationLayer';
 import { PlanDrawer, DRAWER_LOW } from '@components/plan/PlanDrawer';
 import { PlanChosenPins, PlanRouteLayers } from '@components/plan/PlanMapLayers';
 import { PlanDateSheet, PlanSaveSheet } from '@components/plan/PlanSheets';
@@ -41,6 +43,7 @@ import { countVisited } from '@utils/visitPlan';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { spacing, borderRadius } from '@theme/spacing';
+import { shadows } from '@theme/shadows';
 import type { Spot } from '@/types/supabase';
 
 type Props = PlanStackScreenProps<'PlanEditor'>;
@@ -62,7 +65,9 @@ export function PlanEditorScreen({ navigation, route }: Props) {
   const { height: screenHeight } = useWindowDimensions();
   const reduceMotion = useReduceMotion();
 
-  const { location } = useLocation();
+  const { location, permissionStatus } = useLocation();
+  // 許可が無いと useLocation は仙台の既定を返す。それを現在地の点にはしない
+  const myLocation = permissionStatus === PermissionStatus.GRANTED ? location : null;
   const { visitedSpotIds } = useUserStamps();
   const { wishlistSpotIds } = useWishlist();
   const { allSpots } = useSpots(location, 'all', visitedSpotIds, wishlistSpotIds);
@@ -190,6 +195,44 @@ export function PlanEditorScreen({ navigation, route }: Props) {
         .sort((a, b) => a.name.localeCompare(b.name, 'ja')),
     [allSpots, wishlistSpotIds, chosen]
   );
+
+  const wishlistSpots = useMemo(
+    () => allSpots.filter(s => wishlistSpotIds.has(s.id)),
+    [allSpots, wishlistSpotIds]
+  );
+
+  /** 行きたいの寺社が全部入るように寄せる（前から行きたかった寺社を地図から選びやすく） */
+  const showWishlist = () => {
+    if (wishlistSpots.length === 0) return;
+    if (wishlistSpots.length === 1) {
+      const [s] = wishlistSpots;
+      cameraRef.current?.flyTo({ center: [s.lng, s.lat], zoom: 14, duration: 500 });
+      return;
+    }
+    const lngs = wishlistSpots.map(s => s.lng);
+    const lats = wishlistSpots.map(s => s.lat);
+    cameraRef.current?.fitBounds(
+      [Math.min(...lngs), Math.min(...lats), Math.max(...lngs), Math.max(...lats)],
+      {
+        padding: {
+          top: insets.top + FIT_PADDING * 2,
+          right: FIT_PADDING,
+          bottom: drawerHeight + FIT_PADDING / 2,
+          left: FIT_PADDING,
+        },
+        duration: reduceMotion ? 0 : 500,
+      }
+    );
+  };
+
+  const showMyLocation = () => {
+    if (!location) return;
+    cameraRef.current?.flyTo({
+      center: [location.longitude, location.latitude],
+      zoom: INITIAL_ZOOM,
+      duration: reduceMotion ? 0 : 500,
+    });
+  };
 
   const handlePressSpot = useCallback(
     (spotId: string) => {
@@ -422,6 +465,7 @@ export function PlanEditorScreen({ navigation, route }: Props) {
     <View style={styles.container} testID="plan-editor">
       <Map style={styles.map} mapStyle={MAP_STYLE} logo={false} compass={false} testID="map-view">
         <Camera ref={cameraRef} initialViewState={{ center, zoom: INITIAL_ZOOM }} />
+        <CurrentLocationLayer coords={myLocation} />
         <SpotMapLayers
           clustered={clustered}
           pinned={pinned}
@@ -454,6 +498,32 @@ export function PlanEditorScreen({ navigation, route }: Props) {
         </Text>
         <View style={styles.topButton} />
       </View>
+
+      {mode === 'build' && (
+        <View style={[styles.mapButtons, { top: insets.top + 60 }]}>
+          {location && (
+            <TouchableOpacity
+              style={styles.mapButton}
+              onPress={showMyLocation}
+              testID="plan-map-locate"
+              accessibilityLabel="現在地へ"
+            >
+              <MaterialIcons name="my-location" size={18} color={colors.gray[700]} />
+            </TouchableOpacity>
+          )}
+          {wishlistSpots.length > 0 && (
+            <TouchableOpacity
+              style={[styles.mapButton, styles.wishButton]}
+              onPress={showWishlist}
+              testID="plan-map-wishlist"
+              accessibilityLabel="行きたいの寺社を地図に出す"
+            >
+              <MaterialIcons name="bookmark" size={16} color={colors.pin.wishlisted} />
+              <Text style={styles.wishButtonText}>行きたい</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
 
       {mode === 'build' && selected && (
         <View style={[styles.cardWrap, { bottom: drawerHeight }]}>
@@ -529,6 +599,23 @@ const styles = StyleSheet.create({
   },
   topButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   title: { ...typography.h3, color: colors.gray[900], flex: 1, textAlign: 'center' },
+  mapButtons: {
+    position: 'absolute',
+    right: spacing.md,
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  mapButton: {
+    height: 36,
+    minWidth: 36,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.md,
+  },
+  wishButton: { flexDirection: 'row', gap: spacing.xs, paddingHorizontal: spacing.md },
+  wishButtonText: { ...typography.bodySmall, fontWeight: '700', color: colors.pin.wishlisted },
   cardWrap: { position: 'absolute', left: 0, right: 0, height: 96 },
   drawerHeader: {
     flexDirection: 'row',

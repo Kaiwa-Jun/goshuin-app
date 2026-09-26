@@ -136,6 +136,7 @@ beforeEach(() => {
   mockWishlist = { wishlistSpotIds: new Set(KYOTO.map(s => s.id)), toggleWishlist: jest.fn() };
   mockStamps.visitedSpotIds = new Set();
   mockLocation.location = null;
+  mockLocation.permissionStatus = 'granted';
   mockReception.mockResolvedValue(CLOSE);
   mockFetchPlans.mockResolvedValue([]);
   mockSave.mockResolvedValue('new-id');
@@ -178,6 +179,66 @@ describe('最初のカメラ', () => {
     await act(async () => {});
     expect(cameraMocks.flyTo).not.toHaveBeenCalled();
     expect(cameraMocks.fitBounds).toHaveBeenCalled();
+  });
+});
+
+describe('地図の現在地と「行きたい」', () => {
+  const { __cameraMocks: cameraMocks } = jest.requireMock('@maplibre/maplibre-react-native') as {
+    __cameraMocks: Record<string, jest.Mock>;
+  };
+  const coordsOf = (r: ReturnType<typeof render>) =>
+    (
+      r.getByTestId('goshuin-current-location').props.data.features as {
+        geometry: { coordinates: number[] };
+      }[]
+    ).map(f => f.geometry.coordinates);
+
+  it('現在地の点を出す。位置情報が許可されていなければ出さない（仙台の既定を点にしない）', async () => {
+    mockLocation.location = { latitude: 35.65, longitude: 139.54 };
+    const r = renderScreen({ date: '2026-10-03' });
+    await act(async () => {});
+    expect(coordsOf(r)).toEqual([[139.54, 35.65]]);
+
+    mockLocation.permissionStatus = 'denied';
+    const d = renderScreen({ date: '2026-10-03' });
+    await act(async () => {});
+    expect(coordsOf(d)).toEqual([]);
+  });
+
+  it('「行きたい」で行きたいの寺社が全部入るように寄せる', async () => {
+    mockWishlist = { wishlistSpotIds: new Set(['yasaka', 'fushimi']), toggleWishlist: jest.fn() };
+    const r = renderScreen({ date: '2026-10-03' });
+    await act(async () => {});
+    fireEvent.press(r.getByTestId('plan-map-wishlist'));
+    expect(cameraMocks.fitBounds).toHaveBeenLastCalledWith(
+      [135.7732, 34.9672, 135.778, 35.0036],
+      expect.any(Object)
+    );
+  });
+
+  it('行きたいが1社なら、その寺社へ寄せる。0社ならボタンを出さない', async () => {
+    mockWishlist = { wishlistSpotIds: new Set(['yasaka']), toggleWishlist: jest.fn() };
+    const r = renderScreen({ date: '2026-10-03' });
+    await act(async () => {});
+    fireEvent.press(r.getByTestId('plan-map-wishlist'));
+    expect(cameraMocks.flyTo).toHaveBeenLastCalledWith(
+      expect.objectContaining({ center: [135.778, 35.0036] })
+    );
+
+    mockWishlist = { wishlistSpotIds: new Set(), toggleWishlist: jest.fn() };
+    const e = renderScreen({ date: '2026-10-03' });
+    await act(async () => {});
+    expect(e.queryByTestId('plan-map-wishlist')).toBeNull();
+  });
+
+  it('「現在地」で現在地へ戻る', async () => {
+    mockLocation.location = { latitude: 35.65, longitude: 139.54 };
+    const r = renderScreen({ date: '2026-10-03' });
+    await act(async () => {});
+    fireEvent.press(r.getByTestId('plan-map-locate'));
+    expect(cameraMocks.flyTo).toHaveBeenLastCalledWith(
+      expect.objectContaining({ center: [139.54, 35.65] })
+    );
   });
 });
 

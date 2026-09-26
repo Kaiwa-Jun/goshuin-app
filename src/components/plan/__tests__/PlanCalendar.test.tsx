@@ -3,7 +3,7 @@ import { StyleSheet } from 'react-native';
 import { render, within } from '@testing-library/react-native';
 import '@testing-library/react-native/extend-expect';
 
-import { PlanCalendar } from '@components/plan/PlanCalendar';
+import { PlanCalendar, swipeMonthDelta } from '@components/plan/PlanCalendar';
 import { colors } from '@theme/colors';
 
 /* 契約書: docs/issues/issue-258-visit-plan.md（① 日曜始まり6週 × 7日の格子） */
@@ -44,4 +44,25 @@ it('押せない過去の日は数字を薄くする（今日以降と見分け�
   expect(num('2026-10-01').color).toBe(colors.gray[300]);
   expect(num('2026-10-05').color).toBe(colors.gray[900]);
   expect(r.getByTestId('plan-day-2026-10-01')).toBeDisabled();
+});
+
+it('今日は塗りつぶしの丸（primary[500] の地に白い数字）', () => {
+  const r = renderCalendar(new Date(2026, 9, 2));
+  const cell = r.getByTestId('plan-day-2026-10-02');
+  const text = within(cell).getByText('2');
+  expect(StyleSheet.flatten(text.props.style).color).toBe(colors.white);
+  expect(StyleSheet.flatten(text.parent?.parent?.props.style).backgroundColor).toBe(
+    colors.primary[500]
+  );
+});
+
+describe('swipeMonthDelta（横スワイプで月を送るかどうか）', () => {
+  it('左へ十分に動かすと次の月、右へは前の月、少しだけなら送らない', () => {
+    expect(swipeMonthDelta(-80, 0)).toBe(1);
+    expect(swipeMonthDelta(80, 0)).toBe(-1);
+    expect(swipeMonthDelta(-20, 0)).toBe(0);
+    // 短くても速く払えば送る
+    expect(swipeMonthDelta(-20, -0.8)).toBe(1);
+    expect(swipeMonthDelta(20, 0.8)).toBe(-1);
+  });
 });

@@ -144,6 +144,7 @@ export function PlanCalendarScreen({ navigation, route }: Props) {
           plansByDate={plansByDate}
           visitedByDate={visitedByDate}
           onPressDay={handlePressDay}
+          onSwipeMonth={shiftMonth}
         />
 
         {error ? (
