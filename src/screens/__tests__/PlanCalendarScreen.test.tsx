@@ -4,6 +4,7 @@ import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import '@testing-library/react-native/extend-expect';
 
 import { PlanCalendarScreen } from '@screens/PlanCalendarScreen';
+import { PlanCalendar } from '@components/plan/PlanCalendar';
 import type { VisitPlan } from '@/types/visitPlan';
 
 /* 契約書: docs/issues/issue-258-visit-plan.md（S3 / AC-26〜30・47・48） */
@@ -164,4 +165,19 @@ it('setParams で savedOn が消えても、トーストは 3.2 秒で消える'
     jest.advanceTimersByTime(3200);
   });
   expect(ui.queryByText('10月3日（土） に保存しました')).toBeNull();
+});
+
+it('カレンダーを横にスワイプすると月が送られる', async () => {
+  const ui = renderScreen();
+  await waitFor(() => expect(mockFetchPlans).toHaveBeenCalled());
+  expect(ui.getByText('2026年9月')).toBeTruthy();
+  act(() => {
+    ui.UNSAFE_getByType(PlanCalendar).props.onSwipeMonth(1);
+  });
+  expect(ui.getByText('2026年10月')).toBeTruthy();
+  act(() => {
+    ui.UNSAFE_getByType(PlanCalendar).props.onSwipeMonth(-1);
+    ui.UNSAFE_getByType(PlanCalendar).props.onSwipeMonth(-1);
+  });
+  expect(ui.getByText('2026年8月')).toBeTruthy();
 });
