@@ -21,7 +21,7 @@ import { Button } from '@components/common/Button';
 import { MAP_STYLE } from '@components/map/mapStyle';
 import { SpotMapLayers } from '@components/map/SpotMapLayers';
 import { CurrentLocationLayer } from '@components/map/CurrentLocationLayer';
-import { PlanDrawer, DRAWER_LOW } from '@components/plan/PlanDrawer';
+import { PlanDrawer, DRAWER_LOW, type DrawerScrollBind } from '@components/plan/PlanDrawer';
 import { PlanChosenPins, PlanRouteLayers } from '@components/plan/PlanMapLayers';
 import { PlanDateSheet, PlanSaveSheet } from '@components/plan/PlanSheets';
 import { PlanSpotCard } from '@components/plan/PlanSpotCard';
@@ -54,6 +54,8 @@ const INITIAL_ZOOM = 13;
 const FIT_PADDING = 56;
 /** 上のバーの高さ（safe area の下。44 のボタン + 上下の余白） */
 const TOP_BAR_HEIGHT = 52;
+/** ドロワーを広げても、上のバーの下にこれだけ地図を残す */
+const MAP_PEEK = 140;
 
 /**
  * 予定を組む（Issue #258）。上が地図・下がドロワー。
@@ -82,6 +84,7 @@ export function PlanEditorScreen({ navigation, route }: Props) {
   const [showSave, setShowSave] = useState(false);
   const [saving, setSaving] = useState(false);
   const [reordering, setReordering] = useState(false);
+  const [areaHeight, setAreaHeight] = useState<number | null>(null);
   const [drawerHeight, setDrawerHeight] = useState(screenHeight * DRAWER_LOW);
   const [revealed, setRevealed] = useState(Number.POSITIVE_INFINITY);
   // 上のバーと下のドロワーに隠れる分。現在地などは「見えている地図」の真ん中に出す
@@ -356,8 +359,8 @@ export function PlanEditorScreen({ navigation, route }: Props) {
     </View>
   );
 
-  const buildBody = (
-    <ScrollView contentContainerStyle={styles.scroll} testID="plan-build-list">
+  const buildBody = (bind: DrawerScrollBind) => (
+    <ScrollView {...bind} contentContainerStyle={styles.scroll} testID="plan-build-list">
       {chosen.length === 0 ? (
         <Text style={styles.empty}>
           まだありません。地図のピンを押すか、下の「行きたい」から足してください。
@@ -408,11 +411,12 @@ export function PlanEditorScreen({ navigation, route }: Props) {
     </ScrollView>
   );
 
-  const orderBody = (
+  const orderBody = (bind: DrawerScrollBind) => (
     <ScrollView
+      {...bind}
       contentContainerStyle={styles.scroll}
       testID="plan-order-list"
-      scrollEnabled={!reordering}
+      scrollEnabled={bind.scrollEnabled && !reordering}
     >
       {mode === 'order' && editor.suggested && (
         <Text style={styles.banner} testID="plan-suggest-banner">
@@ -481,7 +485,11 @@ export function PlanEditorScreen({ navigation, route }: Props) {
     : [DEFAULT_LOCATION.longitude, DEFAULT_LOCATION.latitude];
 
   return (
-    <View style={styles.container} testID="plan-editor">
+    <View
+      style={styles.container}
+      testID="plan-editor"
+      onLayout={e => setAreaHeight(e.nativeEvent.layout.height)}
+    >
       <Map style={styles.map} mapStyle={MAP_STYLE} logo={false} compass={false} testID="map-view">
         <Camera
           ref={cameraRef}
@@ -569,14 +577,24 @@ export function PlanEditorScreen({ navigation, route }: Props) {
         </View>
       )}
 
-      <PlanDrawer header={header} footer={footer} onHeightChange={setDrawerHeight}>
-        {editor.isLoading ? (
-          <ActivityIndicator style={styles.loading} color={colors.primary[500]} />
-        ) : mode === 'build' ? (
-          buildBody
-        ) : (
-          orderBody
-        )}
+      <PlanDrawer
+        header={header}
+        footer={footer}
+        onHeightChange={setDrawerHeight}
+        listKey={mode}
+        maxHeight={
+          areaHeight === null ? undefined : areaHeight - insets.top - TOP_BAR_HEIGHT - MAP_PEEK
+        }
+      >
+        {bind =>
+          editor.isLoading ? (
+            <ActivityIndicator style={styles.loading} color={colors.primary[500]} />
+          ) : mode === 'build' ? (
+            buildBody(bind)
+          ) : (
+            orderBody(bind)
+          )
+        }
       </PlanDrawer>
 
       <PlanDateSheet
