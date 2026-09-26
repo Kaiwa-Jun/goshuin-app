@@ -81,6 +81,7 @@ export function PlanEditorScreen({ navigation, route }: Props) {
   const [showDate, setShowDate] = useState(false);
   const [showSave, setShowSave] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [reordering, setReordering] = useState(false);
   const [drawerHeight, setDrawerHeight] = useState(screenHeight * DRAWER_LOW);
   const [revealed, setRevealed] = useState(Number.POSITIVE_INFINITY);
   // 上のバーと下のドロワーに隠れる分。現在地などは「見えている地図」の真ん中に出す
@@ -408,7 +409,11 @@ export function PlanEditorScreen({ navigation, route }: Props) {
   );
 
   const orderBody = (
-    <ScrollView contentContainerStyle={styles.scroll} testID="plan-order-list">
+    <ScrollView
+      contentContainerStyle={styles.scroll}
+      testID="plan-order-list"
+      scrollEnabled={!reordering}
+    >
       {mode === 'order' && editor.suggested && (
         <Text style={styles.banner} testID="plan-suggest-banner">
           ✦ 近い順・受付の早い順に並べました。つまんで変えられます
@@ -423,6 +428,7 @@ export function PlanEditorScreen({ navigation, route }: Props) {
         past={editor.past}
         visited={editor.visited}
         onMove={editor.move}
+        onDragStateChange={setReordering}
       />
     </ScrollView>
   );
