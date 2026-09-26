@@ -72,7 +72,13 @@ export function PlanCalendar({
                 accessibilityLabel={`${Number(ymd.slice(5, 7))}月${Number(ymd.slice(8))}日${plan ? `、${plan.name}` : ''}`}
               >
                 <View style={[styles.num, ymd === todayKey && styles.today]}>
-                  <Text style={[styles.numText, outside && styles.outside]}>
+                  <Text
+                    style={[
+                      styles.numText,
+                      outside && styles.outside,
+                      past && !plan && styles.pastNum,
+                    ]}
+                  >
                     {Number(ymd.slice(8))}
                   </Text>
                 </View>
@@ -118,6 +124,8 @@ const styles = StyleSheet.create({
   today: { borderWidth: 2, borderColor: colors.primary[500] },
   numText: { ...typography.body, color: colors.gray[900] },
   outside: { color: colors.gray[400] },
+  // 押せない過去の日（予定の無い日）。今日以降と見分けがつくように
+  pastNum: { color: colors.gray[300] },
   mark: { ...typography.caption, fontWeight: '800', color: colors.primary[500], marginTop: 2 },
   pastMark: { color: colors.gray[500] },
 });

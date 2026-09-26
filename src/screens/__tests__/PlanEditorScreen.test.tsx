@@ -12,7 +12,14 @@ import { colors } from '@theme/colors';
 
 const mockAuth = { isAuthenticated: true, user: { id: 'me' } };
 jest.mock('@hooks/useAuth', () => ({ useAuth: () => mockAuth }));
-const mockLocation = { location: null, permissionStatus: 'granted', refreshLocation: jest.fn() };
+const mockLocation: { location: { latitude: number; longitude: number } | null } & Record<
+  string,
+  unknown
+> = {
+  location: null,
+  permissionStatus: 'granted',
+  refreshLocation: jest.fn(),
+};
 jest.mock('@hooks/useLocation', () => ({ useLocation: () => mockLocation }));
 const mockStamps = { visitedSpotIds: new Set<string>() };
 jest.mock('@hooks/useUserStamps', () => ({ useUserStamps: () => mockStamps }));
@@ -128,6 +135,7 @@ beforeEach(() => {
   mockSpots = { spots: KYOTO, allSpots: KYOTO, isLoading: false, error: null };
   mockWishlist = { wishlistSpotIds: new Set(KYOTO.map(s => s.id)), toggleWishlist: jest.fn() };
   mockStamps.visitedSpotIds = new Set();
+  mockLocation.location = null;
   mockReception.mockResolvedValue(CLOSE);
   mockFetchPlans.mockResolvedValue([]);
   mockSave.mockResolvedValue('new-id');
@@ -138,6 +146,39 @@ beforeEach(() => {
 
 afterEach(() => {
   jest.useRealTimers();
+});
+
+describe('最初のカメラ', () => {
+  const { __cameraMocks: cameraMocks } = jest.requireMock('@maplibre/maplibre-react-native') as {
+    __cameraMocks: Record<string, jest.Mock>;
+  };
+
+  it('現在地が後から取れたら、そこへ寄せる（開いた瞬間は仙台の既定のまま）', async () => {
+    const r = renderScreen({ date: '2026-10-03' });
+    await act(async () => {});
+    expect(cameraMocks.flyTo).not.toHaveBeenCalled();
+    mockLocation.location = { latitude: 35.65, longitude: 139.54 };
+    r.rerender(
+      <PlanEditorScreen
+        navigation={r.nav as never}
+        route={{ key: 'k', name: 'PlanEditor', params: { date: '2026-10-03' } } as never}
+      />
+    );
+    expect(cameraMocks.flyTo).toHaveBeenCalledWith(
+      expect.objectContaining({ center: [139.54, 35.65], zoom: 13 })
+    );
+  });
+
+  it('保存済みの予定を開いたときは、現在地ではなく予定の寺社に寄せる', async () => {
+    mockFetchPlans.mockResolvedValue([
+      planOf('plan-1', '2026-10-03', '東山', ['yasaka', 'kennin']),
+    ]);
+    mockLocation.location = { latitude: 35.65, longitude: 139.54 };
+    renderScreen({ planId: 'plan-1' });
+    await act(async () => {});
+    expect(cameraMocks.flyTo).not.toHaveBeenCalled();
+    expect(cameraMocks.fitBounds).toHaveBeenCalled();
+  });
 });
 
 describe('② 寺社を選ぶ', () => {

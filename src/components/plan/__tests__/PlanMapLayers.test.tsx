@@ -57,4 +57,12 @@ describe('PlanChosenPins', () => {
     expect(pin?.['icon-size']).toEqual(pinIconSize(1));
     expect(mark?.['icon-image']).toBe('spot-pin-chosen-ring');
   });
+
+  it('選んだピンの重ね絵は、下のピンの名前を押しのけない（ignore-placement）', () => {
+    for (const style of ['big-check', 'ring'] as const) {
+      const { pin, mark } = chosenPinLayouts(style);
+      expect(pin?.['icon-ignore-placement']).toBe(true);
+      expect(mark?.['icon-ignore-placement']).toBe(true);
+    }
+  });
 });

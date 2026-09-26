@@ -12,7 +12,7 @@ import type { PlanStackScreenProps } from '@/navigation/types';
 import type { VisitPlan } from '@/types/visitPlan';
 import { BILLING_ENABLED, IS_PLUS } from '@/constants/plus';
 import { canAddPlan } from '@utils/plus';
-import { formatPlanDate, nextSaturday } from '@utils/planDate';
+import { formatPlanDate } from '@utils/planDate';
 import { toLocalDateString } from '@utils/localDate';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
@@ -73,7 +73,7 @@ export function PlanCalendarScreen({ navigation, route }: Props) {
   };
 
   const handleNew = () => {
-    if (guardAdd()) navigation.navigate('PlanEditor', { date: nextSaturday(today) });
+    if (guardAdd()) navigation.navigate('PlanEditor', { date: todayKey });
   };
 
   const handlePressDay = (ymd: string) => {

@@ -20,7 +20,13 @@ export function chosenPinLayouts(style: 'big-check' | 'ring' = CHOSEN_PIN_STYLE)
   mark: SymbolLayerSpecification['layout'];
 } {
   const size = pinIconSize(style === 'big-check' ? CHOSEN_PIN_SCALE : 1);
-  const base = { 'icon-anchor': 'bottom', 'icon-size': size, 'icon-allow-overlap': true } as const;
+  // ignore-placement: 重ね絵が衝突の枠を取ると、下のピンの名前が間引かれて消える
+  const base = {
+    'icon-anchor': 'bottom',
+    'icon-size': size,
+    'icon-allow-overlap': true,
+    'icon-ignore-placement': true,
+  } as const;
   return {
     pin: { ...base, 'icon-image': PIN_IMAGE_BY_STATE },
     mark: {
