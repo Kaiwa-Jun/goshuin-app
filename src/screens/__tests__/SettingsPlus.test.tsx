@@ -8,6 +8,11 @@ import { resetPurchasesForTests } from '@services/purchases';
 import { colors } from '@theme/colors';
 
 /* 契約書: docs/issues/issue-270-plus-purchase.md（S5 / AC-35〜40・UI-2） */
+// 年報の開発用の行（Issue #274）が @services/annualReport を読む。Supabase には出ない
+jest.mock('@services/supabase', () => ({
+  supabase: { from: jest.fn() },
+}));
+
 jest.mock('expo-constants', () => ({
   __esModule: true,
   default: { expoConfig: { version: '0.1.0' } },

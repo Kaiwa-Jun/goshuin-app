@@ -19,6 +19,9 @@ import { fetchSpotsByBounds } from '@services/spots';
 import { AREA_RADIUS_KM, frequentArea } from '@utils/frequentArea';
 import { calculateDistance, getBoundingBox } from '@utils/geo';
 import { mouSukoshi, type AreaSpot, type MouSukoshiRow } from '@utils/mouSukoshi';
+import { annualReportEntries, type AnnualYearSummary } from '@utils/annualReport';
+import { annualReportNow } from '@utils/annualReportNow';
+import { jstYearMonth } from '@utils/jstDate';
 
 /** よく行くエリアで「まだの寺社」に数えるランク。小さな寺社まで並べると数が膨らむ */
 const AREA_MIN_RANK = 3;
@@ -78,6 +81,11 @@ interface UseCollectionStatsReturn {
   pilgrimageProgress: PilgrimageProgress[];
   /** あゆみの「もう少し」。暮らしの中で踏み出せる一歩だけ、最大3行（Issue #245） */
   mouSukoshi: MouSukoshiRow[];
+  /**
+   * 年報の入口（Issue #274 D-16）。card = 12月のいちばん上のカード、
+   * shelf = 1月からのいちばん下の「ふりかえり」の欄（新しい年から）
+   */
+  annualReports: { card: AnnualYearSummary | null; shelf: AnnualYearSummary[] };
   isLoading: boolean;
   error: string | null;
   refetch: () => void;
@@ -181,6 +189,16 @@ export function useCollectionStats(): UseCollectionStatsReturn {
     [pilgrimageProgress, tsukimairi, visitLog, today, badgeProgress, area]
   );
 
+  /*
+   * 年報の入口は今ある visitLog から作る（問い合わせは足さない）。
+   * 「今」はレンダーのたびに読む（開発用で12月にしたあと、あゆみに戻ると出るように）
+   */
+  const { year: nowYear, month: nowMonth } = jstYearMonth(annualReportNow());
+  const annualReports = useMemo(
+    () => annualReportEntries(visitLog, { year: nowYear, month: nowMonth }),
+    [visitLog, nowYear, nowMonth]
+  );
+
   return {
     spotCount,
     stampCount,
@@ -190,6 +208,7 @@ export function useCollectionStats(): UseCollectionStatsReturn {
     tsukimairi,
     pilgrimageProgress,
     mouSukoshi: rows,
+    annualReports,
     isLoading,
     error,
     refetch,

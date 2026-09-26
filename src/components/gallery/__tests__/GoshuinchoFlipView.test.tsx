@@ -1,6 +1,6 @@
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
-import { StyleSheet, Dimensions } from 'react-native';
+import { render, fireEvent, act } from '@testing-library/react-native';
+import { Animated, StyleSheet, Dimensions } from 'react-native';
 import {
   GoshuinchoFlipView,
   computePageLayout,
@@ -9,6 +9,11 @@ import {
   PAGE_GAP,
   FOLD_ANGLE_DEG,
 } from '@components/gallery/GoshuinchoFlipView';
+import {
+  isLoadingClockRunning,
+  loadingClock,
+  resetLoadingClockForTests,
+} from '@components/gallery/loadingClock';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import type { StampWithSpot } from '@/types/supabase';
@@ -53,6 +58,41 @@ const ASC_STAMPS: StampWithSpot[] = [
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const LAYOUT = computePageLayout(SCREEN_WIDTH);
+
+/*
+ * 読み込み中の動きの時計（Issue #275）。本物の loop を回すと値がネイティブ扱いになり、
+ * 後のテストで setValue が描画に届かなくなることがある。呼ぶたびに新しいスタブを返し、
+ * 「start の回数 − stop の回数」（回っている本数）を控える
+ */
+type Anim = { start: jest.Mock; stop: jest.Mock; reset: jest.Mock };
+let loopSpy: jest.SpyInstance;
+let running = 0;
+let runningSeen: number[] = [];
+
+beforeEach(() => {
+  /*
+   * 読み込み中の本を描くぶん1件の描画が延び、FlatList が 50ms 後に回す描き直しが
+   * 検査の途中で走って act の警告が出るようになった。時間を止めて走らせない
+   */
+  jest.useFakeTimers();
+  resetLoadingClockForTests();
+  running = 0;
+  runningSeen = [];
+  loopSpy = jest.spyOn(Animated, 'loop').mockImplementation(() => {
+    const anim: Anim = {
+      start: jest.fn(() => runningSeen.push(++running)),
+      stop: jest.fn(() => runningSeen.push(--running)),
+      reset: jest.fn(),
+    };
+    return anim as unknown as Animated.CompositeAnimation;
+  });
+});
+
+afterEach(() => {
+  loopSpy.mockRestore();
+  act(() => resetLoadingClockForTests());
+  jest.useRealTimers();
+});
 
 function renderFlipView(props: Partial<React.ComponentProps<typeof GoshuinchoFlipView>> = {}) {
   return render(
@@ -344,5 +384,109 @@ describe('GoshuinchoFlipView 開く位置', () => {
       <GoshuinchoFlipView stamps={ASC_STAMPS} onPressStamp={jest.fn()} onPressBlank={jest.fn()} />
     );
     expect(getByTestId('flip-page-counter').props.children).toBe('1 ／ 3');
+  });
+});
+
+describe('GoshuinchoFlipView 読み込み中の本（Issue #275）', () => {
+  /** 下地は読み上げない（飾り）ので、既定の検索からは外れる。外れたものも探す */
+  const hidden = { includeHiddenElements: true };
+
+  // ページ 0〜5 が御朱印、6 が白紙。最後の御朱印（ページ 5）で開く
+  const SIX = Array.from({ length: 6 }, (_, i) =>
+    makeStamp({ id: `s${i}`, image_path: `user-1/stamp-${i}.jpg` })
+  );
+  const renderSix = () =>
+    render(<GoshuinchoFlipView stamps={SIX} onPressStamp={jest.fn()} onPressBlank={jest.fn()} />);
+
+  /** 描いた値を読む。ノードならその値、値そのものならそれ */
+  const read = (value: unknown): number => {
+    const v =
+      value && typeof value === 'object' && '__getValue' in value
+        ? (value as { __getValue: () => unknown }).__getValue()
+        : value;
+    return typeof v === 'string' ? parseFloat(v) : (v as number);
+  };
+  const leafRotateOf = (utils: ReturnType<typeof renderSix>, id: string) => {
+    const leaf = utils.getByTestId(`flip-page-loading-${id}-book-leaf-front`, hidden);
+    const transform = (flatten(leaf).transform ?? []) as Record<string, unknown>[];
+    return read(transform.find(t => 'rotateY' in t)?.rotateY);
+  };
+  const hasBook = (utils: ReturnType<typeof renderSix>, id: string) =>
+    utils.queryByTestId(`flip-page-loading-${id}-book`, hidden) !== null;
+
+  // 回っている時計は、どの時点でも 0 か 1 本
+  const expectOneClockAtMost = () => {
+    expect(runningSeen.every(n => n === 0 || n === 1)).toBe(true);
+  };
+
+  it('画面に出ているページと両隣は本が動き、2つ離れたページは止まった本、それより先は本を描かない（AC-20）', () => {
+    const utils = renderSix();
+    act(() => loadingClock.setValue(425));
+
+    expect(leafRotateOf(utils, 's5')).toBeCloseTo(-90, 3);
+    expect(leafRotateOf(utils, 's4')).toBeCloseTo(-90, 3);
+    expect(leafRotateOf(utils, 's3')).toBe(0);
+    for (const id of ['s2', 's1', 's0']) {
+      expect(utils.getByTestId(`flip-page-loading-${id}`, hidden)).toBeTruthy();
+      expect(hasBook(utils, id)).toBe(false);
+    }
+    expect(isLoadingClockRunning()).toBe(true);
+    expectOneClockAtMost();
+  });
+
+  it('1ページ目までめくると、動く本もそれに合わせて移る（AC-20）', () => {
+    const utils = renderSix();
+    scrollTo(utils.getByTestId, 0, SIX.length + 1);
+    act(() => loadingClock.setValue(425));
+
+    expect(leafRotateOf(utils, 's0')).toBeCloseTo(-90, 3);
+    expect(leafRotateOf(utils, 's1')).toBeCloseTo(-90, 3);
+    expect(leafRotateOf(utils, 's2')).toBe(0);
+    for (const id of ['s3', 's4', 's5']) {
+      expect(hasBook(utils, id)).toBe(false);
+    }
+    expect(isLoadingClockRunning()).toBe(true);
+    expectOneClockAtMost();
+  });
+
+  describe('写真が届いたら（AC-21）', () => {
+    let timingSpy: jest.SpyInstance;
+    let fades: Anim[];
+
+    beforeEach(() => {
+      fades = [];
+      timingSpy = jest.spyOn(Animated, 'timing').mockImplementation(value => {
+        const anim: Anim = { start: jest.fn(), stop: jest.fn(), reset: jest.fn() };
+        if (value !== loadingClock) fades.push(anim);
+        return anim as unknown as Animated.CompositeAnimation;
+      });
+    });
+
+    afterEach(() => {
+      timingSpy.mockRestore();
+    });
+
+    const loadAndFinish = (utils: ReturnType<typeof renderSix>, id: string) => {
+      fireEvent(utils.getByTestId(`flip-page-image-${id}`), 'load', {
+        nativeEvent: { source: { width: 600, height: 800 } },
+      });
+      const fade = fades[fades.length - 1];
+      act(() => fade.start.mock.calls[0][0]({ finished: true }));
+    };
+
+    it('動いている本の写真が届き終わると、止まった本・本の無い下地だけでは時計を回さない', () => {
+      const utils = renderSix();
+      loadAndFinish(utils, 's5');
+      loadAndFinish(utils, 's4');
+
+      for (const id of ['s0', 's1', 's2', 's3']) {
+        expect(utils.getByTestId(`flip-page-loading-${id}`, hidden)).toBeTruthy();
+      }
+      expect(isLoadingClockRunning()).toBe(false);
+
+      scrollTo(utils.getByTestId, 0, SIX.length + 1);
+      expect(isLoadingClockRunning()).toBe(true);
+      expectOneClockAtMost();
+    });
   });
 });

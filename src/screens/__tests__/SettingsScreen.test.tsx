@@ -1,9 +1,15 @@
 import React from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import { Alert, Linking, StyleSheet } from 'react-native';
+import { Alert, DevSettings, Linking, Platform, StyleSheet } from 'react-native';
 
 import { SettingsScreen } from '../SettingsScreen';
 import type { MainTabScreenProps } from '@/navigation/types';
+
+// 年報の開発用の行（Issue #274）が @services/annualReport を読む。Supabase には出ない
+jest.mock('@services/supabase', () => ({
+  supabase: { from: jest.fn() },
+}));
 
 jest.mock('expo-constants', () => ({
   __esModule: true,
@@ -387,6 +393,125 @@ describe('セクションの余白', () => {
     for (const id of SECTIONS) {
       const style = StyleSheet.flatten(r.getByTestId(id).props.style) as Record<string, unknown>;
       expect(style.marginBottom).toBeUndefined();
+    }
+  });
+});
+
+/* Issue #274 AC-60〜63: 開発用の年報の3行（Web は2行）。Jest の __DEV__ は true */
+describe('開発用 — 年報', () => {
+  const originalOS = Platform.OS;
+  const parentNavigate = jest.fn();
+  const navigation = {
+    navigate: jest.fn(),
+    goBack: jest.fn(),
+    setParams: jest.fn(),
+    getParent: jest.fn(() => ({ navigate: parentNavigate })),
+  } as unknown as MainTabScreenProps<'Settings'>['navigation'];
+
+  const login = () => {
+    mockUseAuthReturn = {
+      ...mockUseAuthReturn,
+      user: { id: 'u1', email: 'a@example.com', user_metadata: {} },
+      isAuthenticated: true,
+    };
+  };
+  const guest = () => {
+    mockUseAuthReturn = { ...mockUseAuthReturn, user: null, isAuthenticated: false };
+  };
+  const renderScreen = () => render(<SettingsScreen navigation={navigation} route={mockRoute} />);
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.useFakeTimers({ now: new Date('2026-09-27T10:00:00+09:00') });
+    jest.spyOn(DevSettings, 'reload').mockImplementation(() => {});
+    guest();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+    Object.defineProperty(Platform, 'OS', { get: () => originalOS, configurable: true });
+  });
+
+  it('AC-60: 「オンボーディングをもう一度見る」の後に、3行がこの順で', () => {
+    const ui = renderScreen();
+    const ids = ui
+      .getAllByTestId(/^(replay-onboarding-row|dev-annual-.*-row)$/)
+      .map(el => el.props.testID);
+    expect(ids).toEqual([
+      'replay-onboarding-row',
+      'dev-annual-report-row',
+      'dev-annual-report-few-row',
+      'dev-annual-autoplay-row',
+    ]);
+    expect(ui.getByText('年報を見る')).toBeTruthy();
+    expect(ui.getByText('年報の見本を見る（記録が2枚）')).toBeTruthy();
+    expect(ui.getByText('12月として自動再生を試す')).toBeTruthy();
+  });
+
+  it('AC-60: Web では「12月として自動再生を試す」を出さない', () => {
+    Object.defineProperty(Platform, 'OS', { get: () => 'web', configurable: true });
+    const ui = renderScreen();
+    expect(ui.getByTestId('dev-annual-report-row')).toBeTruthy();
+    expect(ui.getByTestId('dev-annual-report-few-row')).toBeTruthy();
+    expect(ui.queryByTestId('dev-annual-autoplay-row')).toBeNull();
+  });
+
+  it('AC-61: ゲストで「年報を見る」は見本 full', () => {
+    const ui = renderScreen();
+    fireEvent.press(ui.getByTestId('dev-annual-report-row'));
+    expect(parentNavigate).toHaveBeenCalledWith('AnnualReport', { year: 2026, sample: 'full' });
+  });
+
+  it('AC-61: ログイン済みで「年報を見る」は自分の記録（今の年）', () => {
+    login();
+    const ui = renderScreen();
+    fireEvent.press(ui.getByTestId('dev-annual-report-row'));
+    expect(parentNavigate).toHaveBeenCalledWith('AnnualReport', { year: 2026 });
+  });
+
+  it('AC-61: 「年報の見本を見る（記録が2枚）」は見本 few', () => {
+    login();
+    const ui = renderScreen();
+    fireEvent.press(ui.getByTestId('dev-annual-report-few-row'));
+    expect(parentNavigate).toHaveBeenCalledWith('AnnualReport', { year: 2026, sample: 'few' });
+  });
+
+  it('AC-62: ログイン済みで「12月として自動再生を試す」は、印を消し・キーを書き・読み込み直す', async () => {
+    login();
+    const ui = renderScreen();
+    fireEvent.press(ui.getByTestId('dev-annual-autoplay-row'));
+
+    await waitFor(() => expect(DevSettings.reload).toHaveBeenCalledTimes(1));
+    expect(AsyncStorage.removeItem).toHaveBeenCalledTimes(1);
+    expect(AsyncStorage.removeItem).toHaveBeenCalledWith('annual_report_autoplayed:2026:u1');
+    expect(AsyncStorage.setItem).toHaveBeenCalledTimes(1);
+    expect(AsyncStorage.setItem).toHaveBeenCalledWith('annual_report_dev_as_december', '1');
+    const removed = jest.mocked(AsyncStorage.removeItem).mock.invocationCallOrder[0];
+    const written = jest.mocked(AsyncStorage.setItem).mock.invocationCallOrder[0];
+    const reloaded = jest.mocked(DevSettings.reload).mock.invocationCallOrder[0];
+    expect(removed).toBeLessThan(written);
+    expect(written).toBeLessThan(reloaded);
+  });
+
+  it('AC-63: ゲストで「12月として自動再生を試す」は案内だけ', async () => {
+    const ui = renderScreen();
+    fireEvent.press(ui.getByTestId('dev-annual-autoplay-row'));
+
+    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('ログインしてから試してください'));
+    expect(AsyncStorage.removeItem).not.toHaveBeenCalled();
+    expect(AsyncStorage.setItem).not.toHaveBeenCalled();
+    expect(DevSettings.reload).not.toHaveBeenCalled();
+  });
+
+  it('行の見た目は「オンボーディングをもう一度見る」と同じ', () => {
+    const ui = renderScreen();
+    const base = StyleSheet.flatten(ui.getByTestId('replay-onboarding-row').props.style);
+    for (const id of [
+      'dev-annual-report-row',
+      'dev-annual-report-few-row',
+      'dev-annual-autoplay-row',
+    ]) {
+      expect(StyleSheet.flatten(ui.getByTestId(id).props.style)).toEqual(base);
     }
   });
 });

@@ -15,6 +15,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '@components/common/Button';
+import { AnnualReportCard } from '@components/collection/AnnualReportCard';
+import { AnnualReportShelf } from '@components/collection/AnnualReportShelf';
 import { Card } from '@components/common/Card';
 import { FrequentAreaSheet } from '@components/collection/FrequentAreaSheet';
 import { JapanMap } from '@components/collection/JapanMap';
@@ -49,6 +51,7 @@ export function CollectionScreen({ navigation }: Props) {
     tsukimairi,
     pilgrimageProgress,
     mouSukoshi,
+    annualReports,
     isLoading,
   } = useCollectionStats();
 
@@ -95,6 +98,12 @@ export function CollectionScreen({ navigation }: Props) {
 
   const handlePressSeal = () => {
     scrollRef.current?.scrollTo({ y: Math.max(0, sealY.current - spacing.lg), animated: true });
+  };
+
+  /** 年報「{年}年のふりかえり」（Issue #274）。RootStack の画面 */
+  const annualCard = annualReports.card;
+  const handleOpenAnnualReport = (year: number) => {
+    navigation.navigate('AnnualReport', { year });
   };
 
   const handleSeeAllStamps = () => {
@@ -157,6 +166,14 @@ export function CollectionScreen({ navigation }: Props) {
 
         {isAuthenticated && (
           <>
+            {/* 12月の間だけ、いちばん上に年報のカード（Issue #274 D-16） */}
+            {annualCard && (
+              <AnnualReportCard
+                summary={annualCard}
+                onPress={() => handleOpenAnnualReport(annualCard.year)}
+              />
+            )}
+
             {/* 暮らしの中で踏み出せる一歩だけ（Issue #245）。行が無ければ出さない */}
             <MouSukoshiCard
               rows={mouSukoshi}
@@ -343,6 +360,15 @@ export function CollectionScreen({ navigation }: Props) {
                 );
               })}
           </>
+        )}
+
+        {/* 1月からは、過ぎた年の年報がいちばん下の「ふりかえり」の欄へ（Issue #274 D-16） */}
+        {isAuthenticated && (
+          <AnnualReportShelf
+            items={annualReports.shelf}
+            onPress={handleOpenAnnualReport}
+            titleStyle={styles.sectionTitle}
+          />
         )}
       </ScrollView>
 

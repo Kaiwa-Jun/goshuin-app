@@ -7,12 +7,24 @@ import { PlanStack } from '@/navigation/PlanStack';
 import { GalleryStack } from '@/navigation/GalleryStack';
 import { CollectionStack } from '@/navigation/CollectionStack';
 import { SettingsScreen } from '@screens/SettingsScreen';
+import { useAnnualReportAutoPlay } from '@hooks/useAnnualReportAutoPlay';
 import { colors } from '@theme/colors';
 import type { MainTabParamList } from '@/navigation/types';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
-export function TabNavigator() {
+interface Props {
+  /**
+   * 年報の自動再生の判定を始めてよいか（Issue #274 D-18）。
+   * 起動の印（スプラッシュ）が消えるまで false。省略すると true
+   */
+  autoPlayReady?: boolean;
+}
+
+export function TabNavigator({ autoPlayReady = true }: Props) {
+  // 12月に1回だけの年報の自動再生。MainTabs の画面そのもので判定する
+  useAnnualReportAutoPlay({ ready: autoPlayReady });
+
   return (
     <Tab.Navigator
       screenOptions={{
