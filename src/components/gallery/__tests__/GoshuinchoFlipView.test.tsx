@@ -643,6 +643,25 @@ describe('GoshuinchoFlipView 表示の切り替えの受け口（Issue #276）',
      * 周りと一緒に消える・出るのは、画面に出うるページ（2つ離れたページまで）だけ。
      * それより先は画面に出ないので値を付けず、動きの値が付いても描き直さない（S6）
      */
+    /*
+     * 動きの間は描くページを近くに絞る。広げると数十ページの本を描き足して、
+     * ページが広がる動きのコマが飛ぶ（S6 のシミュレータで約 0.2秒止まった）
+     */
+    it('動きの間は、描くページを画面の近くに絞る', () => {
+      const v = new Animated.Value(0);
+      const motion = {
+        pageScale: v.interpolate({ inputRange: [0, 1], outputRange: [1, 0.5] }),
+        surroundOpacity: v.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
+      };
+      const utils = renderSix({ motion });
+      expect(utils.getByTestId('flip-list').props.windowSize).toBe(3);
+
+      utils.rerender(
+        <GoshuinchoFlipView stamps={SIX} onPressStamp={jest.fn()} onPressBlank={jest.fn()} />
+      );
+      expect(utils.getByTestId('flip-list').props.windowSize).toBeUndefined();
+    });
+
     it('2つより遠いページには値を付けない', () => {
       const v = new Animated.Value(0);
       const motion = {

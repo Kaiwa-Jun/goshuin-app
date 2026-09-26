@@ -112,6 +112,12 @@ export interface FlipViewMotion {
  */
 const SURROUND_FADE_DEPTH = 2;
 
+/**
+ * 表示の切り替えの動きの間に描くページの範囲（画面の幅の何枚分か）。広いままだと、開いた直後に
+ * 数十ページの本を描き足して、ページが広がる動きのコマが飛ぶ（Issue #276 S6）
+ */
+const WINDOW_SIZE_WHILE_MOTION = 3;
+
 interface FlipPageItemProps {
   page: Page;
   index: number;
@@ -450,6 +456,7 @@ export const GoshuinchoFlipView = memo(function GoshuinchoFlipView({
         renderItem={renderItem}
         initialScrollIndex={requestedIndex}
         initialNumToRender={requestedIndex === undefined ? undefined : 3}
+        windowSize={motion ? WINDOW_SIZE_WHILE_MOTION : undefined}
         snapToInterval={layout.snapInterval}
         snapToAlignment="start"
         decelerationRate="fast"

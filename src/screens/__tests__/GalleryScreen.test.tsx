@@ -1482,6 +1482,15 @@ describe('表示の切り替わりの動き（Issue #276）', () => {
     );
   });
 
+  // 描き足しでコマが飛ばないよう、一覧へ切り替える間は描く行を画面の近くに絞る（S6）
+  it('一覧へ切り替える間だけ、一覧の描く行を絞る', () => {
+    const utils = startToGrid();
+    expect(utils.getByTestId('gallery-list').props.windowSize).toBe(3);
+
+    finish(0);
+    expect(utils.getByTestId('gallery-list').props.windowSize).toBeUndefined();
+  });
+
   it('見ていた1枚は束のいちばん上に出す（AC-34）', () => {
     const utils = startToGrid();
 
