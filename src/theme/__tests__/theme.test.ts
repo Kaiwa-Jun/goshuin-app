@@ -228,6 +228,33 @@ describe('Theme', () => {
     it('ふつうの画面の地は白のままにする', () => {
       expect(colors.background).toBe(colors.white);
     });
+
+    /*
+     * 御朱印帳の写真の読み込み中の本と和紙の枠（Issue #275）。
+     * 値は試作 docs/design/mockups/2026-09-gallery-loading-v2.html のまま。
+     * 下地・表紙の上端・印は、同じ値の既存のトークンを使い回している
+     */
+    it('読み込み中の本の色と和紙の枠を持つ', () => {
+      expect(colors.loadingBook).toEqual({
+        coverEnd: '#A83A0E',
+        paper: '#FBF8F1',
+        paperEdge: '#EDE6D8',
+        shadow: '#3C2814',
+        gutter: 'rgba(90, 60, 30, 0.14)',
+        gutterClear: 'rgba(90, 60, 30, 0)',
+        leafShadeStart: 'rgba(90, 60, 30, 0.22)',
+        leafShadeEnd: 'rgba(90, 60, 30, 0.04)',
+        castStart: 'rgba(60, 40, 20, 0.28)',
+        castEnd: 'rgba(60, 40, 20, 0)',
+      });
+      expect(colors.washiFrame).toBe('rgba(0, 0, 0, 0.06)');
+    });
+
+    it('読み込み中の本が使い回す色は、試作と同じ値のまま', () => {
+      expect(colors.washi).toBe('#EFEAE0');
+      expect(colors.primary[700]).toBe('#C2410C');
+      expect(colors.seal).toBe('#C2342B');
+    });
   });
 
   describe('typography', () => {

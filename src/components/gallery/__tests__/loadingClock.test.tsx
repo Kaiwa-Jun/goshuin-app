@@ -66,7 +66,8 @@ describe('loadingClock', () => {
 
   afterEach(() => {
     loop.spy.mockRestore();
-    resetLoadingClockForTests();
+    // 描いたままの部品がある。値を戻すと描き直しが走るので act で包む
+    act(() => resetLoadingClockForTests());
   });
 
   describe('時計の登録（AC-1〜5）', () => {
