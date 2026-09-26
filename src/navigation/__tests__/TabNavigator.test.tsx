@@ -198,7 +198,7 @@ describe('TabNavigator', () => {
     jest.clearAllMocks();
   });
 
-  it('renders all 4 tabs', async () => {
+  it('renders all 5 tabs', async () => {
     mockUseAuth.mockReturnValue({
       user: null,
       session: null,
@@ -210,13 +210,15 @@ describe('TabNavigator', () => {
 
     await waitFor(() => {
       expect(getByText('地図')).toBeTruthy();
+      expect(getByText('予定')).toBeTruthy();
       expect(getByText('御朱印帳')).toBeTruthy();
       expect(getByText('あゆみ')).toBeTruthy();
       expect(getByText('設定')).toBeTruthy();
     });
   });
 
-  it('タブが 地図 → 御朱印帳 → あつめる → 設定 の順に並ぶ', async () => {
+  // Issue #258 AC-24: 予定は地図の次
+  it('タブが 地図 → 予定 → 御朱印帳 → あゆみ → 設定 の順に並ぶ', async () => {
     mockUseAuth.mockReturnValue({
       user: null,
       session: null,
@@ -245,7 +247,9 @@ describe('TabNavigator', () => {
       })
       .flat();
 
-    const tabOrder = ['地図', '御朱印帳', 'あゆみ', '設定'].map(label => labels.indexOf(label));
+    const tabOrder = ['地図', '予定', '御朱印帳', 'あゆみ', '設定'].map(label =>
+      labels.indexOf(label)
+    );
 
     expect(tabOrder.every(i => i >= 0)).toBe(true);
     expect(tabOrder).toEqual([...tabOrder].sort((a, b) => a - b));
@@ -330,6 +334,32 @@ describe('TabNavigator', () => {
     });
 
     expect(queryByText('Login Screen')).toBeNull();
+  });
+
+  // Issue #258 AC-25
+  it('未ログインで予定タブを押すと、ゲストの案内とログインへの導線が出る', async () => {
+    mockUseAuth.mockReturnValue({
+      user: null,
+      session: null,
+      isLoading: false,
+      isAuthenticated: false,
+    });
+
+    const { getByText, getByTestId } = renderTabNavigator();
+
+    await waitFor(() => {
+      expect(getByText('予定')).toBeTruthy();
+    });
+
+    fireEvent.press(getByText('予定'));
+
+    await waitFor(() => {
+      expect(getByTestId('plan-guest-empty-state')).toBeTruthy();
+    });
+    fireEvent.press(getByText('ログインして始める'));
+    await waitFor(() => {
+      expect(getByText('Login Screen')).toBeTruthy();
+    });
   });
 
   it('allows authenticated user to access Gallery tab normally', async () => {
