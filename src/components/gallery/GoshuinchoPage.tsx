@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { spacing, borderRadius } from '@theme/spacing';
 import { formatJapaneseEraDate } from '@utils/japaneseEra';
+import { ImageLoadingCover, type LoadingBookMode } from '@components/gallery/ImageLoadingCover';
 
 /**
  * 覗いている（中央ではない）ページの不透明度。
@@ -29,6 +30,13 @@ type GoshuinchoPageProps = {
   onImageLoad?: (width: number, height: number) => void;
   /** 飛んでいる最中は隠す。出したままだと同じ御朱印が二重に見える */
   hidden?: boolean;
+  /**
+   * 写真が届くまでの下地の真ん中の本（Issue #275）。画面に出ているページと両隣は
+   * 'flip'（動く）、めくる途中で入ってくるページは 'still'、画面に出ないページは 'none'
+   */
+  loadingBook?: LoadingBookMode;
+  /** 視差効果を減らす。オンなら本は止まり、下地はその場で外す */
+  reduceMotion?: boolean;
 } & (
   | {
       variant: 'stamp';
@@ -41,8 +49,26 @@ type GoshuinchoPageProps = {
 );
 
 export function GoshuinchoPage(props: GoshuinchoPageProps) {
-  const { width, isCurrent, onPress, registerNode, onImageLoad, hidden } = props;
+  const {
+    width,
+    isCurrent,
+    onPress,
+    registerNode,
+    onImageLoad,
+    hidden,
+    loadingBook = 'still',
+    reduceMotion = false,
+  } = props;
   const testID = props.variant === 'blank' ? 'flip-blank-page' : `flip-page-${props.stampId}`;
+
+  /*
+   * 読み込み中 = 落ち着いた URL が今の URL と違う。知らせは URL ごとに持つので、
+   * 同じ知らせが何回来ても結果は同じ（Expo Web の Image は onLoad を何度も呼ぶ）。
+   * URL が変わったら読み込み中に戻る
+   */
+  const imageUrl = props.variant === 'stamp' ? props.imageUrl : null;
+  const [settledUri, setSettledUri] = useState<string | null>(null);
+  const loading = imageUrl !== null && settledUri !== imageUrl;
 
   return (
     <TouchableOpacity
@@ -64,13 +90,29 @@ export function GoshuinchoPage(props: GoshuinchoPageProps) {
             <Text style={styles.blankLabel}>ここに御朱印を追加する</Text>
           </View>
         ) : (
-          <Image
-            testID={`flip-page-image-${props.stampId}`}
-            source={{ uri: props.imageUrl }}
-            resizeMode="contain"
-            onLoad={e => onImageLoad?.(e.nativeEvent.source.width, e.nativeEvent.source.height)}
-            style={styles.image}
-          />
+          <>
+            <Image
+              testID={`flip-page-image-${props.stampId}`}
+              source={{ uri: props.imageUrl }}
+              resizeMode="contain"
+              onLoad={e => {
+                // 先に落ち着かせる。Web の nativeEvent には source が無く、後ろで例外になる
+                setSettledUri(props.imageUrl);
+                onImageLoad?.(e.nativeEvent.source.width, e.nativeEvent.source.height);
+              }}
+              // 届かなかったら下地を消して、今までどおりの白い紙に戻す
+              onError={() => setSettledUri(props.imageUrl)}
+              style={styles.image}
+            />
+            {/* contain の写真は周りが透けるので、下に敷かず上に重ねる */}
+            <ImageLoadingCover
+              loading={loading}
+              variant="page"
+              book={loadingBook}
+              reduceMotion={reduceMotion}
+              testID={`flip-page-loading-${props.stampId}`}
+            />
+          </>
         )}
       </View>
 
