@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 
@@ -40,6 +40,18 @@ export function PlusSheet({
   onTerms,
   onPrivacy,
 }: Props) {
+  // 開いていて、買う・復元するの最中でないときだけ中身を変える（S6 のシミュレータで見つけた）。
+  // 買えた直後は CustomerInfo の更新が先に来て「購入済み」に変わり、閉じると日付が null になって
+  // 「ここにも入れる」の枠が消えるので、閉じていくシートが縮んでいた
+  const [shown, setShown] = useState({ date: targetDate, isPlus: plus.isPlus });
+  if (
+    targetDate !== null &&
+    !plus.busy &&
+    (shown.date !== targetDate || shown.isPlus !== plus.isPlus)
+  ) {
+    setShown({ date: targetDate, isPlus: plus.isPlus });
+  }
+
   return (
     <Modal visible={targetDate !== null} onClose={onClose} onDismiss={onDismiss} variant="bottom">
       <View testID="plus-sheet">
@@ -61,9 +73,9 @@ export function PlusSheet({
               </Text>
             </View>
           )}
-          {targetDate && (
+          {shown.date && (
             <View style={[styles.slot, styles.want]} testID="plus-sheet-target">
-              <Text style={styles.slotDate}>{formatPlanDate(targetDate)}</Text>
+              <Text style={styles.slotDate}>{formatPlanDate(shown.date)}</Text>
               <View style={styles.wantRow}>
                 <MaterialIcons name="add" size={16} color={colors.primary[700]} />
                 <Text style={styles.wantText}>ここにも入れる</Text>
@@ -73,7 +85,7 @@ export function PlusSheet({
         </View>
         <PlusPlanCards priceString={plus.priceString} />
         <PlusPurchasePanel
-          plus={plus}
+          plus={{ ...plus, isPlus: shown.isPlus }}
           onLater={onClose}
           onPurchased={onPurchased}
           onRestored={onRestored}
