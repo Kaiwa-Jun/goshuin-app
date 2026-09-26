@@ -23,6 +23,13 @@ jest.mock('@hooks/useAuth', () => ({
   useAuth: () => mockUseAuth(),
 }));
 
+// 自動再生の判定は useAnnualReportAutoPlay のテストで見る。12月に CI が走っても
+// ナビゲーションのテストが Supabase へ出て揺れないように止めておく（Issue #274）
+const mockAutoPlay = jest.fn();
+jest.mock('@hooks/useAnnualReportAutoPlay', () => ({
+  useAnnualReportAutoPlay: (...args: unknown[]) => mockAutoPlay(...args),
+}));
+
 // Mock useOnboarding
 jest.mock('@hooks/useOnboarding', () => ({
   useOnboarding: () => ({
@@ -361,6 +368,36 @@ describe('TabNavigator', () => {
     await waitFor(() => {
       expect(getByText('Login Screen')).toBeTruthy();
     });
+  });
+
+  it('AC-58（#274）: autoPlayReady を自動再生の判定に渡す。省略すると true', async () => {
+    mockUseAuth.mockReturnValue({
+      user: null,
+      session: null,
+      isLoading: false,
+      isAuthenticated: false,
+    });
+    const renderWith = (ready?: boolean) =>
+      render(
+        <NavigationContainer>
+          <Stack.Navigator screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="MainTabs">
+              {() =>
+                ready === undefined ? <TabNavigator /> : <TabNavigator autoPlayReady={ready} />
+              }
+            </Stack.Screen>
+          </Stack.Navigator>
+        </NavigationContainer>
+      );
+
+    const notYet = renderWith(false);
+    await waitFor(() => expect(notYet.getByTestId('map-screen')).toBeTruthy());
+    expect(mockAutoPlay).toHaveBeenLastCalledWith({ ready: false });
+    notYet.unmount();
+
+    const byDefault = renderWith();
+    await waitFor(() => expect(byDefault.getByTestId('map-screen')).toBeTruthy());
+    expect(mockAutoPlay).toHaveBeenLastCalledWith({ ready: true });
   });
 
   it('allows authenticated user to access Gallery tab normally', async () => {
