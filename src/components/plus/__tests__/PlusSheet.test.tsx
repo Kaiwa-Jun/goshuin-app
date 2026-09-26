@@ -1,5 +1,5 @@
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { fireEvent, render } from '@testing-library/react-native';
 import '@testing-library/react-native/extend-expect';
 
 import { PlusSheet } from '@components/plus/PlusSheet';
@@ -8,8 +8,9 @@ import type { VisitPlan } from '@/types/visitPlan';
 
 /* 契約書: docs/issues/issue-270-plus-purchase.md（S6 のシミュレータで見つけた見た目の件） */
 
-// 本物の Modal は閉じると中身を描かないので、閉じる動きの間に見える中身を確かめられない。
-// ここでは開閉にかかわらず中身を描き、開いているかどうかだけ testID で分かるようにする
+// RN の Modal はテストでは visible=false で中身を描かない（端末では閉じる動きの間も描く）ので、
+// 閉じる動きの間に見える中身を確かめられない。ここでは開閉にかかわらず中身を描き、
+// 開いているかどうかだけ testID で分かるようにする
 jest.mock('@components/common/Modal', () => {
   const { View: MockView } = jest.requireActual<typeof import('react-native')>('react-native');
   return {
@@ -75,4 +76,14 @@ it('次に開いたときは、その日で出す', () => {
   ui.rerender(sheet(null, plusOf()));
   ui.rerender(sheet('2026-10-17', plusOf()));
   expect(ui.getByTestId('plus-sheet-target')).toHaveTextContent('10月17日（土）', { exact: false });
+});
+
+it('閉じる動きの間は押せない（中身を買う前のまま止めても、もう一度は買えない）', () => {
+  const plus = plusOf();
+  const ui = render(sheet('2026-10-10', plus));
+  ui.rerender(sheet(null, plus));
+  fireEvent.press(ui.getByTestId('plus-buy'));
+  fireEvent.press(ui.getByTestId('plus-restore'));
+  expect(plus.purchase).not.toHaveBeenCalled();
+  expect(plus.restore).not.toHaveBeenCalled();
 });

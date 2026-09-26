@@ -54,7 +54,8 @@ export function PlusSheet({
 
   return (
     <Modal visible={targetDate !== null} onClose={onClose} onDismiss={onDismiss} variant="bottom">
-      <View testID="plus-sheet">
+      {/* 閉じる動きの間は中身を止めているので、押せないようにする（もう一度買えないように） */}
+      <View testID="plus-sheet" pointerEvents={targetDate === null ? 'none' : 'auto'}>
         <TouchableOpacity
           style={styles.close}
           onPress={onClose}
