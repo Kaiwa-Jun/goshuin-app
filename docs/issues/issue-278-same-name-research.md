@@ -1,0 +1,253 @@
+# Issue #278: 同じ名前の寺社がマスタにあっても、別の寺社を調べて追加できるようにする
+
+## 概要
+
+記録画面のスポット検索で、**正規化した名前が一致する寺社が一覧にあっても「調べて追加」の行を出す**。そのときの文言は「ほかの{名前}を調べて追加」／「一覧にない場所の{名前}を探します」。押すと #277 の地域を聞く画面（⓪）へ進む。同じ名前が一覧に無いときは今までどおり「「{名前}」を調べて追加」／「名前から場所と住所を調べます」。
+
+あわせて、**調べた候補がアプリに登録済みの寺社と同じなら、候補カードに「登録済み」の札と注記を出し、「ここです」で add-spot を呼ばずにその寺社を選ぶ**（重複を作らない）。判定は端末の中で、記録画面が読み込み済みの寺社を使う。
+
+背景: いまは #248 の D-10 で、正規化した名前が一致する寺社が一覧に1つでもあると「調べて追加」を出さない。「八坂神社」「八幡神社」「日枝神社」のように同じ名前が各地にある寺社で、行った寺社がマスタに無いときに行き止まりになる（#277 の契約を作る中で分かった。オーナーの判断で別 Issue に、2026-09-27）。
+
+## 関連ドキュメント
+
+- Issue: `gh issue view 278`
+- **承認した試作（正）**: [`docs/design/mockups/2026-09-spot-samename-v1.html`](../design/mockups/2026-09-spot-samename-v1.html) の **右（案）**。文言・見た目・流れはこれに合わせる。左（今）は実装しない
+- 元の契約: [`issue-248-spot-add-research.md`](./issue-248-spot-add-research.md)（D-5「もしかして」・D-7 add-spot の重複の判定・D-10 行を出す条件）、[`issue-277-spot-research-region.md`](./issue-277-spot-research-region.md)（⓪ 地域を聞く・シミュレータでの確認のやり方）、[`issue-282-manual-after-research.md`](./issue-282-manual-after-research.md)（地図で決めるのは調べたあとだけ）
+- 画面仕様: [`docs/design/ui-design.md`](../design/ui-design.md) の「4.5 御朱印記録画面」と「5. モーダル仕様」スポット追加の行
+
+## 詳細設計
+
+### いまのコード（前提の確認）
+
+| 場所                                                               | いまの状態                                                                                                                                                                                                                                                                                                                            |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/components/record/SpotSelector.tsx` 53〜57 行                 | `canResearch = !!onResearch && query.length >= 2 && !nearbySpots.some(正規化した名前が一致)`（#248 D-10）。`nearbySpots` の prop は記録画面の `filteredSpots`（`name.includes(searchQuery)` で絞った一覧）。行は `testID="spot-research"`、題「「{query}」を調べて追加」（`numberOfLines={1}`）、副「名前から場所と住所を調べます」   |
+| `src/hooks/useNearbySpots.ts`                                      | `nearbySpots` = 読み込んだ全国の寺社（`fetchAllActiveSpots` = `status in (active, pending)`。他人の pending は RLS で落ちる＝本人に見える寺社）を距離順に並べたもの（絞る前）。`filteredSpots` は検索語で絞ったもの。**変えない**                                                                                                     |
+| `src/components/record/SpotResearchSheet.tsx` の `CandidateCard`   | 名前（`typography.h3`）・種別の `Badge`・距離（位置情報が許可されたときだけ）/ 住所 / 選んでいるカードだけミニ地図 /「住所の情報源 {n}件（{labels} ほか）」。シートの下は「ここです」（`research-choose`、保存中は「追加しています…」で押せない）・「どれでもない（地図で決める）」・注記「確かめられたら、みんなの地図にも載ります」 |
+| `src/hooks/useSpotAdd.ts`                                          | `choose(index)` は `researchId` があれば `finish(() => addResearchedSpot(researchId, index))`（`saving` を経て、成功で `requestId++`・`IDLE`・`onAdded(spot)`）。返り値は `{ state, start, pick, changeRegion, retry, choose, openManual, saveManual, close }`                                                                        |
+| `src/screens/RecordScreen.tsx`                                     | `useSpotAdd(form.selectSpot)`。シートに `onChoose={spotAdd.choose}`。`useNearbySpots()` から `nearbySpots` も受け取っている（今は自動選択にだけ使う）                                                                                                                                                                                 |
+| `supabase/functions/add-spot/addSpot.ts` 85〜95 行                 | insert の前に、近くの寺社のうち本人に見えるもの（active と本人の pending）で **`normalizeSpotName` が一致し `distanceMeters(...) <= NEARBY_METERS`（300m）** のものがあれば、insert せずそれを返す（#248 D-7）。**変えない**                                                                                                          |
+| `supabase/functions/_shared/spotRules.ts`                          | `NEARBY_METERS = 300`・`distanceMeters`・`hasSimilarActiveNearby`（`isSimilarName` ＋ 300m。active だけを見る公開の判定 P-3。当たると pending にする）。`./crawl.ts` などを **`.ts` 付きで import する**ので、アプリ（tsc。`tsconfig.json` は `supabase/functions` を exclude）からは import できない。**変えない**                   |
+| `supabase/functions/_shared/spotName.ts` / `src/utils/spotName.ts` | `normalizeSpotName`・`isSimilarName` は import の無い共用ファイルにあり、`@utils/spotName` から再 export 済み（アプリで使える）                                                                                                                                                                                                       |
+| `supabase/functions/research-spot/research.ts` 353 行              | 候補の `index` は並びの位置そのもの（`stored.map((c, index) => ({ index, ... }))`）。`candidates[i].index === i`                                                                                                                                                                                                                      |
+| `src/components/common/Badge.tsx`                                  | 型は `shrine`・`temple`・`visited`。testID は `badge-{type}`。地の色と字の色だけが型で変わる（余白・角丸・文字は共通）                                                                                                                                                                                                                |
+
+### 流れ（試作の右）
+
+```
+SpotSelector（検索欄に「八坂神社」）
+ ├ 一覧: 八坂神社 神社 京都府 612km / 八坂神社 神社 東京都 305km（県が出るので自分のではないと分かる）
+ ├ もしかして（今のまま）
+ └「ほかの八坂神社を調べて追加」/「一覧にない場所の八坂神社を探します」 ← 同じ名前が一覧にあるとき（#278）
+     （同じ名前が無いときは「「〇〇」を調べて追加」/「名前から場所と住所を調べます」のまま）
+     └ ⓪ 地域を聞く（#277 のまま）→ ② 調べています → ③ これですか？
+          ├ 候補が登録済みの寺社と同じ（正規化した名前が一致・300m 以内）
+          │    → カードに「登録済み」の札と注記。「ここです」→ add-spot を呼ばずにその寺社を選ぶ（#278）
+          └ それ以外 →「ここです」→ add-spot（今のまま）
+```
+
+### 設計上の決定（この契約で確定する）
+
+| #    | 決定                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | 理由                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D-1  | **行を出す条件と文言の切り替え**: `SpotSelector` で、行を出す条件を `canResearch = !!onResearch && query.length >= RESEARCH_MIN_CHARS`（2文字から）だけにする（同じ名前の条件を外す）。文言を切り替える `hasSameName = nearbySpots.some(i => normalizeSpotName(i.spot.name) === normalizeSpotName(query))` を別に持つ。`nearbySpots` は今と同じく**この部品が一覧に出している prop**（記録画面では `filteredSpots`）。「もしかして」（`didYouMeanSpots`）は数えない（`didYouMean` は正規化して一致する名前を除いているので、そもそも入らない）。`testID="spot-research"`・並び（一覧 → もしかして → 行）・`RESEARCH_MIN_CHARS`・「候補が見つかりません」の出し方（`ListEmptyComponent`）は変えない。53 行目の D-10 のコメントを「同じ名前の寺社が一覧にあっても出す。そのときは「ほかの〇〇」（Issue #278。#248 の D-10 を変えた）」に替える | Issue・試作。「ほかの」は一覧に見えている同じ名前の寺社を指すので、見えている一覧で決める（今の D-10 と同じ対象）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| D-2  | **文言（試作の右のとおり。一字一句）**: `hasSameName` のとき 題「ほかの{query}を調べて追加」（**「」を付けない**）/ 副「一覧にない場所の{query}を探します」。そうでないとき 題「「{query}」を調べて追加」/ 副「名前から場所と住所を調べます」（今のまま）。`{query}` は検索語の前後の空白を除いたもの（今と同じ。正規化した形ではない）。題は今と同じ `numberOfLines={1}`（長い名前は末尾を省く）。副は今と同じく行数を決めない。見た目（`researchRow`・`researchPlus`・`researchTitle`・`researchSub`）は変えない。押すと今と同じ `onResearch(query)`（→ `spotAdd.start(query)` → ⓪「「{query}」を調べます」）                                                                                                                                                                                                                              | 試作の `render()` の `.rs` と説明の箇条                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| D-3  | **「登録済み」の規則 = add-spot の重複の判定（#248 D-7・`addSpot.ts` 90〜94 行）と同じ**: 候補と寺社の `normalizeSpotName` が一致し、2点の距離が 300m 以内（`<=`）。**`isSimilarName` は使わない**。当たる寺社が2つ以上なら距離の近いほうを返す                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | 札の注記「「ここです」で、この寺社を選びます（新しく追加しません）」は、add-spot に送っても既存が返ることを先に見せる約束。D-7 と同じ規則なら、端末で「登録済み」と出た候補は add-spot でも必ず既存が返り、出なかった候補で add-spot が既存を返すのは読み込んでいない寺社のときだけになる（端末とサーバーがずれない）。`hasSimilarActiveNearby` は重複ではなく公開の判定（P-3。当たっても新しい寺社を pending で作る）で、`isSimilarName` はゆるい: `isSimilarName('浅草神社', '浅草寺')` は true（芯がどちらも「浅草」）で、マスタの2つは約 156m しか離れていない。これで「登録済み」にすると別の寺社に記録が付く。試作の「同じ名前・300m 以内」の「同じ名前」は、同じ試作の左の説明で「同じ名前（正規化して一致）」と書いている |
+| D-4  | **判定の置き場所**: 新しい純粋な関数 `src/utils/registeredSpot.ts` の `findRegisteredSpot(candidate, spots)`。`normalizeSpotName` は `@utils/spotName` から、距離は `@utils/geo` の `calculateDistance`（km）× 1000。300 は同じファイルに `REGISTERED_SPOT_METERS = 300` として置き、コメントで `supabase/functions/_shared/spotRules.ts` の `NEARBY_METERS` と `addSpot.ts` の D-7 を指す。**`spotRules.ts` は import しない**。値がずれないことは Jest で `spotRules.ts` の本文を読んで確かめる（AC-6）                                                                                                                                                                                                                                                                                                                                    | `spotRules.ts` は Deno 形式の `.ts` 付き import があり、アプリの tsc が通らない（`spotName.ts` が「何も import しない」と決めて共用にしているのと同じ事情）。サーバーのファイルは動かさない（Issue のスコープ外）。`calculateDistance` は `distanceMeters` と同じ半正矢の式・同じ地球の半径（6371km）                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| D-5  | **比べる相手**: 記録画面が読み込み済みの `useNearbySpots().nearbySpots`（検索語で**絞る前**の全国の一覧。active と本人の pending）の `spot`。取り直さない・問い合わせを足さない。`status` は見ない（読み込みの時点で `merged` と他人の pending は入らない）。読み込み前・読み込みの失敗で一覧が空のときは札が出ないだけで、「ここです」は add-spot に進む（正規化した名前が一致し 300m 以内の寺社があれば、add-spot が D-7 で既存を返すので重複はできない）                                                                                                                                                                                                                                                                                                                                                                                  | Issue の「判定は端末の中で、記録画面が読み込み済みの全国の寺社を使う」。add-spot の D-7 の対象（本人に見える寺社）と同じ集合。`filteredSpots` は検索語で絞っているので、候補の名前が検索語と違う（例: 「八坂」で調べて「八坂神社」が返る）と取りこぼす                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| D-6  | **状態の流れ**: `RecordScreen` で `registeredSpots = useMemo(() => spotAdd.state.candidates.map(c => findRegisteredSpot(c, nearbySpots.map(i => i.spot))), [spotAdd.state.candidates, nearbySpots])`（`registeredSpots[i]` は `index === i` の候補の判定）。`useSpotAdd` に `chooseExisting(spot: Spot)` を足す: `askingName.current = null`・`requestId.current++`・`setState(IDLE)`・`onAdded(spot)`（`finish` の成功側と同じ後始末。`saving` を経ない。add-spot を呼ばない）。`RecordScreen` の `handleChoose = (index) => registeredSpots[index] ? spotAdd.chooseExisting(registeredSpots[index]) : spotAdd.choose(index)` をシートの `onChoose` に渡す。`useSpotAdd` の引数・`choose`・ほかの操作は変えない。`chooseExisting` に状態の守りは足さない（保存中はシートの「ここです」が押せない。#282 の D-2 と同じ考え）                  | フックとシートに寺社の一覧を持たせない（一覧は記録画面だけが持つ）。`useMemo` にすると、候補が返ったあとに一覧が届いても判定が付き直る                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| D-7  | **候補カードの表示（登録済みのとき）**: シートの props に `registeredSpots?: (Spot \| null)[]`（省略時 `[]`）を足し、`CandidateCard` に `registered: boolean` を渡す。登録済みのカードは ① 上の段で、種別の札のすぐ後ろに「登録済み」の札（D-8）、距離はその後ろ（今と同じ右寄せ）② 「住所の情報源 {n}件…」の行の**代わりに**注記の行（`testID="candidate-{index}-registered"`）: MaterialIcons `check-circle`（`size={14}`・`colors.gray[500]`）＋「アプリに登録済みの寺社です。「ここです」で、この寺社を選びます（新しく追加しません）」③ 名前・住所・ミニ地図（選んでいるとき）は今のまま。**シートの下の注記「確かめられたら、みんなの地図にも載ります」は、選んでいる候補が登録済みのときは出さない**（登録済みでない候補を選べば出る）。「ここです」「どれでもない（地図で決める）」の文言・置き場所は変えない                        | 試作の `cardOf()`（`c.registered ? reg : src`）。下の注記は試作の候補の画面には無く、登録済みの寺社を選ぶときは「新しく追加しない」ので当てはまらない（オーナーに確かめる点。下の「注意事項」）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| D-8  | **見た目（トークン）**: 「登録済み」の札は `Badge` に型 `registered` を足す（地 `colors.gray[100]`・字 `colors.gray[600]`・既定の文字「登録済み」。余白・角丸・文字は今の `Badge` の共通のまま＝`spacing.xs`/`spacing.sm`・`borderRadius.full`・`typography.label`＋`'600'`。testID は `badge-registered`）。注記の行 = `flexDirection: 'row'`・`alignItems: 'flex-start'`・`gap: spacing.xs`・`marginTop: spacing.sm`。注記の文字 = `typography.caption`・`colors.gray[600]`・`flexShrink: 1`                                                                                                                                                                                                                                                                                                                                               | 依頼の「灰色の丸い札（`gray[100]` の地・`gray[600]` の字）」。試作の `.badge.done` は種別の札と同じ形で色だけ違う。試作の `.card .reg`（12px・`g600`・上 8px・間 4px・アイコン 14px `g500`）をトークンに寄せた（ずれは無い）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| D-9  | **登録済みと新しい候補が混ざるとき**（試作の京都府・全国の例）: 並べ替えない・隠さない（research-spot の順のまま）。最初に出るのは今と同じ候補0。「ほかの候補を見る（{n}件）」の数も今のまま。札・注記はカードごとに付く。「ここです」は選んでいる候補で分かれる（登録済みなら `chooseExisting`、そうでなければ add-spot）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | 試作の `RESULTS['京都府']`（登録済みが先・新しいものが後）と `RESULTS['全国']`。どちらを選ぶかは本人が決める                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| D-10 | **試作から持ち込まないもの**: 選んだあとのスポット欄の「（登録済みの寺社）」「（追加した寺社）」と、トースト（「登録済みの八坂神社を選びました…」）。選んだあとの記録画面は、一覧から選んだときと同じ（寺社の名前と種別の札だけ）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | 試作が流れを見せるための飾り。#248 の UI-9（記録画面に「追加」「確認待ち」「公開」を出さない）と、`RecordScreen.test.tsx` の `/追加した寺社/` が無いことの確かめに合わせる                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| D-11 | **`docs/design/ui-design.md` の書き換え**（表の列幅は `npx prettier --write docs/design/ui-design.md` でそろえる）。① 「4.5 御朱印記録画面」の「スポット選択ドロップダウン」の箇条「「スポットが見つからない場合は追加」リンク」を、次の一文にそのまま替える:「一覧の下に「「{名前}」を調べて追加」の行（2文字から。Issue #248）。同じ名前の寺社が一覧にあるときは「ほかの{名前}を調べて追加」（一覧にない場所の{名前}を探します。Issue #278）。押すと下の「スポット追加」へ」② 「5. モーダル仕様」のスポット追加の行の末尾（「…⓪・② からは進めない（Issue #282）」）の後ろに、次の一文をそのまま足す:「。③ の候補が登録済みの寺社（正規化した名前が同じ・300m 以内）なら「登録済み」の札と注記を出し、「ここです」で新しく追加せずにその寺社を選ぶ（Issue #278）」                                                                          | ui-design.md が今の画面仕様の正（docs/README.md）。4.5 の「追加」リンクは v6 のままの古い記述で、今の行と食い違っている                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| D-12 | **過去の文書は書き換えない**: `issue-248-spot-add-research.md`（D-10）・`issue-277-*`・`issue-282-*`・`docs/design/2026-09-spot-add-spec.md`・試作 HTML。コードの中の D-10 のコメント（D-1）だけ直す                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | その時点の契約・承認試作の記録。今の仕様は ui-design.md とこの契約書で読む                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+
+### 対象ファイル
+
+| ファイル                                                                                                                 | 変更                                                                                                          | スライス |
+| ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- | -------- |
+| `src/components/record/SpotSelector.tsx`                                                                                 | `canResearch` から同じ名前の条件を外し、`hasSameName` で文言を切り替える（D-1・D-2）。D-10 のコメント         | S1       |
+| `src/components/record/__tests__/SpotSelector.test.tsx`                                                                  | 書き換えと追加（下の「既存テストの書き換え」・UI-1〜5）                                                       | S1       |
+| `docs/design/ui-design.md`                                                                                               | 4.5 の箇条（D-11 ①） / 5. の行（D-11 ②）                                                                      | S1 / S3  |
+| `src/utils/registeredSpot.ts`（新規）/ `src/utils/__tests__/registeredSpot.test.ts`（新規）                              | `findRegisteredSpot`・`REGISTERED_SPOT_METERS`（D-3・D-4）                                                    | S2       |
+| `src/hooks/useSpotAdd.ts` / `src/hooks/__tests__/useSpotAdd.test.ts`                                                     | `chooseExisting` を足す（D-6）。説明コメントに #278                                                           | S3       |
+| `src/components/common/Badge.tsx`                                                                                        | 型 `registered`（D-8）                                                                                        | S3       |
+| `src/components/record/SpotResearchSheet.tsx` / `__tests__/SpotResearchSheet.test.tsx`                                   | `registeredSpots` の prop・カードの札と注記・下の注記の出し分け（D-7・D-8）                                   | S3       |
+| `src/screens/RecordScreen.tsx` / `__tests__/RecordScreen.test.tsx`                                                       | `registeredSpots` の `useMemo`・`handleChoose`（D-6）。テストは `useNearbySpots` のモックを差し替えられる形に | S3       |
+| `.claude/harness/progress.md`・`.claude/harness/feature-list.json`（`ISSUE-278`）・`.claude/harness/evidence/issue-278/` | 確認結果と証跡                                                                                                | S4       |
+
+**変えないもの**: `supabase/`（research-spot・add-spot・`_shared/`・migration）・`src/services/`・`src/hooks/useNearbySpots.ts`・`src/utils/spotName.ts`・`src/hooks/useRecentPrefectures.ts`・`src/components/record/SpotPlacePicker.tsx`。DB・API の変更は無い。
+
+### データ構造
+
+```ts
+// src/utils/registeredSpot.ts（新規）
+/** 同じ寺社とみなす距離。add-spot の重複の判定（#248 D-7）と同じ
+ *  （supabase/functions/_shared/spotRules.ts の NEARBY_METERS。Deno 形式の import があるので読み込まない） */
+export const REGISTERED_SPOT_METERS = 300;
+
+/** 候補と正規化した名前が一致し、300m 以内の寺社。複数なら近いほう。無ければ null */
+export function findRegisteredSpot<T extends { name: string; lat: number; lng: number }>(
+  candidate: { name: string; lat: number; lng: number },
+  spots: readonly T[]
+): T | null;
+
+// src/hooks/useSpotAdd.ts
+chooseExisting(spot: Spot): void;
+// 返り値: { state, start, pick, changeRegion, retry, choose, chooseExisting, openManual, saveManual, close }
+
+// src/components/record/SpotResearchSheet.tsx の Props
+/** 候補ごとの、アプリに登録済みの同じ寺社（registeredSpots[i] は index が i の候補）。無ければ null。省略時は [] */
+registeredSpots?: (Spot | null)[];
+
+// src/components/common/Badge.tsx
+type BadgeType = 'shrine' | 'temple' | 'visited' | 'registered';
+// registered: { bg: colors.gray[100], text: colors.gray[600], defaultLabel: '登録済み' }
+```
+
+DB・API・Edge Function の変更は無い。
+
+### 画面仕様（試作の右）
+
+到達手順（共通）: ログインした状態で 地図タブ → 記録ボタン →「御朱印を記録」→「スポット」の検索欄に名前を2文字以上入れる。
+
+| #    | 場所                                 | 中身                                                                                                                                                                                                                                                                                             |
+| ---- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| ①    | 検索のドロップダウン（同じ名前あり） | 一覧（名前・種別の札・県・距離。今のまま）→ もしかして（今のまま）→ 行「ほかの{名前}を調べて追加」/「一覧にない場所の{名前}を探します」（`colors.primary[50]` の地・丸い `+`。今の行と同じ見た目）                                                                                               |
+| ①'   | 検索のドロップダウン（同じ名前なし） | 今のまま（行「「{名前}」を調べて追加」/「名前から場所と住所を調べます」）                                                                                                                                                                                                                        |
+| ⓪〜② | シート                               | #277・#282 のまま（⓪ の見出しは「「{名前}」を調べます」）                                                                                                                                                                                                                                        |
+| ③    | これですか？（登録済みの候補）       | カード: 名前 / 種別の札 /「登録済み」の札（灰色）/ 距離 → 住所 → ミニ地図（選んでいるとき）→ ✓ の注記「アプリに登録済みの寺社です。「ここです」で、この寺社を選びます（新しく追加しません）」。下: ここです / どれでもない（地図で決める）。「確かめられたら、みんなの地図にも載ります」は出ない |
+| ③    | これですか？（新しい候補）           | 今のまま（住所の情報源の行・下の注記あり）                                                                                                                                                                                                                                                       |
+
+## スライス（1スライス = 1コミット、TDD）
+
+各スライスの先頭で失敗するテストを書き（Red）、通してからコミットする。**各コミットで `npm run typecheck` と `npm test` が通る**ように切る（S3 は `useSpotAdd`・シート・記録画面の型が同時に変わるので一緒に変える）。S1 だけが入った状態でも、同じ名前で調べた候補を「ここです」で選ぶと add-spot が D-7 で既存を返すので、重複はできない。
+
+| #   | コミット（Conventional Commits）                                                          | 中身                                                                                                                                                           | 基準                        |
+| --- | ----------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
+| S1  | `feat: 同じ名前の寺社が一覧にあっても「ほかの〇〇を調べて追加」を出す (#278)`             | `SpotSelector` の条件と文言・コメント / テストの書き換え / ui-design.md の 4.5（D-11 ①）                                                                       | UI-1〜5                     |
+| S2  | `feat: 調べた候補と同じ寺社が登録済みかを端末で調べる (#278)`                             | `findRegisteredSpot`（まだどこからも使わない）                                                                                                                 | AC-1〜6                     |
+| S3  | `feat: 調べた候補が登録済みの寺社なら「登録済み」と出し、追加せずにその寺社を選ぶ (#278)` | `useSpotAdd.chooseExisting` / `Badge` の `registered` / シートの札・注記・下の注記 / `RecordScreen` をつなぐ / テストの書き換え / ui-design.md の 5.（D-11 ②） | AC-7〜11 / UI-6〜9 / Q-1〜7 |
+| S4  | `docs: #278 の Expo Web とシミュレータでの確認結果と証跡`                                 | UI-10〜12 を確かめ、`progress.md`・`feature-list.json`（`ISSUE-278`）・証跡。直すところが出たら別の `fix:` コミット                                            | UI-10〜12                   |
+
+### 既存テストの書き換え（必要なもの）
+
+- **`src/components/record/__tests__/SpotSelector.test.tsx`**
+  - 145 行の describe の上のコメントに `Issue #278 / UI-1〜UI-5`（契約書 `docs/issues/issue-278-same-name-research.md`）を足す
+  - 169〜198 行「1文字、または同じ名前の候補があるときは出さない。部分一致の候補だけなら出す」→ **`same` の場合が逆になる**（`nearbySpots` に「鹿島台 神社」・検索語「鹿島台神社」で、行が出て「ほかの鹿島台神社を調べて追加」）。題を「1文字なら出さない。同じ名前の候補があれば「ほかの〇〇」、部分一致だけなら「「〇〇」を調べて追加」」にして、UI-2〜4 の確かめを入れる（別の `it` に分けてもよい）
+  - そのままで通るもの: 156〜167 行（候補に無い名前）・200 行〜（もしかして）・77 行・85 行（`onResearch` を渡さない）
+- **`src/hooks/__tests__/useSpotAdd.test.ts`**
+  - 冒頭の契約書コメントに `docs/issues/issue-278-same-name-research.md（S3 / AC-7・AC-8）` を足す
+  - 202〜217 行「返り値は state と操作だけ」→ 並びに `'chooseExisting'` を足す（**足さないと落ちる**）
+- **`src/components/record/__tests__/SpotResearchSheet.test.tsx`**
+  - 冒頭の契約書コメントに `docs/issues/issue-278-same-name-research.md（S3 / UI-6〜UI-9）` を足す
+  - 既存のテストは `registeredSpots` を渡さない（省略時 `[]`）ので、そのまま通る。105〜132 行（候補の文言と「確かめられたら、みんなの地図にも載ります」）は UI-9 の「渡さないときは今のまま」の確かめを兼ねる
+  - 151〜163 行「「追加」「確認待ち」「公開」とは言わない」は `/確認待ち/`・`/公開/` だけを見ている。登録済みの注記に「追加」が入るので、ここに「追加」を足さない
+- **`src/screens/__tests__/RecordScreen.test.tsx`**
+  - 79〜89 行の `jest.mock('@hooks/useNearbySpots', …)` を、`let mockNearbyList` / `let mockFilteredList`（既定はどちらも `[{ spot: fakeSpot, distanceKm: 1.2 }]`）を返す形にする（`mockSearchQuery` と同じやり方）。テストの中で上書きしたら `afterEach` で既定に戻す
+  - 1904 行の describe の題に `Issue #278 / AC-9〜AC-11` を足す。1919 行のテスト（鹿島台神社）は、`fakeSpot`（大崎八幡宮）と名前も場所も違うので登録済みにならず、今のまま通る（`/追加した寺社/` が無いことの確かめも残す）
+- **`e2e/`**: 変更なし
+
+## テスト方針
+
+- **判定**（S2）: 純粋な関数なので、座標と名前を並べて返り値を見る。境目は緯度だけずらして作る（緯度 0.0026 度 ≈ 289m・0.0028 度 ≈ 311m。1度 ≈ 111.195km）。返り値は渡した寺社の**同じ参照**（`toBe`）で確かめる。`spotRules.ts` の `NEARBY_METERS` は `fs.readFileSync` で本文を読み、`/export const NEARBY_METERS = (\d+);/` で取り出して比べる（`src/services/__tests__/purchases.test.ts` と同じやり方）
+- **フック**（S3）: 今と同じ `renderHook` と `@services/spotAdd` のモック。`chooseExisting` で add-spot の2つのモックが呼ばれないこと・`onAdded` に渡るもの・状態を見る
+- **シート**（S3）: 状態と `registeredSpots` を渡して描き、カードの中（`within(getByTestId('candidate-0'))`）に何が出るかを見る。札の色は `StyleSheet.flatten(getByTestId('badge-registered').props.style)` と、札の中の `Text` のスタイルで見る。並びは `JSON.stringify(ui.toJSON())` の中の testID の位置で見る（今のテストと同じやり方）
+- **記録画面**（S3）: `useNearbySpots` のモックに、候補の近くの寺社を入れて通しで確かめる（登録済みを選ぶ / 新しい候補を選ぶ / 絞った一覧に無くても判定する）
+- **Expo Web / シミュレータ**（S4）: Web はドロップダウンの文言の切り替えまで（未ログインでは research-spot が 401 になり、候補まで進めない）。「登録済み」の札はシミュレータで research-spot の本当の結果を使って見る
+- research-spot・add-spot は変えないので Deno のテストは足さない（Q-5 で差分が無いことだけ確かめる）。Maestro のフローは足さない（research-spot は Claude と1日10回の枠を使い、結果が毎回同じにならない。#277・#282 と同じ）
+
+## 受入基準（Acceptance Criteria）
+
+goshuin-evaluator がこの基準で合否を判定する。
+
+テストで使う寺社（マスタの値。`supabase/seeds/seed_kyoto_rank_spots.sql`・`02_kanto.sql`）:
+
+- 京都 = `{ id: 'kyoto-yasaka', name: '八坂神社', lat: 35.0036, lng: 135.7780, prefecture: '京都府', type: 'shrine', status: 'active' }`
+- 群馬 = `{ id: 'gunma-yasaka', name: '八坂神社', lat: 36.2679, lng: 139.2786, prefecture: '群馬県', type: 'shrine', status: 'active' }`
+- 候補（祇園）= `{ index: 0, name: '八坂神社', lat: 35.0036, lng: 135.7785, prefecture: '京都府', address: '京都府京都市東山区祇園町北側625', type: 'shrine' }`（京都から約 45m）
+- 候補（福知山）= `{ index: 1, name: '八坂神社', lat: 35.2966, lng: 135.1264, prefecture: '京都府', address: '京都府福知山市', type: 'shrine' }`
+
+### 機能基準: 登録済みの判定（S2。Jest。対象: `findRegisteredSpot`）
+
+- [ ] AC-1: `findRegisteredSpot(候補（祇園）, [群馬, 京都])` が京都と**同じ参照**を返す。`findRegisteredSpot(候補（福知山）, [群馬, 京都])` は `null`
+- [ ] AC-2: 寺社の名前が `'八坂 神社（祇園さん）'`（座標は京都と同じ）でも、候補（祇園）に対してその寺社を返す（`normalizeSpotName` が一致する）
+- [ ] AC-3: 候補（祇園）に対して、寺社 `{ name: '八坂神社', lat: 35.0036 + 0.0026, lng: 135.7785 }`（候補から緯度だけずらした約 289m）は返り、`{ name: '八坂神社', lat: 35.0036 + 0.0028, lng: 135.7785 }`（約 311m）は `null`
+- [ ] AC-4: 名前が似ているだけで一致しないものは返さない: 候補 `{ name: '浅草神社', lat: 35.7148, lng: 139.7966 }` と寺社 `[{ name: '浅草寺', lat: 35.7134, lng: 139.7967 }]`（約 156m。`isSimilarName` は true）で `null`。候補 `{ name: '八幡神社' }` と同じ座標の寺社 `[{ name: '大崎八幡宮' }]` で `null`
+- [ ] AC-5: 同じ名前の寺社が 300m 以内に2つ（候補から約 100m と約 50m）あると、約 50m のほうを返す。寺社が `[]` なら `null`
+- [ ] AC-6: `REGISTERED_SPOT_METERS === 300` で、`supabase/functions/_shared/spotRules.ts` の本文から `/export const NEARBY_METERS = (\d+);/` で取り出した数と等しい
+
+### 機能基準: useSpotAdd（S3。Jest）
+
+- [ ] AC-7: `start('八坂神社')` → `pick(null)` で `researchSpot` が `{ kind: 'ok', researchId: 'r1', candidates: [候補（祇園）] }` を返して `candidates` になったあと、`chooseExisting(京都)` を呼ぶと、`onAdded` が京都と同じ参照で1回呼ばれ、`addResearchedSpot` と `addManualSpot` は1回も呼ばれず、`state.status === 'idle'`・`state.candidates` は `[]`、`researchSpot` の呼ばれた回数は1回のまま
+- [ ] AC-8: `useSpotAdd` の返り値のキーが `state`・`start`・`pick`・`changeRegion`・`retry`・`choose`・`chooseExisting`・`openManual`・`saveManual`・`close` のちょうど10個
+
+### 機能基準: 記録画面（S3。Jest。対象: `RecordScreen`。`useNearbySpots` のモックは `searchQuery = '八坂神社'`。一覧の要素はどれも `{ spot, distanceKm }` の形。`fakeSpot` は大崎八幡宮）
+
+- [ ] AC-9: `nearbySpots = [fakeSpot, 京都, 群馬]`・`filteredSpots = [京都, 群馬]` のとき、検索欄を開くと `spot-research` の中に「ほかの八坂神社を調べて追加」がある。押して `region-all` を押すと `researchSpot('八坂神社', null)` が1回呼ばれ、候補 `[候補（祇園）, 候補（福知山）]` が返ると `candidate-0` の中に `badge-registered` がある。「ここです」を押すと `addResearchedSpot` は呼ばれず、`form.selectSpot` が京都と同じ参照で1回呼ばれ、「これですか？」が消える。画面のどこにも `/確認待ち/`・`/公開/`・`/追加した寺社/`・`/登録済みの寺社）/` が無い
+- [ ] AC-10: AC-9 と同じ一覧と候補で、「ほかの候補を見る（1件）」→ `candidate-1` → 「ここです」を押すと、`addResearchedSpot('r1', 1)` が1回呼ばれ、`form.selectSpot` にその結果（モックの値）が渡る。`candidate-1` の中に `badge-registered` は無い
+- [ ] AC-11: `nearbySpots = [fakeSpot, 京都]`・`filteredSpots = []` のとき（京都が検索で絞った一覧に入っていなくても。行の文言は「「八坂神社」を調べて追加」になる）、同じ流れ（`spot-research` → `region-all`）で候補（祇園）の `candidate-0` に `badge-registered` があり、「ここです」で `form.selectSpot` が京都で呼ばれ `addResearchedSpot` は呼ばれない
+
+### UI 基準: 検索のドロップダウン（S1。Jest。対象: `SpotSelector`。到達は上の「画面仕様」の共通手順）
+
+- [ ] UI-1: `nearbySpots = [{ spot: 京都, distanceKm: 612 }, { spot: 群馬, distanceKm: 305 }]`・`searchQuery = ' 八坂神社 '` で検索欄を開くと、`spot-research` の中に「ほかの八坂神社を調べて追加」と「一覧にない場所の八坂神社を探します」があり、「「八坂神社」を調べて追加」と「名前から場所と住所を調べます」は無い。`spot-option-kyoto-yasaka`・`spot-option-gunma-yasaka` があり、ツリーの中で2つとも `"testID":"spot-research"` より前にある。行を押すと `onResearch` が `'八坂神社'` で1回呼ばれる
+- [ ] UI-2: `nearbySpots = [{ spot: { …名前 '鹿島台 神社' }, distanceKm: 1 }]`・`searchQuery = '鹿島台神社'` のとき、`spot-research` の中に「ほかの鹿島台神社を調べて追加」がある（正規化して一致すれば同じ名前）
+- [ ] UI-3: 同じ名前が無いときは今の文言: ① `nearbySpots = []`・`searchQuery = ' 鹿島台神社 '` で「「鹿島台神社」を調べて追加」と「名前から場所と住所を調べます」があり、`queryAllByText(/^ほかの/)` が0件 ② `nearbySpots = [大崎八幡宮]`・`searchQuery = '八幡'` で「「八幡」を調べて追加」③ `nearbySpots = []`・`didYouMeanSpots = [鹿島神宮]`・`searchQuery = '鹿島台神社'` で「「鹿島台神社」を調べて追加」（「もしかして」は同じ名前に数えない）
+- [ ] UI-4: `searchQuery = '鹿'`（1文字）のとき、同じ名前の寺社（名前「鹿」）が一覧にあっても無くても `spot-research` は無い。`onResearch` を渡さないときは、`nearbySpots = [京都]`・`searchQuery = '八坂神社'` でも `spot-research` は無い
+- [ ] UI-5: UI-1 と UI-3 ① のどちらでも、題の `Text`（「ほかの八坂神社を調べて追加」/「「鹿島台神社」を調べて追加」）の `props.numberOfLines` が `1`、スタイル（`StyleSheet.flatten`）の `color` が `colors.primary[600]`・`fontWeight` が `'700'`。`spot-research` のスタイルの `backgroundColor` が `colors.primary[50]`
+
+### UI 基準: 候補カード（S3。Jest。対象: `SpotResearchSheet`）
+
+- [ ] UI-6: `status: 'candidates'`・`researchId: 'r1'`・`candidates: [候補（祇園）, 候補（福知山）]`・`registeredSpots: [京都, null]` のとき、`candidate-0` の中に `badge-shrine`（「神社」）と `badge-registered`（「登録済み」）があり、ツリーの中で `"testID":"badge-shrine"` が `"testID":"badge-registered"` より前にある。`badge-registered` のスタイルの `backgroundColor` が `colors.gray[100]`・`borderRadius` が `borderRadius.full`、中の「登録済み」の `Text` の `color` が `colors.gray[600]`
+- [ ] UI-7: UI-6 の状態で、`candidate-0-registered` の中に「アプリに登録済みの寺社です。「ここです」で、この寺社を選びます（新しく追加しません）」と MaterialIcons（`props` が `name: 'check-circle'`・`size: 14`・`color: colors.gray[500]`）があり、注記の `Text` のスタイルに `color: colors.gray[600]` と `typography.caption` の `fontSize`。`candidate-0` の中に `/住所の情報源/` は無い。シートに「確かめられたら、みんなの地図にも載ります」は無い
+- [ ] UI-8: UI-6 の状態で「ほかの候補を見る（1件）」を押すと `candidate-1` が出て、その中に `badge-registered` と `candidate-1-registered` は無く「住所の情報源 3件（公式サイト・宮城県神社庁 ほか）」（`cand()` の既定の情報源）がある。ツリーの中で `candidate-0` が `candidate-1` より前にある（並べ替えない）。`candidate-1` を押すと「確かめられたら、みんなの地図にも載ります」が出て、「ここです」で `onChoose` が `1` で呼ばれる。`candidate-0` を押し直して「ここです」を押すと `onChoose` が `0` で呼ばれる
+- [ ] UI-9: `registeredSpots` を渡さないとき（同じ候補2件）、シートのどこにも `badge-registered` と「アプリに登録済みの寺社です」は無く、`candidate-0` に「住所の情報源」の行、シートに「確かめられたら、みんなの地図にも載ります」がある
+
+### UI 基準: Expo Web（`npx expo start --web --port 8081`。ログインしない）
+
+到達: `http://localhost:8081/?preview=goshuincho` → 下のタブ「御朱印帳」→ ページを左へ送り切り、白紙のページ（「ここに御朱印を追加する」）を押す →「御朱印を記録」→「スポット」の検索欄（#282 の UI-9 と同じ）。
+
+- [ ] UI-10: 検索欄に `八坂神社` を入れると、一覧に「八坂神社」の行が「京都府」と「群馬県」の県付きで出て、その下に「ほかの八坂神社を調べて追加」「一覧にない場所の八坂神社を探します」の行が出る。押すとシートに「「八坂神社」を調べます」が出る（地域は選ばない）。検索欄を `架空稲荷神社` に替えると「「架空稲荷神社」を調べて追加」「名前から場所と住所を調べます」が出て「ほかの」は出ない。それぞれのスクリーンショットを試作の右と並べて `.claude/harness/evidence/issue-278/` に置く。**未ログインの Web で寺社の一覧が載らなかったとき**（一覧に「八坂神社」が出ない）は、そのことと理由を `progress.md` に書き、この項目の「八坂神社」の部分は UI-11 の中で確かめる（`架空稲荷神社` の部分は Web で確かめる）
+
+### UI 基準: シミュレータ（native-only。#277 と同じ Debug ビルド＋`/dev` の Metro。ログイン済みのテスト用アカウント）
+
+前提: **research-spot を呼ぶのは UI-11 の中で合わせて2回まで**（1日10回の枠を使う。#277 のときはこのアカウントが上限に達していた。日付が変われば戻る）。**記録は保存しない**（最後は ✕ で閉じる）。
+
+- [ ] UI-11: **native-only（シミュレータ・録画）**: 地図タブ → 記録ボタン →「御朱印を記録」→ 検索欄に `八坂神社` →「京都府」「群馬県」の行と「ほかの八坂神社を調べて追加」（スクリーンショット）→ 押す → ⓪「「八坂神社」を調べます」→ チップに「京都府」があれば押す。無ければ「ほかの地域を入れる」→ `京都府 京都市` →「この地域で調べる」→ 候補に住所が「東山区祇園町北側」の八坂神社が出たら、そのカードに灰色の「登録済み」の札と「アプリに登録済みの寺社です。…（新しく追加しません）」が出て、「住所の情報源」と「確かめられたら、みんなの地図にも載ります」が出ない（スクリーンショット）。ほかの候補があれば「ほかの候補を見る」で、登録済みでないカードに札が無く「住所の情報源」があることも撮る（そのカードでは「ここです」を押さない）。祇園の候補で「ここです」→ シートが閉じ、スポット欄に「八坂神社」と「神社」の札だけが出る（「追加」「登録済みの寺社」の文字は無い）。**テスト用アカウントの寺社の数が増えていない**: 押す前と後で `select count(*) from spots where created_by_user_id = '<テスト用アカウントの id>'` が同じ（Supabase の SQL エディタか `supabase` コマンド）。1回目の結果に祇園の候補が無ければ、「変える」→「全国から」で1回だけ調べ直す。2回とも無ければ、結果（候補の住所）を `progress.md` に書き、この項目は「確認できなかった」とする（札の表示は UI-6〜9、選んだあとは AC-9 で確かめている）
+- [ ] UI-12: **native-only（シミュレータ）**: UI-11 の検索のドロップダウンを、試作の右の1枚目（検索欄に「八坂神社」）と並べたスクリーンショットを PR に貼る。行の題が1行に収まり（折り返さない）、行の地が一覧の行より薄いオレンジ（`colors.primary[50]`）で、`+` の丸がある
+
+### 品質基準
+
+- [ ] Q-1: 全テストが通る（`npm test`）
+- [ ] Q-2: Lint エラーがない（`npm run lint`）
+- [ ] Q-3: 型エラーがない（`npm run typecheck`）
+- [ ] Q-4: 足した見た目に直値が無い: `git diff 0c0e5de -- src/components/record/SpotResearchSheet.tsx src/components/record/SpotSelector.tsx src/components/common/Badge.tsx | grep '^+' | grep -E "'#[0-9A-Fa-f]{3,8}'|fontSize: *[0-9]|(padding|margin)[A-Za-z]*: *[0-9]|gap: *[0-9]"` の出力が空
+- [ ] Q-5: 変えないものに差分が無い: `git diff 0c0e5de --stat -- supabase/ src/services/ src/hooks/useNearbySpots.ts src/utils/spotName.ts src/components/record/SpotPlacePicker.tsx` の出力が空
+- [ ] Q-6: サーバーのファイルをアプリから読み込まない・ゆるい判定を使わない: `grep -rnE "from ['\"][^'\"]*spotRules" src` が0件、`grep -nE "import[^;]*isSimilarName|isSimilarName\(" src/utils/registeredSpot.ts` が0件（コメントの語は数えない。読み込み・呼び出しだけ）
+- [ ] Q-7: 文書とコメント: `grep -c "#278" docs/design/ui-design.md` が `2`、`grep -c "スポットが見つからない場合は追加" docs/design/ui-design.md` が `0`、`grep -c "Issue #278" src/components/record/SpotSelector.tsx` が `1` 以上
+
+## やらないこと（スコープ外）
+
+- research-spot・add-spot（Edge Function）・`_shared/`・1日10回の上限・候補の形の変更。サーバーで同じ名前の寺社を候補から外すこと
+- 「登録済み」を `isSimilarName`（似た名前）で判定すること（D-3。オーナーが望めば `findRegisteredSpot` の比べ方と AC-4 を替える）
+- 登録済みの候補を並べ替える・隠す・自動で選ぶこと（D-9）
+- 選んだあとのスポット欄の「（登録済みの寺社）」「（追加した寺社）」、トースト（D-10）
+- 「同じ名前」の出し分けの条件を、県・距離・件数で絞ること（Issue の「考えること」の例。試作は「一覧に同じ名前があれば、いつでも出す」）
+- ドロップダウンの並び・高さ（`maxHeight: 240`）・「もしかして」の変更。4.5 の「現在地周辺2km以内」「オレンジ背景」など、ほかの古い箇条の書き換え
+- 寺社の一覧を取り直す・新しく問い合わせること（D-5）
+- 過去の契約書・`2026-09-spot-add-spec.md`・試作 HTML の書き換え（D-12）
+- Maestro のフロー
+
+## 注意事項
+
+- **依頼の「hasSimilarActiveNearby と同じ考え方」から変えた所（オーナーに確かめる）**: 判定は `isSimilarName` ではなく add-spot の重複の判定（D-7。正規化した名前が一致・300m・本人に見える寺社）と同じにした（D-3 の理由）。`hasSimilarActiveNearby` は active だけを見る公開の判定で、当たっても add-spot は新しい寺社を pending で作るので、それに合わせると札の「新しく追加しません」と add-spot の動きがずれる
+- **下の注記「確かめられたら、みんなの地図にも載ります」を、登録済みの候補を選んでいるときは消す**（D-7）。試作の候補の画面にこの注記は無い。オーナーが「いつも出す」を望めば、出し分けの1か所を外すだけ
+- **調べる回数が増えうる**: 同じ名前が一覧にある寺社でも行が出るので、一覧の寺社そのものを調べてしまうと1日10回の枠を1回使う（候補は「登録済み」になり、重複はできない）。行の文言「ほかの」「一覧にない場所の」はこれを避けるため
+- **判定は読み込み済みの一覧だけ**: 記録画面を開いたあとに誰かが足した寺社・一覧の読み込みに失敗したときは札が出ない。そのときも、正規化した名前が一致し 300m 以内なら add-spot が既存を返す（重複はできない。札が出ないだけ）
+- `RecordScreen.test.tsx` の `useNearbySpots` のモックはファイルの先頭の `jest.mock` なので、差し替える変数は `mock` で始める名前にする（`mockSearchQuery` と同じ。jest の hoist の決まり）。モックは描画のたびに新しい配列を返すので、`useMemo` は毎回計算し直すが、結果は同じ
+- `findRegisteredSpot` の距離は `calculateDistance`（km）を 1000 倍して `<= REGISTERED_SPOT_METERS` で比べる（サーバーと同じく「以内」）。緯度経度の差だけで比べない
+- 候補の `index` と並びの位置が同じ（research.ts 353 行）ことに頼って `registeredSpots[index]` を引く。research-spot の返し方を変えるときはここも見直す
+- **比べる基準は `0c0e5de`**（develop の #282 のマージ）。このブランチには試作のコミット `4c2fc85` が乗っている。`git diff develop` を使わない（ローカルの develop は古いことがある。#282 の注意事項と同じ）
+- 契約書・ui-design.md は `npx prettier --write` で表をそろえる（lint-staged が md にも prettier をかける）
+- Expo Web の確認で Playwright を使うときは、0ms の合成クリックだと押す操作にならないことがある（#274 の記録。押し始めと離しの間を空ける）
