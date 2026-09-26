@@ -136,6 +136,12 @@
       "title": "プラスの課金導線（RevenueCat・980円の買い切り）",
       "note": "契約書 docs/issues/issue-270-plus-purchase.md。PR #271。BILLING_ENABLED = false のまま出す（利用者から見た変化なし・スイッチは H-7 の別 Issue）。usePlus・予定の2件目のシート・設定のカードとプラスの画面。goshuin-evaluator 本体 PASS（63/63）＋ S6 の fix（b2cb961 匿名の利用者・fb2651a 閉じていくシートの中身）も差分で PASS。シミュレータの Test Store で UI-7〜9 を確認（priceString は ¥980）。未確認: 設定のプラスの画面から実際に買う流れ・「購入を復元しました」（Test Store では試せない。sandbox で）。react-native-purchases を足したので、マージ後の develop からの OTA は新しいストア用ビルドにしか届かない。",
       "passes": true
+    },
+    {
+      "id": "ISSUE-272",
+      "title": "プラスの「購入を復元」を目立たない場所へ移し、無料のカードに「いまのプラン」を付ける",
+      "note": "契約書 docs/issues/issue-272-plus-restore-link.md・承認デザイン docs/design/mockups/2026-09-plus-paywall-v4.html。シートから「購入を復元」を外し、プラスの画面は規約の下に小さく「以前に購入した方は 購入を復元」。札「いまのプラン」（白地・teal）。goshuin-evaluator PASS（19/19・Q-1〜12）。シミュレータの Test Store で UI-3〜5 を確認（復元は「購入を復元しました」）。BILLING_ENABLED = false のまま。v4 の H（以前に買った人がプラスにするを押すと課金されない）と Restore Behavior は sandbox（#270 H-7）で。",
+      "passes": true
     }
   ]
 }

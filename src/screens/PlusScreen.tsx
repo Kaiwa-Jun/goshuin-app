@@ -43,9 +43,10 @@ export function PlusScreen({ navigation }: Props) {
         </View>
         <Text style={styles.title}>予定を、先までいくつでも</Text>
         <PlusMiniCalendar today={today} />
-        <PlusPlanCards priceString={plus.priceString} />
+        <PlusPlanCards priceString={plus.priceString} isPlus={plus.isPlus} />
         <PlusPurchasePanel
           plus={plus}
+          showRestore
           onPurchased={() =>
             navigation.popTo('MainTabs', { screen: 'Settings', params: { purchased: true } })
           }

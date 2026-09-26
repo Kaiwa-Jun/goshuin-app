@@ -20,7 +20,6 @@ interface Props {
   onClose: () => void;
   onDismiss?: () => void;
   onPurchased: () => void;
-  onRestored: () => void;
   onTerms: () => void;
   onPrivacy: () => void;
 }
@@ -36,11 +35,10 @@ export function PlusSheet({
   onClose,
   onDismiss,
   onPurchased,
-  onRestored,
   onTerms,
   onPrivacy,
 }: Props) {
-  // 開いていて、買う・復元するの最中でないときだけ中身を変える（S6 のシミュレータで見つけた）。
+  // 開いていて、買う最中でないときだけ中身を変える（S6 のシミュレータで見つけた）。
   // 買えた直後は CustomerInfo の更新が先に来て「購入済み」に変わり、閉じると日付が null になって
   // 「ここにも入れる」の枠が消えるので、閉じていくシートが縮んでいた
   const [shown, setShown] = useState({ date: targetDate, isPlus: plus.isPlus });
@@ -84,12 +82,11 @@ export function PlusSheet({
             </View>
           )}
         </View>
-        <PlusPlanCards priceString={plus.priceString} />
+        <PlusPlanCards priceString={plus.priceString} isPlus={shown.isPlus} />
         <PlusPurchasePanel
           plus={{ ...plus, isPlus: shown.isPlus }}
           onLater={onClose}
           onPurchased={onPurchased}
-          onRestored={onRestored}
           onTerms={onTerms}
           onPrivacy={onPrivacy}
         />
