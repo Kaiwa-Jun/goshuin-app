@@ -130,6 +130,12 @@
       "note": "参拝の予定（予定タブ・カレンダー・地図で寺社を選ぶ・順番の提案・区間ごとの Google マップ・保存）。契約書 docs/issues/issue-258-visit-plan.md。PR #259（本体・Evaluator PASS）→ 実機確認の指摘を #261〜#268 で直した（1週6日・地図が仙台・ピンの名前・今日から組む・横スワイプ・現在地・行きたいへ寄せる・長押しの並べ替え・番号の点線・入力欄・ドロワーの受け渡し）。本番 DB 適用済み・AC-19 の RESULT 一致（2026-09-26）。iPhone 開発用アプリでオーナー確認済み（2026-09-26）。未確認: 「Google マップで」が実際に開くか（UI-11）、選んだピンの ✓ と輪の見比べ（UI-12・今は ✓）、Maestro の visit-plan.yaml（E-2）。",
       "issue": 258,
       "passes": true
+    },
+    {
+      "id": "ISSUE-270",
+      "title": "プラスの課金導線（RevenueCat・980円の買い切り）",
+      "note": "契約書 docs/issues/issue-270-plus-purchase.md。PR #271。BILLING_ENABLED = false のまま出す（利用者から見た変化なし・スイッチは H-7 の別 Issue）。usePlus・予定の2件目のシート・設定のカードとプラスの画面。goshuin-evaluator 本体 PASS（63/63）＋ S6 の fix（b2cb961 匿名の利用者・fb2651a 閉じていくシートの中身）も差分で PASS。シミュレータの Test Store で UI-7〜9 を確認（priceString は ¥980）。未確認: 設定のプラスの画面から実際に買う流れ・「購入を復元しました」（Test Store では試せない。sandbox で）。react-native-purchases を足したので、マージ後の develop からの OTA は新しいストア用ビルドにしか届かない。",
+      "passes": true
     }
   ]
 }

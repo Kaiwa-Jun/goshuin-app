@@ -8,6 +8,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card } from '@components/common/Card';
 import { useAuth } from '@hooks/useAuth';
 import { useOnboarding } from '@hooks/useOnboarding';
+import { usePlus } from '@hooks/usePlus';
+import { PlusSettingsCard } from '@components/plus/PlusSettingsCard';
+import { PlusThanksToast } from '@components/plus/PlusThanksToast';
+import { BILLING_ENABLED } from '@/constants/plus';
 import { colors } from '@theme/colors';
 import { spacing } from '@theme/spacing';
 import { typography } from '@theme/typography';
@@ -15,12 +19,21 @@ import type { MainTabScreenProps } from '@/navigation/types';
 
 type Props = MainTabScreenProps<'Settings'>;
 
-export function SettingsScreen({ navigation }: Props) {
+export function SettingsScreen({ navigation, route }: Props) {
   const { user, isAuthenticated, signOut } = useAuth();
   const { resetOnboarding } = useOnboarding();
   const appVersion = Constants.expoConfig?.version ?? '不明';
   // OS の権限はアプリから直接トグルできないため、状態の表示と設定アプリへの導線だけ持つ
   const [locationGranted, setLocationGranted] = useState<boolean | null>(null);
+  const plus = usePlus();
+  // プラスの画面で買って戻ってきたら一言（Issue #270 D-12）。読んだら params から消す
+  const purchased = route.params?.purchased;
+  const [thanks, setThanks] = useState(false);
+  useEffect(() => {
+    if (!purchased) return;
+    setThanks(true);
+    navigation.setParams({ purchased: undefined });
+  }, [navigation, purchased]);
 
   useEffect(() => {
     let cancelled = false;
@@ -127,6 +140,22 @@ export function SettingsScreen({ navigation }: Props) {
           </Card>
         </View>
 
+        {/* 課金のスイッチが入るまでは出さない（買えても何も増えないため / Issue #270 D-13） */}
+        {BILLING_ENABLED && (
+          <View style={styles.section} testID="settings-section-plus">
+            <Text style={styles.sectionTitle}>プラス</Text>
+            <PlusSettingsCard
+              plus={plus}
+              isAuthenticated={isAuthenticated}
+              onPress={() => {
+                const parent = navigation.getParent();
+                if (isAuthenticated) parent?.navigate('Plus');
+                else parent?.navigate('Login');
+              }}
+            />
+          </View>
+        )}
+
         {/* Guideline 1.2（UGC）対応で「公開設定」セクションを外した（Issue #147）。
             v1.1 で通報・ブロック・EULA を実装したらここに戻す */}
 
@@ -204,6 +233,7 @@ export function SettingsScreen({ navigation }: Props) {
           </Card>
         </View>
       </ScrollView>
+      {thanks && <PlusThanksToast onDone={() => setThanks(false)} />}
     </SafeAreaView>
   );
 }

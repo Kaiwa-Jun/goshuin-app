@@ -26,6 +26,7 @@ import { PlanChosenPins, PlanRouteLayers } from '@components/plan/PlanMapLayers'
 import { PlanDateSheet, PlanSaveSheet } from '@components/plan/PlanSheets';
 import { PlanSpotCard } from '@components/plan/PlanSpotCard';
 import { PlanStopList } from '@components/plan/PlanStopList';
+import { PlusThanksToast } from '@components/plus/PlusThanksToast';
 import { useLocation } from '@hooks/useLocation';
 import { usePlanEditor, type PlanSpot } from '@hooks/usePlanEditor';
 import { useReduceMotion } from '@hooks/useReduceMotion';
@@ -62,7 +63,14 @@ const MAP_PEEK = 140;
  * build（② 寺社を選ぶ）→ order（③ 順番）→ 保存。保存済みを開くと readonly（③'）
  */
 export function PlanEditorScreen({ navigation, route }: Props) {
-  const { planId, date } = route.params ?? {};
+  const { planId, date, purchased } = route.params ?? {};
+  // プラスを買った直後に来たら一言（Issue #270 D-11）。読んだら params から消す
+  const [thanks, setThanks] = useState(false);
+  useEffect(() => {
+    if (!purchased) return;
+    setThanks(true);
+    navigation.setParams({ purchased: undefined });
+  }, [navigation, purchased]);
   const today = useMemo(() => new Date(), []);
   const todayKey = toLocalDateString(today);
   const insets = useSafeAreaInsets();
@@ -596,6 +604,8 @@ export function PlanEditorScreen({ navigation, route }: Props) {
           )
         }
       </PlanDrawer>
+
+      {thanks && <PlusThanksToast onDone={() => setThanks(false)} />}
 
       <PlanDateSheet
         visible={showDate}

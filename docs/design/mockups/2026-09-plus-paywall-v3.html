@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>プラスの入口 v3</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<style>
+/* 値は src/theme と既存の予定タブ・設定・Modal(bottom) の StyleSheet から。
+   アイコンは @expo/vector-icons の MaterialIcons と同じ字形（Material Icons）。カスタムフォントは使わない */
+:root{
+  --brand:#f27f0d; --brand50:#FFF7ED; --brand100:#FFEDD5; --brand600:#EA580C; --brand700:#C2410C;
+  --seal:#C2342B; --teal:#0D9488;
+  --shrine600:#DC2626; --error:#EF4444;
+  --g50:#F9FAFB; --g100:#F3F4F6; --g200:#E5E7EB; --g300:#D1D5DB; --g400:#9CA3AF; --g500:#6B7280; --g600:#4B5563; --g700:#374151; --g800:#1F2937; --g900:#111827;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#4B5563;font-family:-apple-system,"Hiragino Sans",sans-serif;color:var(--g900);padding:22px 16px 40px}
+h1{color:#fff;font-size:19px;margin-bottom:6px}
+.lead{color:#E5E7EB;font-size:13px;line-height:1.8;max-width:1760px;margin-bottom:18px}
+.lead b{color:#FDBA74}
+.row{display:flex;gap:22px;align-items:flex-start;flex-wrap:wrap}
+.col h2{color:#fff;font-size:15px;margin-bottom:4px}
+.col p{color:#D1D5DB;font-size:12px;line-height:1.7;margin-bottom:10px;max-width:390px;min-height:78px}
+.mi{font-family:'Material Icons';font-weight:normal;font-style:normal;line-height:1;display:inline-block;-webkit-font-smoothing:antialiased}
+.phone{width:390px;height:844px;border-radius:34px;overflow:hidden;position:relative;box-shadow:0 18px 50px rgba(0,0,0,.45);background:#fff;user-select:none}
+.status{height:44px;display:flex;justify-content:space-between;align-items:center;padding:0 26px;font-size:15px;font-weight:600;background:#fff;position:relative;z-index:3}
+.screen{position:absolute;top:44px;left:0;right:0;bottom:78px;overflow:hidden}
+.tabs{position:absolute;left:0;right:0;bottom:0;height:78px;border-top:1px solid var(--g200);background:#fff;display:flex;justify-content:space-around;padding-top:9px;font-size:10px;color:var(--g400);z-index:3}
+.tabs div{display:flex;flex-direction:column;align-items:center;gap:2px;width:64px}
+.tabs .mi{font-size:24px}
+.tabs .on{color:var(--brand);font-weight:700}
+
+/* カレンダー（PlanCalendar と同じ） */
+.calhead{display:flex;align-items:center;justify-content:space-between;padding:12px 20px 6px}
+.calhead b{font-size:24px;font-weight:800}
+.calhead .nav{display:flex;gap:18px;color:var(--g500)} .calhead .nav .mi{font-size:28px}
+.wk{display:grid;grid-template-columns:repeat(7,1fr);padding:0 16px;font-size:11px;color:var(--g400);text-align:center;margin-top:4px}
+.wk span:first-child{color:var(--shrine600)} .wk span:last-child{color:#3B82F6}
+.days{display:grid;grid-template-columns:repeat(7,1fr);padding:4px 16px}
+.day{height:52px;border-radius:12px;display:flex;flex-direction:column;align-items:center;padding-top:4px;font-size:15px;color:var(--g900)}
+.day .n{width:28px;height:28px;display:grid;place-items:center;border-radius:999px}
+.day.out .n{color:var(--g400)} .day.pastd .n{color:var(--g300)}
+.day.today .n{background:var(--brand);color:#fff;font-weight:700}
+.day.has{background:var(--brand50)} .day.has.past{background:var(--g100)}
+.day .m{font-size:11px;font-weight:800;color:var(--brand);margin-top:1px}
+.day.past .m{color:var(--g500)}
+.next{margin:12px 16px 0;border-radius:14px;border:1px solid var(--g200);padding:12px 14px}
+.next .k{font-size:11px;font-weight:700;color:var(--g400)}
+.next b{display:block;font-size:16px;margin-top:2px}
+.next span{font-size:12px;color:var(--g500)}
+.hint{font-size:12px;color:var(--g500);text-align:center;margin:14px 20px 0;line-height:1.7}
+.fab{position:absolute;left:16px;right:16px;bottom:14px;height:50px;border-radius:14px;background:var(--brand);color:#fff;font-size:16px;font-weight:700;display:grid;place-items:center;box-shadow:0 4px 12px rgba(242,127,13,.35)}
+.fab.press{transform:scale(.97);opacity:.85}
+
+/* 下から出るシート（Modal variant="bottom"） */
+.dim{position:absolute;inset:0;background:rgba(0,0,0,.5);z-index:4}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:20px 20px 0 0;padding:22px 20px 26px;z-index:5}
+.sheet .x{position:absolute;right:16px;top:16px;color:var(--g400)} .sheet .x .mi{font-size:24px}
+.sheet h3{font-size:19px;font-weight:800;line-height:1.4;padding-right:28px}
+.sheet .body{font-size:14px;color:var(--g600);line-height:1.75;margin-top:8px}
+
+/* プラスの絵: 実物のカレンダーの升目に「●N社」が並ぶ（=予定をいくつでも） */
+.mini{border:1px solid var(--g200);border-radius:14px;padding:10px 10px 8px;margin-top:14px;background:#fff}
+.mini .mh{display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:800;color:var(--g700);padding:0 4px 6px}
+.mini .mh span{font-size:10px;font-weight:700;color:var(--brand700);background:var(--brand50);border-radius:999px;padding:2px 8px}
+.mini .days{padding:0}
+.mini .day{height:40px;font-size:12px;border-radius:9px;padding-top:2px}
+.mini .day .n{width:22px;height:22px}
+.mini .day .m{font-size:9px}
+
+.pts{margin-top:14px;display:flex;flex-direction:column;gap:9px}
+.pt{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.5;color:var(--g800)}
+.pt .mi{font-size:20px;color:var(--brand);margin-top:0}
+.pt.free .mi{color:var(--teal)}
+.pt small{display:block;font-size:12px;color:var(--g500)}
+.buy{margin-top:18px;height:52px;border-radius:14px;background:var(--brand);color:#fff;font-size:16px;font-weight:800;display:grid;place-items:center}
+.buy small{font-size:11px;font-weight:600;opacity:.9}
+.subrow{display:flex;justify-content:center;gap:22px;margin-top:12px;font-size:13px;font-weight:700;color:var(--g500)}
+.legal{text-align:center;margin-top:12px;font-size:11px;color:var(--g400)}
+.legal u{text-decoration:none;border-bottom:1px solid var(--g300)}
+
+/* 設定（SettingsScreen と同じ） */
+.set{padding:0 20px}
+.set .hd{font-size:24px;font-weight:800;padding:12px 0 6px}
+.sec{margin-top:26px}
+.sec .t{font-size:18px;font-weight:700;color:var(--g800);margin-bottom:4px}
+.srow{display:flex;align-items:center;gap:12px;padding:12px 0;font-size:16px;color:var(--g700)}
+.srow .l{flex:1}
+.srow .v{color:var(--g500)}
+.srow .mi{color:var(--g400);font-size:22px}
+.div{height:1px;background:var(--g200)}
+.danger{color:var(--error)}
+.pluscard{display:flex;align-items:center;gap:12px;border:1px solid var(--brand100);background:var(--brand50);border-radius:14px;padding:12px 14px;margin-top:8px}
+.pluscard .ic{width:40px;height:40px;border-radius:12px;background:#fff;display:grid;place-items:center;color:var(--brand)}
+.pluscard .ic .mi{font-size:24px}
+.pluscard .tx{flex:1}
+.pluscard .tx b{font-size:15px;display:block}
+.pluscard .tx span{font-size:12px;color:var(--g600)}
+.pluscard .pr{font-size:13px;font-weight:800;color:var(--brand700)}
+.pluscard.owned{background:#fff;border-color:var(--g200)}
+.pluscard.owned .pr{color:var(--teal)}
+
+/* プラスの画面（設定から・普通の画面） */
+.ph{height:48px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;position:relative;border-bottom:1px solid var(--g200)}
+.ph .l{position:absolute;left:12px;color:var(--g700)} .ph .l .mi{font-size:28px}
+.pp{padding:12px 20px}
+.pp .brandline{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:800;color:var(--brand700)}
+.pp .brandline .mi{font-size:18px}
+.pp h3{font-size:21px;font-weight:800;margin-top:6px;line-height:1.4}
+.pp .body{font-size:14px;color:var(--g600);line-height:1.75;margin-top:6px}
+.sech{font-size:12px;font-weight:800;color:var(--g500);margin-top:12px}
+.toast{position:absolute;left:24px;right:24px;bottom:92px;background:var(--g900);color:#fff;border-radius:12px;padding:12px 14px;font-size:14px;display:flex;gap:8px;align-items:center;z-index:6}
+.toast .mi{color:#FDBA74;font-size:20px}
+.note{position:absolute;left:12px;right:12px;top:8px;background:#FEF3C7;color:#92400E;border-radius:10px;padding:8px 10px;font-size:11px;line-height:1.6;z-index:7}
+
+/* 比べる表 */
+.cmp{width:100%;border-collapse:separate;border-spacing:0;margin-top:14px;font-size:14px}
+.cmp th{font-size:12px;font-weight:800;color:var(--g500);padding:0 0 8px;text-align:center;width:78px}
+.cmp th:first-child{text-align:left;width:auto}
+.cmp th.p{color:var(--brand700)}
+.cmp td{padding:11px 0;border-top:1px solid var(--g100);text-align:center;color:var(--g800)}
+.cmp td:first-child{text-align:left}
+.cmp td.p{background:var(--brand50)}
+.cmp tr:last-child td.p{border-radius:0 0 10px 10px}
+.cmp th.p{background:var(--brand50);border-radius:10px 10px 0 0;padding-top:8px}
+.cmp .ok{font-family:'Material Icons';font-size:20px;color:var(--teal);vertical-align:middle}
+.cmp td.p .ok{color:var(--brand)}
+.cmp tr.key td{font-weight:800}
+.cmp tr.key td.p{color:var(--brand700)}
+.cmp .no{color:var(--g300)}
+.once{text-align:center;font-size:12px;color:var(--g500);margin-top:8px}
+/* カード2枚 */
+.cards{display:flex;gap:10px;margin-top:14px}
+.card{flex:1;border:1px solid var(--g200);border-radius:14px;padding:12px}
+.card.p{border:2px solid var(--brand);background:var(--brand50)}
+.card .ct{font-size:13px;font-weight:800;color:var(--g600)}
+.card.p .ct{color:var(--brand700)}
+.card .cp{font-size:18px;font-weight:800;margin-top:2px}
+.card .cp small{font-size:11px;font-weight:600;color:var(--g500)}
+.card ul{list-style:none;margin-top:10px;display:flex;flex-direction:column;gap:7px}
+.card li{font-size:12.5px;display:flex;gap:6px;align-items:center;color:var(--g800)}
+.card li .mi{font-size:17px;color:var(--teal)}
+.card.p li .mi{color:var(--brand)}
+.card li.k{font-weight:800}
+
+/* v3 */
+.ctx{display:flex;gap:8px;margin-top:12px}
+.slot{flex:1;border-radius:12px;padding:8px 10px;border:1px solid var(--g200);background:#fff}
+.slot .d{font-size:11px;font-weight:800;color:var(--g500)}
+.slot .v{font-size:13px;font-weight:700;margin-top:2px;color:var(--g800)}
+.slot.have .v{color:var(--brand700)}
+.slot.want{border:1.5px dashed var(--brand);background:var(--brand50)}
+.slot.want .v{color:var(--brand700);display:flex;align-items:center;gap:4px}
+.slot.want .v .mi{font-size:16px}
+.cards{display:flex;gap:10px;margin-top:12px;align-items:stretch}
+.card{flex:1;border:1px solid var(--g200);border-radius:14px;padding:12px 12px 12px;position:relative;background:#fff}
+.card.p{border:2px solid var(--brand);background:var(--brand50);animation:lift .5s .35s both ease-out}
+@keyframes lift{from{transform:translateY(6px);opacity:.6}to{transform:none;opacity:1}}
+.card .tag{position:absolute;top:-10px;left:12px;background:var(--brand);color:#fff;font-size:10px;font-weight:800;border-radius:999px;padding:2px 8px}
+.card .ct{font-size:13px;font-weight:800;color:var(--g500)}
+.card.p .ct{color:var(--brand700)}
+.card .cp{font-size:20px;font-weight:800;margin-top:2px}
+.card .cp small{font-size:11px;font-weight:700;color:var(--g500);margin-left:2px}
+.card ul{list-style:none;margin-top:10px;display:flex;flex-direction:column;gap:8px}
+.card li{font-size:13px;display:flex;gap:6px;align-items:center;color:var(--g800);line-height:1.3}
+.card li .mi{font-size:17px;color:var(--teal)}
+.card.p li .mi{color:var(--brand)}
+.card li.k{font-weight:800}
+.card li.k b{color:var(--brand700)}
+.card li.off{color:var(--g400)} .card li.off .mi{color:var(--g300)}
+.sheet{animation:up .35s both ease-out}
+@keyframes up{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}
+.once{text-align:center;font-size:12px;color:var(--g500);margin-top:8px}
+.once b{color:var(--g700)}
+</style>
+</head>
+<body>
+<h1>プラスの入口 v3 — カード2枚・押そうとした日を見せる・静かな動き</h1>
+<p class="lead">
+v2 の B2（カード2枚）をもとに、ペイウォールで一般に効くとされるもののうち<b>このアプリの方針（静か・押し売りしない・買い切り）に合うものだけ</b>を入れた。<br>
+① <b>欲しい瞬間に、その人の予定で見せる</b>（押そうとした「10月10日（土）」と、入っている「10月3日 東山めぐり」）／② <b>できることは短く・アイコン付きで少しだけ</b>／③ <b>おすすめの方を目立たせる</b>（プラスのカードを太枠・既定で選ばれた見た目）／④ <b>値段の不安を消す</b>（「1回だけ・毎月かからない」をボタンのすぐ下に）／⑤ <b>静かな動き</b>（シートが上がる・プラスのカードがふわっと浮く）。<br>
+入れないもの: 期間限定の割引・「残りわずか」・起動時やオンボーディングでの表示・利用者数の表示（まだ無い数字は出さない）。
+</p>
+
+<div class="row">
+
+<!-- A: いまのカレンダー（これからの予定が1件） -->
+<div class="col">
+<h2>A. これからの予定が1件ある</h2>
+<p>無料の枠を使っている状態。ここで「＋ 予定を組む」か、空いた日を押すと B が出る。すでに入っている予定を開く・直すのは無料のまま。</p>
+<div class="phone">
+  <div class="status"><span>9:41</span><span>▮▮▮ ◠ ▭</span></div>
+  <div class="screen">
+    <div class="calhead"><b>2026年10月</b><div class="nav"><span class="mi">chevron_left</span><span class="mi">chevron_right</span></div></div>
+    <div class="wk"><span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span></div>
+    <div class="days" id="calA"></div>
+    <div class="next"><div class="k">次の予定</div><b>10月3日（土） 東山めぐり</b><span>八坂神社 → 建仁寺 → 清水寺 → 三十三間堂</span></div>
+    <div class="fab press">＋ 予定を組む</div>
+  </div>
+  <div class="tabs"><div><span class="mi">explore</span>地図</div><div class="on"><span class="mi">event</span>予定</div><div><span class="mi">menu_book</span>御朱印帳</div><div><span class="mi">show_chart</span>あゆみ</div><div><span class="mi">settings</span>設定</div></div>
+</div>
+</div>
+
+<!-- B: ① 2件目（v3） -->
+<div class="col">
+<h2>B. ① 10月10日を押したとき</h2>
+<p>押そうとした日と、もう入っている予定を並べて見せる（「何が足りないか」がその人の予定で分かる）。できることはカードに3行ずつ。値段の不安はボタンのすぐ下の1行で消す。</p>
+<div class="phone">
+  <div class="status"><span>9:41</span><span>▮▮▮ ◠ ▭</span></div>
+  <div class="screen">
+    <div class="calhead"><b>2026年10月</b><div class="nav"><span class="mi">chevron_left</span><span class="mi">chevron_right</span></div></div>
+    <div class="wk"><span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span></div>
+    <div class="days" id="calB"></div>
+  </div>
+  <div class="dim"></div>
+  <div class="sheet">
+    <span class="x"><span class="mi">close</span></span>
+    <h3>予定をいくつでも入れるならプラス</h3>
+    <div class="ctx">
+      <div class="slot have"><div class="d">10月3日（土）</div><div class="v">東山めぐり</div></div>
+      <div class="slot want"><div class="d">10月10日（土）</div><div class="v"><span class="mi">add</span>ここにも入れる</div></div>
+    </div>
+    <div class="cards">
+      <div class="card"><div class="ct">無料</div><div class="cp">0円</div>
+        <ul><li><span class="mi">check</span>記録・地図</li><li><span class="mi">check</span>御朱印帳・あゆみ</li><li class="k"><span class="mi">check</span>予定 1件</li></ul></div>
+      <div class="card p"><span class="tag">おすすめ</span><div class="ct">プラス</div><div class="cp">980円<small>1回だけ</small></div>
+        <ul><li><span class="mi">check</span>記録・地図</li><li><span class="mi">check</span>御朱印帳・あゆみ</li><li class="k"><span class="mi">check</span>予定 <b>いくつでも</b></li></ul></div>
+    </div>
+    <div class="buy">980円でプラスにする</div>
+    <div class="once"><b>1回だけの支払い</b>・毎月はかかりません</div>
+    <div class="subrow"><span>購入を復元</span><span>あとで</span></div>
+    <div class="legal"><u>利用規約</u>・<u>プライバシーポリシー</u></div>
+  </div>
+  <div class="tabs"><div><span class="mi">explore</span>地図</div><div class="on"><span class="mi">event</span>予定</div><div><span class="mi">menu_book</span>御朱印帳</div><div><span class="mi">show_chart</span>あゆみ</div><div><span class="mi">settings</span>設定</div></div>
+</div>
+</div>
+
+<!-- C: 過ぎた予定は数えない -->
+<div class="col">
+<h2>C. 過ぎた予定は数えない</h2>
+<p>9/20 の予定は過ぎたので、無料の枠に入らない。✓ の記録として残したまま「＋ 予定を組む」でそのまま次を組める（シートは出ない）。</p>
+<div class="phone">
+  <div class="status"><span>9:41</span><span>▮▮▮ ◠ ▭</span></div>
+  <div class="screen">
+    <div class="calhead"><b>2026年9月</b><div class="nav"><span class="mi">chevron_left</span><span class="mi">chevron_right</span></div></div>
+    <div class="wk"><span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span></div>
+    <div class="days" id="calC"></div>
+    <div class="hint">行きたい寺社を回る予定を組んでみましょう。<br>空いている日を押すと、その日の予定を組めます。</div>
+    <div class="fab">＋ 予定を組む</div>
+  </div>
+  <div class="tabs"><div><span class="mi">explore</span>地図</div><div class="on"><span class="mi">event</span>予定</div><div><span class="mi">menu_book</span>御朱印帳</div><div><span class="mi">show_chart</span>あゆみ</div><div><span class="mi">settings</span>設定</div></div>
+</div>
+</div>
+
+<!-- D: ② 設定 -->
+<div class="col">
+<h2>D. ② 設定の「御朱印さんぽ プラス」</h2>
+<p>アカウントの下に1行（カード）だけ置く。押すと E。いつでも自分から見に行ける場所で、機種変更した人の「購入を復元」もここから。</p>
+<div class="phone">
+  <div class="status"><span>9:41</span><span>▮▮▮ ◠ ▭</span></div>
+  <div class="screen">
+    <div class="set">
+      <div class="hd">設定</div>
+      <div class="sec" style="margin-top:14px"><div class="t">アカウント</div>
+        <div class="srow"><span class="l">山田 花子</span></div><div class="div"></div>
+        <div class="srow"><span class="l">hanako@example.com</span></div><div class="div"></div>
+        <div class="srow danger"><span class="l">ログアウト</span></div>
+      </div>
+      <div class="sec"><div class="t">プラス</div>
+        <div class="pluscard"><div class="ic"><span class="mi">auto_awesome</span></div><div class="tx"><b>御朱印さんぽ プラス</b><span>予定をいくつでも入れられます</span></div><span class="pr">980円</span><span class="mi" style="color:var(--g400)">chevron_right</span></div>
+      </div>
+      <div class="sec"><div class="t">位置情報</div>
+        <div class="srow"><span class="l">現在地の利用</span><span class="v">許可済み</span><span class="mi">chevron_right</span></div>
+      </div>
+      <div class="sec"><div class="t">アプリ情報</div>
+        <div class="srow"><span class="l">バージョン</span><span class="v">1.3.0</span></div><div class="div"></div>
+        <div class="srow"><span class="l">利用規約</span><span class="mi">chevron_right</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="tabs"><div><span class="mi">explore</span>地図</div><div><span class="mi">event</span>予定</div><div><span class="mi">menu_book</span>御朱印帳</div><div><span class="mi">show_chart</span>あゆみ</div><div class="on"><span class="mi">settings</span>設定</div></div>
+</div>
+</div>
+
+<!-- E: プラスの画面 -->
+<div class="col">
+<h2>E. ② プラスの画面（設定から）</h2>
+<p>B と同じカード。有料の機能を足したら両方のカードに行を足す（無料の方は ― で薄く）。将来の約束は書かない。</p>
+<div class="phone">
+  <div class="status"><span>9:41</span><span>▮▮▮ ◠ ▭</span></div>
+  <div class="screen">
+    <div class="ph"><span class="l"><span class="mi">chevron_left</span></span>御朱印さんぽ プラス</div>
+    <div class="pp">
+      <div class="brandline"><span class="mi">auto_awesome</span>御朱印さんぽ プラス</div>
+      <h3>予定を、先までいくつでも</h3>
+      <div class="mini">
+        <div class="mh">2026年10月<span>プラス</span></div>
+        <div class="days" id="miniE"></div>
+      </div>
+      <div class="cards">
+      <div class="card"><div class="ct">無料</div><div class="cp">0円</div>
+        <ul><li><span class="mi">check</span>記録・地図</li><li><span class="mi">check</span>御朱印帳・あゆみ</li><li class="k"><span class="mi">check</span>予定 1件</li></ul></div>
+      <div class="card p"><span class="tag">おすすめ</span><div class="ct">プラス</div><div class="cp">980円<small>1回だけ</small></div>
+        <ul><li><span class="mi">check</span>記録・地図</li><li><span class="mi">check</span>御朱印帳・あゆみ</li><li class="k"><span class="mi">check</span>予定 <b>いくつでも</b></li></ul></div>
+    </div>
+      <div class="buy" style="margin-top:16px">980円でプラスにする</div>
+      <div class="once"><b>1回だけの支払い</b>・毎月はかかりません</div>
+      <div class="subrow" style="margin-top:10px"><span>購入を復元</span></div>
+      <div class="legal"><u>利用規約</u>・<u>プライバシーポリシー</u></div>
+    </div>
+  </div>
+  <div class="tabs"><div><span class="mi">explore</span>地図</div><div><span class="mi">event</span>予定</div><div><span class="mi">menu_book</span>御朱印帳</div><div><span class="mi">show_chart</span>あゆみ</div><div class="on"><span class="mi">settings</span>設定</div></div>
+</div>
+</div>
+
+<!-- G: 行が増えたとき -->
+<div class="col">
+<h2>G. 参考: 有料の機能が増えたら</h2>
+<p>例として「御朱印帳の着せ替え」「記録の書き出し」を足した形。無料の方は ― で薄く並ぶので、差が一目で分かる。行が6つを超えたら「すべて見る」にたたむ。</p>
+<div class="phone">
+  <div class="status"><span>9:41</span><span>▮▮▮ ◠ ▭</span></div>
+  <div class="screen">
+    <div class="ph"><span class="l"><span class="mi">chevron_left</span></span>御朱印さんぽ プラス</div>
+    <div class="pp">
+      <div class="brandline"><span class="mi">auto_awesome</span>御朱印さんぽ プラス</div>
+      <h3>予定を、先までいくつでも</h3>
+      <div class="cards">
+        <div class="card"><div class="ct">無料</div><div class="cp">0円</div>
+          <ul><li><span class="mi">check</span>記録・地図</li><li><span class="mi">check</span>御朱印帳・あゆみ</li><li class="k"><span class="mi">check</span>予定 1件</li><li class="off"><span class="mi">remove</span>着せ替え</li><li class="off"><span class="mi">remove</span>記録の書き出し</li></ul></div>
+        <div class="card p"><span class="tag">おすすめ</span><div class="ct">プラス</div><div class="cp">980円<small>1回だけ</small></div>
+          <ul><li><span class="mi">check</span>記録・地図</li><li><span class="mi">check</span>御朱印帳・あゆみ</li><li class="k"><span class="mi">check</span>予定 <b>いくつでも</b></li><li><span class="mi">check</span>着せ替え</li><li><span class="mi">check</span>記録の書き出し</li></ul></div>
+      </div>
+      <div class="buy" style="margin-top:16px">980円でプラスにする</div>
+      <div class="once"><b>1回だけの支払い</b>・毎月はかかりません</div>
+    </div>
+  </div>
+  <div class="tabs"><div><span class="mi">explore</span>地図</div><div><span class="mi">event</span>予定</div><div><span class="mi">menu_book</span>御朱印帳</div><div><span class="mi">show_chart</span>あゆみ</div><div class="on"><span class="mi">settings</span>設定</div></div>
+</div>
+</div>
+
+<!-- F: 購入後 -->
+<div class="col">
+<h2>F. 買ったあと</h2>
+<p>シートや画面を閉じて一言だけ出し、B なら続けて予定を組む画面へ進む。設定のカードは「購入済み」になり、押すと E（購入ボタンの代わりに「ありがとうございます」）。</p>
+<div class="phone">
+  <div class="status"><span>9:41</span><span>▮▮▮ ◠ ▭</span></div>
+  <div class="screen">
+    <div class="set">
+      <div class="hd">設定</div>
+      <div class="sec" style="margin-top:14px"><div class="t">アカウント</div>
+        <div class="srow"><span class="l">山田 花子</span></div><div class="div"></div>
+        <div class="srow"><span class="l">hanako@example.com</span></div><div class="div"></div>
+        <div class="srow danger"><span class="l">ログアウト</span></div>
+      </div>
+      <div class="sec"><div class="t">プラス</div>
+        <div class="pluscard owned"><div class="ic"><span class="mi">auto_awesome</span></div><div class="tx"><b>御朱印さんぽ プラス</b><span>予定をいくつでも入れられます</span></div><span class="pr">購入済み</span><span class="mi" style="color:var(--g400)">chevron_right</span></div>
+      </div>
+      <div class="sec"><div class="t">位置情報</div>
+        <div class="srow"><span class="l">現在地の利用</span><span class="v">許可済み</span><span class="mi">chevron_right</span></div>
+      </div>
+    </div>
+    <div class="toast"><span class="mi">auto_awesome</span>プラスになりました。ありがとうございます</div>
+  </div>
+  <div class="tabs"><div><span class="mi">explore</span>地図</div><div><span class="mi">event</span>予定</div><div><span class="mi">menu_book</span>御朱印帳</div><div><span class="mi">show_chart</span>あゆみ</div><div class="on"><span class="mi">settings</span>設定</div></div>
+</div>
+</div>
+
+</div>
+
+<script>
+// カレンダーは PlanCalendar と同じ組み方（日曜始まり6週・今日は塗りつぶし・予定の日に ●N社・過ぎた日は ✓k/N）
+function grid(el, y, m, today, plans, weeks){
+  const first = new Date(y, m-1, 1);
+  const start = new Date(y, m-1, 1 - first.getDay());
+  const t = new Date(today[0], today[1]-1, today[2]);
+  let h = '';
+  for (let i = 0; i < 7*weeks; i++){
+    const d = new Date(start); d.setDate(start.getDate()+i);
+    const key = `${d.getMonth()+1}/${d.getDate()}`;
+    const out = d.getMonth() !== m-1;
+    const past = d < t;
+    const isToday = d.getTime() === t.getTime();
+    const p = plans[key];
+    const cls = ['day', out?'out':'', isToday?'today':'', p?'has':'', p&&past?'past':'', past&&!p&&!out?'pastd':''].join(' ');
+    const mark = p ? `<span class="m">${past ? '✓'+p[1]+'/'+p[0] : '●'+p[0]+'社'}</span>` : '';
+    h += `<div class="${cls}"><span class="n">${d.getDate()}</span>${mark}</div>`;
+  }
+  document.getElementById(el).innerHTML = h;
+}
+const today = [2026, 9, 26];
+grid('calA', 2026, 10, today, {'10/3':[4]}, 6);
+grid('calB', 2026, 10, today, {'10/3':[4]}, 6);
+grid('calC', 2026, 9, today, {'9/20':[4,3]}, 6);
+const many = {'10/3':[4], '10/10':[3], '10/17':[5], '10/24':[2], '10/31':[3]};
+grid('miniE', 2026, 10, today, many, 5);
+document.querySelectorAll('#miniE .day').forEach(d => (d.style.height = '34px'));
+</script>
+</body>
+</html>

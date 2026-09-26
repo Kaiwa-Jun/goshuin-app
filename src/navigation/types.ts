@@ -45,6 +45,8 @@ export type RootStackParamList = {
   PrivacyPolicy: undefined;
   // Settings はスタックを持たないタブ画面なので、そこから開く画面は RootStack に置く
   AccountDeletion: undefined;
+  /** 「御朱印さんぽ プラス」（Issue #270）。設定から開く */
+  Plus: undefined;
   Error: {
     type: 'network' | 'location' | 'upload';
     origin?: 'record';
@@ -68,14 +70,15 @@ export type MainTabParamList = {
   PlanTab: NavigatorScreenParams<PlanStackParamList>;
   GalleryTab: NavigatorScreenParams<GalleryStackParamList>;
   CollectionTab: NavigatorScreenParams<CollectionStackParamList>;
-  Settings: undefined;
+  /** purchased: プラスの画面で買って戻ってきた（Issue #270） */
+  Settings: { purchased?: boolean } | undefined;
 };
 
 export type PlanStackParamList = {
   /** savedOn: 保存した日（YYYY-MM-DD）。その月を開いて「に保存しました」を出す */
   PlanCalendar: { savedOn?: string } | undefined;
-  /** planId: 保存済みの予定を開く / date: その日付で組む（YYYY-MM-DD） */
-  PlanEditor: { planId?: string; date?: string };
+  /** planId: 保存済みの予定を開く / date: その日付で組む（YYYY-MM-DD）/ purchased: プラスを買った直後（Issue #270） */
+  PlanEditor: { planId?: string; date?: string; purchased?: boolean };
 };
 
 export type MapStackParamList = {

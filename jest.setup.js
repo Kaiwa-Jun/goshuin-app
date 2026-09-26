@@ -204,3 +204,30 @@ jest.mock('expo-location', () => ({
  * ワーカーごとに一度、先に呼んで覚えさせておく。
  */
 require('react-native').Easing.ease(0);
+
+// react-native-purchases（RevenueCat）のモック（Issue #270 D-22）。
+// 既定は「plus なし・offerings の current に package が1つ」。値段はアプリの文言と違う形（'¥980'）にして、
+// コードに値段を直書きしていないことが分かるようにする。各テストは jest.mocked(...).mockResolvedValueOnce で上書き
+jest.mock('react-native-purchases', () => {
+  const noPlus = { entitlements: { active: {} } };
+  const pkg = {
+    identifier: '$rc_lifetime',
+    packageType: 'LIFETIME',
+    product: { identifier: 'com.goshuin.app.plus', priceString: '¥980' },
+  };
+  const Purchases = {
+    configure: jest.fn(),
+    logIn: jest.fn(async () => ({ customerInfo: noPlus, created: false })),
+    logOut: jest.fn(async () => noPlus),
+    getCustomerInfo: jest.fn(async () => noPlus),
+    getOfferings: jest.fn(async () => ({ current: { availablePackages: [pkg] }, all: {} })),
+    purchasePackage: jest.fn(async () => ({
+      customerInfo: noPlus,
+      productIdentifier: 'com.goshuin.app.plus',
+    })),
+    restorePurchases: jest.fn(async () => noPlus),
+    addCustomerInfoUpdateListener: jest.fn(),
+    removeCustomerInfoUpdateListener: jest.fn(),
+  };
+  return { __esModule: true, default: Purchases };
+});
