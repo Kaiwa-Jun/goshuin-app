@@ -132,11 +132,14 @@ th{background:var(--g100);font-weight:800;color:var(--g700)}
 <li><b>アプリ紹介動画のような、動きのあるふりかえり</b>。数字を並べる画面ではなく、シーンが動いて流れていく</li>
 <li><b>自動で流れる。押しても操作できる</b>: 押している間は止まり、画面の左を押すと前、右を押すと次のシーンへ（Instagram のストーリーに近い）</li>
 <li><b>12月から、その年の分が見られる。過ぎた年はいつでも</b>（年末の行事にする）</li>
-<li><b>共有は、まとめの画像1枚</b>を iOS の共有シートで。動画の書き出しはしない</li>
+<li><s>共有は、まとめの画像1枚</s> → <b>v1 では共有しない</b>（2026-09-27 に見直し）</li>
 <li><b>音はなし</b>。動きだけで動画らしさを出す</li>
 <li><b>お知らせは出さない</b>（アプリの中の案内・バナーも、通知も）</li>
 <li><b>12月に初めてアプリを開いたとき、1回だけ自動で再生する</b>。あとはあゆみから見る</li>
 <li><b>1月からは、あゆみの下の方へ移す</b>（12月の間だけ、あゆみのいちばん上）</li>
+<li><b>トーンは明るい案（和紙と朱）</b>（2026-09-27）</li>
+<li><b>画面に出す呼び方は「{年}年のふりかえり」</b>（2026-09-27）</li>
+<li><b>v1 では共有しない</b>（2026-09-27）。共有の画像を試作したが、数字と地図の並びでは人に見せる理由が弱かった（<code>2026-09-annual-report-share-v1.html</code> は不採用）。締めは「もう一度見る」「閉じる」だけ</li>
 </ol></div>
 
 <h2>1. 何をするか</h2>
@@ -173,17 +176,13 @@ th{background:var(--g100);font-weight:800;color:var(--g700)}
 <li><b>気づいてもらう入口は「12月に1回だけの自動再生」と「あゆみのカード」だけ</b>。アプリの中のお知らせも、通知も出さない</li>
 <li><b>12月より前に確かめる手段</b>: 設定の「開発用」に「年報を見る」「12月として自動再生を試す」（開発用のアプリだけ）</li>
 <li><b>App Store の審査</b>（11月）には見えないので、審査のメモに「12月1日から自動で流れ、あゆみにも入口が出る」と書く（Guideline 2.3.1 の「隠れた機能」と見なされないように）</li>
-<li>12月かどうかはアプリの中で日本時間の日付を見る。<b>12月1日に作業は要らない</b>。新しいストア用ビルドが要るので、<b>11月中旬に審査</b>に出す想定</li>
+<li>12月かどうかはアプリの中で日本時間の日付を見る。<b>12月1日に作業は要らない</b>。JS だけなので、ストア用ビルドでも OTA でも届けられる</li>
 </ul>
-<h3>操作と共有</h3>
+<h3>操作</h3>
 <div class="row">
   <div class="shot">
     <div class="phone light" id="zonePhone"></div>
     <div class="cap"><b>操作</b>: 自動で次のシーンへ。<b>押している間は止まる</b>。左の3分の1で前のシーンの頭へ、右で次へ。✕ でいつでも閉じる（開き直すと最初から）。最後のシーン（締め）で止まる。<br><span class="mv">視差効果を減らす: 動きを止め、各シーンの最後の形をすぐ出す。自動では進まず、押して進める</span></div>
-  </div>
-  <div class="shot" style="width:260px">
-    <div class="share" id="shareImg"></div>
-    <div class="cap"><b>共有のまとめの画像</b>（縦長・1枚）。締めの「共有」で作って iOS の共有シートへ。<br>入れるもの（案）: 年・社数・枚数・県数・色づいた地図・アプリ名。<b>名前・メールは入れない</b>。御朱印の写真を入れるかは試作で決める。</div>
   </div>
 </div>
 
@@ -192,12 +191,12 @@ th{background:var(--g100);font-weight:800;color:var(--g700)}
 <div class="row" id="fewRow"></div>
 
 <h2>5. 色とトーン <small>試作で決める</small></h2>
-<p>明るい案（<b>和紙と朱</b>・上の画面すべて）と、暗い案（<b>夜の境内</b>）。暗い案は年末の特別感が出るが、アプリのほかの画面（白地）からの切り替わりが大きい。</p>
+<p><b>明るい案（和紙と朱）に決定</b>（2026-09-27）。下は比べたときの暗い案（夜の境内・使わない）。</p>
 <div class="row" id="toneRow"></div>
 
 <h2>6. 無料とプラス <small>収益化の設計 §4</small></h2>
 <table><tr><th>無料</th><th>プラス</th></tr>
-<tr><td>その年の年報を見る・まとめの画像で共有</td><td>過ぎた年の年報すべて・印刷向けの書き出し（将来）</td></tr></table>
+<tr><td>その年の年報を見る</td><td>過ぎた年の年報すべて・印刷向けの書き出し（将来）</td></tr></table>
 <ul style="margin-top:8px">
 <li><b>課金をオンにするまでは、全部を誰でも使える</b>。コードには「プラスなら」の分かれ目だけ作る（#270 と同じ）</li>
 <li>2026年は最初の年なので、プラスの差が出るのは 2027年から</li>
@@ -206,22 +205,22 @@ th{background:var(--g100);font-weight:800;color:var(--g700)}
 <h2>7. 作りのメモ <small>契約書で決める</small></h2>
 <ul>
 <li>動きは今と同じ <b>RN の Animated と react-native-svg</b>（あゆみの地図・保存直後の動きと同じ素材）。Reanimated・Skia・Lottie は足さない方針</li>
-<li>共有の画像には、画面を画像にする部品（react-native-view-shot など）と共有シート（expo-sharing など）が要る。<b>どちらもネイティブの部品なので新しいビルドが要る</b>（10/1 以降の EAS）</li>
+<li>共有をやめたので、<b>新しいネイティブの部品は要らない</b>（JS だけ）。10/1 以降のビルド（ビルド 20 以降）を入れた人には OTA でも届けられる</li>
 <li>集計は、その年の記録を1回取ってアプリの中で数える（サーバーの変更は要らない見込み）</li>
 </ul>
 
 <h2>8. 試作で決めること</h2>
 <ol>
 <li>シーンの順番と中身（§2 から足す・削る）</li>
-<li>色とトーン（§5）</li>
-<li>御朱印の写真の使い方: コラージュの見せ方、共有の画像に入れるか</li>
+<li><s>色とトーン</s> → 明るい案</li>
+<li>御朱印の写真の使い方: コラージュは試作どおり（共有は作らない）</li>
 <li>記録が少ない人（1〜2枚）が寂しくならないか（§4）</li>
-<li>呼び方: 「年報」／「2026年のふりかえり」 など</li>
+<li><s>呼び方</s> →「{年}年のふりかえり」</li>
 </ol>
 
 <h2>9. やらないこと（v1）</h2>
 <ul>
-<li>動画の書き出し・音</li>
+<li>共有（画像の書き出し・共有シート）・動画の書き出し・音</li>
 <li>他人の年報を見る・比べる・ランキング</li>
 <li>通知・アプリの中のお知らせで知らせる（気づいてもらうのは、12月に1回だけの自動再生とあゆみのカード）</li>
 <li>年の途中の「今年ここまで」（12月より前には出さない）</li>
@@ -306,11 +305,11 @@ const SCENES = [
   html: tone => `<div class="kick">今年いただいた印</div><div class="big" style="font-size:26px">3 つの印</div>
    <div class="seals" style="justify-content:center;margin-top:30px">${[['juu',0,'10箇所'],['mitsu',2,'1日に3箇所'],['mangan',0,'満願']].map(([g,f,n])=>`<div><div class="seal">${seal(g,f,sealFill(tone))}</div><div class="sealname">${n}</div></div>`).join('')}</div>
    <div class="card" style="margin-top:34px;text-align:center"><div style="font-size:11px;font-weight:800;opacity:.6">満願</div><div style="font-size:18px;font-weight:800">仙台六芒星巡り</div><div style="font-size:12px;opacity:.7">6社 ・ 10月18日</div></div>`},
- {t:'締め', mv:'ここまでの数字と地図が1枚のカードにまとまる', data:'ここまでのまとめ', skip:'足りないとき: 出す',
+ {t:'締め', mv:'ここまでの数字と地図が1枚のカードにまとまる。ボタンは「もう一度見る」「閉じる」', data:'ここまでのまとめ', skip:'足りないとき: 出す',
   html: tone => `<div class="big" style="font-size:24px;text-align:center;margin-top:4px">来年も、よい参拝を。</div>
    <div class="card" style="margin-top:14px;display:flex;gap:10px;align-items:center"><div style="flex:1"><div style="font-size:11px;font-weight:800;opacity:.6">2026</div>
    <div style="font-size:14px;font-weight:800;line-height:1.7">24社<br>31枚<br>6県</div></div>${japan(tone, VISITED, 120, false, null, true)}</div>
-   <div class="btns"><div class="btn p">共有</div><div class="btn s">もう一度見る</div><div class="btn s">閉じる</div></div>`},
+   <div class="btns"><div class="btn p">もう一度見る</div><div class="btn s">閉じる</div></div>`},
 ];
 
 function phone(tone, n, now, inner){ return `<div class="phone ${tone}">${chrome(n,now)}<div class="stage">${inner}</div></div>`; }
@@ -323,7 +322,7 @@ const few = [
  {t:'表紙', h:`<div class="kick">2026年のふりかえり</div><div class="huge" style="margin-top:10px">2026</div><div class="big" style="font-size:24px">あなたの参拝</div><div style="position:relative;height:300px;margin-top:22px">${photo(170,230,-4,'position:absolute;left:40px;top:10px')}<div style="position:absolute;left:60px;top:250px;font-size:12px;font-weight:700;opacity:.75">11月3日 大崎八幡宮 ─ 最初の一枚</div></div>`},
  {t:'数字', h:`<div class="kick">今年めぐった寺社</div><div style="margin-top:26px"><span class="huge" style="color:var(--seal)">2</span><span class="big" style="font-size:22px"> 社</span></div><div class="big" style="font-size:22px;margin-top:14px">2 枚の御朱印を<br>いただきました</div><div class="split" style="margin-top:34px"><div style="flex:1;background:var(--shrine)"></div><div style="flex:1;background:var(--temple)"></div></div><div class="legend"><span><i style="background:var(--shrine)"></i>神社 1</span><span><i style="background:var(--temple)"></i>お寺 1</span></div>`},
  {t:'地図', h:`<div class="kick">足を運んだ県</div><div class="big" style="font-size:26px">1 つの県へ</div><div style="margin-top:14px">${japan('light', FEW, 256, true, 360)}</div><div style="font-size:12px;font-weight:700;opacity:.7;margin-top:10px">宮城</div>`},
- {t:'締め', h:`<div class="big" style="font-size:24px;text-align:center;margin-top:4px">来年も、よい参拝を。</div><div class="card" style="margin-top:14px;display:flex;gap:10px;align-items:center"><div style="flex:1"><div style="font-size:11px;font-weight:800;opacity:.6">2026</div><div style="font-size:14px;font-weight:800;line-height:1.7">2社<br>2枚<br>1県</div></div>${japan('light', FEW, 120, false, null, true)}</div><div class="btns"><div class="btn p">共有</div><div class="btn s">もう一度見る</div><div class="btn s">閉じる</div></div>`},
+ {t:'締め', h:`<div class="big" style="font-size:24px;text-align:center;margin-top:4px">来年も、よい参拝を。</div><div class="card" style="margin-top:14px;display:flex;gap:10px;align-items:center"><div style="flex:1"><div style="font-size:11px;font-weight:800;opacity:.6">2026</div><div style="font-size:14px;font-weight:800;line-height:1.7">2社<br>2枚<br>1県</div></div>${japan('light', FEW, 120, false, null, true)}</div><div class="btns"><div class="btn p">もう一度見る</div><div class="btn s">閉じる</div></div>`},
 ];
 document.getElementById('fewRow').innerHTML = few.map((s,i)=>`<div class="shot">${phone('light',4,i,s.h)}<div class="cap"><span class="num">${i+1}</span><b>${s.t}</b></div></div>`).join('');
 
@@ -352,7 +351,7 @@ document.getElementById('janPhone').innerHTML = `<div class="sb" style="color:va
 document.getElementById('zonePhone').innerHTML = chrome(8,2) + `<div class="zones"><div class="l">前のシーンへ<br>◀</div><div class="r">次のシーンへ ▶<br><br>押している間は止まる</div></div>`;
 
 /* 共有の画像 */
-document.getElementById('shareImg').innerHTML = `<div class="kick" style="font-size:10px">2026年のふりかえり</div><div style="font-size:20px;font-weight:800;line-height:1.35;margin-top:4px">24社をめぐり<br>31枚の御朱印</div>
+if (document.getElementById('shareImg')) document.getElementById('shareImg').innerHTML = `<div class="kick" style="font-size:10px">2026年のふりかえり</div><div style="font-size:20px;font-weight:800;line-height:1.35;margin-top:4px">24社をめぐり<br>31枚の御朱印</div>
  <div style="font-size:12px;font-weight:700;opacity:.7;margin-top:4px">6つの県へ</div><div style="margin-top:14px">${japan('light', VISITED, 170)}</div><div class="app">御朱印さんぽ</div>`;
 </script>
 </body>

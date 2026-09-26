@@ -261,7 +261,7 @@ const SCENES = [
  { id:'end', t:'締め', ms:0, has:d=>true,
    html:d=>`<div class="big" id="e-t" style="text-align:center;margin-top:8px">来年も、よい参拝を。</div>
      <div class="card" id="e-c" style="margin-top:22px;display:flex;gap:12px;align-items:center"><div style="flex:1"><div class="t">2026</div><div style="font-size:18px;font-weight:800;line-height:1.75">${d.shrines}社<br>${d.stamps}枚<br>${d.order.length}県</div></div><div style="width:150px">${mapSvg(150,170,'e-map',true)}</div></div>
-     <div id="e-b" style="display:flex;flex-direction:column;gap:10px;margin-top:22px"><div class="btn p" data-act="share">共有</div><div class="btn s" data-act="again">もう一度見る</div><div class="btn s" data-act="close">閉じる</div></div>`,
+     <div id="e-b" style="display:flex;flex-direction:column;gap:10px;margin-top:22px"><div class="btn p" data-act="again">もう一度見る</div><div class="btn s" data-act="close">閉じる</div></div>`,
    play:(el,d)=>{ const svg=$('#e-map',el); d.order.forEach(([n,tier])=>svg.querySelector(`[data-n="${n}"]`).setAttribute('fill',TIER[tier]));
      tween(0,700,p=>css($('#e-t',el),{opacity:p,transform:`translateY(${lerp(14,0,p)}px)`}));
      tween(400,800,p=>css($('#e-c',el),{opacity:p,transform:`translateY(${lerp(40,0,p)}px) scale(${lerp(.96,1,p)})`}));
