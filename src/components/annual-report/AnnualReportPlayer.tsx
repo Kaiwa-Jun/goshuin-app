@@ -28,11 +28,14 @@ import {
 import { easeOut, type Clock } from './motion';
 import { ProgressBars } from './ProgressBars';
 import { CloseButton } from './ReportButtons';
+import { BadgesScene } from './scenes/BadgesScene';
 import { CountScene } from './scenes/CountScene';
 import { CoverScene } from './scenes/CoverScene';
 import { EndScene } from './scenes/EndScene';
 import { MapScene } from './scenes/MapScene';
+import { MemoryScene } from './scenes/MemoryScene';
 import { MonthsScene } from './scenes/MonthsScene';
+import { PhotosScene } from './scenes/PhotosScene';
 
 interface Props {
   report: AnnualReport;
@@ -246,20 +249,24 @@ export interface SceneProps {
 }
 
 function renderScene(id: AnnualSceneId, props: SceneProps) {
+  const { report, clock } = props;
   switch (id) {
     case 'cover':
-      return <CoverScene report={props.report} clock={props.clock} />;
+      return <CoverScene report={report} clock={clock} />;
     case 'count':
-      return <CountScene report={props.report} clock={props.clock} />;
+      return <CountScene report={report} clock={clock} />;
     case 'months':
-      return <MonthsScene report={props.report} clock={props.clock} />;
+      return <MonthsScene report={report} clock={clock} />;
     case 'map':
-      return <MapScene report={props.report} clock={props.clock} />;
+      return <MapScene report={report} clock={clock} />;
+    case 'photos':
+      return <PhotosScene report={report} clock={clock} />;
+    case 'memory':
+      return <MemoryScene report={report} clock={clock} />;
+    case 'badges':
+      return <BadgesScene report={report} clock={clock} />;
     case 'end':
       return <EndScene {...props} />;
-    default:
-      // 写真・印象・達成は次のスライスで入れる
-      return <Text>{id}</Text>;
   }
 }
 
