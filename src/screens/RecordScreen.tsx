@@ -468,6 +468,7 @@ export function RecordScreen({ navigation, route }: Props) {
         recentPrefectures={recentPrefectures}
         onClose={spotAdd.close}
         onPick={spotAdd.pick}
+        onChangeRegion={spotAdd.changeRegion}
         onRetry={spotAdd.retry}
         onChoose={spotAdd.choose}
         onOpenManual={spotAdd.openManual}

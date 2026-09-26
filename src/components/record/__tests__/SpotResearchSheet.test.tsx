@@ -6,10 +6,11 @@ import { SpotResearchSheet } from '@components/record/SpotResearchSheet';
 import type { SpotAddState } from '@hooks/useSpotAdd';
 import type { SpotResearchCandidate } from '@/types/supabase';
 import { colors } from '@theme/colors';
+import { typography } from '@theme/typography';
 import { borderRadius } from '@theme/spacing';
 
 /* 契約書: docs/issues/issue-248-spot-add-research.md（S4 / UI-4〜UI-8・UI-10）
- *        docs/issues/issue-277-spot-research-region.md（S2 / UI-1〜UI-7・UI-10・UI-12） */
+ *        docs/issues/issue-277-spot-research-region.md（S2・S3 / UI-1〜UI-12） */
 const cand = (index: number, over: Partial<SpotResearchCandidate> = {}): SpotResearchCandidate => ({
   index,
   name: '鹿島台神社',
@@ -38,6 +39,7 @@ const state = (over: Partial<SpotAddState>): SpotAddState => ({
 const handlers = () => ({
   onClose: jest.fn(),
   onPick: jest.fn(),
+  onChangeRegion: jest.fn(),
   onRetry: jest.fn(),
   onChoose: jest.fn(),
   onOpenManual: jest.fn(),
@@ -367,5 +369,91 @@ describe('SpotResearchSheet — 調べたあとの地域の行', () => {
     expect(ui.queryByTestId('hint-change')).toBeNull();
     expect(ui.queryByText('変える')).toBeNull();
     expect(ui.getAllByText(/地図で場所を決める/).length).toBeGreaterThan(0);
+  });
+});
+
+/* 契約書: docs/issues/issue-277-spot-research-region.md（S3） */
+describe('SpotResearchSheet — 「変える」で地域を選び直す', () => {
+  const found = (over: Partial<SpotAddState> = {}) =>
+    state({
+      status: 'candidates',
+      hint: { prefecture: '宮城県', city: null },
+      researchId: 'r1',
+      candidates: [cand(0), cand(1)],
+      ...over,
+    });
+
+  it('候補: 「宮城県 で探しました」と「変える」。押すと onChangeRegion', () => {
+    const h = handlers();
+    const ui = render(
+      <SpotResearchSheet state={found()} userLocation={null} recentPrefectures={[]} {...h} />
+    );
+    const line = within(ui.getByTestId('hint-line'));
+    expect(line.getByText('宮城県 で探しました')).toBeTruthy();
+    expect(within(ui.getByTestId('hint-change')).getByText('変える')).toBeTruthy();
+    fireEvent.press(ui.getByTestId('hint-change'));
+    expect(h.onChangeRegion).toHaveBeenCalledTimes(1);
+  });
+
+  it('保存中は「変える」を押せない', () => {
+    const h = handlers();
+    const ui = render(
+      <SpotResearchSheet
+        state={found({ status: 'saving' })}
+        userLocation={null}
+        recentPrefectures={[]}
+        {...h}
+      />
+    );
+    fireEvent.press(ui.getByTestId('hint-change'));
+    expect(h.onChangeRegion).not.toHaveBeenCalled();
+  });
+
+  it('見つからない: 「全国から探しました」「変える」「地図で場所を決める」。「変える」で onChangeRegion', () => {
+    const h = handlers();
+    const ui = render(
+      <SpotResearchSheet
+        state={state({ status: 'notFound', hint: null })}
+        userLocation={null}
+        recentPrefectures={[]}
+        {...h}
+      />
+    );
+    expect(ui.getByText('見つかりませんでした')).toBeTruthy();
+    expect(ui.getByText('全国から探しました')).toBeTruthy();
+    expect(ui.getByText('地図で場所を決める')).toBeTruthy();
+    fireEvent.press(ui.getByText('変える'));
+    expect(h.onChangeRegion).toHaveBeenCalledTimes(1);
+  });
+
+  it('調べ直し（redo）: 見出し・説明が変わり、回数の知らせが「ほかの地域を入れる」と地図のボタンの間に出る', () => {
+    const ui = render(
+      <SpotResearchSheet
+        state={state({ status: 'asking', redo: true, name: '八幡神社', hint: null })}
+        userLocation={null}
+        recentPrefectures={['宮城県']}
+        {...handlers()}
+      />
+    );
+    expect(ui.getByText('地域を決めて調べ直す')).toBeTruthy();
+    expect(ui.getByText('選ぶとすぐ調べ直します。')).toBeTruthy();
+    expect(ui.queryByText('「八幡神社」を調べます')).toBeNull();
+    const quota = ui.getByTestId('region-quota');
+    expect(quota.props.children).toBe('調べ直すと、今日の回数（10回）を1回使います');
+    expect(StyleSheet.flatten(quota.props.style)).toMatchObject({
+      color: colors.gray[500],
+      fontSize: typography.caption.fontSize,
+    });
+    for (const id of ['region-recent-0', 'region-all', 'region-other', 'research-open-manual']) {
+      expect(ui.getByTestId(id)).toBeTruthy();
+    }
+    expect(ui.getByText('調べずに、地図で場所を決める')).toBeTruthy();
+    const tree = JSON.stringify(ui.toJSON());
+    expect(tree.indexOf('"testID":"region-other"')).toBeLessThan(
+      tree.indexOf('"testID":"region-quota"')
+    );
+    expect(tree.indexOf('"testID":"region-quota"')).toBeLessThan(
+      tree.indexOf('"testID":"research-open-manual"')
+    );
   });
 });

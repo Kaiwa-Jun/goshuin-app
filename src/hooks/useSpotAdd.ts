@@ -99,6 +99,24 @@ export function useSpotAdd(onAdded: (spot: Spot) => void) {
     [research]
   );
 
+  /**
+   * 候補・見つからないのあとの「変える」。調べずに地域選び（調べ直し）に戻る。
+   * 調べている最中・error・limit では何もしない（調べものを重ねない・捨てない）
+   */
+  const changeRegion = useCallback(() => {
+    if (state.status !== 'candidates' && state.status !== 'notFound') return;
+    askingName.current = state.name;
+    requestId.current++;
+    setState(s => ({
+      ...s,
+      status: 'asking',
+      redo: true,
+      candidates: [],
+      researchId: null,
+      saveFailed: false,
+    }));
+  }, [state.status, state.name]);
+
   const retry = useCallback(() => research(state.name, state.hint), [research, state]);
 
   const finish = useCallback(
@@ -142,5 +160,5 @@ export function useSpotAdd(onAdded: (spot: Spot) => void) {
     setState(IDLE);
   }, []);
 
-  return { state, start, pick, retry, choose, openManual, saveManual, close };
+  return { state, start, pick, changeRegion, retry, choose, openManual, saveManual, close };
 }

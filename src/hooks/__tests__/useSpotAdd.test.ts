@@ -3,7 +3,7 @@ import { act, renderHook } from '@testing-library/react-native';
 import { RESEARCH_TIMEOUT_MS, useSpotAdd } from '@hooks/useSpotAdd';
 
 /* 契約書: docs/issues/issue-248-spot-add-research.md（S4 / AC-35・AC-36）
- *        docs/issues/issue-277-spot-research-region.md（S2 / AC-8〜AC-12・AC-16・AC-17） */
+ *        docs/issues/issue-277-spot-research-region.md（S2・S3 / AC-8〜AC-17） */
 const mockResearch = jest.fn();
 const mockAddResearched = jest.fn();
 const mockAddManual = jest.fn();
@@ -201,7 +201,99 @@ it('地域を聞いている間に「調べずに、地図で場所を決める�
   expect(mockResearch).not.toHaveBeenCalled();
 });
 
-it('返り値に changeHint は無い', () => {
+it('返り値は state と操作だけ（地域は pick・changeRegion で変える。途中で手がかりを変える操作は無い）', () => {
   const { result } = renderHook(() => useSpotAdd(jest.fn()));
-  expect(result.current).not.toHaveProperty('changeHint');
+  expect(Object.keys(result.current).sort()).toEqual(
+    [
+      'state',
+      'start',
+      'pick',
+      'changeRegion',
+      'retry',
+      'choose',
+      'openManual',
+      'saveManual',
+      'close',
+    ].sort()
+  );
+});
+
+describe('「変える」で地域を選び直す（Issue #277 / S3）', () => {
+  const pref = { prefecture: '宮城県', city: null };
+
+  it('candidates で changeRegion → 調べずに asking（redo）。選ぶと同じ名前で調べ直す', async () => {
+    mockResearch.mockResolvedValueOnce({ kind: 'ok', researchId: 'r1', candidates: [candidate] });
+    const { result } = renderHook(() => useSpotAdd(jest.fn()));
+    await startAndPick(result, '鹿島台神社', hint);
+    expect(result.current.state.status).toBe('candidates');
+
+    act(() => result.current.changeRegion());
+    expect(result.current.state).toMatchObject({
+      status: 'asking',
+      redo: true,
+      name: '鹿島台神社',
+      candidates: [],
+      researchId: null,
+    });
+    expect(mockResearch).toHaveBeenCalledTimes(1);
+
+    mockResearch.mockReturnValueOnce(new Promise(() => {}));
+    act(() => {
+      result.current.pick(pref);
+    });
+    expect(mockResearch).toHaveBeenCalledTimes(2);
+    expect(mockResearch).toHaveBeenLastCalledWith('鹿島台神社', pref);
+    expect(result.current.state.status).toBe('researching');
+    expect(result.current.state.redo).toBe(false);
+  });
+
+  it('notFound で changeRegion → asking（redo）', async () => {
+    mockResearch.mockResolvedValueOnce({ kind: 'ok', researchId: 'r1', candidates: [] });
+    const { result } = renderHook(() => useSpotAdd(jest.fn()));
+    await startAndPick(result, '鹿島台神社', null);
+    expect(result.current.state.status).toBe('notFound');
+
+    act(() => result.current.changeRegion());
+    expect(result.current.state.status).toBe('asking');
+    expect(result.current.state.redo).toBe(true);
+  });
+
+  it('調べ直しの地域選びでも、二度押しで調べるのは1回だけ', async () => {
+    mockResearch.mockResolvedValueOnce({ kind: 'ok', researchId: 'r1', candidates: [] });
+    const { result } = renderHook(() => useSpotAdd(jest.fn()));
+    await startAndPick(result, '鹿島台神社', null);
+    act(() => result.current.changeRegion());
+    mockResearch.mockReturnValue(new Promise(() => {}));
+    act(() => {
+      result.current.pick(pref);
+      result.current.pick(null);
+    });
+    expect(mockResearch).toHaveBeenCalledTimes(2);
+    expect(mockResearch).toHaveBeenLastCalledWith('鹿島台神社', pref);
+  });
+
+  it('researching では何もしない（調べものを捨てない）', async () => {
+    let resolve: (v: unknown) => void = () => {};
+    mockResearch.mockReturnValue(new Promise(r => (resolve = r)));
+    const { result } = renderHook(() => useSpotAdd(jest.fn()));
+    act(() => result.current.start('鹿島台神社'));
+    act(() => {
+      result.current.pick(null);
+    });
+    act(() => result.current.changeRegion());
+    expect(result.current.state.status).toBe('researching');
+    await act(async () => resolve({ kind: 'ok', researchId: 'r1', candidates: [candidate] }));
+    expect(result.current.state.status).toBe('candidates');
+  });
+
+  it.each(['error', 'limit'] as const)('%s では何もしない', async kind => {
+    mockResearch.mockResolvedValueOnce({ kind });
+    const { result } = renderHook(() => useSpotAdd(jest.fn()));
+    await startAndPick(result, '鹿島台神社', null);
+    expect(result.current.state.status).toBe(kind);
+    const before = result.current.state;
+
+    act(() => result.current.changeRegion());
+    expect(result.current.state).toEqual(before);
+  });
 });

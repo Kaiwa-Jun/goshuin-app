@@ -38,6 +38,8 @@ interface Props {
   onClose: () => void;
   /** 地域を選んだ（県・全国から＝null・ほかの地域）。選んだ瞬間に調べ始める */
   onPick: (hint: SpotHint | null) => void;
+  /** 候補・見つからないのあとの「変える」。地域を選び直す（調べ直す） */
+  onChangeRegion: () => void;
   onRetry: () => void;
   onChoose: (index: number) => void;
   onOpenManual: () => void;
@@ -60,14 +62,21 @@ function Steps() {
   );
 }
 
-/** 地域の行（Issue #277）。調べている間は表示だけ（調べものを重ねない） */
+/**
+ * 地域の行（Issue #277）。調べている間は表示だけ（調べものを重ねない）。
+ * 調べたあと（候補・見つからない）だけ onChange を渡して「変える」を出す
+ */
 function HintLine({
   hint,
   done,
+  onChange,
+  disabled = false,
   style,
 }: {
   hint: SpotHint | null;
   done: boolean;
+  onChange?: () => void;
+  disabled?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
   const label = formatHint(hint);
@@ -76,6 +85,11 @@ function HintLine({
     <View style={[styles.hint, style]} testID="hint-line">
       <MaterialIcons name="place" size={16} color={colors.gray[600]} />
       <Text style={styles.hintText}>{label ? `${label} で${verb}` : `全国から${verb}`}</Text>
+      {onChange && (
+        <TouchableOpacity onPress={onChange} disabled={disabled} testID="hint-change">
+          <Text style={styles.hintChange}>変える</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -106,15 +120,18 @@ function RegionChip({
 
 /**
  * ⓪ 地域を聞く（Issue #277）。まだ調べない。県のチップ・「全国から」・「この地域で調べる」を
- * 押した瞬間に onPick で調べ始める。入力の途中は、この画面を離れると捨てる
+ * 押した瞬間に onPick で調べ始める。入力の途中は、この画面を離れると捨てる。
+ * redo（「変える」から来た ⓪'）は見出し・説明が変わり、回数を使うことを添える
  */
 function RegionAsk({
   name,
+  redo,
   recentPrefectures,
   onPick,
   children,
 }: {
   name: string;
+  redo: boolean;
   recentPrefectures: string[];
   onPick: (hint: SpotHint | null) => void;
   children: React.ReactNode;
@@ -125,8 +142,10 @@ function RegionAsk({
 
   return (
     <>
-      <Text style={styles.title}>{`「${name}」を調べます`}</Text>
-      <Text style={styles.why}>どのあたりの寺社ですか？ 選ぶとすぐ調べ始めます。</Text>
+      <Text style={styles.title}>{redo ? '地域を決めて調べ直す' : `「${name}」を調べます`}</Text>
+      <Text style={styles.why}>
+        {redo ? '選ぶとすぐ調べ直します。' : 'どのあたりの寺社ですか？ 選ぶとすぐ調べ始めます。'}
+      </Text>
       {recentPrefectures.length > 0 && <Text style={styles.regionCaption}>あなたの記録から</Text>}
       <View style={styles.chips}>
         {recentPrefectures.map((prefecture, i) => (
@@ -167,6 +186,11 @@ function RegionAsk({
         >
           <Text style={styles.hintChange}>ほかの地域を入れる</Text>
         </TouchableOpacity>
+      )}
+      {redo && (
+        <Text style={styles.quota} testID="region-quota">
+          調べ直すと、今日の回数（10回）を1回使います
+        </Text>
       )}
       <View style={styles.gap} />
       {children}
@@ -248,6 +272,7 @@ export function SpotResearchSheet({
   recentPrefectures,
   onClose,
   onPick,
+  onChangeRegion,
   onRetry,
   onChoose,
   onOpenManual,
@@ -281,7 +306,12 @@ export function SpotResearchSheet({
   switch (state.status) {
     case 'asking':
       body = (
-        <RegionAsk name={state.name} recentPrefectures={recentPrefectures} onPick={onPick}>
+        <RegionAsk
+          name={state.name}
+          redo={state.redo}
+          recentPrefectures={recentPrefectures}
+          onPick={onPick}
+        >
           {manualButton('調べずに、地図で場所を決める', 'outline')}
         </RegionAsk>
       );
@@ -304,7 +334,12 @@ export function SpotResearchSheet({
       body = (
         <>
           <Text style={styles.title}>見つかりませんでした</Text>
-          <HintLine hint={state.hint} done style={styles.hintBelowTitle} />
+          <HintLine
+            hint={state.hint}
+            done
+            onChange={onChangeRegion}
+            style={styles.hintBelowTitle}
+          />
           <View style={styles.gap} />
           {manualButton('地図で場所を決める', 'primary')}
         </>
@@ -342,7 +377,13 @@ export function SpotResearchSheet({
           <Text style={styles.why}>
             見つかった寺社です。行った場所と合っていれば、そのまま記録に使えます。
           </Text>
-          <HintLine hint={state.hint} done style={styles.hintAboveCards} />
+          <HintLine
+            hint={state.hint}
+            done
+            onChange={onChangeRegion}
+            disabled={saving}
+            style={styles.hintAboveCards}
+          />
           {(shown.length > 0 ? shown : [first]).map(c => (
             <CandidateCard
               key={c.index}
@@ -438,6 +479,7 @@ const styles = StyleSheet.create({
   chipText: { ...typography.bodySmall, fontWeight: '600', color: colors.gray[800] },
   regionOther: { alignSelf: 'flex-start', marginTop: spacing.md },
   regionEdit: { marginTop: spacing.md, gap: spacing.sm },
+  quota: { ...typography.caption, color: colors.gray[500], marginTop: spacing.sm },
   skeleton: {
     height: 120,
     marginTop: spacing.md,
