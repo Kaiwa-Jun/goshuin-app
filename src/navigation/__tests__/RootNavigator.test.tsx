@@ -234,6 +234,24 @@ describe('RootNavigator', () => {
     await waitFor(() => expect(getByTestId('onboarding-screen')).toBeTruthy());
   });
 
+  it('AC-49（#270）: プラスの画面が登録されている', async () => {
+    mockUseOnboarding.mockReturnValue({
+      isCompleted: true,
+      isLoading: false,
+      completeOnboarding: jest.fn(),
+      resetOnboarding: jest.fn(),
+    });
+
+    const { getByTestId, getByText } = renderWithNavigation();
+    await waitFor(() => expect(getByTestId('map-screen')).toBeTruthy());
+
+    act(() => {
+      navigationRef.navigate('Plus');
+    });
+
+    await waitFor(() => expect(getByText('予定を、先までいくつでも')).toBeTruthy());
+  });
+
   it('shows Map screen (MainTabs) when onboarding is completed', async () => {
     mockUseOnboarding.mockReturnValue({
       isCompleted: true,
