@@ -17,7 +17,7 @@ import { Button } from '@components/common/Button';
 import { Modal } from '@components/common/Modal';
 import { MAP_STYLE } from '@components/map/mapStyle';
 import type { SpotAddState } from '@hooks/useSpotAdd';
-import type { Spot, SpotResearchCandidate } from '@/types/supabase';
+import type { SpotResearchCandidate } from '@/types/supabase';
 import { calculateDistance } from '@utils/geo';
 import { formatHint, parseHintText, type SpotHint } from '@utils/spotHint';
 import { colors } from '@theme/colors';
@@ -43,11 +43,6 @@ interface Props {
   onRetry: () => void;
   onChoose: (index: number) => void;
   onOpenManual: () => void;
-  /**
-   * 候補ごとの、アプリに登録済みの同じ寺社（registeredSpots[i] は index が i の候補）。無ければ null。
-   * 省略時は []（Issue #278）
-   */
-  registeredSpots?: (Spot | null)[];
 }
 
 function Steps() {
@@ -145,9 +140,9 @@ function RegionAsk({
 
   return (
     <>
-      <Text style={styles.title}>{redo ? '地域を決めて調べ直す' : `「${name}」を調べます`}</Text>
+      <Text style={styles.title}>{redo ? '地域を決めて探し直す' : `「${name}」を探します`}</Text>
       <Text style={styles.why}>
-        {redo ? '選ぶとすぐ調べ直します。' : 'どのあたりの寺社ですか？ 選ぶとすぐ調べ始めます。'}
+        {redo ? '選ぶとすぐ探し直します。' : 'どのあたりの寺社ですか？ 選ぶとすぐ探し始めます。'}
       </Text>
       {recentPrefectures.length > 0 && <Text style={styles.regionCaption}>あなたの記録から</Text>}
       <View style={styles.chips}>
@@ -175,7 +170,7 @@ function RegionAsk({
             testID="region-input"
           />
           <Button
-            title="この地域で調べる"
+            title="この地域で探す"
             onPress={submit}
             variant="outline"
             testID="region-submit"
@@ -192,24 +187,25 @@ function RegionAsk({
       )}
       {redo && (
         <Text style={styles.quota} testID="region-quota">
-          調べ直すと、今日の回数（10回）を1回使います
+          探し直すと、今日の回数（10回）を1回使います
         </Text>
       )}
     </>
   );
 }
 
+/**
+ * 候補カード。アプリに登録済みの寺社と同じ候補でも見た目は変えない（Issue #278 D-13。
+ * 「ここです」で既存の寺社を選ぶのは記録画面が決める）
+ */
 function CandidateCard({
   candidate,
   selected,
-  registered,
   distanceKm,
   onPress,
 }: {
   candidate: SpotResearchCandidate;
   selected: boolean;
-  /** アプリに登録済みの寺社と同じ（Issue #278）。札と、情報源の代わりに注記を出す */
-  registered: boolean;
   distanceKm: number | null;
   onPress: () => void;
 }) {
@@ -226,7 +222,6 @@ function CandidateCard({
           {candidate.name}
         </Text>
         <Badge type={candidate.type} />
-        {registered && <Badge type="registered" />}
         {distanceKm !== null && (
           <Text style={styles.cardKm} testID={`candidate-${candidate.index}-km`}>
             {`${distanceKm.toFixed(1)}km`}
@@ -260,18 +255,9 @@ function CandidateCard({
           </View>
         </View>
       )}
-      {registered ? (
-        <View style={styles.registered} testID={`candidate-${candidate.index}-registered`}>
-          <MaterialIcons name="check-circle" size={14} color={colors.gray[500]} />
-          <Text style={styles.registeredText}>
-            アプリに登録済みの寺社です。「ここです」で、この寺社を選びます（新しく追加しません）
-          </Text>
-        </View>
-      ) : (
-        <Text style={styles.cardSource}>
-          {`住所の情報源 ${candidate.sourceCount}件${labels ? `（${labels} ほか）` : ''}`}
-        </Text>
-      )}
+      <Text style={styles.cardSource}>
+        {`住所の情報源 ${candidate.sourceCount}件${labels ? `（${labels} ほか）` : ''}`}
+      </Text>
     </TouchableOpacity>
   );
 }
@@ -291,7 +277,6 @@ export function SpotResearchSheet({
   onRetry,
   onChoose,
   onOpenManual,
-  registeredSpots = [],
 }: Props) {
   const [selected, setSelected] = useState(0);
   const [showOthers, setShowOthers] = useState(false);
@@ -333,7 +318,7 @@ export function SpotResearchSheet({
     case 'researching':
       body = (
         <>
-          <Text style={styles.title}>{`「${state.name}」を調べています`}</Text>
+          <Text style={styles.title}>{`「${state.name}」を探しています`}</Text>
           <Text style={styles.why}>公式サイトや地図の情報から、場所と住所を探しています。</Text>
           <HintLine hint={state.hint} done={false} />
           <View style={styles.skeleton}>
@@ -361,9 +346,9 @@ export function SpotResearchSheet({
     case 'error':
       body = (
         <>
-          <Text style={styles.title}>調べられませんでした。通信を確かめてください</Text>
+          <Text style={styles.title}>探せませんでした。通信を確かめてください</Text>
           <View style={styles.gap} />
-          <Button title="もう一度調べる" onPress={onRetry} testID="research-retry" />
+          <Button title="もう一度探す" onPress={onRetry} testID="research-retry" />
           <View style={styles.gapSmall} />
           {manualButton('地図で場所を決める', 'outline')}
         </>
@@ -372,7 +357,7 @@ export function SpotResearchSheet({
     case 'limit':
       body = (
         <>
-          <Text style={styles.title}>今日調べられる回数（10回）を使い切りました</Text>
+          <Text style={styles.title}>今日探せる回数（10回）を使い切りました</Text>
           <View style={styles.gap} />
           {manualButton('地図で場所を決める', 'primary')}
         </>
@@ -402,7 +387,6 @@ export function SpotResearchSheet({
               key={c.index}
               candidate={c}
               selected={c.index === selected}
-              registered={!!registeredSpots[c.index]}
               distanceKm={distanceOf(c)}
               onPress={() => setSelected(c.index)}
             />
@@ -425,10 +409,6 @@ export function SpotResearchSheet({
           <TouchableOpacity onPress={onOpenManual} disabled={saving} testID="research-none">
             <Text style={styles.none}>どれでもない（地図で決める）</Text>
           </TouchableOpacity>
-          {/* 登録済みの寺社を選ぶときは新しく追加しないので当てはまらない（Issue #278） */}
-          {!registeredSpots[selected] && (
-            <Text style={styles.note}>確かめられたら、みんなの地図にも載ります</Text>
-          )}
         </>
       );
       break;
@@ -538,13 +518,6 @@ const styles = StyleSheet.create({
     paddingBottom: 30,
   },
   cardSource: { ...typography.caption, color: colors.gray[400], marginTop: spacing.sm },
-  registered: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.xs,
-    marginTop: spacing.sm,
-  },
-  registeredText: { ...typography.caption, color: colors.gray[600], flexShrink: 1 },
   more: {
     ...typography.bodySmall,
     color: colors.gray[600],
@@ -557,12 +530,6 @@ const styles = StyleSheet.create({
     color: colors.gray[600],
     textAlign: 'center',
     marginTop: spacing.md,
-  },
-  note: {
-    ...typography.caption,
-    color: colors.gray[400],
-    textAlign: 'center',
-    marginTop: spacing.sm,
   },
   saveError: {
     ...typography.caption,

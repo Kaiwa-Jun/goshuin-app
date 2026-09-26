@@ -4,7 +4,7 @@ import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { borderRadius, spacing } from '@theme/spacing';
 
-type BadgeType = 'shrine' | 'temple' | 'visited' | 'registered';
+type BadgeType = 'shrine' | 'temple' | 'visited';
 
 interface BadgeProps {
   type: BadgeType;
@@ -26,12 +26,6 @@ const badgeConfig: Record<BadgeType, { bg: string; text: string; defaultLabel: s
     bg: colors.primary[100],
     text: colors.primary[600],
     defaultLabel: '訪問済み',
-  },
-  /** 調べた候補がアプリに登録済みの寺社と同じ（Issue #278） */
-  registered: {
-    bg: colors.gray[100],
-    text: colors.gray[600],
-    defaultLabel: '登録済み',
   },
 };
 

@@ -145,8 +145,9 @@ describe('都道府県の表示', () => {
 });
 
 /* 見つからない寺社を調べて追加（Issue #248 / UI-1〜UI-3）
-   同じ名前の寺社が一覧にあっても出す（Issue #278 / UI-1〜UI-5。契約書 docs/issues/issue-278-same-name-research.md） */
-describe('SpotSelector — 調べて追加・もしかして', () => {
+   同じ名前の寺社が一覧にあっても出す（Issue #278 / UI-1〜UI-5。契約書 docs/issues/issue-278-same-name-research.md）。
+   言葉は「探す」にそろえ、画面に「調べ」を出さない（D-13） */
+describe('SpotSelector — もっと探す・もしかして', () => {
   const base = {
     selectedSpot: null,
     onSearchQueryChange: jest.fn(),
@@ -164,20 +165,20 @@ describe('SpotSelector — 調べて追加・もしかして', () => {
     return [...own, ...(node.children ?? []).flatMap(testIdsInOrder)];
   };
 
-  it('候補に無い名前なら「調べて追加」を出し、「候補が見つかりません」は出さない。押すと名前を渡す', () => {
+  it('候補に無い名前なら「もっと探す」を出し、「候補が見つかりません」は出さない。押すと名前を渡す', () => {
     const onResearch = jest.fn();
     const ui = render(
       <SpotSelector {...base} nearbySpots={[]} searchQuery=" 鹿島台神社 " onResearch={onResearch} />
     );
     open(ui);
-    expect(ui.getByText('「鹿島台神社」を調べて追加')).toBeTruthy();
-    expect(ui.getByText('名前から場所と住所を調べます')).toBeTruthy();
+    expect(ui.getByText('「鹿島台神社」をもっと探す')).toBeTruthy();
+    expect(ui.getByText('地図にない寺社も、名前と地域から探します')).toBeTruthy();
     expect(ui.queryByText('候補が見つかりません')).toBeNull();
     fireEvent.press(ui.getByTestId('spot-research'));
     expect(onResearch).toHaveBeenCalledWith('鹿島台神社');
   });
 
-  it('1文字なら出さない。同じ名前の候補があれば「ほかの〇〇」、部分一致だけなら「「〇〇」を調べて追加」', () => {
+  it('1文字なら出さない。同じ名前の候補があれば「ほかの〇〇」、部分一致だけなら「「〇〇」をもっと探す」', () => {
     const onResearch = jest.fn();
     const one = render(
       <SpotSelector {...base} nearbySpots={[]} searchQuery="鹿" onResearch={onResearch} />
@@ -196,7 +197,7 @@ describe('SpotSelector — 調べて追加・もしかして', () => {
     );
     open(same);
     expect(
-      within(same.getByTestId('spot-research')).getByText('ほかの鹿島台神社を調べて追加')
+      within(same.getByTestId('spot-research')).getByText('ほかの鹿島台神社を探す')
     ).toBeTruthy();
 
     // 部分一致の候補（「八幡」で他の八幡）は同じ名前に数えない（UI-3 ②）
@@ -210,8 +211,9 @@ describe('SpotSelector — 調べて追加・もしかして', () => {
     );
     open(partial);
     expect(
-      within(partial.getByTestId('spot-research')).getByText('「八幡」を調べて追加')
+      within(partial.getByTestId('spot-research')).getByText('「八幡」をもっと探す')
     ).toBeTruthy();
+    expect(partial.queryAllByText(/調べ/)).toHaveLength(0);
   });
 
   // 同じ名前が各地にある寺社（マスタの値。seed_kyoto_rank_spots.sql・02_kanto.sql）
@@ -234,7 +236,7 @@ describe('SpotSelector — 調べて追加・もしかして', () => {
     { spot: gunma, distanceKm: 305 },
   ];
 
-  it('同じ名前の寺社が一覧にあるときは「ほかの〇〇を調べて追加」を一覧の下に出し、押すと名前を渡す（UI-1）', () => {
+  it('同じ名前の寺社が一覧にあるときは「ほかの〇〇を探す」を一覧の下に出し、押すと名前を渡す（UI-1）', () => {
     const onResearch = jest.fn();
     const ui = render(
       <SpotSelector
@@ -247,10 +249,11 @@ describe('SpotSelector — 調べて追加・もしかして', () => {
     open(ui);
 
     const row = within(ui.getByTestId('spot-research'));
-    expect(row.getByText('ほかの八坂神社を調べて追加')).toBeTruthy();
+    expect(row.getByText('ほかの八坂神社を探す')).toBeTruthy();
     expect(row.getByText('一覧にない場所の八坂神社を探します')).toBeTruthy();
-    expect(ui.queryByText('「八坂神社」を調べて追加')).toBeNull();
-    expect(ui.queryByText('名前から場所と住所を調べます')).toBeNull();
+    expect(ui.queryByText('「八坂神社」をもっと探す')).toBeNull();
+    expect(ui.queryByText('地図にない寺社も、名前と地域から探します')).toBeNull();
+    expect(ui.queryAllByText(/調べ/)).toHaveLength(0);
 
     const ids = testIdsInOrder(ui.toJSON());
     const research = ids.indexOf('spot-research');
@@ -266,14 +269,15 @@ describe('SpotSelector — 調べて追加・もしかして', () => {
     expect(onResearch).toHaveBeenCalledWith('八坂神社');
   });
 
-  it('同じ名前が無いときは今の文言のまま。「もしかして」は同じ名前に数えない（UI-3）', () => {
+  it('同じ名前が無いときは「「〇〇」をもっと探す」。「もしかして」は同じ名前に数えない。画面に「調べ」は無い（UI-3）', () => {
     const none = render(
       <SpotSelector {...base} nearbySpots={[]} searchQuery=" 鹿島台神社 " onResearch={jest.fn()} />
     );
     open(none);
-    expect(none.getByText('「鹿島台神社」を調べて追加')).toBeTruthy();
-    expect(none.getByText('名前から場所と住所を調べます')).toBeTruthy();
+    expect(none.getByText('「鹿島台神社」をもっと探す')).toBeTruthy();
+    expect(none.getByText('地図にない寺社も、名前と地域から探します')).toBeTruthy();
     expect(none.queryAllByText(/^ほかの/)).toHaveLength(0);
+    expect(none.queryAllByText(/調べ/)).toHaveLength(0);
 
     const maybe = render(
       <SpotSelector
@@ -288,8 +292,9 @@ describe('SpotSelector — 調べて追加・もしかして', () => {
     );
     open(maybe);
     expect(
-      within(maybe.getByTestId('spot-research')).getByText('「鹿島台神社」を調べて追加')
+      within(maybe.getByTestId('spot-research')).getByText('「鹿島台神社」をもっと探す')
     ).toBeTruthy();
+    expect(maybe.queryAllByText(/調べ/)).toHaveLength(0);
   });
 
   it('1文字なら同じ名前が一覧にあっても出さない。onResearch が無ければ出さない（UI-4）', () => {
@@ -316,8 +321,8 @@ describe('SpotSelector — 調べて追加・もしかして', () => {
   });
 
   it.each([
-    ['同じ名前あり', yasakaList, '八坂神社', 'ほかの八坂神社を調べて追加'],
-    ['同じ名前なし', [], '鹿島台神社', '「鹿島台神社」を調べて追加'],
+    ['同じ名前あり', yasakaList, '八坂神社', 'ほかの八坂神社を探す'],
+    ['同じ名前なし', [], '鹿島台神社', '「鹿島台神社」をもっと探す'],
   ])('%s でも行の見た目は同じ。題は1行・朱の太字、地は薄い朱（UI-5）', (_, spots, query, title) => {
     const ui = render(
       <SpotSelector {...base} nearbySpots={spots} searchQuery={query} onResearch={jest.fn()} />
@@ -334,7 +339,7 @@ describe('SpotSelector — 調べて追加・もしかして', () => {
     );
   });
 
-  it('「もしかして」を「調べて追加」の上に出し、押すとその寺社を選ぶ。距離は許可されたときだけ', () => {
+  it('「もしかして」を「もっと探す」の上に出し、押すとその寺社を選ぶ。距離は許可されたときだけ', () => {
     const onSelectSpot = jest.fn();
     const kashima = makeSpot({ id: 'kashima', name: '鹿島神宮', prefecture: '茨城県' });
     const ui = render(

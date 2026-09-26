@@ -46,7 +46,7 @@ async function startAndPick(
   await act(async () => result.current.pick(h));
 }
 
-it('start では調べずに、地域を聞く（asking）', () => {
+it('start ではまだ探さずに、地域を聞く（asking）', () => {
   const { result } = renderHook(() => useSpotAdd(jest.fn()));
   act(() => result.current.start('八幡神社'));
   expect(result.current.state.status).toBe('asking');
@@ -55,7 +55,7 @@ it('start では調べずに、地域を聞く（asking）', () => {
   expect(mockResearch).not.toHaveBeenCalled();
 });
 
-it('asking で県を選ぶと、その手がかりで調べ始める', () => {
+it('asking で県を選ぶと、その手がかりで探し始める', () => {
   mockResearch.mockReturnValue(new Promise(() => {}));
   const pref = { prefecture: '宮城県', city: null };
   const { result } = renderHook(() => useSpotAdd(jest.fn()));
@@ -69,7 +69,7 @@ it('asking で県を選ぶと、その手がかりで調べ始める', () => {
   expect(result.current.state.hint).toEqual(pref);
 });
 
-it('asking で「全国から」（null）を選ぶと、null で調べる', () => {
+it('asking で「全国から」（null）を選ぶと、null で探す', () => {
   mockResearch.mockReturnValue(new Promise(() => {}));
   const { result } = renderHook(() => useSpotAdd(jest.fn()));
   act(() => result.current.start('八幡神社'));
@@ -79,7 +79,7 @@ it('asking で「全国から」（null）を選ぶと、null で調べる', () 
   expect(mockResearch).toHaveBeenCalledWith('八幡神社', null);
 });
 
-it('同じ描画の中で2回選んでも、調べるのは1回だけ（1回目の値で）', () => {
+it('同じ描画の中で2回選んでも、探すのは1回だけ（1回目の値で）', () => {
   mockResearch.mockReturnValue(new Promise(() => {}));
   const pref = { prefecture: '宮城県', city: null };
   const { result } = renderHook(() => useSpotAdd(jest.fn()));
@@ -113,7 +113,7 @@ it('researching と candidates では pick は何もしない', async () => {
   expect(result.current.state.status).toBe('candidates');
 });
 
-it('調べて、候補が返れば candidates', async () => {
+it('探して、候補が返れば candidates', async () => {
   mockResearch.mockResolvedValue({ kind: 'ok', researchId: 'r1', candidates: [candidate] });
   const { result } = renderHook(() => useSpotAdd(jest.fn()));
   await startAndPick(result, '鹿島台神社', hint);
@@ -181,7 +181,7 @@ it('AC-1（#282）: 見つからなかったあと、地図で決める → 保�
   expect(result.current.state.placing).toBe(false);
 });
 
-it('地域を聞いている間に閉じると idle に戻り、調べない（回数を使わない）', () => {
+it('地域を聞いている間に閉じると idle に戻り、探さない（回数を使わない）', () => {
   const { result } = renderHook(() => useSpotAdd(jest.fn()));
   act(() => result.current.start('八幡神社'));
   act(() => result.current.close());
@@ -192,7 +192,7 @@ it('地域を聞いている間に閉じると idle に戻り、調べない（�
   expect(mockResearch).not.toHaveBeenCalled();
 });
 
-it('openManual は状態を見ない（出すかどうかはシートが決める。#282 D-2）。地域を聞いている間に呼んでも調べない', () => {
+it('openManual は状態を見ない（出すかどうかはシートが決める。#282 D-2）。地域を聞いている間に呼んでも探さない', () => {
   const { result } = renderHook(() => useSpotAdd(jest.fn()));
   act(() => result.current.start('八幡神社'));
   act(() => result.current.openManual());
@@ -266,7 +266,7 @@ it('返り値は state と操作だけ（地域は pick・changeRegion で変え
 describe('「変える」で地域を選び直す（Issue #277 / S3）', () => {
   const pref = { prefecture: '宮城県', city: null };
 
-  it('candidates で changeRegion → 調べずに asking（redo）。選ぶと同じ名前で調べ直す', async () => {
+  it('candidates で changeRegion → 探さずに asking（redo）。選ぶと同じ名前で探し直す', async () => {
     mockResearch.mockResolvedValueOnce({ kind: 'ok', researchId: 'r1', candidates: [candidate] });
     const { result } = renderHook(() => useSpotAdd(jest.fn()));
     await startAndPick(result, '鹿島台神社', hint);
@@ -303,7 +303,7 @@ describe('「変える」で地域を選び直す（Issue #277 / S3）', () => {
     expect(result.current.state.redo).toBe(true);
   });
 
-  it('調べ直しの地域選びでも、二度押しで調べるのは1回だけ', async () => {
+  it('探し直しの地域選びでも、二度押しで探すのは1回だけ', async () => {
     mockResearch.mockResolvedValueOnce({ kind: 'ok', researchId: 'r1', candidates: [] });
     const { result } = renderHook(() => useSpotAdd(jest.fn()));
     await startAndPick(result, '鹿島台神社', null);
@@ -317,7 +317,7 @@ describe('「変える」で地域を選び直す（Issue #277 / S3）', () => {
     expect(mockResearch).toHaveBeenLastCalledWith('鹿島台神社', pref);
   });
 
-  it('researching では何もしない（調べものを捨てない）', async () => {
+  it('researching では何もしない（探しているものを捨てない）', async () => {
     let resolve: (v: unknown) => void = () => {};
     mockResearch.mockReturnValue(new Promise(r => (resolve = r)));
     const { result } = renderHook(() => useSpotAdd(jest.fn()));

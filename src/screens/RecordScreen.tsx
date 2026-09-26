@@ -75,7 +75,8 @@ export function RecordScreen({ navigation, route }: Props) {
   const spotAdd = useSpotAdd(form.selectSpot);
   const handleResearch = (name: string) => spotAdd.start(name);
   // 調べた候補がアプリに登録済みの寺社と同じなら、追加せずにその寺社を選ぶ（Issue #278）。
-  // 比べるのは読み込み済みの全国の寺社（検索語で絞る前）。registeredSpots[i] は index が i の候補
+  // 比べるのは読み込み済みの全国の寺社（検索語で絞る前）。registeredSpots[i] は index が i の候補。
+  // 画面には出さない（候補カードは同じ見た目。#278 D-13）
   const registeredSpots = useMemo(() => {
     const loaded = nearbySpots.map(i => i.spot);
     return spotAdd.state.candidates.map(c => findRegisteredSpot(c, loaded));
@@ -483,7 +484,6 @@ export function RecordScreen({ navigation, route }: Props) {
         onRetry={spotAdd.retry}
         onChoose={handleChoose}
         onOpenManual={spotAdd.openManual}
-        registeredSpots={registeredSpots}
       />
       <SpotPlacePicker
         visible={spotAdd.state.placing}
