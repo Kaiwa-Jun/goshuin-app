@@ -8,7 +8,7 @@ import Purchases, {
 import { resolveRevenueCatKey } from '@utils/plus';
 
 // RevenueCat の初期化と利用者の切り替え（Issue #270 D-4）。supabase のクライアントと同じく
-// モジュールの中に1つだけ持つ。usePlus は複数の画面で同時にマウントされるので、ここで1回にまとめる
+// モジュールの中に1つだけ持つ。購入の hook は複数の画面で同時にマウントされるので、ここで1回にまとめる
 
 let configured = false;
 let currentUserId: string | null = null;
