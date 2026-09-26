@@ -31,6 +31,8 @@ import { CloseButton } from './ReportButtons';
 import { CountScene } from './scenes/CountScene';
 import { CoverScene } from './scenes/CoverScene';
 import { EndScene } from './scenes/EndScene';
+import { MapScene } from './scenes/MapScene';
+import { MonthsScene } from './scenes/MonthsScene';
 
 interface Props {
   report: AnnualReport;
@@ -249,10 +251,14 @@ function renderScene(id: AnnualSceneId, props: SceneProps) {
       return <CoverScene report={props.report} clock={props.clock} />;
     case 'count':
       return <CountScene report={props.report} clock={props.clock} />;
+    case 'months':
+      return <MonthsScene report={props.report} clock={props.clock} />;
+    case 'map':
+      return <MapScene report={props.report} clock={props.clock} />;
     case 'end':
       return <EndScene {...props} />;
     default:
-      // 月ごと・地図・写真・印象・達成は次のスライスで入れる
+      // 写真・印象・達成は次のスライスで入れる
       return <Text>{id}</Text>;
   }
 }
