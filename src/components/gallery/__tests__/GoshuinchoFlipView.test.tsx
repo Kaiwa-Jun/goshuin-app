@@ -535,6 +535,27 @@ describe('GoshuinchoFlipView 表示の切り替えの受け口（Issue #276）',
       expect(counterOf(utils)).toBe('6 ／ 6');
     });
 
+    /*
+     * 離れたページでも、最初の描画からそのページを描く。めくり直し（スクロールの知らせ）を
+     * 待って描くと、表示を切り替える動きの準備が間に合わない（Issue #276 S6）
+     */
+    it('離れたページを指定されたら、最初の描画からそのページを描く', () => {
+      const TWENTY = Array.from({ length: 20 }, (_, i) =>
+        makeStamp({ id: `t${i}`, image_path: `user-1/t-${i}.jpg` })
+      );
+      const utils = render(
+        <GoshuinchoFlipView
+          stamps={TWENTY}
+          onPressStamp={jest.fn()}
+          onPressBlank={jest.fn()}
+          initialStampId="t15"
+        />
+      );
+
+      expect(utils.getByTestId('flip-page-surface-t15')).toBeTruthy();
+      expect(utils.getByTestId('flip-page-counter').props.children).toBe('16 ／ 20');
+    });
+
     it('最初に開くときだけ使う', () => {
       const utils = renderSix({ initialStampId: 's2' });
       utils.rerender(
@@ -616,6 +637,23 @@ describe('GoshuinchoFlipView 表示の切り替えの受け口（Issue #276）',
       expect(opacityOf(utils.getByTestId('flip-fold-blank'))).toBe(0);
       expect(opacityOf(utils.getByTestId('flip-page-counter'))).toBe(0);
       expect(flatten(utils.getByTestId('flip-fold-s5'))).not.toHaveProperty('opacity');
+    });
+
+    /*
+     * 周りと一緒に消える・出るのは、画面に出うるページ（2つ離れたページまで）だけ。
+     * それより先は画面に出ないので値を付けず、動きの値が付いても描き直さない（S6）
+     */
+    it('2つより遠いページには値を付けない', () => {
+      const v = new Animated.Value(0);
+      const motion = {
+        pageScale: v.interpolate({ inputRange: [0, 1], outputRange: [1, 0.5] }),
+        surroundOpacity: v.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
+      };
+      const utils = renderSix({ motion });
+
+      expect(flatten(utils.getByTestId('flip-fold-s3'))).toHaveProperty('opacity');
+      expect(flatten(utils.getByTestId('flip-fold-s2'))).not.toHaveProperty('opacity');
+      expect(flatten(utils.getByTestId('flip-fold-s0'))).not.toHaveProperty('opacity');
     });
 
     it('渡されていないときは transform も opacity も付けない', () => {

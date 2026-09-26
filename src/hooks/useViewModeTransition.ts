@@ -36,12 +36,21 @@ export interface TransitionTileMotion extends TileMotion {
   faceDown: boolean;
 }
 
-export interface TransitionMotion {
+/**
+ * 面とめくる表示のページの動き。測らなくても決まるので、押したときに作って描いておく
+ * （時計が 0 のうちは、出ていく側はそのまま・入ってくる側は見えない）。動き出す直前の描き直しで
+ * めくる表示を描き直さずに済む
+ */
+export interface TransitionBaseMotion {
   direction: ViewModeDirection;
   /** 面の不透明度 */
   paneOpacity: Record<GalleryViewMode, Animated.AnimatedInterpolation<number>>;
   /** めくる表示の出ているページの紙と周り */
   flip: FlipPageMotion;
+}
+
+/** 測ってから決まる、一覧のタイルの動き */
+export interface TransitionTilesMotion {
   /** 見えているタイルだけ。見えていないタイルは置くだけ */
   tiles: ReadonlyMap<string, TransitionTileMotion>;
   /** 束のいちばん上の1枚 */
@@ -50,15 +59,17 @@ export interface TransitionMotion {
   stackTopRow: number;
 }
 
+interface PhaseCommon {
+  from: GalleryViewMode;
+  to: GalleryViewMode;
+  /** 切り替えのたびに新しく作る時計（ms） */
+  clock: Animated.Value;
+  base: TransitionBaseMotion;
+}
+
 export type ViewModeTransitionPhase =
-  | { stage: 'preparing'; from: GalleryViewMode; to: GalleryViewMode }
-  | {
-      stage: 'running';
-      from: GalleryViewMode;
-      to: GalleryViewMode;
-      clock: Animated.Value;
-      motion: TransitionMotion;
-    };
+  | (PhaseCommon & { stage: 'preparing' })
+  | (PhaseCommon & { stage: 'running'; motion: TransitionTilesMotion });
 
 export interface ViewModeTransitionRequest {
   from: GalleryViewMode;
@@ -70,6 +81,8 @@ export interface ViewModeTransitionRequest {
 interface Params {
   /** 一覧のタイルの一辺 */
   tileSize: number;
+  /** めくる表示のページの幅。縮みきったページの幅がタイルと同じになる倍率を決める */
+  pageWidth: number;
   /** 一覧の列の数 */
   columns: number;
   reduceMotion: boolean;
@@ -104,6 +117,7 @@ const overlapsVertically = (rect: Rect, viewport: Rect) =>
 
 export function useViewModeTransition({
   tileSize,
+  pageWidth,
   columns,
   reduceMotion,
   isLoading,
@@ -165,7 +179,8 @@ export function useViewModeTransition({
       measured: { flip: Rect; viewport: Rect; surface: Rect; tiles: Map<string, Rect> }
     ) => {
       const plan = prepared.current;
-      if (gen !== generation.current || !plan) return;
+      const current = phaseRef.current;
+      if (gen !== generation.current || !plan || current?.stage !== 'preparing') return;
       const { flip, viewport, surface } = measured;
       const { request, ids, tileSize: size } = plan;
 
@@ -188,8 +203,8 @@ export function useViewModeTransition({
         if (index >= 0 && overlapsVertically(rect, viewport)) visible.push({ id, index, rect });
       });
 
-      const clock = new Animated.Value(0);
-      const direction: ViewModeDirection = request.to === 'grid' ? 'toGrid' : 'toFlip';
+      const { clock } = current;
+      const { direction } = current.base;
       const delays = scatterDelays(
         visible.map(tile => tile.index),
         currentIndex
@@ -211,17 +226,9 @@ export function useViewModeTransition({
 
       clearTimers();
       const next: ViewModeTransitionPhase = {
+        ...current,
         stage: 'running',
-        from: request.from,
-        to: request.to,
-        clock,
         motion: {
-          direction,
-          paneOpacity: {
-            flip: paneOpacity(clock, direction, 'flip'),
-            grid: paneOpacity(clock, direction, 'grid'),
-          },
-          flip: flipPageMotion(clock, direction, stackScaleOf(size, surface.width)),
           tiles,
           stackTopStampId: request.stampId,
           stackTopRow: Math.floor(currentIndex / plan.columns),
@@ -316,10 +323,21 @@ export function useViewModeTransition({
     prepared.current = { request, ids: [...stampIds], tileSize, columns };
     gridPositioned.current = false;
     measureScheduled.current = false;
+    const clock = new Animated.Value(0);
+    const direction: ViewModeDirection = request.to === 'grid' ? 'toGrid' : 'toFlip';
     const next: ViewModeTransitionPhase = {
       stage: 'preparing',
       from: request.from,
       to: request.to,
+      clock,
+      base: {
+        direction,
+        paneOpacity: {
+          flip: paneOpacity(clock, direction, 'flip'),
+          grid: paneOpacity(clock, direction, 'grid'),
+        },
+        flip: flipPageMotion(clock, direction, stackScaleOf(tileSize, pageWidth)),
+      },
     };
     phaseRef.current = next;
     setPhase(next);
@@ -336,7 +354,7 @@ export function useViewModeTransition({
    */
   useEffect(() => {
     if (phase?.stage !== 'running' || animation.current) return;
-    const total = phase.motion.direction === 'toGrid' ? TO_GRID_MS : TO_FLIP_MS;
+    const total = phase.base.direction === 'toGrid' ? TO_GRID_MS : TO_FLIP_MS;
     const gen = generation.current;
     const timing = Animated.timing(phase.clock, {
       toValue: total,

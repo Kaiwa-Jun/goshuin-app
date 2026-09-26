@@ -6,6 +6,7 @@ import {
   Dimensions,
   FlatList,
   Image,
+  PixelRatio,
   StyleSheet,
   View,
 } from 'react-native';
@@ -22,6 +23,7 @@ import { ViewModeToggle } from '@components/gallery/ViewModeToggle';
 import { ImageGalleryModal } from '@components/common/ImageGalleryModal';
 import { colors } from '@theme/colors';
 import { spacing } from '@theme/spacing';
+import { typography } from '@theme/typography';
 import type { StampWithSpot } from '@/types/supabase';
 
 jest.mock('react-native-safe-area-context', () => {
@@ -1065,6 +1067,52 @@ describe('表示の切り替えの画面と開く位置（Issue #276）', () => 
     });
   });
 
+  /*
+   * 御朱印が多いと、入ってくる側の最初の描画に見ていた1枚が入らず、描き足しを待つうちに
+   * 切り替わりの動きの準備が間に合わなかった（Issue #276 S6。65枚で両方向とも動かなかった）
+   */
+  describe('御朱印が多いとき（最初の描画に入らない位置）', () => {
+    const T = (W - spacing.lg * 2 - spacing.xs * 2) / 3;
+
+    it('ボタンで一覧にしたとき、最初の描画から見ていた1枚の行を描く', () => {
+      withStamps(makeStamps(60));
+      const utils = renderGalleryScreen();
+      flipTo(utils, 45, 61);
+
+      fireEvent.press(utils.getByTestId('view-mode-grid'));
+
+      expect(utils.getByTestId('gallery-item-s45')).toBeTruthy();
+    });
+
+    it('ボタンでめくる表示に戻したとき、最初の描画から見ていたページを描く', () => {
+      withStamps(makeStamps(60));
+      const utils = renderGalleryScreen();
+      flipTo(utils, 45, 61);
+
+      fireEvent.press(utils.getByTestId('view-mode-grid'));
+      fireEvent.press(utils.getByTestId('view-mode-flip'));
+
+      expect(utils.getByTestId('flip-page-surface-s45')).toBeTruthy();
+      expect(counterOf(utils)).toBe('46 ／ 60');
+    });
+
+    // 行の高さが前もって分かるので、最初の中身の大きさの知らせから全体の高さになる（D-8）
+    it('一覧の行の高さは、タイル・名前と日付の行・余白から決まる', () => {
+      withStamps(makeStamps(60));
+      const utils = renderGalleryScreen();
+      fireEvent.press(utils.getByTestId('view-mode-grid'));
+
+      const line = (typography.caption.lineHeight as number) * PixelRatio.getFontScale();
+      const rowHeight = T + spacing.xs + line * 2 + spacing.lg;
+      const getItemLayout = utils.UNSAFE_getByType(FlatList).props.getItemLayout;
+      expect(getItemLayout(null, 3)).toEqual({
+        length: rowHeight,
+        offset: rowHeight * 3,
+        index: 3,
+      });
+    });
+  });
+
   it('並び替えたときは今と同じく新しい並びのいちばん下へ送る（AC-28）', () => {
     withStamps(makeStamps(15));
     const utils = renderGalleryScreen();
@@ -1609,6 +1657,29 @@ describe('表示の切り替わりの動き（Issue #276）', () => {
       expect(clock.anim.stop).toHaveBeenCalledTimes(1);
       expect(utils.queryByTestId('gallery-flip-pane')).toBeNull();
     });
+  });
+
+  // 65枚のアカウントで、めくる表示へ戻す動きが準備の時間切れで動かなかった（S6）
+  it('めくる表示へ戻す動きは、離れたページでも描き足しを待たずに準備が済む', () => {
+    const many = Array.from({ length: 60 }, (_, i) =>
+      makeStamp({
+        id: `s${i}`,
+        image_path: `user-1/stamp-${i}.jpg`,
+        spots: { name: `寺${i}`, type: 'temple' },
+      })
+    );
+    withStamps(many);
+    const utils = renderGalleryScreen();
+    flipTo(utils, 45);
+    // 中身の大きさが届く前なので、一覧へはその場で切り替わる
+    fireEvent.press(utils.getByTestId('view-mode-grid'));
+    layoutContent(utils);
+
+    fireEvent.press(utils.getByTestId('view-mode-flip'));
+    advance(50);
+
+    expect(clockCalls()).toHaveLength(1);
+    expect(clockCalls()[0].config).toEqual(expect.objectContaining({ duration: 590 }));
   });
 
   describe('測れないとき（AC-39）', () => {

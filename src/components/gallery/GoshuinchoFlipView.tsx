@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   FlatList,
@@ -105,12 +105,151 @@ export interface FlipViewMotion {
   surroundOpacity: Animated.AnimatedInterpolation<number>;
 }
 
+/**
+ * 表示の切り替えで周りと一緒に消える・出るほかのページの遠さ。画面に出ているのは両隣までで、
+ * 2つ離れたページはめくる途中で入ってくる。それより先は画面に出ないので値を付けない
+ * （付けると、動きの値が変わるたびに描いている全部のページを描き直す。Issue #276 S6）
+ */
+const SURROUND_FADE_DEPTH = 2;
+
+interface FlipPageItemProps {
+  page: Page;
+  index: number;
+  /** 出ているページからの遠さ */
+  depth: number;
+  zIndex: number;
+  pageWidth: number;
+  snapInterval: number;
+  scrollX: Animated.Value;
+  onPressPage: (page: Page, index: number) => void;
+  registerNode?: (stampId: string, part: 'image' | 'text', node: View | null) => void;
+  onImageLoad?: (stampId: string, width: number, height: number) => void;
+  /** 御朱印のページの写真の URL */
+  imageUrl?: string;
+  hidden: boolean;
+  reduceMotion: boolean;
+  surfaceScale?: Animated.AnimatedInterpolation<number>;
+  footerOpacity?: Animated.AnimatedInterpolation<number>;
+  foldOpacity?: Animated.AnimatedInterpolation<number>;
+}
+
+/**
+ * 蛇腹の1ページ。渡すものが変わらなければ描き直さない。表示の切り替えの動きの値が
+ * 付くのは出ているページと近いページだけなので、ほかのページは描き直さずに済む
+ */
+const FlipPageItem = memo(function FlipPageItem({
+  page,
+  index,
+  depth,
+  zIndex,
+  pageWidth,
+  snapInterval,
+  scrollX,
+  onPressPage,
+  registerNode,
+  onImageLoad,
+  imageUrl,
+  hidden,
+  reduceMotion,
+  surfaceScale,
+  footerOpacity,
+  foldOpacity,
+}: FlipPageItemProps) {
+  const isCurrent = depth === 0;
+  const onPress = () => onPressPage(page, index);
+
+  // 前後1ページ分のスクロール量に対して折れ角と影を連続で動かす。
+  // これで「カードが横に流れる」ではなく「蛇腹が畳まれていく」動きになる。
+  const { rotateY, shadeOpacity, translateX } = useMemo(() => {
+    const inputRange = [
+      (index - 1) * snapInterval,
+      index * snapInterval,
+      (index + 1) * snapInterval,
+    ];
+    const shift = computeFoldShift(pageWidth);
+    return {
+      rotateY: scrollX.interpolate({
+        inputRange,
+        // 折り目（中央側の辺）を軸に、外側の辺が奥へ倒れる向き
+        outputRange: [`${FOLD_ANGLE_DEG}deg`, '0deg', `-${FOLD_ANGLE_DEG}deg`],
+        extrapolate: 'clamp',
+      }),
+      shadeOpacity: scrollX.interpolate({
+        inputRange,
+        outputRange: [FOLD_SHADE_OPACITY, 0, FOLD_SHADE_OPACITY],
+        extrapolate: 'clamp',
+      }),
+      translateX: scrollX.interpolate({
+        inputRange,
+        // inverted なので、data 上の「次のページ」は画面では左に来る。
+        // 折れて縮んだ分を中央側へ寄せて、折り目で接したままにする
+        outputRange: [shift, 0, -shift],
+        extrapolate: 'clamp',
+      }),
+    };
+  }, [index, pageWidth, scrollX, snapInterval]);
+
+  /*
+   * 写真が届くまでの本（Issue #275）。動かすのは画面に出ているページと両隣だけ。
+   * 2つ離れたページはめくる途中で入ってくるので止まった本、それより先は画面に
+   * 出ないので本を描かない（開いた直後に FlatList が描く数十ページぶんの本を作らない）
+   */
+  const loadingBook = depth <= 1 ? 'flip' : depth === 2 ? 'still' : 'none';
+
+  return (
+    <Animated.View
+      testID={`flip-fold-${page.key}`}
+      style={[
+        styles.foldWrapper,
+        // 中央のページが必ず手前に来るようにする。折れただけでは描画順が変わらず、
+        // 隣のページが中央に被ってしまう
+        { zIndex },
+        { transform: [{ perspective: PERSPECTIVE }, { translateX }, { rotateY }] },
+        foldOpacity && { opacity: foldOpacity },
+      ]}
+    >
+      {page.kind === 'blank' ? (
+        <GoshuinchoPage
+          variant="blank"
+          width={pageWidth}
+          isCurrent={isCurrent}
+          onPress={onPress}
+          surfaceScale={surfaceScale}
+        />
+      ) : (
+        <GoshuinchoPage
+          variant="stamp"
+          width={pageWidth}
+          isCurrent={isCurrent}
+          onPress={onPress}
+          stampId={page.stamp.id}
+          registerNode={(part, node) => registerNode?.(page.stamp.id, part, node)}
+          onImageLoad={(w, h) => onImageLoad?.(page.stamp.id, w, h)}
+          hidden={hidden}
+          loadingBook={loadingBook}
+          reduceMotion={reduceMotion}
+          imageUrl={imageUrl ?? ''}
+          spotName={page.stamp.spots.name}
+          visitedAt={page.stamp.visited_at}
+          surfaceScale={surfaceScale}
+          footerOpacity={footerOpacity}
+        />
+      )}
+      <Animated.View pointerEvents="none" style={[styles.foldShade, { opacity: shadeOpacity }]} />
+    </Animated.View>
+  );
+});
+
 // Animated.FlatList の型は総称を保てないので、ここで Page 版として与え直す
 const AnimatedFlatList = Animated.FlatList as unknown as React.ComponentType<
   FlatListProps<Page> & { ref?: React.Ref<FlatList<Page>> }
 >;
 
-export function GoshuinchoFlipView({
+/**
+ * 渡すものが変わらなければ描き直さない（画面は表示の切り替えの動きの間にも描き直すので。
+ * Issue #276 S6）
+ */
+export const GoshuinchoFlipView = memo(function GoshuinchoFlipView({
   stamps,
   onPressStamp,
   onPressBlank,
@@ -128,7 +267,16 @@ export function GoshuinchoFlipView({
 
   const listRef = useRef<FlatList<Page>>(null);
   const scrollX = useRef(new Animated.Value(0)).current;
-  const [currentIndex, setCurrentIndex] = useState(0);
+  /*
+   * 開くページを指定されたら、最初の描画からそのページのあたりを描く（Issue #276）。
+   * 0 から描いてめくり直しを待つと、離れたページ（65枚の 43 ページ目など）が描かれるまでに
+   * 表示を切り替える動きの準備が間に合わない。指定が無いときは今と同じく 0 から描く
+   */
+  const [requestedIndex] = useState<number | undefined>(() => {
+    const index = initialStampId ? stamps.findIndex(s => s.id === initialStampId) : -1;
+    return index > 0 ? index : undefined;
+  });
+  const [currentIndex, setCurrentIndex] = useState(requestedIndex ?? 0);
 
   // stamps は昇順（古い順）で渡ってくる。1ページ目 = 先頭 = 最も古い。
   // 末尾の白紙が一番新しい側（＝記録の入口）になる。
@@ -229,99 +377,41 @@ export function GoshuinchoFlipView({
 
   const renderItem = useCallback(
     ({ item, index }: { item: Page; index: number }) => {
-      const isCurrent = index === currentIndex;
-      const onPress = () => handlePressPage(item, index);
-
-      // 前後1ページ分のスクロール量に対して折れ角と影を連続で動かす。
-      // これで「カードが横に流れる」ではなく「蛇腹が畳まれていく」動きになる。
-      const inputRange = [
-        (index - 1) * layout.snapInterval,
-        index * layout.snapInterval,
-        (index + 1) * layout.snapInterval,
-      ];
-      const rotateY = scrollX.interpolate({
-        inputRange,
-        // 折り目（中央側の辺）を軸に、外側の辺が奥へ倒れる向き
-        outputRange: [`${FOLD_ANGLE_DEG}deg`, '0deg', `-${FOLD_ANGLE_DEG}deg`],
-        extrapolate: 'clamp',
-      });
-      const shadeOpacity = scrollX.interpolate({
-        inputRange,
-        outputRange: [FOLD_SHADE_OPACITY, 0, FOLD_SHADE_OPACITY],
-        extrapolate: 'clamp',
-      });
-      const shift = computeFoldShift(layout.pageWidth);
-      const translateX = scrollX.interpolate({
-        inputRange,
-        // inverted なので、data 上の「次のページ」は画面では左に来る。
-        // 折れて縮んだ分を中央側へ寄せて、折り目で接したままにする
-        outputRange: [shift, 0, -shift],
-        extrapolate: 'clamp',
-      });
-
-      // 中央のページが必ず手前に来るようにする。折れただけでは描画順が変わらず、
-      // 隣のページが中央に被ってしまう
       const depth = Math.abs(index - currentIndex);
-      /*
-       * 写真が届くまでの本（Issue #275）。動かすのは画面に出ているページと両隣だけ。
-       * 2つ離れたページはめくる途中で入ってくるので止まった本、それより先は画面に
-       * 出ないので本を描かない（開いた直後に FlatList が描く数十ページぶんの本を作らない）
-       */
-      const loadingBook = depth <= 1 ? 'flip' : depth === 2 ? 'still' : 'none';
-
+      const isCurrent = depth === 0;
       /*
        * 表示の切り替えの動き（Issue #276）。出ているページは紙が縮む・広がり、
        * ほかのページは折りの包みごと消える・出る
        */
-      const surfaceScale = motion && isCurrent ? motion.pageScale : undefined;
-      const footerOpacity = motion && isCurrent ? motion.surroundOpacity : undefined;
-
       return (
-        <Animated.View
-          testID={`flip-fold-${item.key}`}
-          style={[
-            styles.foldWrapper,
-            { zIndex: pages.length - depth },
-            { transform: [{ perspective: PERSPECTIVE }, { translateX }, { rotateY }] },
-            motion && !isCurrent && { opacity: motion.surroundOpacity },
-          ]}
-        >
-          {item.kind === 'blank' ? (
-            <GoshuinchoPage
-              variant="blank"
-              width={layout.pageWidth}
-              isCurrent={isCurrent}
-              onPress={onPress}
-              surfaceScale={surfaceScale}
-            />
-          ) : (
-            <GoshuinchoPage
-              variant="stamp"
-              width={layout.pageWidth}
-              isCurrent={isCurrent}
-              onPress={onPress}
-              stampId={item.stamp.id}
-              registerNode={(part, node) => registerNode?.(item.stamp.id, part, node)}
-              onImageLoad={(w, h) => onImageLoad?.(item.stamp.id, w, h)}
-              hidden={hiddenStampId === item.stamp.id}
-              loadingBook={loadingBook}
-              reduceMotion={reduceMotion}
-              imageUrl={
-                resolveImageUrl
-                  ? resolveImageUrl(item.stamp)
-                  : getStampImageUrl(item.stamp.image_path)
-              }
-              spotName={item.stamp.spots.name}
-              visitedAt={item.stamp.visited_at}
-              surfaceScale={surfaceScale}
-              footerOpacity={footerOpacity}
-            />
-          )}
-          <Animated.View
-            pointerEvents="none"
-            style={[styles.foldShade, { opacity: shadeOpacity }]}
-          />
-        </Animated.View>
+        <FlipPageItem
+          page={item}
+          index={index}
+          depth={depth}
+          zIndex={pages.length - depth}
+          pageWidth={layout.pageWidth}
+          snapInterval={layout.snapInterval}
+          scrollX={scrollX}
+          onPressPage={handlePressPage}
+          registerNode={registerNode}
+          onImageLoad={onImageLoad}
+          imageUrl={
+            item.kind === 'blank'
+              ? undefined
+              : resolveImageUrl
+                ? resolveImageUrl(item.stamp)
+                : getStampImageUrl(item.stamp.image_path)
+          }
+          hidden={item.kind === 'stamp' && hiddenStampId === item.stamp.id}
+          reduceMotion={reduceMotion}
+          surfaceScale={motion && isCurrent ? motion.pageScale : undefined}
+          footerOpacity={motion && isCurrent ? motion.surroundOpacity : undefined}
+          foldOpacity={
+            motion && !isCurrent && depth <= SURROUND_FADE_DEPTH
+              ? motion.surroundOpacity
+              : undefined
+          }
+        />
       );
     },
     [
@@ -358,6 +448,8 @@ export function GoshuinchoFlipView({
         data={pages}
         keyExtractor={page => page.key}
         renderItem={renderItem}
+        initialScrollIndex={requestedIndex}
+        initialNumToRender={requestedIndex === undefined ? undefined : 3}
         snapToInterval={layout.snapInterval}
         snapToAlignment="start"
         decelerationRate="fast"
@@ -382,7 +474,7 @@ export function GoshuinchoFlipView({
       </Animated.Text>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

@@ -6,9 +6,9 @@ import {
   FlatList,
   TouchableOpacity,
   Dimensions,
-  Image,
   ActivityIndicator,
   Animated,
+  useWindowDimensions,
   type FlatListProps,
   type LayoutChangeEvent,
   type ViewProps,
@@ -17,7 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
-import { spacing, borderRadius } from '@theme/spacing';
+import { spacing } from '@theme/spacing';
 import { useAuth } from '@hooks/useAuth';
 import { useGalleryStamps } from '@hooks/useGalleryStamps';
 import { useGalleryViewMode, type GalleryViewMode } from '@hooks/useGalleryViewMode';
@@ -30,14 +30,13 @@ import {
 } from '@services/stamps';
 import { Button } from '@components/common/Button';
 import { ImageGalleryModal, GalleryImage } from '@components/common/ImageGalleryModal';
-import { GoshuinchoFlipView } from '@components/gallery/GoshuinchoFlipView';
-import { GalleryTileImage } from '@components/gallery/GalleryTileImage';
+import { GoshuinchoFlipView, computePageLayout } from '@components/gallery/GoshuinchoFlipView';
+import { GalleryGridTile } from '@components/gallery/GalleryGridTile';
 import { HeroFlyer } from '@components/gallery/HeroFlyer';
 import { useHeroTransition } from '@hooks/useHeroTransition';
 import { useReduceMotion } from '@hooks/useReduceMotion';
 import { useViewModeTransition } from '@hooks/useViewModeTransition';
 import { ViewModeToggle } from '@components/gallery/ViewModeToggle';
-import { TILE_PERSPECTIVE } from '@components/gallery/viewModeMotion';
 import { getWebPreviewStamps, previewImageUrl } from '@components/gallery/webPreview';
 import { EditStampModal } from '@components/stamp-detail/EditStampModal';
 import { DeleteConfirmModal } from '@components/stamp-detail/DeleteConfirmModal';
@@ -60,6 +59,24 @@ const ITEM_SIZE = (SCREEN_WIDTH - spacing.lg * 2 - ITEM_MARGIN * (NUM_COLUMNS - 
 const HANDOVER_FALLBACK_MS = 800;
 /** サムネが無いものをまとめて焼かせるまでの待ち。1枚ごとに叩かないため */
 const THUMB_REQUEST_DEBOUNCE_MS = 400;
+
+/** タイルの下の名前と日付の1行の高さ（文字の大きさの設定で倍になる） */
+const CAPTION_LINE_HEIGHT = typography.caption.lineHeight as number;
+
+/**
+ * 一覧の行の高さの見込み。タイル・名前（と日付）の行・下の余白で決まり、どの行も同じ。
+ * 描いた行の高さが届いたらそちらに直す
+ */
+function gridRowHeightOf(sortOrder: SortOrder, fontScale: number) {
+  const lines = sortOrder === 'date' ? 2 : 1;
+  return ITEM_SIZE + spacing.xs + CAPTION_LINE_HEIGHT * fontScale * lines + spacing.lg;
+}
+
+/**
+ * ボタンで一覧にしたとき、見ていた1枚の行より何行上から描き始めるか。見える範囲の上半分を
+ * 埋める分（Issue #276。描き始めが遠いと、見ていた1枚が描かれるまで切り替わりの動きを待てない）
+ */
+const ROWS_ABOVE_ON_OPEN = 3;
 
 /**
  * 一覧を、index の1枚の行が見える範囲の縦の真ん中に来る位置で開くときの offset
@@ -94,6 +111,7 @@ export function GalleryScreen({ navigation }: Props) {
    * タイルやページごとに作らない
    */
   const reduceMotion = useReduceMotion();
+  const { fontScale, width: windowWidth } = useWindowDimensions();
 
   /** めくる表示で今出ているページの御朱印。白紙のページなら null（Issue #276 D-8） */
   const [flipStampId, setFlipStampId] = useState<string | null>(null);
@@ -107,6 +125,17 @@ export function GalleryScreen({ navigation }: Props) {
    * 届いたところで使って捨てる。並び替え・取り直し・めくるへ戻したときも捨てる
    */
   const gridOpenTarget = useRef<{ stampId: string | null } | null>(null);
+  /**
+   * ボタンで一覧にしたとき、一覧を描き始める行（initialScrollIndex）。見ていた1枚の行を
+   * 最初の描画に入れる。一覧が作り直されるとき（並び替え・取り直し）と外れたときに捨てる
+   */
+  const gridInitialRow = useRef<number | undefined>(undefined);
+  /** 描いた一覧の行の高さ。見込み（gridRowHeightOf）と違えばこちらを使う */
+  const [measuredRowHeight, setMeasuredRowHeight] = useState<{
+    sortOrder: SortOrder;
+    fontScale: number;
+    height: number;
+  } | null>(null);
   const gridViewportHeight = useRef<number | null>(null);
   const gridContentHeight = useRef<number | null>(null);
 
@@ -171,6 +200,7 @@ export function GalleryScreen({ navigation }: Props) {
   const stampIds = useMemo(() => displayStamps.map(s => s.id), [displayStamps]);
   const transition = useViewModeTransition({
     tileSize: ITEM_SIZE,
+    pageWidth: computePageLayout(windowWidth).pageWidth,
     columns: NUM_COLUMNS,
     reduceMotion,
     isLoading: isLoading && !isPreview,
@@ -178,7 +208,8 @@ export function GalleryScreen({ navigation }: Props) {
     blocked: selectedImageIndex !== null || hero.flight !== null,
   });
   const transitionPhase = transition.phase;
-  const transitionMotion = transitionPhase?.stage === 'running' ? transitionPhase.motion : null;
+  /** 測ってから決まるタイルの動き。動いている間だけ */
+  const transitionTiles = transitionPhase?.stage === 'running' ? transitionPhase.motion : null;
 
   /*
    * 御朱印帳は古い順に綴じる。そのまま開くと「最近の参拝」から来た人が
@@ -201,7 +232,32 @@ export function GalleryScreen({ navigation }: Props) {
     gridRef.current = node;
     gridViewportHeight.current = null;
     gridContentHeight.current = null;
+    if (!node) gridInitialRow.current = undefined;
   }, []);
+
+  /*
+   * 一覧の行の位置を前もって決める。描き始めを見ていた1枚の行の近くにでき、最初の中身の
+   * 大きさの知らせから全体の高さになる（描いていない行も数に入る。D-8 の contentH）
+   */
+  const gridRowHeight =
+    measuredRowHeight?.sortOrder === sortOrder && measuredRowHeight.fontScale === fontScale
+      ? measuredRowHeight.height
+      : gridRowHeightOf(sortOrder, fontScale);
+  const getGridRowLayout = useCallback(
+    (_data: ArrayLike<StampWithSpot> | null | undefined, index: number) => ({
+      length: gridRowHeight,
+      offset: gridRowHeight * index,
+      index,
+    }),
+    [gridRowHeight]
+  );
+  /** 行のセルから届いた高さ。見込みと違えば直す（文字の大きさの設定と端数） */
+  const reportRowHeight = useRef<(height: number) => void>(() => {});
+  reportRowHeight.current = height => {
+    if (Math.abs(height - gridRowHeight) > 0.25) {
+      setMeasuredRowHeight({ sortOrder, fontScale, height });
+    }
+  };
 
   /** 御朱印の並びの中の位置。見つからない・null なら最新（いちばん最後） */
   const indexOfStamp = (stampId: string | null) => {
@@ -225,7 +281,10 @@ export function GalleryScreen({ navigation }: Props) {
       viewportHeight,
       contentHeight
     );
-    if (offset > 0.5) gridRef.current?.scrollToOffset({ offset, animated: false });
+    // 途中の行から描き始めた一覧は、その行へ送られている。0 でも送り直す
+    if (offset > 0.5 || gridInitialRow.current !== undefined) {
+      gridRef.current?.scrollToOffset({ offset, animated: false });
+    }
     // 切り替わりの動きは、開く位置へ送ってから測る
     transition.gridPositioned();
   };
@@ -246,6 +305,7 @@ export function GalleryScreen({ navigation }: Props) {
 
   const handleToggleSort = () => {
     gridOpenTarget.current = null;
+    gridInitialRow.current = undefined;
     setSortOrder(prev => (prev === 'date' ? 'spot' : 'date'));
   };
 
@@ -254,14 +314,18 @@ export function GalleryScreen({ navigation }: Props) {
    * 起動時・取り直したとき・並び替えたときの開く位置は今のまま
    */
   const handleViewModeChange = (next: GalleryViewMode) => {
+    // 見ていた1枚。白紙・見つからないなら最新（D-8）
+    const stackTop = displayStamps[indexOfStamp(flipStampId)];
     if (next === 'grid') {
       gridOpenTarget.current = { stampId: flipStampId };
+      const firstRow = Math.floor(indexOfStamp(flipStampId) / NUM_COLUMNS) - ROWS_ABOVE_ON_OPEN;
+      gridInitialRow.current = firstRow > 0 ? firstRow : undefined;
     } else {
       gridOpenTarget.current = null;
-      setFlipOpenRequest({ stampId: flipStampId });
+      // 最新も名指しで渡す。めくる表示が最初の描画からそのページを描く
+      setFlipOpenRequest({ stampId: stackTop?.id ?? null });
     }
     // 動かせるなら、入ってくる側を見えないまま描き足して測る。動かせないならその場で切り替える
-    const stackTop = displayStamps[indexOfStamp(flipStampId)];
     if (stackTop) transition.begin({ from: viewMode, to: next, stampId: stackTop.id });
     setViewMode(next);
   };
@@ -274,7 +338,9 @@ export function GalleryScreen({ navigation }: Props) {
 
   // 取り直したら、一覧の開く位置は今のまま（ボタンで切り替えたときの位置は使わない）
   useEffect(() => {
-    if (isLoading) gridOpenTarget.current = null;
+    if (!isLoading) return;
+    gridOpenTarget.current = null;
+    gridInitialRow.current = undefined;
   }, [isLoading]);
 
   /*
@@ -297,7 +363,10 @@ export function GalleryScreen({ navigation }: Props) {
         <View
           testID={`gallery-row-${index}`}
           style={[style, liftedRow.current === index && styles.lifted]}
-          onLayout={onLayout}
+          onLayout={event => {
+            onLayout?.(event);
+            reportRowHeight.current(event.nativeEvent.layout.height);
+          }}
           {...focusProps}
         >
           {children}
@@ -307,7 +376,7 @@ export function GalleryScreen({ navigation }: Props) {
     return GalleryRowCell;
   }, []);
   // セルは props を足せないので、持ち上げる行はここで控えて extraData で描き直させる
-  liftedRow.current = transitionMotion ? transitionMotion.stackTopRow : null;
+  liftedRow.current = transitionTiles ? transitionTiles.stackTopRow : null;
 
   const galleryImages: GalleryImage[] = useMemo(
     () =>
@@ -459,123 +528,75 @@ export function GalleryScreen({ navigation }: Props) {
     hero.end();
   };
 
-  const renderItem = ({ item, index }: { item: StampWithSpot; index: number }) => {
-    const isMiddleColumn = index % NUM_COLUMNS === 1;
-    const imageUrl = imageUrlOf(item);
-    // 飛んでいる間は隠す。出したままだと同じ御朱印が一覧と空中で二重に見える
-    const isFlying = flyingStampId === item.id;
-    // 切り替わりの動き（Issue #276）。見えているタイルだけが値を持つ
-    const motion = transitionMotion?.tiles.get(item.id);
-    const isStackTop = transitionMotion?.stackTopStampId === item.id;
+  /*
+   * 一覧のタイルに渡す手続きは、描き直しても変わらないものにする。タイルは渡すものが
+   * 変わらなければ描き直さない（Issue #276。動き出しの直前の描き直しを軽くする）
+   */
+  const openStampRef = useRef(openStamp);
+  openStampRef.current = openStamp;
+  const handlePressTile = useCallback(
+    (index: number, stamp: StampWithSpot) => openStampRef.current(index, stamp),
+    []
+  );
+  const handleThumbMissingRef = useRef(handleThumbMissing);
+  handleThumbMissingRef.current = handleThumbMissing;
+  const handleTileThumbMissing = useCallback(
+    (stamp: StampWithSpot) => handleThumbMissingRef.current(stamp),
+    []
+  );
 
-    return (
-      <TouchableOpacity
-        style={[
-          styles.gridItem,
-          isMiddleColumn && styles.gridItemMiddle,
-          isStackTop && styles.lifted,
-        ]}
-        // 指が離れるまでに読み込みを始めておく。飛ぶ1枚は新しい <Image> なので、
-        // 一覧に出ていても読み込み直しが要る
-        onPressIn={() => {
-          Image.prefetch(imageUrl).catch(() => {});
-        }}
-        onPress={() => openStamp(index, item)}
-        // 押しても暗くしない。押した合図は「その写真が開いていく」動きの方で
-        // 出しているので、ここで色が変わると遷移の手前に余計な一手が挟まる
-        activeOpacity={1}
-        testID={`gallery-item-${item.id}`}
-      >
-        {/*
-         * 表示の切り替えの動き用の包み（Issue #276 D-15）。静かなときも描いておき、
-         * 動きの間だけ値を付ける（木の形を変えると写真を読み直す）
-         */}
-        <Animated.View
-          ref={node => {
-            transition.registerTile(item.id, node as View | null);
-          }}
-          testID={`gallery-tile-motion-${item.id}`}
-          style={
-            motion && {
-              transform: [
-                { translateX: motion.translateX },
-                { translateY: motion.translateY },
-                { rotateZ: motion.rotateZ },
-              ],
-            }
-          }
-        >
-          {/* 表と裏は兄弟の2枚。iOS は子の 3D を親の面に潰す（#275 D-7） */}
-          <Animated.View
-            testID={`gallery-tile-front-${item.id}`}
-            style={
-              motion && {
-                backfaceVisibility: 'hidden',
-                transform: [{ perspective: TILE_PERSPECTIVE }, { rotateY: motion.rotateY }],
-              }
-            }
-          >
-            <View
-              ref={node => {
-                hero.registerTile(item.id, 'image', node);
-              }}
-              style={isFlying && styles.flying}
-            >
-              {/* 写真が届くまでは和紙の下地が明滅する（Issue #275） */}
-              <GalleryTileImage
-                stampId={item.id}
-                uri={imageUrl}
-                size={ITEM_SIZE}
-                reduceMotion={reduceMotion}
-                // 読み込んだついでに縦横比を控える。飛ぶ先の高さがこれで決まる
-                onLoad={(w, h) => hero.rememberAspect(item.id, w, h)}
-                // 小さい方がまだ焼かれていない。元の写真に落として表示は続け、裏で焼かせる
-                onError={() => handleThumbMissing(item)}
-              />
-            </View>
-          </Animated.View>
-          {motion?.faceDown && (
-            <Animated.View
-              testID={`gallery-tile-back-${item.id}`}
-              style={[
-                styles.tileBack,
-                {
-                  transform: [
-                    { perspective: TILE_PERSPECTIVE },
-                    { rotateY: motion.rotateY },
-                    { rotateY: '180deg' },
-                  ],
-                },
-              ]}
-            >
-              <View testID={`gallery-tile-back-${item.id}-frame`} style={styles.tileBackFrame} />
-            </Animated.View>
-          )}
-        </Animated.View>
-        <Animated.View
-          ref={node => {
-            // Animated.View の ref は中の View。型だけ LegacyRef が混ざる
-            hero.registerTile(item.id, 'text', node as View | null);
-          }}
-          testID={`gallery-tile-caption-${item.id}`}
-          style={[isFlying && styles.flying, motion && { opacity: motion.captionOpacity }]}
-        >
-          <Text style={styles.itemSpotName} numberOfLines={1}>
-            {item.spots.name}
-          </Text>
-          {sortOrder === 'date' && (
-            <Text style={styles.itemDate}>{formatDate(item.visited_at)}</Text>
-          )}
-        </Animated.View>
-      </TouchableOpacity>
-    );
-  };
+  const renderItem = ({ item, index }: { item: StampWithSpot; index: number }) => (
+    <GalleryGridTile
+      stamp={item}
+      index={index}
+      imageUrl={imageUrlOf(item)}
+      size={ITEM_SIZE}
+      middleColumn={index % NUM_COLUMNS === 1}
+      showDate={sortOrder === 'date'}
+      // 飛んでいる間は隠す。出したままだと同じ御朱印が一覧と空中で二重に見える
+      hidden={flyingStampId === item.id}
+      reduceMotion={reduceMotion}
+      // 切り替わりの動き（Issue #276）。見えているタイルだけが値を持つ
+      motion={transitionTiles?.tiles.get(item.id)}
+      stackTop={transitionTiles?.stackTopStampId === item.id}
+      onPress={handlePressTile}
+      onImageLoad={hero.rememberAspect}
+      onThumbMissing={handleTileThumbMissing}
+      registerHero={hero.registerTile}
+      registerMotion={transition.registerTile}
+    />
+  );
 
-  /** 面の見え方。準備中は入ってくる側を見えないまま、動いている間は時計から引く */
+  /*
+   * めくる表示に渡す手続きも、描き直しても変わらないものにする。変わるとめくる表示が
+   * 描いている全部のページを描き直す（切り替わりの準備と動き出しが重くなる）
+   */
+  const displayStampsRef = useRef(displayStamps);
+  displayStampsRef.current = displayStamps;
+  const handlePressFlipStamp = useCallback((index: number) => {
+    const stamp = displayStampsRef.current[index];
+    // 蛇腹は contain。枠（1:1.5）と写真（3:4）がずれるので、
+    // 写真が実際に占めているところから飛ばす（Issue #202）
+    if (stamp) openStampRef.current(index, stamp, 'contain', getStampImageUrl(stamp.image_path));
+  }, []);
+  const { registerTile: registerHeroNode } = hero;
+  const { registerPageSurface } = transition;
+  const registerFlipNode = useCallback(
+    (id: string, part: 'image' | 'text', node: View | null) => {
+      registerHeroNode(id, part, node);
+      if (part === 'image') registerPageSurface(id, node);
+    },
+    [registerHeroNode, registerPageSurface]
+  );
+  const handlePressBlank = useCallback(
+    () => navigation.navigate('Record', { origin: 'gallery' }),
+    [navigation]
+  );
+
+  /** 面の見え方。切り替えの間は時計から引く（時計が 0 のうちは、入ってくる側は見えない） */
   const paneStyleOf = (pane: GalleryViewMode) => [
     StyleSheet.absoluteFill,
-    transitionPhase?.stage === 'preparing' && transitionPhase.to === pane && styles.incomingPane,
-    transitionMotion && { opacity: transitionMotion.paneOpacity[pane] },
+    transitionPhase && { opacity: transitionPhase.base.paneOpacity[pane] },
   ];
 
   return (
@@ -645,25 +666,15 @@ export function GalleryScreen({ navigation }: Props) {
                 <GoshuinchoFlipView
                   stamps={displayStamps}
                   resolveImageUrl={isPreview ? previewImageUrl : undefined}
-                  onPressStamp={index => {
-                    const stamp = displayStamps[index];
-                    // 蛇腹は contain。枠（1:1.5）と写真（3:4）がずれるので、
-                    // 写真が実際に占めているところから飛ばす（Issue #202）
-                    if (stamp) {
-                      openStamp(index, stamp, 'contain', getStampImageUrl(stamp.image_path));
-                    }
-                  }}
-                  registerNode={(id, part, node) => {
-                    hero.registerTile(id, part, node);
-                    if (part === 'image') transition.registerPageSurface(id, node);
-                  }}
-                  onImageLoad={(id, w, h) => hero.rememberAspect(id, w, h)}
+                  onPressStamp={handlePressFlipStamp}
+                  registerNode={registerFlipNode}
+                  onImageLoad={hero.rememberAspect}
                   hiddenStampId={flyingStampId}
                   reduceMotion={reduceMotion}
-                  onPressBlank={() => navigation.navigate('Record', { origin: 'gallery' })}
+                  onPressBlank={handlePressBlank}
                   initialStampId={flipOpenRequest?.stampId ?? null}
                   onCurrentStampChange={setFlipStampId}
-                  motion={transitionMotion?.flip ?? null}
+                  motion={transitionPhase?.base.flip ?? null}
                 />
               </Animated.View>
             )}
@@ -711,6 +722,10 @@ export function GalleryScreen({ navigation }: Props) {
                       key={sortOrder}
                       contentContainerStyle={styles.listContent}
                       CellRendererComponent={GridRowCell}
+                      getItemLayout={getGridRowLayout}
+                      initialScrollIndex={gridInitialRow.current}
+                      initialNumToRender={gridInitialRow.current === undefined ? undefined : 7}
+                      windowSize={transitionPhase?.to === 'grid' ? 3 : undefined}
                       // 切り替わりの動きの間、束のいちばん上の行をセルに描き直させる
                       extraData={transitionPhase}
                       onLayout={handleGridLayout}
@@ -824,31 +839,6 @@ const styles = StyleSheet.create({
   lifted: {
     zIndex: 1,
   },
-  /** 切り替わりの準備中の、入ってくる側の面 */
-  incomingPane: {
-    opacity: 0,
-  },
-  /** めくれるタイルの紙の裏（試作 transition-v2 の `.face.back`） */
-  tileBack: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.tileBack.paper,
-    borderWidth: 1,
-    borderColor: colors.tileBack.edge,
-    borderRadius: borderRadius.md,
-    overflow: 'hidden',
-    backfaceVisibility: 'hidden',
-  },
-  /** 紙の裏の内側の薄い朱の枠（試作 `.face.back::after`） */
-  tileBackFrame: {
-    position: 'absolute',
-    top: spacing.sm,
-    left: spacing.sm,
-    right: spacing.sm,
-    bottom: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.tileBack.frame,
-    borderRadius: borderRadius.sm,
-  },
   sortRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
@@ -862,25 +852,6 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing['3xl'],
-  },
-  gridItem: {
-    width: ITEM_SIZE,
-    marginBottom: spacing.lg,
-  },
-  gridItemMiddle: {
-    marginHorizontal: ITEM_MARGIN,
-  },
-  flying: {
-    opacity: 0,
-  },
-  itemSpotName: {
-    ...typography.caption,
-    color: colors.gray[800],
-    marginTop: spacing.xs,
-  },
-  itemDate: {
-    ...typography.caption,
-    color: colors.gray[400],
   },
   centerContainer: {
     flex: 1,
