@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, act, within } from '@testing-library/react-native';
 import { Image, Keyboard, ScrollView, StyleSheet } from 'react-native';
 import { RecordScreen } from '@screens/RecordScreen';
 import { evaluateNewBadges } from '@services/badges';
@@ -119,10 +119,13 @@ const mockFetchVisitedSpotIds = jest.fn();
 const mockFetchRegionStats = jest.fn().mockResolvedValue([]);
 
 const mockFetchVisitLog = jest.fn().mockResolvedValue([]);
+// 記録画面を開いたときに取る（Issue #277）。テストの中で上書きしたら [] に戻す
+const mockFetchRecentPrefectures = jest.fn().mockResolvedValue([]);
 
 jest.mock('@services/collection', () => ({
   fetchRegionStats: (...args: unknown[]) => mockFetchRegionStats(...args),
   fetchVisitLog: (...args: unknown[]) => mockFetchVisitLog(...args),
+  fetchRecentPrefectures: (...args: unknown[]) => mockFetchRecentPrefectures(...args),
 }));
 
 jest.mock('@services/stamps', () => ({
@@ -1898,7 +1901,7 @@ describe('保存中の覆い（Issue #190）', () => {
   });
 });
 
-describe('見つからない寺社を調べて追加し、そのまま記録する（Issue #248 / AC-36・UI-9）', () => {
+describe('見つからない寺社を調べて追加し、そのまま記録する（Issue #248 / AC-36・UI-9、Issue #277 / AC-19・AC-20）', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockSearchQuery = '鹿島台神社';
@@ -1910,9 +1913,10 @@ describe('見つからない寺社を調べて追加し、そのまま記録す�
   });
   afterEach(() => {
     mockSearchQuery = '';
+    mockFetchRecentPrefectures.mockResolvedValue([]);
   });
 
-  it('「調べて追加」→「ここです」で追加した寺社が選ばれ、シートが閉じる。最初は全国から（いまいる場所を手がかりにしない）', async () => {
+  it('「調べて追加」ではまだ調べずに地域を聞く →「全国から」で調べ、「ここです」で追加した寺社が選ばれ、シートが閉じる', async () => {
     const added = { ...fakeSpot, id: 'new-spot', name: '鹿島台神社', status: 'pending' };
     mockResearchSpot.mockResolvedValue({
       kind: 'ok',
@@ -1938,6 +1942,12 @@ describe('見つからない寺社を調べて追加し、そのまま記録す�
     await act(async () => {
       fireEvent.press(ui.getByTestId('spot-research'));
     });
+    expect(mockResearchSpot).not.toHaveBeenCalled();
+    expect(ui.getByText('「鹿島台神社」を調べます')).toBeTruthy();
+    await act(async () => {
+      fireEvent.press(ui.getByTestId('region-all'));
+    });
+    expect(mockResearchSpot).toHaveBeenCalledTimes(1);
     expect(mockResearchSpot).toHaveBeenCalledWith('鹿島台神社', null);
     expect(ui.getByText('これですか？')).toBeTruthy();
     await act(async () => {
@@ -1947,5 +1957,30 @@ describe('見つからない寺社を調べて追加し、そのまま記録す�
     expect(mockSelectSpot).toHaveBeenCalledWith(added);
     expect(ui.queryByText('これですか？')).toBeNull();
     for (const w of [/確認待ち/, /公開/, /追加した寺社/]) expect(ui.queryByText(w)).toBeNull();
+  });
+
+  it('記録画面を開いたときに自分の記録の県を取り、地域を聞くシートの県のチップから調べる', async () => {
+    mockFetchRecentPrefectures.mockResolvedValue(['宮城県']);
+    mockResearchSpot.mockReturnValue(new Promise(() => {}));
+
+    const ui = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    await act(async () => {});
+    expect(mockFetchRecentPrefectures).toHaveBeenCalledTimes(1);
+    expect(mockFetchRecentPrefectures).toHaveBeenCalledWith('user-1');
+
+    fireEvent(ui.getByPlaceholderText('スポット名で検索'), 'focus');
+    await act(async () => {
+      fireEvent.press(ui.getByTestId('spot-research'));
+    });
+    const chip = ui.getByTestId('region-recent-0');
+    expect(within(chip).getByText('宮城県')).toBeTruthy();
+    await act(async () => {
+      fireEvent.press(chip);
+    });
+    expect(mockResearchSpot).toHaveBeenCalledTimes(1);
+    expect(mockResearchSpot).toHaveBeenCalledWith('鹿島台神社', {
+      prefecture: '宮城県',
+      city: null,
+    });
   });
 });

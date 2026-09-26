@@ -21,6 +21,7 @@ import { SavingOverlay } from '@components/record/SavingOverlay';
 import { SpotPlacePicker } from '@components/record/SpotPlacePicker';
 import { SpotResearchSheet } from '@components/record/SpotResearchSheet';
 import { useSpotAdd } from '@hooks/useSpotAdd';
+import { useRecentPrefectures } from '@hooks/useRecentPrefectures';
 import { DEFAULT_LOCATION } from '@utils/geo';
 import { usePhotoPicker } from '@hooks/usePhotoPicker';
 import { useRecordForm } from '@hooks/useRecordForm';
@@ -66,11 +67,14 @@ export function RecordScreen({ navigation, route }: Props) {
   const form = useRecordForm(initialSpotId ? { initialSpotId } : { autoSelectableSpot });
 
   // 見つからない寺社を調べて追加し、そのまま記録に使う（Issue #248）。
-  // 最初は全国から探す。家に帰ってから記録することも多いので、いまいる場所を手がかりにしない
-  // （東京の自宅で仙台の寺社を調べると「東京都 狛江市のあたり」になって見つからなかった）。
-  // 地域は本人が「地域を絞る」で指定したときだけ送る。位置情報そのものは送らない
+  // 調べる前に地域を聞き、選んだ瞬間に調べ始める（Issue #277）。選択肢は自分の記録にある県・
+  // 「全国から」・本人が入れた地域だけ。家に帰ってから記録することも多いので、いまいる場所を
+  // 手がかりにしない（東京の自宅で仙台の寺社を調べると「東京都 狛江市のあたり」になって
+  // 見つからなかった）。位置情報そのものは送らない
   const spotAdd = useSpotAdd(form.selectSpot);
-  const handleResearch = (name: string) => spotAdd.start(name, null);
+  const handleResearch = (name: string) => spotAdd.start(name);
+  // 記録画面を開いたときに1回だけ取る（押してから取るとチップが後から出て並びが動く）
+  const recentPrefectures = useRecentPrefectures(user?.id ?? null);
 
   const scrollViewRef = useRef<ScrollView>(null);
   const memoRect = useRef({ y: 0, height: 0 });
@@ -461,8 +465,9 @@ export function RecordScreen({ navigation, route }: Props) {
       <SpotResearchSheet
         state={spotAdd.state}
         userLocation={granted ? location : null}
+        recentPrefectures={recentPrefectures}
         onClose={spotAdd.close}
-        onChangeHint={spotAdd.changeHint}
+        onPick={spotAdd.pick}
         onRetry={spotAdd.retry}
         onChoose={spotAdd.choose}
         onOpenManual={spotAdd.openManual}

@@ -9,6 +9,7 @@ export const RESEARCH_TIMEOUT_MS = 25000;
 
 export type SpotAddStatus =
   | 'idle'
+  | 'asking'
   | 'researching'
   | 'candidates'
   | 'notFound'
@@ -27,6 +28,8 @@ export interface SpotAddState {
   saveFailed: boolean;
   /** 地図で決める（④）を開いている。保存中（saving）もどちらの画面かをこれで分ける */
   placing: boolean;
+  /** 「変える」から来た地域選び（調べ直し）。見出しと回数の知らせが変わる（Issue #277） */
+  redo: boolean;
 }
 
 const IDLE: SpotAddState = {
@@ -37,16 +40,21 @@ const IDLE: SpotAddState = {
   candidates: [],
   saveFailed: false,
   placing: false,
+  redo: false,
 };
 
 /**
  * 見つからない寺社を調べて追加する流れ（Issue #248 の ②〜④）。
+ * 調べる前に地域を聞き（⓪ asking）、選んだ地域で調べ始める（Issue #277）。
  * 追加できた寺社は onAdded に渡して閉じる（記録画面でその寺社が選ばれる）
  */
 export function useSpotAdd(onAdded: (spot: Spot) => void) {
   const [state, setState] = useState<SpotAddState>(IDLE);
   // 古い問い合わせの結果（時間切れのあとに返ったもの・調べ直す前のもの）で上書きしない
   const requestId = useRef(0);
+  // 地域を聞いている（asking）間だけ、調べる名前を持つ。pick は1回の地域選びにつき1回だけ効かせる
+  // （1回ごとに1日10回の枠を使う。同じ描画の中の二度押しは state の status では防げない）
+  const askingName = useRef<string | null>(null);
 
   const research = useCallback(async (name: string, hint: SpotHint | null) => {
     const id = ++requestId.current;
@@ -74,15 +82,24 @@ export function useSpotAdd(onAdded: (spot: Spot) => void) {
     });
   }, []);
 
-  const start = useCallback(
-    (name: string, hint: SpotHint | null) => research(name, hint),
+  /** まだ調べない。地域を聞く（閉じれば回数は使わない） */
+  const start = useCallback((name: string) => {
+    askingName.current = name;
+    setState({ ...IDLE, status: 'asking', name });
+  }, []);
+
+  /** 地域を選んだ瞬間に調べ始める。asking 以外では何もしない */
+  const pick = useCallback(
+    (hint: SpotHint | null) => {
+      const name = askingName.current;
+      if (name === null) return undefined;
+      askingName.current = null;
+      return research(name, hint);
+    },
     [research]
   );
+
   const retry = useCallback(() => research(state.name, state.hint), [research, state]);
-  const changeHint = useCallback(
-    (hint: SpotHint | null) => research(state.name, hint),
-    [research, state.name]
-  );
 
   const finish = useCallback(
     async (save: () => Promise<Spot>) => {
@@ -114,14 +131,16 @@ export function useSpotAdd(onAdded: (spot: Spot) => void) {
   );
 
   const openManual = useCallback(() => {
+    askingName.current = null;
     requestId.current++;
     setState(s => ({ ...s, status: 'manual', saveFailed: false, placing: true }));
   }, []);
 
   const close = useCallback(() => {
+    askingName.current = null;
     requestId.current++;
     setState(IDLE);
   }, []);
 
-  return { state, start, retry, changeHint, choose, openManual, saveManual, close };
+  return { state, start, pick, retry, choose, openManual, saveManual, close };
 }
