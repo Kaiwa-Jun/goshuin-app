@@ -255,6 +255,8 @@ describe('AnnualReportScreen — 再生の骨組み', () => {
     tap(RIGHT);
     expect(scene()).toBe('count');
     expect(fill(1)).toBe(100);
+    // 数え上げは最後の値から（listener を待たない）
+    expect(ui.getByTestId('annual-count-spots').props.children).toBe(24);
   });
 
   it('AC-34: 途中で視差効果を減らす がオンになったら、その場で最後の形にして止まる', async () => {
@@ -268,6 +270,33 @@ describe('AnnualReportScreen — 再生の骨組み', () => {
 
     advance(10000);
     expect(scene()).toBe('cover');
+  });
+
+  it('AC-45: 締めの「もう一度見る」で表紙の頭から（開く動きも）。前後には動かない', async () => {
+    const { ui, scene, fill, style, tap } = setup();
+    await settle();
+    advance(400);
+
+    for (let i = 0; i < 7; i += 1) tap(RIGHT);
+    expect(scene()).toBe('end');
+    advance(2000);
+
+    fireEvent.press(ui.getByText('もう一度見る'));
+    expect(scene()).toBe('cover');
+    expect(fill(0)).toBe(0);
+    expect(style('annual-report').opacity).toBeCloseTo(0);
+    advance(350);
+    expect(style('annual-report').opacity).toBeCloseTo(1);
+  });
+
+  it('AC-45: 締めの「閉じる」で閉じる。締めのまま', async () => {
+    const { ui, scene, navigation, tap } = setup();
+    await settle();
+
+    for (let i = 0; i < 7; i += 1) tap(RIGHT);
+    fireEvent.press(ui.getByText('閉じる'));
+    expect(navigation.goBack).toHaveBeenCalledTimes(1);
+    expect(scene()).toBe('end');
   });
 });
 

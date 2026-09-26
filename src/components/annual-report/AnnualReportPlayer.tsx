@@ -28,6 +28,9 @@ import {
 import { easeOut, type Clock } from './motion';
 import { ProgressBars } from './ProgressBars';
 import { CloseButton } from './ReportButtons';
+import { CountScene } from './scenes/CountScene';
+import { CoverScene } from './scenes/CoverScene';
+import { EndScene } from './scenes/EndScene';
 
 interface Props {
   report: AnnualReport;
@@ -240,10 +243,18 @@ export interface SceneProps {
   onClose: () => void;
 }
 
-function renderScene(id: AnnualSceneId, { report }: SceneProps) {
-  // シーンの中身は S5〜S7 で入れる。いまは見出しだけ
-  if (id === 'cover') return <Text>{`${report.year}年のふりかえり`}</Text>;
-  return <Text>{id}</Text>;
+function renderScene(id: AnnualSceneId, props: SceneProps) {
+  switch (id) {
+    case 'cover':
+      return <CoverScene report={props.report} clock={props.clock} />;
+    case 'count':
+      return <CountScene report={props.report} clock={props.clock} />;
+    case 'end':
+      return <EndScene {...props} />;
+    default:
+      // 月ごと・地図・写真・印象・達成は次のスライスで入れる
+      return <Text>{id}</Text>;
+  }
 }
 
 const styles = StyleSheet.create({
