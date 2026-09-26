@@ -74,3 +74,10 @@ export function subscribeCustomerInfo(listener: CustomerInfoUpdateListener): () 
     Purchases.removeCustomerInfoUpdateListener(listener);
   };
 }
+
+/** テスト用: モジュールの中の「初期化済み」を忘れる（アプリからは呼ばない） */
+export function resetPurchasesForTests(): void {
+  configured = false;
+  currentUserId = null;
+  pending = Promise.resolve(false);
+}
