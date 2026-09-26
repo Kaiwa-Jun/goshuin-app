@@ -82,6 +82,8 @@ interface GoshuinchoFlipViewProps {
   onImageLoad?: (stampId: string, width: number, height: number) => void;
   /** 飛んでいる最中の1枚。出したままだと同じ御朱印が二重に見える */
   hiddenStampId?: string | null;
+  /** 視差効果を減らす。オンなら写真が届くまでの本は止まる（Issue #275） */
+  reduceMotion?: boolean;
 }
 
 // Animated.FlatList の型は総称を保てないので、ここで Page 版として与え直す
@@ -97,6 +99,7 @@ export function GoshuinchoFlipView({
   registerNode,
   onImageLoad,
   hiddenStampId,
+  reduceMotion = false,
 }: GoshuinchoFlipViewProps) {
   const { width } = useWindowDimensions();
   const layout = useMemo(() => computePageLayout(width || Dimensions.get('window').width), [width]);
@@ -210,6 +213,12 @@ export function GoshuinchoFlipView({
       // 中央のページが必ず手前に来るようにする。折れただけでは描画順が変わらず、
       // 隣のページが中央に被ってしまう
       const depth = Math.abs(index - currentIndex);
+      /*
+       * 写真が届くまでの本（Issue #275）。動かすのは画面に出ているページと両隣だけ。
+       * 2つ離れたページはめくる途中で入ってくるので止まった本、それより先は画面に
+       * 出ないので本を描かない（開いた直後に FlatList が描く数十ページぶんの本を作らない）
+       */
+      const loadingBook = depth <= 1 ? 'flip' : depth === 2 ? 'still' : 'none';
 
       return (
         <Animated.View
@@ -236,6 +245,8 @@ export function GoshuinchoFlipView({
               registerNode={(part, node) => registerNode?.(item.stamp.id, part, node)}
               onImageLoad={(w, h) => onImageLoad?.(item.stamp.id, w, h)}
               hidden={hiddenStampId === item.stamp.id}
+              loadingBook={loadingBook}
+              reduceMotion={reduceMotion}
               imageUrl={
                 resolveImageUrl
                   ? resolveImageUrl(item.stamp)
@@ -260,6 +271,7 @@ export function GoshuinchoFlipView({
       layout.snapInterval,
       onImageLoad,
       pages.length,
+      reduceMotion,
       registerNode,
       resolveImageUrl,
       scrollX,
