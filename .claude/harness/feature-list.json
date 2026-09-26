@@ -127,9 +127,9 @@
     {
       "id": "ISSUE-258",
       "title": "参拝の予定（参拝ルート計画）",
-      "note": "参拝の予定（予定タブ・カレンダー・地図で寺社を選ぶ・順番の提案・区間ごとの Google マップ・保存）。契約書 docs/issues/issue-258-visit-plan.md。goshuin-evaluator 1巡目 PASS（基準外のトーストが消えない不具合を修正）。テスト1650件・lint 0 errors・typecheck クリーン。未検証: 実機（UI-8〜12）・Maestro（E-2）・本番 DB への適用と AC-19。",
+      "note": "参拝の予定（予定タブ・カレンダー・地図で寺社を選ぶ・順番の提案・区間ごとの Google マップ・保存）。契約書 docs/issues/issue-258-visit-plan.md。PR #259（本体・Evaluator PASS）→ 実機確認の指摘を #261〜#268 で直した（1週6日・地図が仙台・ピンの名前・今日から組む・横スワイプ・現在地・行きたいへ寄せる・長押しの並べ替え・番号の点線・入力欄・ドロワーの受け渡し）。本番 DB 適用済み・AC-19 の RESULT 一致（2026-09-26）。iPhone 開発用アプリでオーナー確認済み（2026-09-26）。未確認: 「Google マップで」が実際に開くか（UI-11）、選んだピンの ✓ と輪の見比べ（UI-12・今は ✓）、Maestro の visit-plan.yaml（E-2）。",
       "issue": 258,
-      "passes": false
+      "passes": true
     }
   ]
 }
