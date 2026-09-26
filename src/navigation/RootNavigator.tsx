@@ -9,6 +9,7 @@ import { RecordCompleteScreen } from '@screens/RecordCompleteScreen';
 import { TermsOfServiceScreen } from '@screens/TermsOfServiceScreen';
 import { PrivacyPolicyScreen } from '@screens/PrivacyPolicyScreen';
 import { PlusScreen } from '@screens/PlusScreen';
+import { AnnualReportScreen } from '@screens/AnnualReportScreen';
 import { AccountDeletionScreen } from '@screens/AccountDeletionScreen';
 import { ErrorScreen } from '@screens/ErrorScreen';
 import { useOnboarding } from '@hooks/useOnboarding';
@@ -18,7 +19,15 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 configureGoogleSignIn();
 
-export function RootNavigator() {
+interface Props {
+  /**
+   * 起動の印（スプラッシュ）が消えたか。年報の自動再生はこれを待つ（Issue #274 D-18）。
+   * スプラッシュの下で再生を始めると、表紙の最初の動きが隠れる。省略すると true
+   */
+  splashDone?: boolean;
+}
+
+export function RootNavigator({ splashDone = true }: Props) {
   const { isCompleted, isLoading } = useOnboarding();
 
   if (isLoading) {
@@ -43,7 +52,10 @@ export function RootNavigator() {
       initialRouteName={isCompleted ? 'MainTabs' : 'Onboarding'}
     >
       <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-      <Stack.Screen name="MainTabs" component={TabNavigator} />
+      {/* スプラッシュが消えたかを渡すため、children で描く（Context は使わない） */}
+      <Stack.Screen name="MainTabs">
+        {() => <TabNavigator autoPlayReady={splashDone} />}
+      </Stack.Screen>
       <Stack.Screen name="Record" component={RecordScreen} />
       <Stack.Screen name="RecordComplete" component={RecordCompleteScreen} />
       <Stack.Screen name="Login" component={LoginScreen} options={{ presentation: 'modal' }} />
@@ -51,6 +63,15 @@ export function RootNavigator() {
       <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
       <Stack.Screen name="AccountDeletion" component={AccountDeletionScreen} />
       <Stack.Screen name="Plus" component={PlusScreen} />
+      {/*
+       * 年報（Issue #274 D-13）。下へのスワイプで閉じない（✕ で閉じる）。
+       * 開く動きは画面の中の動き（薄く小さい → はっきり）だけにするので、遷移の動きは消す
+       */}
+      <Stack.Screen
+        name="AnnualReport"
+        component={AnnualReportScreen}
+        options={{ presentation: 'fullScreenModal', animation: 'none', gestureEnabled: false }}
+      />
       <Stack.Screen name="Error" component={ErrorScreen} />
     </Stack.Navigator>
   );

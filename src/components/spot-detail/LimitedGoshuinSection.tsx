@@ -6,14 +6,12 @@ import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { spacing } from '@theme/spacing';
 import type { LimitedGoshuinInfo, LimitedGoshuinItem, SpotSnsLink } from '@/types/supabase';
+import { JST_OFFSET_MS, toJstDateString } from '@utils/jstDate';
+
+/** JST の YYYY-MM-DD。年報でも使うので @utils/jstDate へ移した（Issue #274 D-2） */
+export { toJstDateString };
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
-
-/** JST（UTC+9 固定・日本に DST は無い）の YYYY-MM-DD を返す */
-export function toJstDateString(now: Date): string {
-  return new Date(now.getTime() + JST_OFFSET_MS).toISOString().slice(0, 10);
-}
 
 /** JST の YYYY/MM/DD HH:mm。パース不能なら空文字 */
 export function formatFetchedAt(iso: string): string {

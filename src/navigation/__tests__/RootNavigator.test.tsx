@@ -1,3 +1,5 @@
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { act, render, waitFor } from '@testing-library/react-native';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 
@@ -20,6 +22,13 @@ jest.mock('@services/auth', () => ({
   configureGoogleSignIn: jest.fn(),
   signInWithGoogle: jest.fn(),
   signOut: jest.fn(),
+}));
+
+// 自動再生の判定は useAnnualReportAutoPlay のテストで見る。12月に CI が走っても
+// ナビゲーションのテストが Supabase へ出て揺れないように止めておく（Issue #274）
+const mockAutoPlay = jest.fn();
+jest.mock('@hooks/useAnnualReportAutoPlay', () => ({
+  useAnnualReportAutoPlay: (...args: unknown[]) => mockAutoPlay(...args),
 }));
 
 // Mock useOnboarding
@@ -250,6 +259,67 @@ describe('RootNavigator', () => {
     });
 
     await waitFor(() => expect(getByText('予定を、先までいくつでも')).toBeTruthy());
+  });
+
+  it('AC-26（#274）: 年報の画面が登録されている', async () => {
+    mockUseOnboarding.mockReturnValue({
+      isCompleted: true,
+      isLoading: false,
+      completeOnboarding: jest.fn(),
+      resetOnboarding: jest.fn(),
+    });
+
+    const { getByTestId, getByText } = renderWithNavigation();
+    await waitFor(() => expect(getByTestId('map-screen')).toBeTruthy());
+
+    act(() => {
+      navigationRef.navigate('AnnualReport', { year: 2026, sample: 'full' });
+    });
+
+    await waitFor(() => expect(getByTestId('annual-report')).toBeTruthy());
+    expect(getByText('2026年のふりかえり')).toBeTruthy();
+  });
+
+  it('AC-58（#274）: スプラッシュが消えるまでは自動再生の判定を止めておく', async () => {
+    mockUseOnboarding.mockReturnValue({
+      isCompleted: true,
+      isLoading: false,
+      completeOnboarding: jest.fn(),
+      resetOnboarding: jest.fn(),
+    });
+
+    const ui = render(
+      <NavigationContainer ref={navigationRef}>
+        <RootNavigator splashDone={false} />
+      </NavigationContainer>
+    );
+    await waitFor(() => expect(ui.getByTestId('map-screen')).toBeTruthy());
+    expect(mockAutoPlay).toHaveBeenLastCalledWith({ ready: false });
+
+    ui.rerender(
+      <NavigationContainer ref={navigationRef}>
+        <RootNavigator splashDone />
+      </NavigationContainer>
+    );
+    await waitFor(() => expect(mockAutoPlay).toHaveBeenLastCalledWith({ ready: true }));
+  });
+
+  it('AC-58（#274）: splashDone を省略すると判定してよい（既存の呼び出しを変えない）', async () => {
+    mockUseOnboarding.mockReturnValue({
+      isCompleted: true,
+      isLoading: false,
+      completeOnboarding: jest.fn(),
+      resetOnboarding: jest.fn(),
+    });
+
+    const { getByTestId } = renderWithNavigation();
+    await waitFor(() => expect(getByTestId('map-screen')).toBeTruthy());
+    expect(mockAutoPlay).toHaveBeenLastCalledWith({ ready: true });
+  });
+
+  it('AC-58（#274）: App はスプラッシュが消えたかを RootNavigator に渡す', () => {
+    const app = readFileSync(join(__dirname, '../../../App.tsx'), 'utf8');
+    expect(app).toContain('<RootNavigator splashDone={splashComplete} />');
   });
 
   it('shows Map screen (MainTabs) when onboarding is completed', async () => {
