@@ -17,7 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
-import { spacing } from '@theme/spacing';
+import { spacing, borderRadius } from '@theme/spacing';
 import { useAuth } from '@hooks/useAuth';
 import { useGalleryStamps } from '@hooks/useGalleryStamps';
 import { useGalleryViewMode, type GalleryViewMode } from '@hooks/useGalleryViewMode';
@@ -35,7 +35,9 @@ import { GalleryTileImage } from '@components/gallery/GalleryTileImage';
 import { HeroFlyer } from '@components/gallery/HeroFlyer';
 import { useHeroTransition } from '@hooks/useHeroTransition';
 import { useReduceMotion } from '@hooks/useReduceMotion';
+import { useViewModeTransition } from '@hooks/useViewModeTransition';
 import { ViewModeToggle } from '@components/gallery/ViewModeToggle';
+import { TILE_PERSPECTIVE } from '@components/gallery/viewModeMotion';
 import { getWebPreviewStamps, previewImageUrl } from '@components/gallery/webPreview';
 import { EditStampModal } from '@components/stamp-detail/EditStampModal';
 import { DeleteConfirmModal } from '@components/stamp-detail/DeleteConfirmModal';
@@ -163,6 +165,22 @@ export function GalleryScreen({ navigation }: Props) {
   const sortLabel = sortOrder === 'date' ? '日付順' : 'スポット順';
 
   /*
+   * 表示の切り替わりの動き（Issue #276）。準備・測る・時計・後始末・取りやめ・ロックは
+   * useViewModeTransition に集め、この画面は面とタイルに値を渡すだけにする
+   */
+  const stampIds = useMemo(() => displayStamps.map(s => s.id), [displayStamps]);
+  const transition = useViewModeTransition({
+    tileSize: ITEM_SIZE,
+    columns: NUM_COLUMNS,
+    reduceMotion,
+    isLoading: isLoading && !isPreview,
+    stampIds,
+    blocked: selectedImageIndex !== null || hero.flight !== null,
+  });
+  const transitionPhase = transition.phase;
+  const transitionMotion = transitionPhase?.stage === 'running' ? transitionPhase.motion : null;
+
+  /*
    * 御朱印帳は古い順に綴じる。そのまま開くと「最近の参拝」から来た人が
    * **本の一番遠い端**に降ろされるので、開く位置だけ最新側にする。
    *
@@ -208,6 +226,8 @@ export function GalleryScreen({ navigation }: Props) {
       contentHeight
     );
     if (offset > 0.5) gridRef.current?.scrollToOffset({ offset, animated: false });
+    // 切り替わりの動きは、開く位置へ送ってから測る
+    transition.gridPositioned();
   };
 
   const handleGridLayout = (event: LayoutChangeEvent) => {
@@ -240,13 +260,17 @@ export function GalleryScreen({ navigation }: Props) {
       gridOpenTarget.current = null;
       setFlipOpenRequest({ stampId: flipStampId });
     }
+    // 動かせるなら、入ってくる側を見えないまま描き足して測る。動かせないならその場で切り替える
+    const stackTop = displayStamps[indexOfStamp(flipStampId)];
+    if (stackTop) transition.begin({ from: viewMode, to: next, stampId: stackTop.id });
     setViewMode(next);
   };
 
-  // 開くページの指定は、切り替えた描画のあとで捨てる
+  // 開くページの指定は、切り替えが済んだら（その場で切り替えたらその描画のあとで）捨てる
+  const transitionActive = transition.active;
   useEffect(() => {
-    if (flipOpenRequest) setFlipOpenRequest(null);
-  }, [flipOpenRequest]);
+    if (flipOpenRequest && !transitionActive) setFlipOpenRequest(null);
+  }, [flipOpenRequest, transitionActive]);
 
   // 取り直したら、一覧の開く位置は今のまま（ボタンで切り替えたときの位置は使わない）
   useEffect(() => {
@@ -282,6 +306,8 @@ export function GalleryScreen({ navigation }: Props) {
     }
     return GalleryRowCell;
   }, []);
+  // セルは props を足せないので、持ち上げる行はここで控えて extraData で描き直させる
+  liftedRow.current = transitionMotion ? transitionMotion.stackTopRow : null;
 
   const galleryImages: GalleryImage[] = useMemo(
     () =>
@@ -438,10 +464,17 @@ export function GalleryScreen({ navigation }: Props) {
     const imageUrl = imageUrlOf(item);
     // 飛んでいる間は隠す。出したままだと同じ御朱印が一覧と空中で二重に見える
     const isFlying = flyingStampId === item.id;
+    // 切り替わりの動き（Issue #276）。見えているタイルだけが値を持つ
+    const motion = transitionMotion?.tiles.get(item.id);
+    const isStackTop = transitionMotion?.stackTopStampId === item.id;
 
     return (
       <TouchableOpacity
-        style={[styles.gridItem, isMiddleColumn && styles.gridItemMiddle]}
+        style={[
+          styles.gridItem,
+          isMiddleColumn && styles.gridItemMiddle,
+          isStackTop && styles.lifted,
+        ]}
         // 指が離れるまでに読み込みを始めておく。飛ぶ1枚は新しい <Image> なので、
         // 一覧に出ていても読み込み直しが要る
         onPressIn={() => {
@@ -457,8 +490,31 @@ export function GalleryScreen({ navigation }: Props) {
          * 表示の切り替えの動き用の包み（Issue #276 D-15）。静かなときも描いておき、
          * 動きの間だけ値を付ける（木の形を変えると写真を読み直す）
          */}
-        <Animated.View testID={`gallery-tile-motion-${item.id}`}>
-          <Animated.View testID={`gallery-tile-front-${item.id}`}>
+        <Animated.View
+          ref={node => {
+            transition.registerTile(item.id, node as View | null);
+          }}
+          testID={`gallery-tile-motion-${item.id}`}
+          style={
+            motion && {
+              transform: [
+                { translateX: motion.translateX },
+                { translateY: motion.translateY },
+                { rotateZ: motion.rotateZ },
+              ],
+            }
+          }
+        >
+          {/* 表と裏は兄弟の2枚。iOS は子の 3D を親の面に潰す（#275 D-7） */}
+          <Animated.View
+            testID={`gallery-tile-front-${item.id}`}
+            style={
+              motion && {
+                backfaceVisibility: 'hidden',
+                transform: [{ perspective: TILE_PERSPECTIVE }, { rotateY: motion.rotateY }],
+              }
+            }
+          >
             <View
               ref={node => {
                 hero.registerTile(item.id, 'image', node);
@@ -478,6 +534,23 @@ export function GalleryScreen({ navigation }: Props) {
               />
             </View>
           </Animated.View>
+          {motion?.faceDown && (
+            <Animated.View
+              testID={`gallery-tile-back-${item.id}`}
+              style={[
+                styles.tileBack,
+                {
+                  transform: [
+                    { perspective: TILE_PERSPECTIVE },
+                    { rotateY: motion.rotateY },
+                    { rotateY: '180deg' },
+                  ],
+                },
+              ]}
+            >
+              <View testID={`gallery-tile-back-${item.id}-frame`} style={styles.tileBackFrame} />
+            </Animated.View>
+          )}
         </Animated.View>
         <Animated.View
           ref={node => {
@@ -485,7 +558,7 @@ export function GalleryScreen({ navigation }: Props) {
             hero.registerTile(item.id, 'text', node as View | null);
           }}
           testID={`gallery-tile-caption-${item.id}`}
-          style={isFlying && styles.flying}
+          style={[isFlying && styles.flying, motion && { opacity: motion.captionOpacity }]}
         >
           <Text style={styles.itemSpotName} numberOfLines={1}>
             {item.spots.name}
@@ -498,6 +571,13 @@ export function GalleryScreen({ navigation }: Props) {
     );
   };
 
+  /** 面の見え方。準備中は入ってくる側を見えないまま、動いている間は時計から引く */
+  const paneStyleOf = (pane: GalleryViewMode) => [
+    StyleSheet.absoluteFill,
+    transitionPhase?.stage === 'preparing' && transitionPhase.to === pane && styles.incomingPane,
+    transitionMotion && { opacity: transitionMotion.paneOpacity[pane] },
+  ];
+
   return (
     <View style={styles.rootContainer}>
       <SafeAreaView style={styles.container} edges={['top']}>
@@ -508,6 +588,8 @@ export function GalleryScreen({ navigation }: Props) {
               mode={viewMode}
               onChange={handleViewModeChange}
               reduceMotion={reduceMotion}
+              // 切り替わりの動きの間・詳細を開いている間は押しても何もしない
+              locked={transition.locked}
             />
           )}
         </View>
@@ -542,9 +624,24 @@ export function GalleryScreen({ navigation }: Props) {
             />
           </View>
         ) : (
-          <View testID="gallery-content" style={styles.content}>
-            {viewMode === 'flip' && (
-              <Animated.View testID="gallery-flip-pane" style={StyleSheet.absoluteFill}>
+          <View
+            testID="gallery-content"
+            style={styles.content}
+            onLayout={transition.onContentLayout}
+          >
+            {/*
+             * 静かなときは表示している面だけを描く。準備中と動いている間だけ両方を描き、
+             * 終わったら出ていく側を外す（Issue #276 D-7）
+             */}
+            {(viewMode === 'flip' || transitionPhase) && (
+              <Animated.View
+                ref={node => {
+                  transition.registerPane('flip', node as View | null);
+                }}
+                testID="gallery-flip-pane"
+                style={paneStyleOf('flip')}
+                pointerEvents={transitionPhase ? 'none' : 'auto'}
+              >
                 <GoshuinchoFlipView
                   stamps={displayStamps}
                   resolveImageUrl={isPreview ? previewImageUrl : undefined}
@@ -556,18 +653,26 @@ export function GalleryScreen({ navigation }: Props) {
                       openStamp(index, stamp, 'contain', getStampImageUrl(stamp.image_path));
                     }
                   }}
-                  registerNode={(id, part, node) => hero.registerTile(id, part, node)}
+                  registerNode={(id, part, node) => {
+                    hero.registerTile(id, part, node);
+                    if (part === 'image') transition.registerPageSurface(id, node);
+                  }}
                   onImageLoad={(id, w, h) => hero.rememberAspect(id, w, h)}
                   hiddenStampId={flyingStampId}
                   reduceMotion={reduceMotion}
                   onPressBlank={() => navigation.navigate('Record', { origin: 'gallery' })}
                   initialStampId={flipOpenRequest?.stampId ?? null}
                   onCurrentStampChange={setFlipStampId}
+                  motion={transitionMotion?.flip ?? null}
                 />
               </Animated.View>
             )}
-            {viewMode === 'grid' && (
-              <Animated.View testID="gallery-grid-pane" style={StyleSheet.absoluteFill}>
+            {(viewMode === 'grid' || transitionPhase) && (
+              <Animated.View
+                testID="gallery-grid-pane"
+                style={paneStyleOf('grid')}
+                pointerEvents={transitionPhase ? 'none' : 'auto'}
+              >
                 <View style={styles.sortRow}>
                   <TouchableOpacity onPress={handleToggleSort} testID="sort-button">
                     <Text style={styles.sortText}>{sortLabel} ▼</Text>
@@ -590,7 +695,13 @@ export function GalleryScreen({ navigation }: Props) {
                     />
                   </View>
                 ) : (
-                  <View testID="gallery-list-viewport" style={styles.listViewport}>
+                  <View
+                    ref={node => {
+                      transition.registerPane('viewport', node);
+                    }}
+                    testID="gallery-list-viewport"
+                    style={styles.listViewport}
+                  >
                     <FlatList
                       ref={setGridRef}
                       data={displayStamps}
@@ -600,6 +711,8 @@ export function GalleryScreen({ navigation }: Props) {
                       key={sortOrder}
                       contentContainerStyle={styles.listContent}
                       CellRendererComponent={GridRowCell}
+                      // 切り替わりの動きの間、束のいちばん上の行をセルに描き直させる
+                      extraData={transitionPhase}
                       onLayout={handleGridLayout}
                       /*
                        * **いちばん下（最新）から開く**。綴じる順は変えない。
@@ -710,6 +823,31 @@ const styles = StyleSheet.create({
   /** 束のいちばん上の1枚（を含む行）を、ほかの行・タイルより上に出す（Issue #276 D-16） */
   lifted: {
     zIndex: 1,
+  },
+  /** 切り替わりの準備中の、入ってくる側の面 */
+  incomingPane: {
+    opacity: 0,
+  },
+  /** めくれるタイルの紙の裏（試作 transition-v2 の `.face.back`） */
+  tileBack: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.tileBack.paper,
+    borderWidth: 1,
+    borderColor: colors.tileBack.edge,
+    borderRadius: borderRadius.md,
+    overflow: 'hidden',
+    backfaceVisibility: 'hidden',
+  },
+  /** 紙の裏の内側の薄い朱の枠（試作 `.face.back::after`） */
+  tileBackFrame: {
+    position: 'absolute',
+    top: spacing.sm,
+    left: spacing.sm,
+    right: spacing.sm,
+    bottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.tileBack.frame,
+    borderRadius: borderRadius.sm,
   },
   sortRow: {
     flexDirection: 'row',
