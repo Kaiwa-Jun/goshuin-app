@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>御朱印帳の表示の切り替え — アイディア v1</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<style>
+/* 動かすのは 位置（translateX）・大きさ（scale）・回転（rotateY）・透明度・幅 だけ。RN の Animated（spring / timing）で作れるもの。
+   アイコンは View の組み立て（下のタブの TabBarIcon の「本が開く」と同じ組み方）。色は src/theme（primary[500]・gray） */
+:root{--brand:#f27f0d;--brand50:#FFF7ED;--g100:#F3F4F6;--g200:#E5E7EB;--g300:#D1D5DB;--g400:#9CA3AF;--g500:#6B7280;--g800:#1F2937;--washi:#EFEAE0;--seal:#C2342B}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#E7E5E0;font-family:-apple-system,"Hiragino Sans",sans-serif;color:var(--g800);padding:22px 24px 40px}
+h1{font-size:20px;font-weight:800}
+.lead{font-size:13px;color:#4B5563;line-height:1.8;margin:4px 0 12px;max-width:1300px}
+.ctl{display:flex;gap:14px;align-items:center;margin-bottom:16px}
+.ctl button{border:0;border-radius:10px;padding:8px 14px;font-weight:800;cursor:pointer}
+.demo{background:var(--seal);color:#fff}
+.seg{display:inline-flex;background:#fff;border-radius:999px;padding:3px}
+.seg button{background:transparent;border-radius:999px;padding:5px 12px;font-size:12.5px;color:#6B7280}
+.seg button.on{background:var(--g100);color:var(--g800)}
+.wrap{display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start}
+.col{width:300px}
+.col h2{font-size:15px;font-weight:800;margin-bottom:6px}
+.col p{font-size:12.5px;color:#4B5563;line-height:1.7;margin-top:10px}
+.col p b{color:var(--g800)}
+.phone{width:300px;height:520px;border-radius:30px;overflow:hidden;position:relative;background:#fff;box-shadow:0 14px 40px rgba(17,24,39,.22)}
+.sb{height:36px;display:flex;justify-content:space-between;align-items:center;padding:0 22px;font-size:12px;font-weight:600}
+.hd{display:flex;justify-content:space-between;align-items:center;padding:4px 16px 8px;min-height:52px}
+.hd b{font-size:22px;font-weight:800}
+.body{position:relative;height:400px}
+.view{position:absolute;inset:0;padding:6px 16px;transition:opacity .22s ease, transform .22s ease}
+.view.hide{opacity:0;transform:scale(.97);pointer-events:none}
+.bigpage{width:200px;height:300px;margin:4px auto 0;border:1px solid var(--g200);border-radius:12px;background:var(--washi);display:grid;place-items:center;color:#A69D8C}
+.cap{font-size:11px;color:var(--g500);text-align:center;margin-top:6px}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tiles div{aspect-ratio:1;border-radius:7px;background:var(--washi)}
+.sort{font-size:12px;color:var(--g500);margin-bottom:8px}
+
+/* ── アイコンの組み立て（24px） ── */
+.ic{position:relative;width:24px;height:24px}
+/* 本: 綴じ目で左右2枚。左ページが綴じ目を軸に開く（TabBarIcon の open-book と同じ） */
+.book{perspective:120px}
+.book .p{position:absolute;top:5px;width:10px;height:14px;border-radius:1.5px;background:currentColor}
+.book .p.r{left:12.5px}
+.book .p.l{left:1.5px;transform-origin:right center}
+.book .spine{position:absolute;left:11.5px;top:4px;width:1px;height:16px;background:currentColor;opacity:.5}
+/* 一覧: 4枚のタイル */
+.grid4 .t{position:absolute;width:9px;height:9px;border-radius:2px;background:currentColor}
+.grid4 .t:nth-child(1){left:2.5px;top:2.5px}.grid4 .t:nth-child(2){left:12.5px;top:2.5px}.grid4 .t:nth-child(3){left:2.5px;top:12.5px}.grid4 .t:nth-child(4){left:12.5px;top:12.5px}
+
+/* A スライドする台 */
+.segA{position:relative;display:flex;background:var(--g100);border-radius:12px;padding:3px}
+.segA .thumb{position:absolute;top:3px;left:3px;width:44px;height:36px;border-radius:9px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.14)}
+.segA .opt{position:relative;width:44px;height:36px;display:grid;place-items:center;cursor:pointer;color:var(--g400)}
+.segA .opt.on{color:var(--brand)}
+
+/* B ことばが出る台 */
+.segB{position:relative;display:flex;background:var(--g100);border-radius:999px;padding:3px}
+.segB .thumb{position:absolute;top:3px;height:34px;border-radius:999px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.14)}
+.segB .opt{position:relative;height:34px;display:flex;align-items:center;gap:6px;padding:0 10px;cursor:pointer;color:var(--g400);overflow:hidden;white-space:nowrap}
+.segB .opt .lb{font-size:13px;font-weight:800;max-width:0;opacity:0}
+.segB .opt.on{color:var(--brand)}
+
+/* C 1つのボタン */
+.oneC{width:44px;height:40px;border-radius:12px;background:var(--brand50);display:grid;place-items:center;cursor:pointer;color:var(--brand)}
+.oneC .morph{position:relative;width:24px;height:24px}
+.oneC .m{position:absolute;background:currentColor;border-radius:2px}
+.hintC{font-size:10px;color:var(--g500);text-align:right;margin-top:2px}
+
+/* D 下線がすべる */
+.segD{position:relative;display:flex;gap:4px}
+.segD .opt{width:44px;height:40px;display:grid;place-items:center;cursor:pointer;color:var(--g400)}
+.segD .opt.on{color:var(--brand)}
+.segD .bar{position:absolute;bottom:0;left:10px;width:24px;height:3px;border-radius:2px;background:var(--brand)}
+</style>
+</head>
+<body>
+<h1>御朱印帳の表示の切り替え — アイディア v1</h1>
+<p style="display:inline-block;font-size:12px;font-weight:700;color:#065F46;background:#D1FAE5;border-radius:999px;padding:2px 10px;margin:6px 0">2026-09-27 オーナーが A（スライドする台）を選択（Issue #276）</p>
+<p class="lead">今は見出しの右に2つのアイコンが並び、選んだ方が橙になるだけ。<b>下のタブのアイコンのように「選んだ瞬間に動く」</b>ことを軸に4案。<b>アイコンを押すと切り替わる</b>（下の中身も入れ替わる）。「自動で切り替える」で4案が同時に動く。</p>
+<div class="ctl"><button class="demo" id="auto">自動で切り替える</button>
+  <span class="seg" id="rm"><button data-v="off" class="on">動きあり</button><button data-v="on">視差効果を減らす</button></span></div>
+<div class="wrap" id="wrap"></div>
+
+<script>
+const IDEAS = [
+ {id:'A', t:'A. スライドする台', d:'灰色の台の中を、白い台が<b>ばねのように</b>すべって移る（少し行き過ぎて戻る）。選んだアイコンが<b>下のタブと同じように動く</b>: めくる=本が開く、一覧=タイルが1枚ずつ並ぶ。今の場所・大きさのまま置き換えられる'},
+ {id:'B', t:'B. ことばが出る台', d:'選んだ方だけ「めくる」「ならべる」の<b>ことばが出て</b>、白い台が伸び縮みしながら移る（Material 3 のナビゲーションの形）。今どちらなのかが字で分かる。見出しの右が少し広くなる'},
+ {id:'C', t:'C. 1つのボタンが形を変える', d:'ボタンは1つ。押すと<b>本の2ページが4枚のタイルに分かれる</b>（戻すとタイルが寄って本になる）。場所を取らず、動きがいちばん目を引く。ただし「今どちらか」より「押すと何になるか」を示す形になるので、分かりにくさがある'},
+ {id:'D', t:'D. 下線がすべる', d:'アイコンはそのまま2つ。<b>選んだ方の下に線がすべって移る</b>（下のタブや上のタブの形）。アイコンの動きは A と同じ。いちばん控えめで、今の見た目に近い'},
+];
+const state={rm:false};
+const book = () => `<div class="ic book"><div class="spine"></div><div class="p r"></div><div class="p l"></div></div>`;
+const grid4 = () => `<div class="ic grid4"><div class="t"></div><div class="t"></div><div class="t"></div><div class="t"></div></div>`;
+const phone = (id, toggle) => `<div class="phone"><div class="sb"><span>9:41</span><span>▮▮▮ ◠ ▭</span></div>
+  <div class="hd"><b>御朱印帳</b><div>${toggle}</div></div>
+  <div class="body"><div class="view" data-view="flip"><div class="bigpage"><span class="mi">photo</span></div><div class="cap">大崎八幡宮 ・ 1月3日</div></div>
+  <div class="view hide" data-view="grid"><div class="sort">日付順 ▼</div><div class="tiles">${'<div></div>'.repeat(12)}</div></div></div></div>`;
+const TOGGLES = {
+  A: () => `<div class="segA" data-t="A"><div class="thumb"></div><div class="opt on" data-m="flip">${book()}</div><div class="opt" data-m="grid">${grid4()}</div></div>`,
+  B: () => `<div class="segB" data-t="B"><div class="thumb"></div><div class="opt on" data-m="flip">${book()}<span class="lb">めくる</span></div><div class="opt" data-m="grid">${grid4()}<span class="lb">ならべる</span></div></div>`,
+  C: () => `<div><div class="oneC" data-t="C"><div class="morph">${[0,1,2,3].map(i=>`<div class="m" data-q="${i}"></div>`).join('')}</div></div><div class="hintC">押すと一覧へ</div></div>`,
+  D: () => `<div class="segD" data-t="D"><div class="opt on" data-m="flip">${book()}</div><div class="opt" data-m="grid">${grid4()}</div><div class="bar"></div></div>`,
+};
+document.getElementById('wrap').innerHTML = IDEAS.map(x=>`<div class="col" id="col-${x.id}"><h2>${x.t}</h2>${phone(x.id, TOGGLES[x.id]())}<p>${x.d}</p></div>`).join('');
+
+/* ── 小さなアニメーションの道具（requestAnimationFrame） ── */
+function anim(ms, fn, ease=t=>1-Math.pow(1-t,3)){ if(state.rm){ fn(1); return; } const t0=performance.now();
+  const step=now=>{ const p=Math.min(1,(now-t0)/ms); fn(ease(p)); if(p<1) requestAnimationFrame(step); }; requestAnimationFrame(step); }
+const spring = t => 1 - Math.exp(-6.5*t)*Math.cos(9.5*t); // 少し行き過ぎて戻る
+const lerp=(a,b,p)=>a+(b-a)*p;
+
+/* 本が開く（左ページが綴じ目を軸に 180°→0°） */
+function openBook(root){ const l=root.querySelector('.book .p.l'); if(!l) return; anim(600,p=>{ l.style.transform=`rotateY(${lerp(180,0,p)}deg)`; }); }
+/* タイルが1枚ずつ並ぶ */
+function popGrid(root){ root.querySelectorAll('.grid4 .t').forEach((t,i)=>{ t.style.transform='scale(0)'; setTimeout(()=>anim(260,p=>t.style.transform=`scale(${p})`, p=>1-Math.pow(1-p,2)*Math.cos(p*4)*0.9), state.rm?0:i*70); }); }
+
+function switchView(col, mode){ col.querySelectorAll('.view').forEach(v=>v.classList.toggle('hide', v.dataset.view!==mode)); }
+
+/* A */
+function setA(col, mode, first){ const s=col.querySelector('.segA'); const th=s.querySelector('.thumb'); const opts=[...s.querySelectorAll('.opt')];
+  const from = parseFloat(th.dataset.x||0), to = mode==='flip'?0:44; th.dataset.x=to;
+  if(first){ th.style.transform=`translateX(${to}px)`; } else anim(520,p=>th.style.transform=`translateX(${lerp(from,to,p)}px)`, spring);
+  opts.forEach(o=>o.classList.toggle('on',o.dataset.m===mode)); if(!first){ const o=opts.find(o=>o.dataset.m===mode); mode==='flip'?openBook(o):popGrid(o); } }
+/* B */
+function setB(col, mode, first){ const s=col.querySelector('.segB'); const th=s.querySelector('.thumb'); const opts=[...s.querySelectorAll('.opt')];
+  opts.forEach(o=>{ const on=o.dataset.m===mode; o.classList.toggle('on',on); const lb=o.querySelector('.lb');
+    const f0=parseFloat(lb.dataset.w||0), f1=on?1:0; lb.dataset.w=f1;
+    const go=p=>{ const v=lerp(f0,f1,p); lb.style.maxWidth=(v*52)+'px'; lb.style.opacity=v; }; first?go(1):anim(380,go); });
+  const place=()=>{ const o=opts.find(o=>o.dataset.m===mode); th.style.left=o.offsetLeft+'px'; th.style.width=o.offsetWidth+'px'; };
+  if(first){ place(); } else { const x0=th.offsetLeft, w0=th.offsetWidth; // 伸び縮みしながら移る
+    const tick=()=>{}; anim(420,p=>{ const o=opts.find(o=>o.dataset.m===mode); th.style.left=lerp(x0,o.offsetLeft,p)+'px'; th.style.width=lerp(w0,o.offsetWidth,p)+'px'; }, spring); }
+  if(!first){ const o=opts.find(o=>o.dataset.m===mode); mode==='flip'?openBook(o):popGrid(o); } }
+/* C: 本（左右2ページ）⇔ タイル4枚 */
+const SHAPE = { flip:[[1.5,5,10,14],[12.5,5,10,14],[1.5,5,10,14],[12.5,5,10,14]], grid:[[2.5,2.5,9,9],[12.5,2.5,9,9],[2.5,12.5,9,9],[12.5,12.5,9,9]] };
+function setC(col, mode, first){ const b=col.querySelector('.oneC'); const ms=[...b.querySelectorAll('.m')]; const from=b.dataset.mode||mode; b.dataset.mode=mode;
+  // ボタンは「押すと何になるか」を見せる: 今がめくるならタイル、今が一覧なら本
+  const showFrom = from==='flip'?'grid':'flip', showTo = mode==='flip'?'grid':'flip';
+  const go=p=>ms.forEach((m,i)=>{ const a=SHAPE[showFrom][i], z=SHAPE[showTo][i]; const r=[0,1,2,3].map(k=>lerp(a[k],z[k],p));
+    m.style.left=r[0]+'px'; m.style.top=r[1]+'px'; m.style.width=r[2]+'px'; m.style.height=r[3]+'px'; });
+  first?go(1):anim(480,go,spring); col.querySelector('.hintC').textContent = mode==='flip'?'押すと一覧へ':'押すとめくる表示へ'; }
+/* D */
+function setD(col, mode, first){ const s=col.querySelector('.segD'); const bar=s.querySelector('.bar'); const opts=[...s.querySelectorAll('.opt')];
+  const from=parseFloat(bar.dataset.x||0), to=mode==='flip'?0:48; bar.dataset.x=to;
+  const go=p=>{ const x=lerp(from,to,p); const stretch=1+0.8*Math.sin(Math.min(1,p)*Math.PI); bar.style.transform=`translateX(${x}px) scaleX(${first?1:stretch})`; };
+  first?go(1):anim(420,go); opts.forEach(o=>o.classList.toggle('on',o.dataset.m===mode)); if(!first){ const o=opts.find(o=>o.dataset.m===mode); mode==='flip'?openBook(o):popGrid(o); } }
+
+const SET={A:setA,B:setB,C:setC,D:setD}; const modes={A:'flip',B:'flip',C:'flip',D:'flip'};
+IDEAS.forEach(x=>SET[x.id](document.getElementById('col-'+x.id),'flip',true));
+function toggle(id, to){ const col=document.getElementById('col-'+id); const m = to || (modes[id]==='flip'?'grid':'flip'); if(m===modes[id]) return; modes[id]=m; SET[id](col,m,false); switchView(col,m); }
+document.querySelectorAll('[data-t]').forEach(el=>el.addEventListener('click',e=>{ const id=el.dataset.t; const opt=e.target.closest('[data-m]'); toggle(id, opt?opt.dataset.m:null); }));
+let timer=null; document.getElementById('auto').onclick=()=>{ if(timer){ clearInterval(timer); timer=null; document.getElementById('auto').textContent='自動で切り替える'; return; }
+  document.getElementById('auto').textContent='止める'; const run=()=>IDEAS.forEach(x=>toggle(x.id)); run(); timer=setInterval(run,1800); };
+document.querySelectorAll('#rm button').forEach(b=>b.onclick=()=>{ document.querySelectorAll('#rm button').forEach(x=>x.classList.toggle('on',x===b)); state.rm=b.dataset.v==='on'; });
+window.__toggle = toggle;
+</script>
+</body>
+</html>
