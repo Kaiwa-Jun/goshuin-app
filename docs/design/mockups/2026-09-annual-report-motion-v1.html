@@ -95,7 +95,7 @@ h1{font-size:20px;font-weight:800}
     <div id="ayumi">
       <div class="sb"><span>9:41</span><span>▮▮▮ ◠ ▭</span></div>
       <div class="hd">あゆみ</div>
-      <div class="entry" id="entry"><div style="flex:1"><div class="k">12月の特別編</div><b>2026年の年報</b><div class="s" id="entrySub"></div></div><div class="play"><span class="mi">play_arrow</span></div></div>
+      <div class="entry" id="entry"><div style="flex:1"><div class="k">12月の特別編</div><b>2026年のふりかえり</b><div class="s" id="entrySub"></div></div><div class="play"><span class="mi">play_arrow</span></div></div>
       <div class="blk">もう少し（今の画面のまま）</div><div class="blk" style="height:230px">日本地図（今の画面のまま）</div><div class="blk">最近の参拝（今の画面のまま）</div>
       <div class="tabs"><div><span class="mi">explore</span>地図</div><div><span class="mi">event</span>予定</div><div><span class="mi">menu_book</span>御朱印帳</div><div class="on"><span class="mi">show_chart</span>あゆみ</div><div><span class="mi">settings</span>設定</div></div>
     </div>
@@ -199,7 +199,7 @@ function fitTransform(names){
 /* ── シーン ── */
 const SCENES = [
  { id:'cover', t:'表紙', ms:4800, has:d=>true,
-   html:d=>`<div class="kick" data-a>2026 年の年報</div><div class="huge" data-a style="margin-top:14px">2026</div><div class="big" data-a style="font-size:28px">あなたの参拝</div>
+   html:d=>`<div class="kick" data-a>2026年のふりかえり</div><div class="huge" data-a style="margin-top:14px">2026</div><div class="big" data-a style="font-size:28px">あなたの参拝</div>
      <div style="position:relative;height:330px;margin-top:26px"><div id="c-ph" style="position:absolute;left:62px;top:6px">${photo(190,260,0)}</div>
      <div id="c-cap" style="position:absolute;left:0;right:0;top:282px;text-align:center;font-size:13px;font-weight:700;color:var(--sub)">${d.first} ─ 最初の一枚</div></div>`,
    play:(el,d)=>{ const a=$$('[data-a]',el);
@@ -324,7 +324,7 @@ $('#entry').addEventListener('click',open);
 $('#again').addEventListener('click',open);
 $('#shareOv').addEventListener('click',()=>{ $('#shareOv').style.display='none'; });
 function showShare(){ const d=DATA[state.data];
-  $('#shareImg').innerHTML=`<div style="font-size:10px;font-weight:800;color:var(--seal);letter-spacing:.08em">2026 年の年報</div><div style="font-size:21px;font-weight:800;line-height:1.35;margin-top:4px">${d.shrines}社をめぐり<br>${d.stamps}枚の御朱印</div><div style="font-size:12px;font-weight:700;color:#6B6356;margin-top:4px">${d.order.length}つの県へ</div><div style="margin-top:14px" id="sh-map"></div><div style="position:absolute;left:0;right:0;bottom:12px;text-align:center;font-size:10px;color:#6B7280;font-weight:700">御朱印さんぽ</div>`;
+  $('#shareImg').innerHTML=`<div style="font-size:10px;font-weight:800;color:var(--seal);letter-spacing:.08em">2026年のふりかえり</div><div style="font-size:21px;font-weight:800;line-height:1.35;margin-top:4px">${d.shrines}社をめぐり<br>${d.stamps}枚の御朱印</div><div style="font-size:12px;font-weight:700;color:#6B6356;margin-top:4px">${d.order.length}つの県へ</div><div style="margin-top:14px" id="sh-map"></div><div style="position:absolute;left:0;right:0;bottom:12px;text-align:center;font-size:10px;color:#6B7280;font-weight:700">御朱印さんぽ</div>`;
   $('#sh-map').innerHTML=mapSvg(180,210,'s-map',false,['#FFFFFF','#EFEAE0']); const svg=$('#s-map');
   d.order.forEach(([n,t])=>svg.querySelector(`[data-n="${n}"]`).setAttribute('fill',TIER[t]));
   $('#shareOv').style.display='grid'; }
