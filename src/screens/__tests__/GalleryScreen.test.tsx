@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, fireEvent, waitFor, act, within } from '@testing-library/react-native';
-import { AccessibilityInfo, Animated, Image, StyleSheet } from 'react-native';
+import { AccessibilityInfo, Animated, Dimensions, FlatList, Image, StyleSheet } from 'react-native';
 import { GalleryScreen } from '@screens/GalleryScreen';
 import { useGalleryStamps } from '@hooks/useGalleryStamps';
 import { ensureStampVariants } from '@services/stamps';
@@ -9,6 +9,7 @@ import {
   loadingClock,
   resetLoadingClockForTests,
 } from '@components/gallery/loadingClock';
+import { computePageLayout } from '@components/gallery/GoshuinchoFlipView';
 import { colors } from '@theme/colors';
 import type { StampWithSpot } from '@/types/supabase';
 
@@ -845,5 +846,226 @@ describe('視差効果を減らす（Issue #275）', () => {
 
     expect(utils.getByTestId('view-mode-grid').props.accessibilityState.selected).toBe(true);
     expect(fades.filter(config => config.duration === 520 || config.duration === 260)).toEqual([]);
+  });
+});
+
+describe('表示の切り替えの画面と開く位置（Issue #276）', () => {
+  const W = Dimensions.get('window').width;
+  const SNAP = computePageLayout(W).snapInterval;
+  const makeStamps = (count: number) =>
+    Array.from({ length: count }, (_, i) =>
+      makeStamp({
+        id: `s${i}`,
+        image_path: `user-1/stamp-${i}.jpg`,
+        spots: { name: `寺${i}`, type: 'temple' },
+      })
+    );
+  const withStamps = (stamps: StampWithSpot[], isLoading = false) =>
+    mockUseGalleryStamps.mockReturnValue({
+      stamps: isLoading ? [] : stamps,
+      totalCount: isLoading ? 0 : stamps.length,
+      isLoading,
+      error: null,
+      removeStamp: jest.fn(),
+      updateStamp: jest.fn(),
+    });
+
+  const flat = (el: { props: { style?: unknown } }) =>
+    (StyleSheet.flatten(el.props.style) ?? {}) as Record<string, unknown>;
+
+  let scrollToOffsetSpy: jest.SpyInstance;
+  let scrollToEndSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // FlatList が 50ms 後に回す描き直しを検査の途中で走らせない
+    jest.useFakeTimers();
+    mockAuth = { user: { id: 'user-1' }, isAuthenticated: true };
+    scrollToOffsetSpy = jest
+      .spyOn(FlatList.prototype, 'scrollToOffset')
+      .mockImplementation(() => {});
+    scrollToEndSpy = jest.spyOn(FlatList.prototype, 'scrollToEnd').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    scrollToOffsetSpy.mockRestore();
+    scrollToEndSpy.mockRestore();
+    jest.useRealTimers();
+  });
+
+  /** めくる表示を page まで送る（めくり終えた合図） */
+  const flipTo = (utils: ReturnType<typeof renderGalleryScreen>, page: number, pages: number) =>
+    fireEvent(utils.getByTestId('flip-list'), 'momentumScrollEnd', {
+      nativeEvent: {
+        contentOffset: { x: SNAP * page, y: 0 },
+        layoutMeasurement: { width: W, height: 600 },
+        contentSize: { width: SNAP * pages, height: 600 },
+      },
+    });
+
+  /** 一覧の見える範囲（高さ 960）と中身の高さ（1532 = 5行 × 300 + 32）を届ける */
+  const layoutGrid = (utils: ReturnType<typeof renderGalleryScreen>) => {
+    fireEvent(utils.getByTestId('gallery-list'), 'layout', {
+      nativeEvent: { layout: { x: 0, y: 0, width: W, height: 960 } },
+    });
+    fireEvent(utils.getByTestId('gallery-list'), 'contentSizeChange', W, 1532);
+  };
+
+  const counterOf = (utils: ReturnType<typeof renderGalleryScreen>) =>
+    utils.getByTestId('flip-page-counter').props.children;
+
+  const fill = { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 };
+
+  it('中身を2つの面に分け、表示している面だけを描く（AC-23）', () => {
+    withStamps(makeStamps(3));
+    const utils = renderGalleryScreen();
+    const content = within(utils.getByTestId('gallery-content'));
+    expect(content.getByTestId('gallery-flip-pane')).toBeTruthy();
+    expect(content.queryByTestId('gallery-grid-pane')).toBeNull();
+    expect(flat(utils.getByTestId('gallery-flip-pane'))).toEqual(expect.objectContaining(fill));
+
+    fireEvent.press(utils.getByTestId('view-mode-grid'));
+
+    expect(content.queryByTestId('gallery-flip-pane')).toBeNull();
+    const grid = utils.getByTestId('gallery-grid-pane');
+    expect(flat(grid)).toEqual(expect.objectContaining(fill));
+    expect(within(grid).getByTestId('sort-button')).toBeTruthy();
+    const viewport = within(grid).getByTestId('gallery-list-viewport');
+    expect(within(viewport).getByTestId('gallery-list')).toBeTruthy();
+  });
+
+  it('御朱印が0枚の一覧の面には空の状態を出す（AC-23）', () => {
+    withStamps([]);
+    const utils = renderGalleryScreen();
+    fireEvent.press(utils.getByTestId('view-mode-grid'));
+
+    expect(within(utils.getByTestId('gallery-grid-pane')).getByTestId('empty-state')).toBeTruthy();
+  });
+
+  it('タイルは動き用の包みの中にあり、静かなときは何も付けない（AC-24）', () => {
+    const stamps = makeStamps(3);
+    withStamps(stamps);
+    const utils = renderGalleryScreen();
+    fireEvent.press(utils.getByTestId('view-mode-grid'));
+
+    for (const stamp of stamps) {
+      const id = stamp.id;
+      const item = within(utils.getByTestId(`gallery-item-${id}`));
+      const motion = item.getByTestId(`gallery-tile-motion-${id}`);
+      const front = within(motion).getByTestId(`gallery-tile-front-${id}`);
+      expect(within(front).getByTestId(`stamp-tile-${id}`)).toBeTruthy();
+      const caption = item.getByTestId(`gallery-tile-caption-${id}`);
+      expect(within(caption).getByText(stamp.spots.name)).toBeTruthy();
+
+      expect(flat(motion)).not.toHaveProperty('transform');
+      expect(flat(front)).not.toHaveProperty('transform');
+      expect(flat(front)).not.toHaveProperty('backfaceVisibility');
+      expect(flat(caption)).not.toHaveProperty('opacity');
+    }
+    expect(utils.queryAllByTestId(/^gallery-tile-back-/)).toHaveLength(0);
+    expect(flat(utils.getByTestId('gallery-row-0'))).not.toHaveProperty('zIndex');
+  });
+
+  describe('一覧の開く位置（AC-25）', () => {
+    it('めくる表示で見ていた1枚の行が、一覧の縦の真ん中に来る位置で開く', () => {
+      withStamps(makeStamps(15));
+      const utils = renderGalleryScreen();
+      flipTo(utils, 7, 16);
+
+      fireEvent.press(utils.getByTestId('view-mode-grid'));
+      layoutGrid(utils);
+
+      expect(scrollToOffsetSpy).toHaveBeenCalledTimes(1);
+      expect(scrollToOffsetSpy).toHaveBeenCalledWith({ offset: 270, animated: false });
+      expect(scrollToEndSpy).not.toHaveBeenCalled();
+    });
+
+    it('上の端より上になるなら送らない', () => {
+      withStamps(makeStamps(15));
+      const utils = renderGalleryScreen();
+      flipTo(utils, 4, 16);
+
+      fireEvent.press(utils.getByTestId('view-mode-grid'));
+      layoutGrid(utils);
+
+      expect(scrollToOffsetSpy).not.toHaveBeenCalled();
+      expect(scrollToEndSpy).not.toHaveBeenCalled();
+    });
+
+    it('最新を見ていたときは下の端', () => {
+      withStamps(makeStamps(15));
+      const utils = renderGalleryScreen();
+
+      fireEvent.press(utils.getByTestId('view-mode-grid'));
+      layoutGrid(utils);
+
+      expect(scrollToOffsetSpy).toHaveBeenCalledWith({ offset: 572, animated: false });
+    });
+  });
+
+  describe('めくる表示の開く位置（AC-26・AC-27）', () => {
+    it('一覧から戻ると、めくる表示で見ていたページで開く', () => {
+      withStamps(makeStamps(15));
+      const utils = renderGalleryScreen();
+      flipTo(utils, 4, 16);
+
+      fireEvent.press(utils.getByTestId('view-mode-grid'));
+      fireEvent.press(utils.getByTestId('view-mode-flip'));
+
+      expect(counterOf(utils)).toBe('5 ／ 15');
+    });
+
+    it('送っていなければ最新で開く', () => {
+      withStamps(makeStamps(15));
+      const utils = renderGalleryScreen();
+
+      fireEvent.press(utils.getByTestId('view-mode-grid'));
+      fireEvent.press(utils.getByTestId('view-mode-flip'));
+
+      expect(counterOf(utils)).toBe('15 ／ 15');
+    });
+
+    it('白紙のページを見ていたら最新で開く', () => {
+      withStamps(makeStamps(15));
+      const utils = renderGalleryScreen();
+      flipTo(utils, 15, 16);
+
+      fireEvent.press(utils.getByTestId('view-mode-grid'));
+      fireEvent.press(utils.getByTestId('view-mode-flip'));
+
+      expect(counterOf(utils)).toBe('15 ／ 15');
+    });
+
+    it('取り直したときは今と同じく最新で開く（AC-27）', () => {
+      const stamps = makeStamps(15);
+      withStamps(stamps);
+      const utils = renderGalleryScreen();
+      flipTo(utils, 4, 16);
+      fireEvent.press(utils.getByTestId('view-mode-grid'));
+      fireEvent.press(utils.getByTestId('view-mode-flip'));
+      expect(counterOf(utils)).toBe('5 ／ 15');
+
+      withStamps(stamps, true);
+      utils.rerender(<GalleryScreen navigation={mockNavigation as never} route={mockRoute} />);
+      withStamps(stamps);
+      utils.rerender(<GalleryScreen navigation={mockNavigation as never} route={mockRoute} />);
+
+      expect(counterOf(utils)).toBe('15 ／ 15');
+    });
+  });
+
+  it('並び替えたときは今と同じく新しい並びのいちばん下へ送る（AC-28）', () => {
+    withStamps(makeStamps(15));
+    const utils = renderGalleryScreen();
+    flipTo(utils, 7, 16);
+    fireEvent.press(utils.getByTestId('view-mode-grid'));
+    layoutGrid(utils);
+    expect(scrollToOffsetSpy).toHaveBeenCalledTimes(1);
+
+    fireEvent.press(utils.getByTestId('sort-button'));
+    fireEvent(utils.getByTestId('gallery-list'), 'contentSizeChange', W, 1532);
+
+    expect(scrollToEndSpy).toHaveBeenCalledTimes(1);
+    expect(scrollToOffsetSpy).toHaveBeenCalledTimes(1);
   });
 });

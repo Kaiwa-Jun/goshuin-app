@@ -8,6 +8,10 @@ import {
   Dimensions,
   Image,
   ActivityIndicator,
+  Animated,
+  type FlatListProps,
+  type LayoutChangeEvent,
+  type ViewProps,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -16,7 +20,7 @@ import { typography } from '@theme/typography';
 import { spacing } from '@theme/spacing';
 import { useAuth } from '@hooks/useAuth';
 import { useGalleryStamps } from '@hooks/useGalleryStamps';
-import { useGalleryViewMode } from '@hooks/useGalleryViewMode';
+import { useGalleryViewMode, type GalleryViewMode } from '@hooks/useGalleryViewMode';
 import { useStampDetail } from '@hooks/useStampDetail';
 import {
   getStampImageUrl,
@@ -40,6 +44,10 @@ import type { GalleryStackScreenProps } from '@/navigation/types';
 
 type SortOrder = 'date' | 'spot';
 type Props = GalleryStackScreenProps<'Gallery'>;
+/** 一覧の行のセル（numColumns のとき index は行の番号） */
+type GridRowCellProps = React.ComponentProps<
+  NonNullable<FlatListProps<StampWithSpot>['CellRendererComponent']>
+>;
 
 const NUM_COLUMNS = 3;
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -50,6 +58,18 @@ const ITEM_SIZE = (SCREEN_WIDTH - spacing.lg * 2 - ITEM_MARGIN * (NUM_COLUMNS - 
 const HANDOVER_FALLBACK_MS = 800;
 /** サムネが無いものをまとめて焼かせるまでの待ち。1枚ごとに叩かないため */
 const THUMB_REQUEST_DEBOUNCE_MS = 400;
+
+/**
+ * 一覧を、index の1枚の行が見える範囲の縦の真ん中に来る位置で開くときの offset
+ * （Issue #276 D-8）。行の高さはどの行も同じ（並び替えごとに文字の行数がそろう）
+ */
+function gridOffsetOf(index: number, count: number, viewportHeight: number, contentHeight: number) {
+  const rows = Math.ceil(count / NUM_COLUMNS);
+  const rowHeight = (contentHeight - spacing['3xl']) / rows;
+  const row = Math.floor(index / NUM_COLUMNS);
+  const bottom = Math.max(0, contentHeight - viewportHeight);
+  return Math.min(Math.max(row * rowHeight + rowHeight / 2 - viewportHeight / 2, 0), bottom);
+}
 
 const GUEST_PREVIEW_ITEMS = [
   { icon: 'photo-camera', label: '写真で御朱印を残す' },
@@ -72,6 +92,21 @@ export function GalleryScreen({ navigation }: Props) {
    * タイルやページごとに作らない
    */
   const reduceMotion = useReduceMotion();
+
+  /** めくる表示で今出ているページの御朱印。白紙のページなら null（Issue #276 D-8） */
+  const [flipStampId, setFlipStampId] = useState<string | null>(null);
+  /**
+   * ボタンで 一覧 → めくる にしたとき、めくる表示を開くページ。めくる表示は最初に開くときだけ
+   * 使うので、切り替えが済んだら捨てる（取り直して開き直したときは今と同じく最新で開く）
+   */
+  const [flipOpenRequest, setFlipOpenRequest] = useState<{ stampId: string | null } | null>(null);
+  /**
+   * ボタンで めくる → 一覧 にしたとき、一覧を開く位置の1枚。一覧の見える範囲と中身の高さが
+   * 届いたところで使って捨てる。並び替え・取り直し・めくるへ戻したときも捨てる
+   */
+  const gridOpenTarget = useRef<{ stampId: string | null } | null>(null);
+  const gridViewportHeight = useRef<number | null>(null);
+  const gridContentHeight = useRef<number | null>(null);
 
   // Expo Web の検証イネーブラ（Issue #116 S-7）。native では常に null
   const previewStamps = getWebPreviewStamps();
@@ -135,7 +170,7 @@ export function GalleryScreen({ navigation }: Props) {
    * 途中まで見て他のタブへ行って戻った人の位置が失われる。
    * 並べ替えを切り替えたときは、新しい並びの最新側へもう一度送る
    */
-  const gridRef = useRef<FlatList<StampWithSpot>>(null);
+  const gridRef = useRef<FlatList<StampWithSpot> | null>(null);
   const openedAt = useRef<SortOrder | null>(null);
   const openAtLatest = () => {
     if (openedAt.current === sortOrder || displayStamps.length === 0) return;
@@ -143,9 +178,110 @@ export function GalleryScreen({ navigation }: Props) {
     gridRef.current?.scrollToEnd({ animated: false });
   };
 
+  /** 一覧が作り直された。見える範囲と中身の高さは新しい一覧のものを待つ */
+  const setGridRef = useCallback((node: FlatList<StampWithSpot> | null) => {
+    gridRef.current = node;
+    gridViewportHeight.current = null;
+    gridContentHeight.current = null;
+  }, []);
+
+  /** 御朱印の並びの中の位置。見つからない・null なら最新（いちばん最後） */
+  const indexOfStamp = (stampId: string | null) => {
+    const index = stampId ? displayStamps.findIndex(s => s.id === stampId) : -1;
+    return index >= 0 ? index : displayStamps.length - 1;
+  };
+
+  /** ボタンで めくる → 一覧 にしたとき、見ていた1枚の行が縦の真ん中に来る位置で開く（D-8） */
+  const openGridAtTarget = () => {
+    const target = gridOpenTarget.current;
+    const viewportHeight = gridViewportHeight.current;
+    const contentHeight = gridContentHeight.current;
+    if (!target || viewportHeight === null || contentHeight === null) return;
+    gridOpenTarget.current = null;
+    // この並びの最初の1回はこれで済ませた。あとの大きさの知らせでいちばん下へ飛ばさない
+    openedAt.current = sortOrder;
+
+    const offset = gridOffsetOf(
+      indexOfStamp(target.stampId),
+      displayStamps.length,
+      viewportHeight,
+      contentHeight
+    );
+    if (offset > 0.5) gridRef.current?.scrollToOffset({ offset, animated: false });
+  };
+
+  const handleGridLayout = (event: LayoutChangeEvent) => {
+    gridViewportHeight.current = event.nativeEvent.layout.height;
+    openGridAtTarget();
+  };
+
+  const handleGridContentSizeChange = (_width: number, height: number) => {
+    if (gridContentHeight.current === null) gridContentHeight.current = height;
+    if (gridOpenTarget.current) {
+      openGridAtTarget();
+      return;
+    }
+    openAtLatest();
+  };
+
   const handleToggleSort = () => {
+    gridOpenTarget.current = null;
     setSortOrder(prev => (prev === 'date' ? 'spot' : 'date'));
   };
+
+  /**
+   * ボタンで表示を切り替えた。開く位置は、めくる表示で見ていた1枚（D-8）。
+   * 起動時・取り直したとき・並び替えたときの開く位置は今のまま
+   */
+  const handleViewModeChange = (next: GalleryViewMode) => {
+    if (next === 'grid') {
+      gridOpenTarget.current = { stampId: flipStampId };
+    } else {
+      gridOpenTarget.current = null;
+      setFlipOpenRequest({ stampId: flipStampId });
+    }
+    setViewMode(next);
+  };
+
+  // 開くページの指定は、切り替えた描画のあとで捨てる
+  useEffect(() => {
+    if (flipOpenRequest) setFlipOpenRequest(null);
+  }, [flipOpenRequest]);
+
+  // 取り直したら、一覧の開く位置は今のまま（ボタンで切り替えたときの位置は使わない）
+  useEffect(() => {
+    if (isLoading) gridOpenTarget.current = null;
+  }, [isLoading]);
+
+  /*
+   * 一覧の行のセル（Issue #276 D-16）。切り替わりの動きの間、束のいちばん上の1枚を含む行を
+   * ほかの行より上に出す。**画面で一度だけ作る**（部品が替わると全タイルが作り直されて
+   * 写真を読み直す）。持ち上げる行は ref に入れ、extraData でセルを描き直させる
+   */
+  const liftedRow = useRef<number | null>(null);
+  const GridRowCell = useMemo(() => {
+    function GalleryRowCell({
+      index,
+      style,
+      onLayout,
+      onFocusCapture,
+      children,
+    }: GridRowCellProps) {
+      // onFocusCapture は View の型に無いが、RN の既定のセルと同じく View に渡す
+      const focusProps = { onFocusCapture } as Partial<ViewProps>;
+      return (
+        <View
+          testID={`gallery-row-${index}`}
+          style={[style, liftedRow.current === index && styles.lifted]}
+          onLayout={onLayout}
+          {...focusProps}
+        >
+          {children}
+        </View>
+      );
+    }
+    return GalleryRowCell;
+  }, []);
 
   const galleryImages: GalleryImage[] = useMemo(
     () =>
@@ -317,28 +453,38 @@ export function GalleryScreen({ navigation }: Props) {
         activeOpacity={1}
         testID={`gallery-item-${item.id}`}
       >
-        <View
+        {/*
+         * 表示の切り替えの動き用の包み（Issue #276 D-15）。静かなときも描いておき、
+         * 動きの間だけ値を付ける（木の形を変えると写真を読み直す）
+         */}
+        <Animated.View testID={`gallery-tile-motion-${item.id}`}>
+          <Animated.View testID={`gallery-tile-front-${item.id}`}>
+            <View
+              ref={node => {
+                hero.registerTile(item.id, 'image', node);
+              }}
+              style={isFlying && styles.flying}
+            >
+              {/* 写真が届くまでは和紙の下地が明滅する（Issue #275） */}
+              <GalleryTileImage
+                stampId={item.id}
+                uri={imageUrl}
+                size={ITEM_SIZE}
+                reduceMotion={reduceMotion}
+                // 読み込んだついでに縦横比を控える。飛ぶ先の高さがこれで決まる
+                onLoad={(w, h) => hero.rememberAspect(item.id, w, h)}
+                // 小さい方がまだ焼かれていない。元の写真に落として表示は続け、裏で焼かせる
+                onError={() => handleThumbMissing(item)}
+              />
+            </View>
+          </Animated.View>
+        </Animated.View>
+        <Animated.View
           ref={node => {
-            hero.registerTile(item.id, 'image', node);
+            // Animated.View の ref は中の View。型だけ LegacyRef が混ざる
+            hero.registerTile(item.id, 'text', node as View | null);
           }}
-          style={isFlying && styles.flying}
-        >
-          {/* 写真が届くまでは和紙の下地が明滅する（Issue #275） */}
-          <GalleryTileImage
-            stampId={item.id}
-            uri={imageUrl}
-            size={ITEM_SIZE}
-            reduceMotion={reduceMotion}
-            // 読み込んだついでに縦横比を控える。飛ぶ先の高さがこれで決まる
-            onLoad={(w, h) => hero.rememberAspect(item.id, w, h)}
-            // 小さい方がまだ焼かれていない。元の写真に落として表示は続け、裏で焼かせる
-            onError={() => handleThumbMissing(item)}
-          />
-        </View>
-        <View
-          ref={node => {
-            hero.registerTile(item.id, 'text', node);
-          }}
+          testID={`gallery-tile-caption-${item.id}`}
           style={isFlying && styles.flying}
         >
           <Text style={styles.itemSpotName} numberOfLines={1}>
@@ -347,7 +493,7 @@ export function GalleryScreen({ navigation }: Props) {
           {sortOrder === 'date' && (
             <Text style={styles.itemDate}>{formatDate(item.visited_at)}</Text>
           )}
-        </View>
+        </Animated.View>
       </TouchableOpacity>
     );
   };
@@ -358,17 +504,13 @@ export function GalleryScreen({ navigation }: Props) {
         <View style={styles.header}>
           <Text style={styles.headerTitle}>御朱印帳</Text>
           {showsGallery && (
-            <ViewModeToggle mode={viewMode} onChange={setViewMode} reduceMotion={reduceMotion} />
+            <ViewModeToggle
+              mode={viewMode}
+              onChange={handleViewModeChange}
+              reduceMotion={reduceMotion}
+            />
           )}
         </View>
-
-        {showsGallery && viewMode === 'grid' && (
-          <View style={styles.sortRow}>
-            <TouchableOpacity onPress={handleToggleSort} testID="sort-button">
-              <Text style={styles.sortText}>{sortLabel} ▼</Text>
-            </TouchableOpacity>
-          </View>
-        )}
 
         {!showsGallery ? (
           <View style={styles.centerContainer} testID="gallery-guest-empty-state">
@@ -399,53 +541,80 @@ export function GalleryScreen({ navigation }: Props) {
               testID="loading-indicator"
             />
           </View>
-        ) : viewMode === 'flip' ? (
-          <GoshuinchoFlipView
-            stamps={displayStamps}
-            resolveImageUrl={isPreview ? previewImageUrl : undefined}
-            onPressStamp={index => {
-              const stamp = displayStamps[index];
-              // 蛇腹は contain。枠（1:1.5）と写真（3:4）がずれるので、
-              // 写真が実際に占めているところから飛ばす（Issue #202）
-              if (stamp) openStamp(index, stamp, 'contain', getStampImageUrl(stamp.image_path));
-            }}
-            registerNode={(id, part, node) => hero.registerTile(id, part, node)}
-            onImageLoad={(id, w, h) => hero.rememberAspect(id, w, h)}
-            hiddenStampId={flyingStampId}
-            reduceMotion={reduceMotion}
-            onPressBlank={() => navigation.navigate('Record', { origin: 'gallery' })}
-          />
-        ) : displayStamps.length === 0 ? (
-          <View style={styles.centerContainer} testID="empty-state">
-            <MaterialIcons name="photo-library" size={48} color={colors.gray[400]} />
-            <Text style={styles.emptyText}>御朱印がまだありません</Text>
-            <Text style={styles.emptySubText}>御朱印を記録して、コレクションを始めましょう</Text>
-            {/* めくり表示は白紙ページが記録の入口になるが、グリッドには入口が無い（監査 A-10） */}
-            <Button
-              title="御朱印を記録する"
-              variant="primary"
-              testID="gallery-record-cta"
-              onPress={() => navigation.navigate('Record', { origin: 'gallery' })}
-              style={styles.emptyCta}
-            />
-          </View>
         ) : (
-          <FlatList
-            ref={gridRef}
-            data={displayStamps}
-            renderItem={renderItem}
-            keyExtractor={item => item.id}
-            numColumns={NUM_COLUMNS}
-            key={sortOrder}
-            contentContainerStyle={styles.listContent}
-            /*
-             * **いちばん下（最新）から開く**。綴じる順は変えない。
-             * 高さが出そろってからでないと端まで飛べないので、
-             * 中身の大きさが決まった合図で送る
-             */
-            onContentSizeChange={openAtLatest}
-            testID="gallery-list"
-          />
+          <View testID="gallery-content" style={styles.content}>
+            {viewMode === 'flip' && (
+              <Animated.View testID="gallery-flip-pane" style={StyleSheet.absoluteFill}>
+                <GoshuinchoFlipView
+                  stamps={displayStamps}
+                  resolveImageUrl={isPreview ? previewImageUrl : undefined}
+                  onPressStamp={index => {
+                    const stamp = displayStamps[index];
+                    // 蛇腹は contain。枠（1:1.5）と写真（3:4）がずれるので、
+                    // 写真が実際に占めているところから飛ばす（Issue #202）
+                    if (stamp) {
+                      openStamp(index, stamp, 'contain', getStampImageUrl(stamp.image_path));
+                    }
+                  }}
+                  registerNode={(id, part, node) => hero.registerTile(id, part, node)}
+                  onImageLoad={(id, w, h) => hero.rememberAspect(id, w, h)}
+                  hiddenStampId={flyingStampId}
+                  reduceMotion={reduceMotion}
+                  onPressBlank={() => navigation.navigate('Record', { origin: 'gallery' })}
+                  initialStampId={flipOpenRequest?.stampId ?? null}
+                  onCurrentStampChange={setFlipStampId}
+                />
+              </Animated.View>
+            )}
+            {viewMode === 'grid' && (
+              <Animated.View testID="gallery-grid-pane" style={StyleSheet.absoluteFill}>
+                <View style={styles.sortRow}>
+                  <TouchableOpacity onPress={handleToggleSort} testID="sort-button">
+                    <Text style={styles.sortText}>{sortLabel} ▼</Text>
+                  </TouchableOpacity>
+                </View>
+                {displayStamps.length === 0 ? (
+                  <View style={styles.centerContainer} testID="empty-state">
+                    <MaterialIcons name="photo-library" size={48} color={colors.gray[400]} />
+                    <Text style={styles.emptyText}>御朱印がまだありません</Text>
+                    <Text style={styles.emptySubText}>
+                      御朱印を記録して、コレクションを始めましょう
+                    </Text>
+                    {/* めくり表示は白紙ページが記録の入口になるが、グリッドには入口が無い（監査 A-10） */}
+                    <Button
+                      title="御朱印を記録する"
+                      variant="primary"
+                      testID="gallery-record-cta"
+                      onPress={() => navigation.navigate('Record', { origin: 'gallery' })}
+                      style={styles.emptyCta}
+                    />
+                  </View>
+                ) : (
+                  <View testID="gallery-list-viewport" style={styles.listViewport}>
+                    <FlatList
+                      ref={setGridRef}
+                      data={displayStamps}
+                      renderItem={renderItem}
+                      keyExtractor={item => item.id}
+                      numColumns={NUM_COLUMNS}
+                      key={sortOrder}
+                      contentContainerStyle={styles.listContent}
+                      CellRendererComponent={GridRowCell}
+                      onLayout={handleGridLayout}
+                      /*
+                       * **いちばん下（最新）から開く**。綴じる順は変えない。
+                       * 高さが出そろってからでないと端まで飛べないので、
+                       * 中身の大きさが決まった合図で送る。
+                       * ボタンで めくる → 一覧 にしたときは、見ていた1枚の行で開く（Issue #276）
+                       */
+                      onContentSizeChange={handleGridContentSizeChange}
+                      testID="gallery-list"
+                    />
+                  </View>
+                )}
+              </Animated.View>
+            )}
+          </View>
         )}
 
         {currentStamp && (
@@ -531,6 +700,16 @@ const styles = StyleSheet.create({
   headerTitle: {
     ...typography.h2,
     color: colors.gray[800],
+  },
+  content: {
+    flex: 1,
+  },
+  listViewport: {
+    flex: 1,
+  },
+  /** 束のいちばん上の1枚（を含む行）を、ほかの行・タイルより上に出す（Issue #276 D-16） */
+  lifted: {
+    zIndex: 1,
   },
   sortRow: {
     flexDirection: 'row',
