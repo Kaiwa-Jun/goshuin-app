@@ -835,4 +835,15 @@ describe('視差効果を減らす（Issue #275）', () => {
     expect(utils.getAllByTestId(/^stamp-image-loading-\d$/, hidden)).toHaveLength(3);
     expect(AccessibilityInfo.isReduceMotionEnabled).toHaveBeenCalledTimes(1);
   });
+
+  // 切り替えボタンにも画面の値を渡す。白い台はその場で移り、timing を呼ばない（Issue #276 D-6）
+  it('切り替えボタンは白い台もアイコンも動かさない（Issue #276）', async () => {
+    const utils = await renderWithReduceMotion();
+    fades.length = 0;
+
+    fireEvent.press(utils.getByTestId('view-mode-grid'));
+
+    expect(utils.getByTestId('view-mode-grid').props.accessibilityState.selected).toBe(true);
+    expect(fades.filter(config => config.duration === 520 || config.duration === 260)).toEqual([]);
+  });
 });

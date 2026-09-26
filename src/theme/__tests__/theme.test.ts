@@ -329,5 +329,19 @@ describe('Theme', () => {
       expect(shadows.md.elevation).toBe(3);
       expect(shadows.lg.elevation).toBe(5);
     });
+
+    /*
+     * 御朱印帳の表示の切り替えの白い台（Issue #276）。試作 toggle-v1 の A の
+     * box-shadow: 0 1px 4px rgba(0,0,0,.14)。CSS のぼかし 4px を iOS の shadowRadius 2 に写す
+     */
+    it('切り替えの白い台の影を持つ（AC-2）', () => {
+      expect(shadows.toggleThumb).toEqual({
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.14,
+        shadowRadius: 2,
+        elevation: 2,
+      });
+    });
   });
 });
