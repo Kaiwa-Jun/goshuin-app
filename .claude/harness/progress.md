@@ -135,3 +135,7 @@
   - シミュレータの Metro のため、gallery-275 の node_modules を hamlet への symlink から APFS のクローン（`cp -cR`）に替えた（expo/AppEntry が実体の場所から App を読むので、symlink では gallery-275 の App を束ねられない）
   - goshuin-evaluator **PASS**（AC 33/33・UI 12/12・Q 11/11）。Expo Web（UI-4〜7）は Evaluator が 8084 で確認。Playwright の Chrome が OS と関係なく `prefers-reduced-motion: reduce` を返すため、`MediaQueryList.prototype.matches` を上書きしてアプリを同じ窓で起こし直して測った（次の Web 検証でも要る見込み）
   - **未確認**: 実機（iPhone）の手触り
+- 2026-09-27: **#276 御朱印帳の表示の切り替えボタンと、切り替わりの動き**（ブランチ feature/issue-276-viewmode-toggle・未 push）。契約書 docs/issues/issue-276-viewmode-toggle.md、承認試作 toggle-v1 の A・transition-v2 の 5。S1〜S5 を TDD で実装。S6 のシミュレータで、iOS では切り替わりの動きが両方向とも準備の時間切れ（300ms）でその場の切り替えになっていたのを見つけて直した（e168f6b・0d533fb・2452226。入ってくる側の最初の描画に見ていた1枚が入っていなかった。見ていた1枚のあたりから描き始め、一覧は行の高さを getItemLayout で前もって渡す。30枚を超えるときの開く位置のずれも直った）。テスト 2187 件・lint 0 errors・typecheck OK。証跡 `.claude/harness/evidence/issue-276/`
+  - シミュレータ（Debug・65枚）: UI-6 ✅ ページが縮んで束 → 紙の裏を見せて飛び、見ていた1枚が最初に着く（+230ms 縮み始め、+630ms ごろ並び終わる）。写真が左右反転するコマ・何も描かれないコマは無し（目視）／UI-7 一部 ✅ 遠い順に裏返りながら集まり、見ていた1枚が表のまま束の上、同じページで開く。**広がる途中と行き過ぎは、面が入れ替わる前後で録画のコマが 90〜210ms 抜けていて確かめられていない**（Debug のシミュレータの描画の重さの見込み・実機で見る）／UI-13 ✅ 44/65 から一覧 → 見ていたタイルが縦の真ん中 → めくる で 44/65 → 他のタブから戻ると 65/65
+  - UI-8: 押してから JS で時計が回り始めるまで 158〜251ms、公称の終わり 732〜816ms（0.8 秒ぎりぎり・超えた回あり。Debug のシミュレータ）。目で見て止まるのは +640〜740ms
+  - **未確認**: UI-9（読み込み中）・UI-10（視差効果を減らす）・UI-11（押し直し）・UI-12（20回・メモリ）・実機・Release
