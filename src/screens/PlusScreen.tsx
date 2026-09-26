@@ -46,6 +46,7 @@ export function PlusScreen({ navigation }: Props) {
         <PlusPlanCards priceString={plus.priceString} isPlus={plus.isPlus} />
         <PlusPurchasePanel
           plus={plus}
+          showRestore
           onPurchased={() =>
             navigation.popTo('MainTabs', { screen: 'Settings', params: { purchased: true } })
           }

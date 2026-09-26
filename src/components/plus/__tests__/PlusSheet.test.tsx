@@ -41,7 +41,6 @@ const sheet = (targetDate: string | null, plus: Plus) => (
     plus={plus}
     onClose={jest.fn()}
     onPurchased={jest.fn()}
-    onRestored={jest.fn()}
     onTerms={jest.fn()}
     onPrivacy={jest.fn()}
   />
@@ -63,7 +62,7 @@ it('買っている最中に isPlus が先に true になっても、閉じる�
   ui.rerender(sheet(null, plusOf({ isPlus: true })));
   expect(ui.getByTestId('sheet-closed')).toBeTruthy();
   expect(ui.getByTestId('plus-buy')).toHaveTextContent('¥980でプラスにする');
-  expect(ui.getByText('購入を復元')).toBeTruthy();
+  expect(ui.getByText('1回だけの支払い')).toBeTruthy();
   // 札も動かない（#272 AC-4）
   expectFreeTag(ui);
 });
@@ -96,7 +95,5 @@ it('閉じる動きの間は押せない（中身を買う前のまま止めて�
   const ui = render(sheet('2026-10-10', plus));
   ui.rerender(sheet(null, plus));
   fireEvent.press(ui.getByTestId('plus-buy'));
-  fireEvent.press(ui.getByTestId('plus-restore'));
   expect(plus.purchase).not.toHaveBeenCalled();
-  expect(plus.restore).not.toHaveBeenCalled();
 });

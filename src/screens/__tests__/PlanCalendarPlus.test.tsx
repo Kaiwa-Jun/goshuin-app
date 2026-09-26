@@ -113,7 +113,7 @@ it('AC-20: 空いた日を押すと、その日で出る', async () => {
   expect(within(ui.getByTestId('plus-sheet-target')).getByText('10月10日（土）')).toBeTruthy();
 });
 
-it('AC-21: カード2枚・値段・支払いの一言・復元・あとで・規約', async () => {
+it('AC-21: カード2枚・値段・支払いの一言・あとで・規約', async () => {
   const { ui } = await renderScreen();
   fireEvent.press(ui.getByTestId('plan-new'));
   const s = within(ui.getByTestId('plus-sheet'));
@@ -132,7 +132,7 @@ it('AC-21: カード2枚・値段・支払いの一言・復元・あとで・�
   expect(s.getByText(/1回だけ$/)).toBeTruthy();
   expect(s.getByText('1回だけの支払い')).toBeTruthy();
   expect(s.getByText(/毎月はかかりません/)).toBeTruthy();
-  for (const t of ['購入を復元', 'あとで', '利用規約', 'プライバシーポリシー'])
+  for (const t of ['あとで', '利用規約', 'プライバシーポリシー'])
     expect(s.getByText(t)).toBeTruthy();
 });
 
@@ -176,7 +176,7 @@ describe('購入', () => {
     expect(n.navigate).not.toHaveBeenCalled();
   });
 
-  it('AC-33: 実行中は購入と復元を押せない', async () => {
+  it('AC-33（#272 AC-9）: 実行中は購入を押せない', async () => {
     const { ui } = await renderScreen();
     fireEvent.press(ui.getByTestId('plan-new'));
     P.purchasePackage.mockReturnValueOnce(new Promise(() => {}) as never);
@@ -184,40 +184,32 @@ describe('購入', () => {
       fireEvent.press(ui.getByTestId('plus-buy'));
     });
     expect(ui.getByTestId('plus-buy')).toBeDisabled();
-    expect(ui.getByTestId('plus-restore')).toBeDisabled();
     fireEvent.press(ui.getByTestId('plus-buy'));
     expect(P.purchasePackage).toHaveBeenCalledTimes(1);
   });
 });
 
-describe('AC-25: 購入を復元', () => {
-  it('復元できたら Alert・閉じて予定を組む画面へ（purchased なし）', async () => {
-    const { ui, n } = await renderScreen();
-    fireEvent.press(ui.getByTestId('plan-day-2026-10-10'));
-    P.restorePurchases.mockResolvedValueOnce(PLUS as never);
-    await act(async () => {
-      fireEvent.press(ui.getByTestId('plus-restore'));
-    });
-    expect(Alert.alert).toHaveBeenCalledWith('購入を復元しました');
-    finishClose();
-    expect(n.navigate).toHaveBeenCalledWith('PlanEditor', { date: '2026-10-10' });
-  });
-  it('見つからない・失敗はシートのまま', async () => {
-    const { ui, n } = await renderScreen();
+describe('#272 AC-8: シートに「購入を復元」は無い', () => {
+  const expectNoRestore = (ui: ReturnType<typeof render>) => {
+    const s = within(ui.getByTestId('plus-sheet'));
+    expect(s.queryByTestId('plus-restore')).toBeNull();
+    expect(s.queryByTestId('plus-restore-row')).toBeNull();
+    expect(s.queryByText('購入を復元')).toBeNull();
+    expect(s.queryByText(/以前に購入した方は/)).toBeNull();
+    for (const id of ['plus-buy', 'plus-later', 'plus-terms', 'plus-privacy'])
+      expect(s.getByTestId(id)).toBeTruthy();
+    expect(s.getByLabelText('閉じる')).toBeTruthy();
+  };
+  it('値段が取れているとき', async () => {
+    const { ui } = await renderScreen();
     fireEvent.press(ui.getByTestId('plan-new'));
-    P.restorePurchases.mockResolvedValueOnce(NONE as never);
-    await act(async () => {
-      fireEvent.press(ui.getByTestId('plus-restore'));
-    });
-    expect(Alert.alert).toHaveBeenLastCalledWith('復元できる購入が見つかりませんでした');
-    P.restorePurchases.mockRejectedValueOnce(new Error('x'));
-    await act(async () => {
-      fireEvent.press(ui.getByTestId('plus-restore'));
-    });
-    expect(Alert.alert).toHaveBeenLastCalledWith('購入を復元できませんでした');
-    finishClose();
-    expect(sheet(ui)).toBeTruthy();
-    expect(n.navigate).not.toHaveBeenCalled();
+    expectNoRestore(ui);
+  });
+  it('キーが無いとき（復元もできない）', async () => {
+    delete process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY;
+    const { ui } = await renderScreen();
+    fireEvent.press(ui.getByTestId('plan-new'));
+    expectNoRestore(ui);
   });
 });
 
@@ -300,12 +292,6 @@ describe('AC-32: 値段が取れないとき', () => {
     fireEvent.press(ui.getByTestId('plan-new'));
     expect(within(ui.getByTestId('plus-sheet')).getByText('読み込み中…')).toBeTruthy();
     expect(ui.getByTestId('plus-buy')).toBeDisabled();
-  });
-  it('復元できないときは「購入を復元」も押せない', async () => {
-    delete process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY;
-    const { ui } = await renderScreen();
-    fireEvent.press(ui.getByTestId('plan-new'));
-    expect(ui.getByTestId('plus-restore')).toBeDisabled();
   });
 });
 

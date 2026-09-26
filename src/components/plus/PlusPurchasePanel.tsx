@@ -12,8 +12,8 @@ interface Props {
   /** B（予定の2件目のシート）だけ「あとで」を出す */
   onLater?: () => void;
   onPurchased: () => void;
-  /** 復元できたあと（Alert を出したあとに呼ぶ） */
-  onRestored?: () => void;
+  /** 「購入を復元」を出す。プラスの画面（E）だけ。シート（B）には出さない（Issue #272 D-5） */
+  showRestore?: boolean;
   onTerms: () => void;
   onPrivacy: () => void;
 }
@@ -23,7 +23,7 @@ export function PlusPurchasePanel({
   plus,
   onLater,
   onPurchased,
-  onRestored,
+  showRestore = false,
   onTerms,
   onPrivacy,
 }: Props) {
@@ -38,10 +38,8 @@ export function PlusPurchasePanel({
 
   const restore = async () => {
     const result = await plus.restore();
-    if (result === 'restored') {
-      Alert.alert('購入を復元しました');
-      onRestored?.();
-    } else if (result === 'none') Alert.alert('復元できる購入が見つかりませんでした');
+    if (result === 'restored') Alert.alert('購入を復元しました');
+    else if (result === 'none') Alert.alert('復元できる購入が見つかりませんでした');
     else Alert.alert('購入を復元できませんでした');
   };
 
@@ -72,25 +70,27 @@ export function PlusPurchasePanel({
           <Text style={styles.onceStrong}>1回だけの支払い</Text>・毎月はかかりません
         </Text>
       )}
-      <View style={styles.subRow}>
-        {!isPlus && (
-          <TouchableOpacity
-            onPress={() => void restore()}
-            disabled={!canRestore || busy}
-            testID="plus-restore"
-            accessibilityRole="button"
-          >
-            <Text style={[styles.sub, (!canRestore || busy) && styles.subDisabled]}>
-              購入を復元
-            </Text>
-          </TouchableOpacity>
-        )}
-        {onLater && (
-          <TouchableOpacity onPress={onLater} testID="plus-later" accessibilityRole="button">
-            <Text style={styles.sub}>あとで</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+      {(onLater || (showRestore && !isPlus)) && (
+        <View style={styles.subRow}>
+          {showRestore && !isPlus && (
+            <TouchableOpacity
+              onPress={() => void restore()}
+              disabled={!canRestore || busy}
+              testID="plus-restore"
+              accessibilityRole="button"
+            >
+              <Text style={[styles.sub, (!canRestore || busy) && styles.subDisabled]}>
+                購入を復元
+              </Text>
+            </TouchableOpacity>
+          )}
+          {onLater && (
+            <TouchableOpacity onPress={onLater} testID="plus-later" accessibilityRole="button">
+              <Text style={styles.sub}>あとで</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
       <View style={styles.legal}>
         <TouchableOpacity onPress={onTerms} testID="plus-terms" accessibilityRole="link">
           <Text style={styles.link}>利用規約</Text>

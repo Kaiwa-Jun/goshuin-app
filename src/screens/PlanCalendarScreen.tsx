@@ -214,10 +214,6 @@ export function PlanCalendarScreen({ navigation, route }: Props) {
           const date = sheetDate ?? todayKey;
           closeSheetThen(() => navigation.navigate('PlanEditor', { date, purchased: true }));
         }}
-        onRestored={() => {
-          const date = sheetDate ?? todayKey;
-          closeSheetThen(() => navigation.navigate('PlanEditor', { date }));
-        }}
         onTerms={() => closeSheetThen(() => navigation.navigate('TermsOfService'))}
         onPrivacy={() => closeSheetThen(() => navigation.navigate('PrivacyPolicy'))}
       />
