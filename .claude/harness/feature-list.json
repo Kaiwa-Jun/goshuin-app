@@ -33,9 +33,9 @@
     {
       "id": "P1-04",
       "title": "パーソナル年報（あなたの参拝の一年振り返り）",
-      "note": "統計の拡張。将来の買い切りプレミアム候補のため、無料/有料の線引きは契約書で決める",
-      "issue": null,
-      "passes": false
+      "note": "年報「{年}年のふりかえり」（契約書 docs/issues/issue-274-annual-report.md）。8シーンの自動再生・12月に1回の自動再生・あゆみの入口。過去の年の Plus の門は #270 H-7 に回した",
+      "issue": 274,
+      "passes": true
     },
     {
       "id": "P1-05",
@@ -140,7 +140,7 @@
     {
       "id": "ISSUE-272",
       "title": "プラスの「購入を復元」を目立たない場所へ移し、無料のカードに「いまのプラン」を付ける",
-      "note": "契約書 docs/issues/issue-272-plus-restore-link.md・承認デザイン docs/design/mockups/2026-09-plus-paywall-v4.html。シートから「購入を復元」を外し、プラスの画面は規約の下に小さく「以前に購入した方は 購入を復元」。札「いまのプラン」（白地・teal）。goshuin-evaluator PASS（19/19・Q-1〜12）。シミュレータの Test Store で UI-3〜5 を確認（復元は「購入を復元しました」）。BILLING_ENABLED = false のまま。v4 の H（以前に買った人がプラスにするを押すと課金されない）と Restore Behavior は sandbox（#270 H-7）で。",
+      "note": "契約書 docs/issues/issue-272-plus-restore-link.md・PR #273（develop へマージ）・承認デザイン docs/design/mockups/2026-09-plus-paywall-v4.html。シートから「購入を復元」を外し、プラスの画面は規約の下に小さく「以前に購入した方は 購入を復元」。札「いまのプラン」（白地・teal）。goshuin-evaluator PASS（19/19・Q-1〜12）。シミュレータの Test Store で UI-3〜5 を確認（復元は「購入を復元しました」）。BILLING_ENABLED = false のまま。v4 の H（以前に買った人がプラスにするを押すと課金されない）と Restore Behavior は sandbox（#270 H-7）で。",
       "passes": true
     }
   ]
