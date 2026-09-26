@@ -437,3 +437,64 @@ describe('GoshuinchoPage 読み込み中（Issue #275）', () => {
     });
   });
 });
+
+describe('GoshuinchoPage 表示の切り替えの受け口（Issue #276）', () => {
+  let loopSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    resetLoadingClockForTests();
+    loopSpy = jest
+      .spyOn(Animated, 'loop')
+      .mockImplementation(() => ({ start: jest.fn(), stop: jest.fn(), reset: jest.fn() }) as never);
+  });
+
+  afterEach(() => {
+    loopSpy.mockRestore();
+    act(() => resetLoadingClockForTests());
+  });
+
+  /** 描いた値を読む。ノードならその値、値そのものならそれ */
+  const read = (value: unknown): number => {
+    const v =
+      value && typeof value === 'object' && '__getValue' in value
+        ? (value as { __getValue: () => unknown }).__getValue()
+        : value;
+    return v as number;
+  };
+  const scaleOf = (node: { props: { style?: unknown } }) => {
+    const transform = (flatten(node).transform ?? []) as Record<string, unknown>[];
+    expect(transform.map(t => Object.keys(t)[0])).toEqual(['scale']);
+    return read(transform[0].scale);
+  };
+
+  it('紙の倍率と、名前と日付の行の不透明度を受け取る（AC-22）', () => {
+    const { getByTestId } = render(
+      <GoshuinchoPage
+        {...stampProps}
+        surfaceScale={new Animated.Value(0.5)}
+        footerOpacity={new Animated.Value(0.5)}
+      />
+    );
+
+    expect(scaleOf(getByTestId('flip-page-surface-stamp-1'))).toBe(0.5);
+    expect(read(flatten(getByTestId('flip-page-footer-stamp-1')).opacity)).toBe(0.5);
+  });
+
+  it('白紙のページも紙が縮む（AC-22）', () => {
+    const { getByTestId } = render(
+      <GoshuinchoPage {...blankProps} surfaceScale={new Animated.Value(0.5)} />
+    );
+
+    const paper = getByTestId('flip-blank-page').children[0] as { props: { style?: unknown } };
+    expect(scaleOf(paper)).toBe(0.5);
+  });
+
+  it('渡されていないときは transform も opacity も付けない（AC-22）', () => {
+    const { getByTestId } = render(<GoshuinchoPage {...stampProps} />);
+
+    expect(flatten(getByTestId('flip-page-surface-stamp-1'))).not.toHaveProperty('transform');
+    expect(flatten(getByTestId('flip-page-footer-stamp-1'))).not.toHaveProperty('transform');
+    expect(flatten(getByTestId('flip-page-footer-stamp-1'))).not.toHaveProperty('opacity');
+    expect(flatten(getByTestId('flip-page-surface-stamp-1'))).not.toHaveProperty('opacity');
+  });
+});
