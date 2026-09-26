@@ -1,4 +1,4 @@
-import { act, fireEvent, render } from '@testing-library/react-native';
+import { act, fireEvent, render, within } from '@testing-library/react-native';
 import { AccessibilityInfo, Dimensions, StyleSheet } from 'react-native';
 import type { ComponentProps } from 'react';
 
@@ -238,6 +238,14 @@ describe('AnnualReportScreen — 再生の骨組み', () => {
     advance(350);
     expect(style('annual-report').opacity).toBeCloseTo(1);
     expect(rootTransform().scale).toBeCloseTo(1);
+  });
+
+  it('開く動きの間も、下は和紙の地（ナビゲーションの灰色が透けない。S11 のシミュレータで見つけた）', () => {
+    const { ui, style } = setup();
+    const backdrop = ui.getByTestId('annual-report-backdrop');
+    expect(StyleSheet.flatten(backdrop.props.style).backgroundColor).toBe(colors.washi);
+    expect(within(backdrop).getByTestId('annual-report')).toBeTruthy();
+    expect(style('annual-report').opacity).toBeCloseTo(0);
   });
 
   it('AC-33: 視差効果を減らす なら最後の形ですぐ出し、自動では進まない', async () => {

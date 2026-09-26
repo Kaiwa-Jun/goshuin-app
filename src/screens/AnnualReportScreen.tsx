@@ -22,7 +22,12 @@ export function AnnualReportScreen({ navigation, route }: Props) {
   const close = () => navigation.goBack();
 
   if (status === 'ready' && report) {
-    return <AnnualReportPlayer report={report} onClose={close} />;
+    // 開く動き（透明から）の間に、ナビゲーションの灰色が透けないよう和紙の地を敷く
+    return (
+      <View style={styles.root} testID="annual-report-backdrop">
+        <AnnualReportPlayer report={report} onClose={close} />
+      </View>
+    );
   }
 
   if (status === 'loading') {
