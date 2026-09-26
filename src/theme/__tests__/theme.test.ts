@@ -277,6 +277,21 @@ describe('Theme', () => {
       expect(colors.primary[700]).toBe('#C2410C');
       expect(colors.seal).toBe('#C2342B');
     });
+
+    /*
+     * 表示を切り替えるときにめくれるタイルの紙の裏（Issue #276）。
+     * 値は試作 docs/design/mockups/2026-09-viewmode-transition-v2.html の .face.back のまま
+     */
+    it('タイルの紙の裏の色を持つ（AC-18）', () => {
+      expect(colors.tileBack).toEqual({
+        paper: '#FBF8F1',
+        edge: '#E6DFD0',
+        frame: 'rgba(194, 52, 43, 0.18)',
+      });
+      expect(colors.loadingBook.paper).toBe('#FBF8F1');
+      expect(colors.gray[100]).toBe('#F3F4F6');
+      expect(colors.primary[500]).toBe('#f27f0d');
+    });
   });
 
   describe('typography', () => {

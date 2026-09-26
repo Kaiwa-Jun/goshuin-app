@@ -144,6 +144,19 @@ export const colors = {
     castStart: 'rgba(60, 40, 20, 0.28)',
     castEnd: 'rgba(60, 40, 20, 0)',
   },
+  /**
+   * 表示を切り替えるときにめくれるタイルの紙の裏（Issue #276）。
+   * 値は試作 docs/design/mockups/2026-09-viewmode-transition-v2.html の `.face.back` のまま。
+   * paper は loadingBook.paper と同じ色だが、意味が違うので別に置く
+   */
+  tileBack: {
+    /** 生成りの紙 */
+    paper: '#FBF8F1',
+    /** 紙の縁 */
+    edge: '#E6DFD0',
+    /** 内側の薄い朱の枠 */
+    frame: 'rgba(194, 52, 43, 0.18)',
+  },
   /** 和紙の上の控えめな字（年報）。gray[500] は青みで和紙に合わない。和紙との対比 約4.9:1 */
   washiSub: '#6B6356',
   /** 和紙の上の「まだ」の面（年報の写真の枠・0枚の月・帯の地） */
