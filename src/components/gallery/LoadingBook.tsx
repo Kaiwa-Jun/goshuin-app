@@ -85,7 +85,11 @@ interface LoadingBookProps {
   testID: string;
 }
 
-export function LoadingBook({ animated, testID }: LoadingBookProps) {
+/*
+ * ページはめくるたび（中央のページが替わるたび）に全部描き直される。
+ * 本は props が変わらなければ描き直さない（1冊に Seal が 4〜12 個ある）
+ */
+export const LoadingBook = React.memo(function LoadingBook({ animated, testID }: LoadingBookProps) {
   const motion = animated
     ? {
         rotateY: loadingMotion.leafRotateY,
@@ -204,7 +208,7 @@ export function LoadingBook({ animated, testID }: LoadingBookProps) {
       </Animated.View>
     </View>
   );
-}
+});
 
 /**
  * 1つの面の印。動いている本は、その面に出る3つを同じ位置に重ね、時計の段で1つだけ見せる。

@@ -210,6 +210,12 @@ export function GoshuinchoFlipView({
       // 中央のページが必ず手前に来るようにする。折れただけでは描画順が変わらず、
       // 隣のページが中央に被ってしまう
       const depth = Math.abs(index - currentIndex);
+      /*
+       * 写真が届くまでの本（Issue #275）。動かすのは画面に出ているページと両隣だけ。
+       * 2つ離れたページはめくる途中で入ってくるので止まった本、それより先は画面に
+       * 出ないので本を描かない（開いた直後に FlatList が描く数十ページぶんの本を作らない）
+       */
+      const loadingBook = depth <= 1 ? 'flip' : depth === 2 ? 'still' : 'none';
 
       return (
         <Animated.View
@@ -236,6 +242,7 @@ export function GoshuinchoFlipView({
               registerNode={(part, node) => registerNode?.(item.stamp.id, part, node)}
               onImageLoad={(w, h) => onImageLoad?.(item.stamp.id, w, h)}
               hidden={hiddenStampId === item.stamp.id}
+              loadingBook={loadingBook}
               imageUrl={
                 resolveImageUrl
                   ? resolveImageUrl(item.stamp)
