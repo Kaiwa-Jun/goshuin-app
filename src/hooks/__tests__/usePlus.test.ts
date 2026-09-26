@@ -83,6 +83,14 @@ it('S6: ログインの読み込み中に開いた画面は、ログアウトし
   expect(P.logIn).not.toHaveBeenCalled();
 });
 
+it('S6: ログインが決まったあとのログアウトは、今までどおり logOut する', async () => {
+  mockAuth = { user: { id: 'me' }, isLoading: false };
+  const r = await ready();
+  mockAuth = { user: null, isLoading: false };
+  r.rerender({});
+  await waitFor(() => expect(P.logOut).toHaveBeenCalledTimes(1));
+});
+
 it('AC-15: CustomerInfo の更新で isPlus が変わり、アンマウントで外す', async () => {
   const r = await ready();
   const listener = P.addCustomerInfoUpdateListener.mock.calls[0][0];
