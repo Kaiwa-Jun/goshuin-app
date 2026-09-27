@@ -46,6 +46,7 @@ curl -sf -H "Authorization: Bearer $GROWTH_METRICS_TOKEN" https://tvnozkpxncmneh
 - 第一候補の API credentials は、claude.ai の「クラウド環境を追加」の画面に欄が無く、既存の環境の設定（歯車）も開けなかったため使えなかった
 - 環境変数は、その環境を使える人とルーティンの Claude に見える（画面の注意書き）。見られるのは集計した数だけで、D 専用の自分だけの環境にしたので、オーナーの判断で許容した
 - ストア・季節・SNS のルーティン（A〜C）は `goshuin-growth` 環境のままで、合言葉は見えない。**`goshuin-growth` には合言葉を入れない**
+- **あとでやること**: 環境の設定画面に API credentials の欄が出たら、第一候補に移す（ホスト `tvnozkpxncmnehyomoff.supabase.co` に Bearer で入れ、`goshuin-metrics` の環境変数からは消す）。プロンプトは変えなくてよい（環境変数が無ければヘッダー無しで呼ぶ作りになっている）
 
 ## 4. 返す値の意味
 
