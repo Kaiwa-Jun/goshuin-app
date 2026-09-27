@@ -24,6 +24,7 @@ docs/
 │   ├── store-account-setup.md # 開発者アカウントの確認・登録・EAS 連携手順
 │   ├── store-metadata.md      # ストア掲載メタデータ（確定版）
 │   ├── roadmap.md             # ⚠ 旧ロードマップ（direction.md で置き換え済み）
+│   ├── growth-metrics-routine.md # ルーティンから growth-metrics（グロースの集計）を呼ぶ手順
 │   └── development-workflow.md # 開発ワークフロー
 └── issues/                    # Issue別詳細設計
     └── README.md              # Issue設計ドキュメントの運用ガイド
