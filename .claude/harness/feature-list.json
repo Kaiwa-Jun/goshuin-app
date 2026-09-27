@@ -164,7 +164,7 @@
     {
       "id": "ISSUE-278",
       "title": "同じ名前の寺社がマスタにあっても、別の寺社を探して記録できるようにする",
-      "note": "契約書 docs/issues/issue-278-same-name-research.md・承認試作 docs/design/mockups/2026-09-spot-samename-v1.html。同じ名前が一覧にあっても「ほかの{名前}を探す」を出し、探した候補が登録済みの寺社（正規化した名前が一致・300m 以内）なら add-spot を呼ばずにその寺社を選ぶ。オーナー判断（D-13）で流れの言葉を「探す」にそろえ、「登録済み」の札と「みんなの地図にも載ります」をやめた。goshuin-evaluator PASS（AC 11/11・UI 10/10・Q 7/7）・オーナーが実機で言葉を確認。未確認: 実際の research-spot の結果で祇園の八坂神社が既存の寺社として選ばれること（回数の上限）。",
+      "note": "契約書 docs/issues/issue-278-same-name-research.md・承認試作 docs/design/mockups/2026-09-spot-samename-v1.html。同じ名前が一覧にあっても「ほかの{名前}を探す」を出し、探した候補が登録済みの寺社（正規化した名前が一致・300m 以内）なら add-spot を呼ばずにその寺社を選ぶ。オーナー判断（D-13）で流れの言葉を「探す」にそろえ、「登録済み」の札と「みんなの地図にも載ります」をやめた。goshuin-evaluator PASS（AC 11/11・UI 10/10・Q 7/7）・オーナーが実機で言葉を確認。UI-11（実際の research-spot の結果で、祇園の八坂神社が既存の寺社として選ばれ、add-spot を呼ばない）を 2026-09-28 にシミュレータで確認。",
       "passes": true
     },
     {
