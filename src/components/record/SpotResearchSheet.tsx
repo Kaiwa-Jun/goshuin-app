@@ -6,6 +6,8 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  type StyleProp,
+  type ViewStyle,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Camera, Map } from '@maplibre/maplibre-react-native';
@@ -31,8 +33,13 @@ interface Props {
   state: SpotAddState;
   /** 端末の位置。**位置情報が許可されているときだけ**渡す（距離を端末上で出す） */
   userLocation: { latitude: number; longitude: number } | null;
+  /** 自分の記録にある県（新しい順・最大3）。取得中・記録が無いときは [] */
+  recentPrefectures: string[];
   onClose: () => void;
-  onChangeHint: (hint: SpotHint | null) => void;
+  /** 地域を選んだ（県・全国から＝null・ほかの地域）。選んだ瞬間に調べ始める */
+  onPick: (hint: SpotHint | null) => void;
+  /** 候補・見つからないのあとの「変える」。地域を選び直す（調べ直す） */
+  onChangeRegion: () => void;
   onRetry: () => void;
   onChoose: (index: number) => void;
   onOpenManual: () => void;
@@ -55,54 +62,142 @@ function Steps() {
   );
 }
 
-function HintChip({
+/**
+ * 地域の行（Issue #277）。調べている間は表示だけ（調べものを重ねない）。
+ * 調べたあと（候補・見つからない）だけ onChange を渡して「変える」を出す
+ */
+function HintLine({
   hint,
+  done,
   onChange,
+  disabled = false,
+  style,
 }: {
   hint: SpotHint | null;
-  onChange: (hint: SpotHint | null) => void;
+  done: boolean;
+  onChange?: () => void;
+  disabled?: boolean;
+  style?: StyleProp<ViewStyle>;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [text, setText] = useState(formatHint(hint) ?? '');
   const label = formatHint(hint);
-
-  if (editing) {
-    return (
-      <View style={styles.hintEdit}>
-        <TextInput
-          value={text}
-          onChangeText={setText}
-          placeholder="例: 宮城県 仙台市（空なら全国）"
-          placeholderTextColor={colors.gray[400]}
-          style={styles.hintInput}
-          autoFocus
-          testID="hint-input"
-        />
-        <TouchableOpacity
-          onPress={() => {
-            setEditing(false);
-            onChange(parseHintText(text));
-          }}
-          testID="hint-submit"
-        >
-          <Text style={styles.hintChange}>この手がかりで探す</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
+  const verb = done ? '探しました' : '探しています';
   return (
-    <View style={styles.hint} testID="hint-chip">
+    <View style={[styles.hint, style]} testID="hint-line">
       <MaterialIcons name="place" size={16} color={colors.gray[600]} />
-      <Text style={styles.hintText}>
-        {label ? `${label} を優先して探しています` : '全国から探しています'}
-      </Text>
-      <TouchableOpacity onPress={() => setEditing(true)} testID="hint-change">
-        <Text style={styles.hintChange}>{label ? '変える' : '地域を絞る'}</Text>
-      </TouchableOpacity>
+      <Text style={styles.hintText}>{label ? `${label} で${verb}` : `全国から${verb}`}</Text>
+      {onChange && (
+        <TouchableOpacity onPress={onChange} disabled={disabled} testID="hint-change">
+          <Text style={styles.hintChange}>変える</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
 
+function RegionChip({
+  label,
+  all = false,
+  onPress,
+  testID,
+}: {
+  label: string;
+  all?: boolean;
+  onPress: () => void;
+  testID: string;
+}) {
+  return (
+    <TouchableOpacity
+      style={[styles.chip, all && styles.chipAll]}
+      onPress={onPress}
+      activeOpacity={0.7}
+      testID={testID}
+    >
+      <MaterialIcons name={all ? 'public' : 'place'} size={16} color={colors.gray[500]} />
+      <Text style={styles.chipText}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
+/**
+ * ⓪ 地域を聞く（Issue #277）。まだ調べない。県のチップ・「全国から」・「この地域で調べる」を
+ * 押した瞬間に onPick で調べ始める。入力の途中は、この画面を離れると捨てる。
+ * redo（「変える」から来た ⓪'）は見出し・説明が変わり、回数を使うことを添える
+ */
+function RegionAsk({
+  name,
+  redo,
+  recentPrefectures,
+  onPick,
+}: {
+  name: string;
+  redo: boolean;
+  recentPrefectures: string[];
+  onPick: (hint: SpotHint | null) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState('');
+  const submit = () => onPick(parseHintText(text));
+
+  return (
+    <>
+      <Text style={styles.title}>{redo ? '地域を決めて探し直す' : `「${name}」を探します`}</Text>
+      <Text style={styles.why}>
+        {redo ? '選ぶとすぐ探し直します。' : 'どのあたりの寺社ですか？ 選ぶとすぐ探し始めます。'}
+      </Text>
+      {recentPrefectures.length > 0 && <Text style={styles.regionCaption}>あなたの記録から</Text>}
+      <View style={styles.chips}>
+        {recentPrefectures.map((prefecture, i) => (
+          <RegionChip
+            key={prefecture}
+            label={prefecture}
+            onPress={() => onPick({ prefecture, city: null })}
+            testID={`region-recent-${i}`}
+          />
+        ))}
+        <RegionChip label="全国から" all onPress={() => onPick(null)} testID="region-all" />
+      </View>
+      {editing ? (
+        <View style={styles.regionEdit}>
+          <TextInput
+            value={text}
+            onChangeText={setText}
+            onSubmitEditing={submit}
+            placeholder="例: 宮城県 仙台市"
+            placeholderTextColor={colors.gray[400]}
+            returnKeyType="search"
+            style={styles.hintInput}
+            autoFocus
+            testID="region-input"
+          />
+          <Button
+            title="この地域で探す"
+            onPress={submit}
+            variant="outline"
+            testID="region-submit"
+          />
+        </View>
+      ) : (
+        <TouchableOpacity
+          onPress={() => setEditing(true)}
+          style={styles.regionOther}
+          testID="region-other"
+        >
+          <Text style={styles.hintChange}>ほかの地域を入れる</Text>
+        </TouchableOpacity>
+      )}
+      {redo && (
+        <Text style={styles.quota} testID="region-quota">
+          探し直すと、今日の回数（10回）を1回使います
+        </Text>
+      )}
+    </>
+  );
+}
+
+/**
+ * 候補カード。アプリに登録済みの寺社と同じ候補でも見た目は変えない（Issue #278 D-13。
+ * 「ここです」で既存の寺社を選ぶのは記録画面が決める）
+ */
 function CandidateCard({
   candidate,
   selected,
@@ -168,14 +263,17 @@ function CandidateCard({
 }
 
 /**
- * 見つからない寺社を調べる下からのシート（Issue #248 の ②③）。
- * 「調べずに、地図で場所を決める」はどの状態でも押せる（④へ）
+ * 見つからない寺社を調べる下からのシート（Issue #248 の ②③。⓪ 地域を聞くは Issue #277）。
+ * 地図で決める（④）へは、調べたあと（見つからない・調べられない・回数の上限・どれでもない）からだけ
+ * 進める。⓪・② には出さない（Issue #282。地図で決めた寺社は確かめられていないため）
  */
 export function SpotResearchSheet({
   state,
   userLocation,
+  recentPrefectures,
   onClose,
-  onChangeHint,
+  onPick,
+  onChangeRegion,
   onRetry,
   onChoose,
   onOpenManual,
@@ -207,17 +305,26 @@ export function SpotResearchSheet({
 
   let body: React.ReactNode = null;
   switch (state.status) {
+    case 'asking':
+      body = (
+        <RegionAsk
+          name={state.name}
+          redo={state.redo}
+          recentPrefectures={recentPrefectures}
+          onPick={onPick}
+        />
+      );
+      break;
     case 'researching':
       body = (
         <>
-          <Text style={styles.title}>{`「${state.name}」を調べています`}</Text>
+          <Text style={styles.title}>{`「${state.name}」を探しています`}</Text>
           <Text style={styles.why}>公式サイトや地図の情報から、場所と住所を探しています。</Text>
-          <HintChip hint={state.hint} onChange={onChangeHint} />
+          <HintLine hint={state.hint} done={false} />
           <View style={styles.skeleton}>
             <ActivityIndicator color={colors.gray[400]} />
           </View>
           <Steps />
-          {manualButton('調べずに、地図で場所を決める', 'outline')}
         </>
       );
       break;
@@ -225,7 +332,12 @@ export function SpotResearchSheet({
       body = (
         <>
           <Text style={styles.title}>見つかりませんでした</Text>
-          <HintChip hint={state.hint} onChange={onChangeHint} />
+          <HintLine
+            hint={state.hint}
+            done
+            onChange={onChangeRegion}
+            style={styles.hintBelowTitle}
+          />
           <View style={styles.gap} />
           {manualButton('地図で場所を決める', 'primary')}
         </>
@@ -234,9 +346,9 @@ export function SpotResearchSheet({
     case 'error':
       body = (
         <>
-          <Text style={styles.title}>調べられませんでした。通信を確かめてください</Text>
+          <Text style={styles.title}>探せませんでした。通信を確かめてください</Text>
           <View style={styles.gap} />
-          <Button title="もう一度調べる" onPress={onRetry} testID="research-retry" />
+          <Button title="もう一度探す" onPress={onRetry} testID="research-retry" />
           <View style={styles.gapSmall} />
           {manualButton('地図で場所を決める', 'outline')}
         </>
@@ -245,7 +357,7 @@ export function SpotResearchSheet({
     case 'limit':
       body = (
         <>
-          <Text style={styles.title}>今日調べられる回数（10回）を使い切りました</Text>
+          <Text style={styles.title}>今日探せる回数（10回）を使い切りました</Text>
           <View style={styles.gap} />
           {manualButton('地図で場所を決める', 'primary')}
         </>
@@ -263,6 +375,13 @@ export function SpotResearchSheet({
           <Text style={styles.why}>
             見つかった寺社です。行った場所と合っていれば、そのまま記録に使えます。
           </Text>
+          <HintLine
+            hint={state.hint}
+            done
+            onChange={onChangeRegion}
+            disabled={saving}
+            style={styles.hintAboveCards}
+          />
           {(shown.length > 0 ? shown : [first]).map(c => (
             <CandidateCard
               key={c.index}
@@ -290,7 +409,6 @@ export function SpotResearchSheet({
           <TouchableOpacity onPress={onOpenManual} disabled={saving} testID="research-none">
             <Text style={styles.none}>どれでもない（地図で決める）</Text>
           </TouchableOpacity>
-          <Text style={styles.note}>確かめられたら、みんなの地図にも載ります</Text>
         </>
       );
       break;
@@ -324,7 +442,8 @@ const styles = StyleSheet.create({
   },
   hintText: { ...typography.bodySmall, fontWeight: '600', color: colors.gray[800] },
   hintChange: { ...typography.caption, fontWeight: '700', color: colors.primary[600] },
-  hintEdit: { gap: spacing.xs },
+  hintBelowTitle: { marginTop: spacing.sm },
+  hintAboveCards: { marginBottom: spacing.sm },
   hintInput: {
     ...typography.body,
     color: colors.gray[900],
@@ -334,6 +453,30 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
   },
+  regionCaption: {
+    ...typography.caption,
+    fontWeight: '700',
+    color: colors.gray[500],
+    marginTop: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    borderWidth: 1,
+    borderColor: colors.gray[200],
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.full,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  chipAll: { backgroundColor: colors.gray[100], borderColor: colors.gray[100] },
+  chipText: { ...typography.bodySmall, fontWeight: '600', color: colors.gray[800] },
+  regionOther: { alignSelf: 'flex-start', marginTop: spacing.md },
+  regionEdit: { marginTop: spacing.md, gap: spacing.sm },
+  quota: { ...typography.caption, color: colors.gray[500], marginTop: spacing.sm },
   skeleton: {
     height: 120,
     marginTop: spacing.md,
@@ -387,12 +530,6 @@ const styles = StyleSheet.create({
     color: colors.gray[600],
     textAlign: 'center',
     marginTop: spacing.md,
-  },
-  note: {
-    ...typography.caption,
-    color: colors.gray[400],
-    textAlign: 'center',
-    marginTop: spacing.sm,
   },
   saveError: {
     ...typography.caption,

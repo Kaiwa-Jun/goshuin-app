@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>寺社を調べる地域の聞き方 — A / C</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<style>
+/* 素材は実装と同じもの: 色・文字は src/theme（colors / typography / spacing）、アイコンは MaterialIcons（@expo/vector-icons と同じ字形）、
+   シート・ボタン・候補カードの寸法は SpotResearchSheet / Modal(bottom) / Button / Badge / SpotSelector の StyleSheet から写した */
+:root{
+  --brand:#f27f0d;--brand50:#FFF7ED;--brand600:#EA580C;
+  --g50:#F9FAFB;--g100:#F3F4F6;--g200:#E5E7EB;--g300:#D1D5DB;--g400:#9CA3AF;--g500:#6B7280;--g600:#4B5563;--g800:#1F2937;--g900:#111827;
+  --shrine100:#FEE2E2;--shrine600:#DC2626;--pinShrine:#DC2626;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#E7E5E0;font-family:-apple-system,"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif;color:var(--g800);padding:22px 24px 48px}
+h1{font-size:20px;font-weight:800}
+.lead{font-size:13px;color:var(--g600);line-height:1.8;margin:6px 0 14px;max-width:980px}
+.lead b{color:var(--g800)}
+.ctl{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;margin-bottom:18px}
+.ctl .lbl{font-size:12px;font-weight:700;color:var(--g500);margin-right:6px}
+.seg{display:inline-flex;background:#fff;border-radius:999px;padding:3px}
+.seg button{border:0;background:transparent;border-radius:999px;padding:6px 12px;font-size:12.5px;color:var(--g500);cursor:pointer;font-family:inherit}
+.seg button.on{background:var(--g100);color:var(--g800);font-weight:700}
+.act{border:0;border-radius:10px;padding:8px 14px;font-weight:800;cursor:pointer;font-family:inherit;font-size:13px}
+.act.play{background:var(--brand);color:#fff}
+.act.reset{background:#fff;color:var(--g800)}
+
+.wrap{display:flex;gap:34px;flex-wrap:wrap;align-items:flex-start}
+.col{width:340px}
+.col h2{font-size:15px;font-weight:800;margin-bottom:8px}
+.col h2 small{font-size:12px;font-weight:600;color:var(--g500);margin-left:6px}
+.meter{margin-top:12px;background:#fff;border-radius:12px;padding:10px 12px;font-size:12.5px;color:var(--g600);display:grid;grid-template-columns:1fr 1fr 1.3fr;gap:4px;white-space:nowrap}
+.meter div b{display:block;font-size:18px;color:var(--g900);font-variant-numeric:tabular-nums}
+.meter div.hit b{color:var(--brand600)}
+.col p{font-size:12.5px;color:var(--g600);line-height:1.75;margin-top:10px}
+.col p b{color:var(--g800)}
+.col ul{font-size:12.5px;color:var(--g600);line-height:1.75;margin:4px 0 0 18px}
+
+/* ── 端末 ── */
+.phone{width:340px;height:700px;border-radius:34px;overflow:hidden;position:relative;background:#fff;box-shadow:0 14px 40px rgba(17,24,39,.22)}
+.sb{height:40px;display:flex;justify-content:space-between;align-items:center;padding:0 26px;font-size:13px;font-weight:600}
+.hdr{height:44px;display:flex;align-items:center;justify-content:center;position:relative;border-bottom:1px solid var(--g100)}
+.hdr b{font-size:17px;font-weight:600}
+.hdr .material-icons{position:absolute;left:14px;font-size:24px;color:var(--g800)}
+.scroll{padding:0 16px}
+.label{font-size:12px;font-weight:500;line-height:16px;color:var(--g600);margin:16px 0 8px}
+.field{display:flex;align-items:center;border:1px solid var(--g200);border-radius:12px;padding:12px 16px;background:#fff;font-size:16px;line-height:24px;color:var(--g800)}
+.field .material-icons{font-size:20px;color:var(--g400);margin-right:8px}
+.caret{display:inline-block;width:1.5px;height:20px;background:var(--brand);margin-left:1px;animation:blink 1s steps(1) infinite;vertical-align:-4px}
+@keyframes blink{50%{opacity:0}}
+.picked{display:flex;flex-direction:column;border:1px solid var(--g200);border-radius:12px;padding:12px 16px}
+.picked .n{font-size:16px;line-height:24px;display:flex;align-items:center;gap:8px}
+.picked .s{font-size:12px;color:var(--g500);margin-top:4px}
+.dd{margin-top:4px;background:#fff;border-radius:12px;box-shadow:0 4px 10px rgba(0,0,0,.10),0 1px 3px rgba(0,0,0,.08);overflow:hidden}
+.maybe{font-size:12px;font-weight:700;color:var(--g500);padding:8px 16px 0}
+.row{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:.5px solid var(--g200)}
+.row .l{display:flex;align-items:center;gap:8px;min-width:0}
+.row .nm{font-size:16px;line-height:24px;color:var(--g800);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .pf{font-size:14px;color:var(--g500);margin-left:8px;white-space:nowrap}
+.row .km{font-size:14px;color:var(--g400);margin-left:8px}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;background:var(--shrine100);color:var(--shrine600);font-size:12px;font-weight:500;line-height:16px;white-space:nowrap}
+.rs{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--brand50);cursor:pointer}
+.rs .plus{width:30px;height:30px;border-radius:999px;background:var(--brand);display:grid;place-items:center;color:#fff;flex:none}
+.rs .plus .material-icons{font-size:20px}
+.rs .t{font-size:16px;font-weight:700;line-height:24px;color:var(--brand600)}
+.rs .st{font-size:12px;color:var(--g600);margin-top:2px}
+.photo{height:150px;border:1.5px dashed var(--g300);border-radius:12px;display:grid;place-items:center;color:var(--g400)}
+.photo .material-icons{font-size:34px}
+.date{border:1px solid var(--g200);border-radius:12px;padding:12px 16px;font-size:16px;color:var(--g800)}
+
+/* シート（Modal variant="bottom"） */
+.ov{position:absolute;inset:0;background:rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .28s ease}
+.ov.on{opacity:1;pointer-events:auto}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:16px 16px 0 0;padding:24px 24px 34px;transform:translateY(105%);transition:transform .34s cubic-bezier(.2,.8,.2,1);box-shadow:0 -6px 20px rgba(0,0,0,.12);max-height:92%;overflow:hidden}
+.sheet.on{transform:translateY(0)}
+.body{animation:fadeIn .2s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.title{font-size:18px;font-weight:600;line-height:24px;color:var(--g900)}
+.why{font-size:14px;line-height:20px;color:var(--g600);margin:4px 0 12px}
+.hint{display:inline-flex;align-items:center;gap:4px;background:var(--g100);border-radius:999px;padding:4px 12px}
+.hint .material-icons{font-size:16px;color:var(--g600)}
+.hint span.tx{font-size:14px;font-weight:600;line-height:20px;color:var(--g800)}
+.hint .chg{font-size:12px;font-weight:700;color:var(--brand600);margin-left:6px;cursor:pointer}
+.skel{height:120px;margin-top:12px;border-radius:12px;border:1px solid var(--g200);display:grid;place-items:center}
+.spin{width:22px;height:22px;border-radius:50%;border:2.5px solid var(--g200);border-top-color:var(--g400);animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.steps{margin:12px 0}
+.step{font-size:12px;line-height:22px;color:var(--g400)}
+.step.done{color:var(--g600)}
+.btn{display:block;width:100%;text-align:center;border-radius:12px;padding:12px 16px;font-size:16px;font-weight:600;line-height:24px;cursor:pointer;border:1px solid transparent}
+.btn.primary{background:var(--brand);color:#fff}
+.btn.outline{border-color:var(--brand);color:var(--brand)}
+.gap{height:16px}.gapS{height:8px}
+.card{border:1.5px solid var(--g200);border-radius:12px;padding:12px;margin-bottom:8px;cursor:pointer}
+.card.sel{border-color:var(--brand)}
+.card .top{display:flex;align-items:center;gap:8px}
+.card .cn{font-size:18px;font-weight:600;line-height:24px;color:var(--g900)}
+.card .ck{font-size:14px;color:var(--g400);margin-left:auto}
+.card .ad{font-size:14px;line-height:20px;color:var(--g600);margin-top:4px}
+.card .src{font-size:12px;color:var(--g400);margin-top:8px}
+.mm{height:96px;margin-top:12px;border-radius:8px;overflow:hidden;position:relative;background:#EEF0F2}
+.mm svg{position:absolute;inset:0}
+.mm .material-icons{position:absolute;left:50%;top:50%;transform:translate(-50%,-100%);font-size:30px;color:var(--pinShrine)}
+.more{font-size:14px;color:var(--g600);text-align:center;margin:8px 0;cursor:pointer}
+.none{font-size:14px;font-weight:700;color:var(--g600);text-align:center;margin-top:12px;cursor:pointer}
+.link{display:flex;align-items:center;justify-content:center;gap:4px;font-size:14px;font-weight:700;color:var(--brand600);margin-top:12px;cursor:pointer}
+.link .material-icons{font-size:18px}
+.note{font-size:12px;color:var(--g400);text-align:center;margin-top:8px}
+
+/* 地域を選ぶ（A の最初・C の調べ直し） */
+.cap{font-size:12px;font-weight:700;color:var(--g500);margin:4px 0 8px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--g200);background:#fff;border-radius:999px;padding:8px 14px;font-size:14px;font-weight:600;line-height:20px;color:var(--g800);cursor:pointer;transition:background .12s,color .12s,border-color .12s}
+.chip .material-icons{font-size:16px;color:var(--g500)}
+.chip.all{background:var(--g100);border-color:var(--g100)}
+.chip.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.chip.on .material-icons{color:#fff}
+.other{display:inline-block;font-size:12px;font-weight:700;color:var(--brand600);margin-top:12px;cursor:pointer}
+.edit{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+.edit input{font-family:inherit;font-size:16px;color:var(--g900);border:1px solid var(--g200);border-radius:12px;padding:10px 14px;outline:none}
+.edit input:focus{border-color:var(--brand)}
+.quota{font-size:12px;color:var(--g500);margin-top:10px}
+
+.toast{position:absolute;left:50%;bottom:92px;transform:translate(-50%,10px);background:rgba(17,24,39,.86);color:#fff;font-size:12.5px;padding:8px 14px;border-radius:999px;opacity:0;transition:opacity .2s,transform .2s;white-space:nowrap;pointer-events:none}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.finger{position:absolute;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;background:rgba(17,24,39,.28);border:2px solid rgba(255,255,255,.9);pointer-events:none;opacity:0;transform:scale(1.4);transition:opacity .15s,transform .15s;z-index:20}
+.finger.on{opacity:1;transform:scale(1)}
+</style>
+</head>
+<body>
+<h1>見つからない寺社を調べる — 地域の聞き方（A と C）</h1>
+<p class="lead">
+左右とも同じ記録画面です。スポット名に名前を入れて<b>「〇〇を調べて追加」</b>を押すところから始まります。スマホの中は押して操作できます。<b>「並べて再生」</b>を押すと、同じ人の操作を左右で同時に流します。<br>
+想定する人: <b>仙台で「八幡神社」に参拝した人</b>（全国に同じ名前がたくさんある）。比べ用として、1つしかない名前の<b>「秋保神社」</b>にも切り替えられます。<br>
+いまの動き: 押すとすぐ全国で調べ始めます。調べている途中に「地域を絞る」で入れ直すと、最初から調べ直しになり（1日10回の枠を2回使う）、打っている間に最初の結果が出ます。
+</p>
+<div class="ctl">
+  <div><span class="lbl">名前</span><span class="seg" id="segName"><button data-v="八幡神社" class="on">八幡神社（各地にある）</button><button data-v="秋保神社">秋保神社（1つだけ）</button></span></div>
+  <div><span class="lbl">調べる時間</span><span class="seg" id="segDur"><button data-v="4000">4秒</button><button data-v="7000" class="on">7秒</button><button data-v="12000">12秒</button></span></div>
+  <button class="act play" id="play">並べて再生</button>
+  <button class="act reset" id="reset">最初に戻す</button>
+</div>
+
+<div class="wrap">
+  <div class="col">
+    <h2>A. 調べる前に地域を聞く<small>おすすめ</small></h2>
+    <div class="phone" id="pA"></div>
+    <div class="meter" id="mA"></div>
+    <p><b>押すと、まず地域を聞く。</b>県のボタンは<b>自分の記録</b>から新しい順に3つと「全国から」。押した瞬間に調べ始めます（1回押すだけ）。一覧にない地域は「ほかの地域を入れる」。</p>
+    <ul>
+      <li>調べている間は地域を変えるボタンを出さない → 調べものが重ならない</li>
+      <li>候補の上の「変える」で、地域から選び直せる</li>
+      <li>位置情報は使わない（家で記録する人がいる。#248 の方針のまま）</li>
+      <li>気になる点: 1つしかない名前でも1回多く押す</li>
+      <li>記録がまだ無い人には「全国から」と「地域を入れる」だけが出る</li>
+    </ul>
+  </div>
+  <div class="col">
+    <h2>C. 地域は結果のあとで聞く</h2>
+    <div class="phone" id="pC"></div>
+    <div class="meter" id="mC"></div>
+    <p><b>押すとすぐ全国で調べる</b>（いまと同じ速さ）。調べている間は地域のボタンを出さず、見ているだけ。候補を見て違っていたら<b>「地域を決めて調べ直す」</b>。</p>
+    <ul>
+      <li>1つしかない名前なら、いちばん早く終わる</li>
+      <li>地域を選ぶ画面は A と同じもの（調べ直すときだけ出る）</li>
+      <li>気になる点: 同じ名前が多いと1回目で見つからず、調べる回数も時間も2倍になる</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const MINE = ['宮城県', '京都府', '東京都'];
+const SRC = '住所の情報源 2件（公式サイト ほか）';
+const DATA = {
+  '八幡神社': {
+    maybe: [
+      { name: '大崎八幡宮', pref: '宮城県', km: '3' },
+      { name: '亀岡八幡宮', pref: '宮城県', km: '2' },
+    ],
+    results: {
+      '全国': [
+        { name: '八幡神社', addr: '東京都世田谷区桜丘', km: '305.2' },
+        { name: '八幡神社', addr: '大阪府堺市堺区', km: '624.8' },
+        { name: '八幡神社', addr: '福岡県北九州市八幡東区', km: '1080.4' },
+      ],
+      '宮城県': [
+        { name: '八幡神社', addr: '宮城県仙台市青葉区八幡', km: '2.4', target: true },
+        { name: '八幡神社', addr: '宮城県石巻市八幡町', km: '43.1' },
+        { name: '八幡神社', addr: '宮城県大崎市古川', km: '38.6' },
+      ],
+      '京都府': [
+        { name: '八幡神社', addr: '京都府京都市左京区', km: '612.0' },
+        { name: '八幡神社', addr: '京都府八幡市', km: '628.9' },
+      ],
+      '東京都': [
+        { name: '八幡神社', addr: '東京都世田谷区桜丘', km: '305.2' },
+        { name: '八幡神社', addr: '東京都杉並区', km: '309.7' },
+      ],
+    },
+  },
+  '秋保神社': {
+    maybe: [{ name: '秋保大滝不動尊', pref: '宮城県', km: '27', temple: true }],
+    results: {
+      '全国': [{ name: '秋保神社', addr: '宮城県仙台市太白区秋保町長袋', km: '18.6', target: true }],
+      '宮城県': [{ name: '秋保神社', addr: '宮城県仙台市太白区秋保町長袋', km: '18.6', target: true }],
+    },
+  },
+};
+let NAME = '八幡神社';
+let DUR = 7000;
+const STEP_MS = 3000;
+const STEPS = ['名前で探す', '住所を確かめる', '地図の場所を出す'];
+const icon = (n, extra = '') => `<span class="material-icons"${extra}>${n}</span>`;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const MINI_MAP = `<svg viewBox="0 0 300 96" preserveAspectRatio="xMidYMid slice"><rect width="300" height="96" fill="#EEF0F2"/><rect x="190" y="8" width="70" height="40" rx="4" fill="#DDEBD5"/><path d="M-10 62 L320 40" stroke="#fff" stroke-width="9"/><path d="M120 -10 L150 110" stroke="#fff" stroke-width="7"/><path d="M-10 20 L120 28" stroke="#fff" stroke-width="4"/><path d="M200 60 L260 110" stroke="#fff" stroke-width="4"/><path d="M40 100 L70 60" stroke="#fff" stroke-width="3"/></svg>`;
+
+class Phone {
+  constructor(kind) {
+    this.kind = kind;
+    this.el = document.getElementById('p' + kind);
+    this.meter = document.getElementById('m' + kind);
+    this.el.innerHTML = `
+      <div class="sb"><span>9:41</span><span>${icon('signal_cellular_alt', ' style="font-size:15px"')} ${icon('battery_full', ' style="font-size:15px"')}</span></div>
+      <div class="hdr">${icon('close')}<b>御朱印を記録</b></div>
+      <div class="scroll" data-screen></div>
+      <div class="ov" data-ov></div>
+      <div class="sheet" data-sheet></div>
+      <div class="toast" data-toast></div>
+      <div class="finger" data-finger></div>`;
+    this.screen = this.el.querySelector('[data-screen]');
+    this.ov = this.el.querySelector('[data-ov]');
+    this.sheet = this.el.querySelector('[data-sheet]');
+    this.toastEl = this.el.querySelector('[data-toast]');
+    this.fingerEl = this.el.querySelector('[data-finger]');
+    this.el.addEventListener('click', e => this.onClick(e));
+    this.el.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && e.target.matches('[data-input]')) this.submitOther();
+    });
+    this.timers = [];
+    this.reset();
+    setInterval(() => this.renderMeter(), 100);
+  }
+
+  reset() {
+    this.timers.forEach(clearTimeout);
+    this.timers = [];
+    this.gen = (this.gen || 0) + 1;
+    this.s = { stage: 'form', hint: null, retry: false, editing: false, picked: null, results: [], selected: 0, showOthers: false, step: 0, chosen: null };
+    this.taps = 0;
+    this.researches = 0;
+    this.t0 = null;
+    this.tHit = null;
+    this.render();
+  }
+
+  later(fn, ms) {
+    const gen = this.gen;
+    this.timers.push(setTimeout(() => gen === this.gen && fn(), ms));
+  }
+
+  toast(text) {
+    this.toastEl.textContent = text;
+    this.toastEl.classList.add('on');
+    clearTimeout(this.toastT);
+    this.toastT = setTimeout(() => this.toastEl.classList.remove('on'), 1800);
+  }
+
+  /* ── 操作 ── */
+  onClick(e) {
+    if (e.target === this.ov) {
+      if (this.s.stage !== 'form' && this.s.stage !== 'done') {
+        // 閉じたら調べものも捨てる（アプリの close と同じ）
+        this.timers.forEach(clearTimeout);
+        this.timers = [];
+        this.gen++;
+        this.s.stage = 'form';
+        this.render();
+      }
+      return;
+    }
+    const a = e.target.closest('[data-act]');
+    if (!a) return;
+    const act = a.dataset.act;
+    const s = this.s;
+    this.taps++;
+    switch (act) {
+      case 'research':
+        this.t0 = performance.now();
+        this.tHit = null;
+        if (this.kind === 'A') { s.stage = 'ask'; s.retry = false; s.editing = false; s.picked = null; this.render(); }
+        else this.startResearch(null);
+        break;
+      case 'pick': {
+        const pref = a.dataset.pref || null;
+        s.picked = a.dataset.pref || '全国';
+        this.render();
+        this.later(() => this.startResearch(pref), 160);
+        break;
+      }
+      case 'other': s.editing = true; this.render(); this.sheet.querySelector('[data-input]')?.focus(); break;
+      case 'otherSubmit': this.submitOther(); break;
+      case 'change': s.stage = 'ask'; s.retry = true; s.editing = false; s.picked = null; this.render(); break;
+      case 'card': s.selected = +a.dataset.i; this.render(); break;
+      case 'others': s.showOthers = true; this.render(); break;
+      case 'choose': {
+        const c = s.results[s.selected];
+        s.chosen = c;
+        s.stage = 'done';
+        this.render();
+        this.toast(c.target ? '記録に使う寺社が決まりました' : '（目当てと違う寺社を選びました）');
+        break;
+      }
+      case 'manual': this.toast('（試作では、地図で決める画面は省きました）'); break;
+      default: this.taps--; break;
+    }
+  }
+
+  submitOther() {
+    const v = (this.sheet.querySelector('[data-input]')?.value || '').normalize('NFKC').trim();
+    const key = Object.keys(DATA[NAME].results).find(k => k !== '全国' && v.startsWith(k));
+    this.s.picked = null;
+    this.startResearch(key || v || null);
+  }
+
+  startResearch(hint) {
+    const s = this.s;
+    this.researches++;
+    Object.assign(s, { stage: 'researching', hint, step: 0, editing: false });
+    this.render();
+    this.later(() => { s.step = 1; this.render(); }, STEP_MS);
+    this.later(() => { s.step = 2; this.render(); }, STEP_MS * 2);
+    this.later(() => {
+      const results = DATA[NAME].results[hint || '全国'] || [];
+      Object.assign(s, { results, selected: 0, showOthers: false, stage: results.length ? 'candidates' : 'notFound' });
+      if (!this.tHit && results.some(r => r.target)) this.tHit = performance.now();
+      this.render();
+    }, DUR);
+  }
+
+  /* ── 再生用 ── */
+  async fingerTap(sel) {
+    const gen = this.gen;
+    const target = this.el.querySelector(sel);
+    if (!target) return;
+    const pr = this.el.getBoundingClientRect();
+    const r = target.getBoundingClientRect();
+    this.fingerEl.style.left = r.left - pr.left + r.width / 2 + 'px';
+    this.fingerEl.style.top = r.top - pr.top + r.height / 2 + 'px';
+    this.fingerEl.classList.add('on');
+    await sleep(220);
+    if (gen !== this.gen) return;
+    target.click();
+    await sleep(160);
+    this.fingerEl.classList.remove('on');
+  }
+
+  async until(pred) {
+    const gen = this.gen;
+    while (!pred()) { await sleep(100); if (gen !== this.gen) throw new Error('reset'); }
+  }
+
+  async play() {
+    this.reset();
+    const gen = this.gen;
+    const alive = () => { if (gen !== this.gen) throw new Error('reset'); };
+    const hasTarget = () => this.s.results.some(r => r.target);
+    try {
+      await sleep(700); alive();
+      await this.fingerTap('[data-act=research]');
+      if (this.kind === 'A') { await sleep(1300); alive(); await this.fingerTap('[data-act=pick][data-pref="宮城県"]'); }
+      await this.until(() => ['candidates', 'notFound'].includes(this.s.stage));
+      await sleep(1500); alive();
+      if (!hasTarget()) {
+        await this.fingerTap('[data-act=change]');
+        await sleep(1200); alive();
+        await this.fingerTap('[data-act=pick][data-pref="宮城県"]');
+        await this.until(() => ['candidates', 'notFound'].includes(this.s.stage));
+        await sleep(1500); alive();
+      }
+      await this.fingerTap('[data-act=choose]');
+    } catch (e) { /* 最初に戻した */ }
+  }
+
+  /* ── 描画 ── */
+  renderMeter() {
+    const t = this.t0 === null ? null : ((this.tHit ?? performance.now()) - this.t0) / 1000;
+    const hit = this.tHit !== null;
+    this.meter.innerHTML = `
+      <div>押した回数<b>${this.taps}</b></div>
+      <div>調べた回数<b>${this.researches}</b></div>
+      <div class="${hit ? 'hit' : ''}">目当てが出るまで<b>${t === null ? '—' : t.toFixed(1) + ' 秒'}${hit || t === null ? '' : '…'}</b></div>`;
+  }
+
+  render() {
+    this.renderScreen();
+    const open = !['form', 'done'].includes(this.s.stage);
+    this.ov.classList.toggle('on', open);
+    this.sheet.classList.toggle('on', open);
+    if (open) {
+      const html = this.sheetBody();
+      const key = this.s.stage + '|' + this.s.retry + '|' + this.s.hint;
+      if (key !== this.bodyKey) {
+        this.sheet.innerHTML = `<div class="body">${html}</div>`;
+        this.bodyKey = key;
+      } else {
+        this.sheet.firstElementChild.innerHTML = html;
+      }
+    } else {
+      this.bodyKey = null;
+    }
+    this.renderMeter();
+  }
+
+  renderScreen() {
+    const d = DATA[NAME];
+    const s = this.s;
+    let spot;
+    if (s.stage === 'done' && s.chosen) {
+      spot = `<div class="picked"><div class="n">${s.chosen.name} <span class="badge">神社</span></div><div class="s">${s.chosen.addr}（追加した寺社）</div></div>`;
+    } else {
+      spot = `
+        <div class="field">${icon('search')}<span>${NAME}</span><span class="caret"></span></div>
+        <div class="dd">
+          <div class="maybe">もしかして</div>
+          ${d.maybe.map(m => `<div class="row"><div class="l"><span class="nm">${m.name}</span><span class="badge"${m.temple ? ' style="background:#F3E8FF;color:#9333EA"' : ''}>${m.temple ? '寺院' : '神社'}</span></div><span class="pf">${m.pref}</span><span class="km">${m.km}km</span></div>`).join('')}
+          <div class="rs" data-act="research"><div class="plus">${icon('add')}</div><div><div class="t">「${NAME}」を調べて追加</div><div class="st">名前から場所と住所を調べます</div></div></div>
+        </div>`;
+    }
+    this.screen.innerHTML = `
+      <div class="label">スポット</div>${spot}
+      <div class="label">御朱印の写真</div><div class="photo">${icon('photo_camera')}</div>
+      <div class="label">参拝日</div><div class="date">2026年9月27日</div>`;
+  }
+
+  hintLine(done) {
+    const s = this.s;
+    const where = s.hint ? `${s.hint} で探し${done ? 'ました' : 'ています'}` : `全国から探し${done ? 'ました' : 'ています'}`;
+    const chg = done && this.kind === 'A' ? `<span class="chg" data-act="change">変える</span>` : '';
+    return `<div class="hint">${icon('place')}<span class="tx">${where}</span>${chg}</div>`;
+  }
+
+  askBody() {
+    const s = this.s;
+    const retry = s.retry;
+    const title = retry ? '地域を決めて調べ直す' : `「${NAME}」を調べます`;
+    const why = retry ? '選ぶとすぐ調べ直します。' : 'どのあたりの寺社ですか？ 選ぶとすぐ調べ始めます。';
+    const chip = (pref, label, cls = '') =>
+      `<span class="chip ${cls} ${s.picked === (pref || '全国') ? 'on' : ''}" data-act="pick" data-pref="${pref}">${pref ? icon('place') : icon('public')}${label}</span>`;
+    const edit = s.editing
+      ? `<div class="edit"><input data-input placeholder="例: 宮城県 仙台市" /><span class="btn outline" data-act="otherSubmit">この地域で調べる</span></div>`
+      : `<span class="other" data-act="other">ほかの地域を入れる</span>`;
+    return `
+      <div class="title">${title}</div>
+      <div class="why">${why}</div>
+      <div class="cap">あなたの記録から</div>
+      <div class="chips">${MINE.map(p => chip(p, p)).join('')}${chip('', '全国から', 'all')}</div>
+      ${edit}
+      ${retry ? `<div class="quota">調べ直すと、今日の回数（10回）を1回使います</div>` : ''}
+      <div class="gap"></div>
+      <span class="btn outline" data-act="manual">調べずに、地図で場所を決める</span>`;
+  }
+
+  sheetBody() {
+    const s = this.s;
+    switch (s.stage) {
+      case 'ask':
+        return this.askBody();
+      case 'researching':
+        return `
+          <div class="title">「${NAME}」を調べています</div>
+          <div class="why">公式サイトや地図の情報から、場所と住所を探しています。</div>
+          ${this.hintLine(false)}
+          <div class="skel"><div class="spin"></div></div>
+          <div class="steps">${STEPS.map((l, i) => `<div class="step ${i < s.step ? 'done' : ''}">${i < s.step ? '✓' : i === s.step ? '…' : '　'} ${l}</div>`).join('')}</div>
+          <span class="btn outline" data-act="manual">調べずに、地図で場所を決める</span>`;
+      case 'notFound':
+        return `
+          <div class="title">見つかりませんでした</div>
+          <div style="height:10px"></div>
+          ${this.hintLine(true)}
+          ${this.kind === 'C' ? `<div class="link" data-act="change">${icon('place')}地域を決めて調べ直す</div>` : ''}
+          <div class="gap"></div>
+          <span class="btn primary" data-act="manual">地図で場所を決める</span>`;
+      case 'candidates': {
+        const rest = s.results.length - 1;
+        const shown = s.showOthers ? s.results : [s.results[s.selected]];
+        const cards = shown.map(c => {
+          const i = s.results.indexOf(c);
+          const sel = i === s.selected;
+          return `<div class="card ${sel ? 'sel' : ''}" data-act="card" data-i="${i}">
+            <div class="top"><span class="cn">${c.name}</span><span class="badge">神社</span><span class="ck">${c.km}km</span></div>
+            <div class="ad">${c.addr}</div>
+            ${sel && !s.showOthers ? `<div class="mm">${MINI_MAP}${icon('place')}</div>` : ''}
+            <div class="src">${SRC}</div></div>`;
+        }).join('');
+        const redo = this.kind === 'C'
+          ? `<div class="link" data-act="change">${icon('place')}この中に無い → 地域を決めて調べ直す</div>`
+          : '';
+        return `
+          <div class="title">これですか？</div>
+          <div class="why">見つかった寺社です。行った場所と合っていれば、そのまま記録に使えます。</div>
+          ${this.kind === 'A' ? `<div style="margin:-2px 0 10px">${this.hintLine(true)}</div>` : ''}
+          ${cards}
+          ${rest > 0 && !s.showOthers ? `<div class="more" data-act="others">ほかの候補を見る（${rest}件）</div>` : ''}
+          <div class="gapS"></div>
+          <span class="btn primary" data-act="choose">ここです</span>
+          ${redo}
+          <div class="none" data-act="manual">どれでもない（地図で決める）</div>
+          <div class="note">確かめられたら、みんなの地図にも載ります</div>`;
+      }
+    }
+    return '';
+  }
+}
+
+const phones = [new Phone('A'), new Phone('C')];
+const seg = (id, fn) => document.getElementById(id).addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  document.querySelectorAll(`#${id} button`).forEach(x => x.classList.toggle('on', x === b));
+  fn(b.dataset.v);
+});
+seg('segName', v => { NAME = v; phones.forEach(p => p.reset()); });
+seg('segDur', v => { DUR = +v; phones.forEach(p => p.reset()); });
+document.getElementById('reset').onclick = () => phones.forEach(p => p.reset());
+document.getElementById('play').onclick = () => phones.forEach(p => p.play());
+</script>
+</body>
+</html>
