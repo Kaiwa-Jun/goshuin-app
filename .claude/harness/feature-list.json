@@ -184,6 +184,12 @@
       "title": "3件目の記録のあとに App Store のレビューを依頼し、設定から評価を書けるようにする",
       "note": "契約書 docs/issues/issue-288-review-request.md。完了画面からメインのタブに戻って 1.5 秒後に、節目（3・10・30 枚）でシステムの依頼を出す（2回目から90日あける・3回まで・端末の履歴）。ネイティブの無い開発用アプリでも落ちない。設定の「アプリ情報」の最後に「App Store でレビューを書く」（iOS だけ）。goshuin-evaluator PASS（AC 36/36・UI-1〜4・Q 13/13）、UI-5〜7 はローカルの新しい .app で確認。未確認: 実機で App Store の「レビューを書く」が開くこと（H-1）、本番で依頼が出ること（H-3）。",
       "passes": true
+    },
+    {
+      "id": "ISSUE-292",
+      "title": "寺社のマスタの座標のずれを直す（第1弾 458 件）",
+      "note": "契約書 docs/issues/issue-292-spot-coords.md。全 1,109 件を Wikidata・国土地理院・OSM と突き合わせ、ずれていた寺社のうち確かなもの 458 件（Wikidata 403・OSM 55）を直す。台帳 supabase/data/spot-coords-292.json から migration・確かめる SQL・seed の書き換えを生成（Deno）。1行ずつちょうど1行を確かめ、合わなければ全体を戻す・2回流しても壊れない。goshuin-evaluator PASS。**本番への反映（H-1〜H-6）はオーナー**。第2弾（確かさ中 60・国土地理院由来 12・姉倉比賣神社 1・オーナーが見る 17・要調査 27）は review-owner.html でオーナーが選んでから。",
+      "passes": true
     }
   ]
 }
