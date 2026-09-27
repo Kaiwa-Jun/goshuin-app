@@ -231,3 +231,18 @@ jest.mock('react-native-purchases', () => {
   };
   return { __esModule: true, default: Purchases };
 });
+
+// expo の requireOptionalNativeModule（Issue #288 D-2）。App Store のレビュー依頼のネイティブ
+// （ExpoStoreReview）は、既定では「無い」（= 今の開発用アプリと同じ）にする。jest-expo は
+// ExpoStoreReview を自動でモックしていて、何もしないと「モジュールがある・isAvailableAsync() が
+// undefined」になるため。それ以外の名前は本物を呼ぶ。モジュールがあるときのテストは
+// jest.mocked(requireOptionalNativeModule).mockImplementation(…) で偽のモジュールを返す
+jest.mock('expo', () => {
+  const actual = jest.requireActual('expo');
+  return {
+    ...actual,
+    requireOptionalNativeModule: jest.fn(name =>
+      name === 'ExpoStoreReview' ? null : actual.requireOptionalNativeModule(name)
+    ),
+  };
+});
