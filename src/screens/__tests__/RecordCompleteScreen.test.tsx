@@ -3,6 +3,7 @@ import { StyleSheet } from 'react-native';
 import { render, fireEvent, act, within } from '@testing-library/react-native';
 import { Svg } from 'react-native-svg';
 import { RecordCompleteScreen } from '@screens/RecordCompleteScreen';
+import { clearRecordCompleted, takeRecordCompleted } from '@services/storeReview';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { shadows } from '@theme/shadows';
@@ -861,4 +862,54 @@ it('御朱印が影で浮いている（トークン由来）', () => {
   expect(style.shadowOpacity).toBe(shadows.lg.shadowOpacity);
   expect(style.shadowRadius).toBe(shadows.lg.shadowRadius);
   expect(style.elevation).toBe(shadows.lg.elevation);
+});
+
+/*
+ * Issue #288 D-6 ①。完了画面が開いたら「N枚目」と同じ枚数を、この起動の中だけの印に置く。
+ * 取り出すのはメインのタブのフック（useStoreReviewRequest）で、この画面では消さない
+ */
+describe('レビュー依頼の印を置く（Issue #288）', () => {
+  const route = (params?: Record<string, unknown>) =>
+    ({ key: 'test', name: 'RecordComplete' as const, params }) as never;
+  const counted = {
+    totalStampCount: 3,
+    stampCount: 1,
+    prefecture: '宮城県',
+    stampCountByPrefecture: { 宮城県: 3 },
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    clearRecordCompleted();
+  });
+
+  it('AC-26: 「N枚目」が出るとき、その枚数を置く', () => {
+    render(<RecordCompleteScreen navigation={mockNavigation} route={route(counted)} />);
+
+    expect(takeRecordCompleted()).toBe(3);
+  });
+
+  it('AC-27: 枚数を取れなかった（countUnavailable）ときは置かない', () => {
+    render(
+      <RecordCompleteScreen
+        navigation={mockNavigation}
+        route={route({ countUnavailable: true, totalStampCount: 3 })}
+      />
+    );
+
+    expect(takeRecordCompleted()).toBeNull();
+  });
+
+  it('AC-27: params が無いときは置かない', () => {
+    render(<RecordCompleteScreen navigation={mockNavigation} route={route(undefined)} />);
+
+    expect(takeRecordCompleted()).toBeNull();
+  });
+
+  it('AC-29: 画面が閉じても印は消さない', () => {
+    const ui = render(<RecordCompleteScreen navigation={mockNavigation} route={route(counted)} />);
+    ui.unmount();
+
+    expect(takeRecordCompleted()).toBe(3);
+  });
 });

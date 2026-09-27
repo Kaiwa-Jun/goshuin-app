@@ -8,7 +8,7 @@ import { STORE_REVIEW_MIN_INTERVAL_DAYS, STORE_REVIEW_THRESHOLDS } from '@/const
  */
 
 export interface StoreReviewHistory {
-  /** これまでに requestReview を呼べた回数（0〜3） */
+  /** これまでにシステムのレビュー依頼を呼べた回数（0〜3） */
   count: number;
   /** 最後に呼べた時刻（ISO 8601）。count が 0 なら null */
   lastRequestedAt: string | null;

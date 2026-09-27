@@ -1,10 +1,12 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { act, render, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
+import { requireOptionalNativeModule } from 'expo';
 
 import { RootNavigator } from '../RootNavigator';
 import type { RootStackParamList } from '@/navigation/types';
+import { clearRecordCompleted } from '@services/storeReview';
 
 // Mock supabase client to avoid env var requirement
 jest.mock('@services/supabase', () => ({
@@ -191,6 +193,7 @@ function renderWithNavigation() {
 describe('RootNavigator', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    clearRecordCompleted();
   });
 
   it('shows loading indicator while onboarding state is loading', () => {
@@ -334,5 +337,100 @@ describe('RootNavigator', () => {
     await waitFor(() => {
       expect(getByTestId('map-screen')).toBeTruthy();
     });
+  });
+});
+
+/*
+ * Issue #288 AC-30・31。完了画面から「地図に戻る」で戻った少し後にレビュー依頼が出る。
+ * 完了画面・年報の上では出ない。native-stack の pop で MainTabs のフォーカスが本当に変わるかを、
+ * 本物のナビゲーションで確かめる（フックの単体テストだけでは確かめられない）
+ */
+describe('レビュー依頼（Issue #288）', () => {
+  const requireOptional = jest.mocked(requireOptionalNativeModule);
+  const defaultRequireOptional = requireOptional.getMockImplementation();
+  let fake: { isAvailableAsync: jest.Mock; requestReview: jest.Mock };
+
+  const flush = () =>
+    act(async () => {
+      for (let i = 0; i < 20; i += 1) await Promise.resolve();
+    });
+  const advance = async (ms: number) => {
+    act(() => {
+      jest.advanceTimersByTime(ms);
+    });
+    await flush();
+  };
+
+  /** 地図が出たあと、時計を止めて完了画面を開き、「地図に戻る」で戻る */
+  async function recordAndExit() {
+    const ui = renderWithNavigation();
+    await waitFor(() => expect(ui.getByTestId('map-screen')).toBeTruthy());
+    jest.useFakeTimers({ now: new Date('2026-10-05T12:00:00+09:00') });
+
+    act(() => {
+      navigationRef.navigate('RecordComplete', {
+        totalStampCount: 3,
+        stampCount: 1,
+        prefecture: '宮城県',
+        stampCountByPrefecture: { 宮城県: 3 },
+        origin: 'map',
+      });
+    });
+    await flush();
+    expect(ui.getByTestId('button-exit')).toBeTruthy();
+
+    await advance(3000);
+    expect(fake.requestReview).not.toHaveBeenCalled();
+
+    fireEvent.press(ui.getByTestId('button-exit'));
+    await flush();
+    expect(ui.queryByTestId('button-exit')).toBeNull();
+    expect(ui.getByTestId('map-screen')).toBeTruthy();
+    expect(navigationRef.getCurrentRoute()?.name).toBe('Map');
+    return ui;
+  }
+
+  beforeEach(() => {
+    mockUseOnboarding.mockReturnValue({
+      isCompleted: true,
+      isLoading: false,
+      completeOnboarding: jest.fn(),
+      resetOnboarding: jest.fn(),
+    });
+    fake = {
+      isAvailableAsync: jest.fn(async () => true),
+      requestReview: jest.fn(async () => undefined),
+    };
+    requireOptional.mockImplementation(
+      (name: string) => (name === 'ExpoStoreReview' ? fake : null) as never
+    );
+  });
+
+  afterEach(() => {
+    requireOptional.mockImplementation(defaultRequireOptional);
+    jest.useRealTimers();
+  });
+
+  it('AC-30: 完了画面の上では出さず、「地図に戻る」で戻ってから 1500ms で出す', async () => {
+    await recordAndExit();
+
+    await advance(1499);
+    expect(fake.requestReview).not.toHaveBeenCalled();
+    await advance(1);
+    expect(fake.requestReview).toHaveBeenCalledTimes(1);
+  });
+
+  it('AC-31: 戻ってから 1500ms より前に年報が開けば出さない', async () => {
+    const ui = await recordAndExit();
+
+    await advance(1000);
+    act(() => {
+      navigationRef.navigate('AnnualReport', { year: 2026, sample: 'full' });
+    });
+    await flush();
+    expect(ui.getByTestId('annual-report')).toBeTruthy();
+
+    await advance(5000);
+    expect(fake.requestReview).not.toHaveBeenCalled();
   });
 });

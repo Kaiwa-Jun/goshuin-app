@@ -8,6 +8,7 @@ import { GalleryStack } from '@/navigation/GalleryStack';
 import { CollectionStack } from '@/navigation/CollectionStack';
 import { SettingsScreen } from '@screens/SettingsScreen';
 import { useAnnualReportAutoPlay } from '@hooks/useAnnualReportAutoPlay';
+import { useStoreReviewRequest } from '@hooks/useStoreReviewRequest';
 import { colors } from '@theme/colors';
 import type { MainTabParamList } from '@/navigation/types';
 
@@ -24,6 +25,8 @@ interface Props {
 export function TabNavigator({ autoPlayReady = true }: Props) {
   // 12月に1回だけの年報の自動再生。MainTabs の画面そのもので判定する
   useAnnualReportAutoPlay({ ready: autoPlayReady });
+  // 記録を終えて戻った少し後に、App Store のレビュー依頼（Issue #288）。これも MainTabs で判定する
+  useStoreReviewRequest();
 
   return (
     <Tab.Navigator
