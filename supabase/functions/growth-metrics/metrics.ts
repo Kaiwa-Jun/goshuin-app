@@ -1,4 +1,4 @@
-// グロースの数字を、集計だけの JSON にする（Issue #285 / S2）
+// グロースの数字を、集計だけの JSON にする（Issue #285 / S2・S3）
 //
 // 数えるのは SQL の関数 public.growth_metrics_counts（migration 20260927000000）。
 // ここは I/O を持たない純関数で、次を受け持つ（D-3）:
@@ -6,8 +6,10 @@
 //     getUTC* で行う（research-spot の startOfTodayJstIso と同じ考え方。日本時間に夏時間は無い）
 //   - 欠けた週・月を 0 で埋める、割合、少人数の伏せ（D-10）、返す形（D-11）: buildMetrics
 //   - SQL の戻り値の型の検査。返すのは許可リストのキーだけで、生の数をコピーしない
+//   - 認可と応答（handleGrowthMetrics）: DB・時計・ログは注入する（index.ts が本物をつなぐ）
 //
 // 返す JSON を変えるとき（キーを足す・意味を変える）は SCHEMA_VERSION を上げる
+import { extractBearerToken, isTokenConfigured, tokenMatches } from './token.ts';
 
 export const SCHEMA_VERSION = 1;
 /** 週・月の集団の人数（分母）がこれ未満（1〜2 人）なら、内訳と割合を null にする（D-10） */
@@ -257,4 +259,86 @@ export function buildMetrics(raw: unknown, windows: MetricWindows, now: number):
       last7Days: { active: c.added_spots_period_active, pending: c.added_spots_period_pending },
     },
   };
+}
+
+// --- 認可と応答（S3） ---
+
+export type LogLevel = 'info' | 'warn' | 'error';
+
+export interface GrowthMetricsDeps {
+  /** GROWTH_METRICS_TOKEN。未設定・空・32 文字未満なら、どんなリクエストも 401 */
+  expectedToken: string | undefined;
+  /** SQL の関数を service role で1回呼ぶ。失敗したら「code message」を持つ Error を throw する */
+  fetchCounts(params: RpcParams): Promise<unknown>;
+  now(): number;
+  /** 決まった文だけを渡す（合言葉・ヘッダー・集計した数は渡さない。D-14） */
+  log(level: LogLevel, message: string): void;
+}
+
+export interface GrowthMetricsResponse {
+  status: number;
+  headers: Record<string, string>;
+  body: GrowthMetrics | { error: string };
+}
+
+const LOG_PREFIX = '[growth-metrics]';
+
+/** 呼ぶのはルーティン（サーバー）なので、CORS のヘッダーは付けない（D-12） */
+function respond(
+  status: number,
+  body: GrowthMetricsResponse['body'],
+  extraHeaders: Record<string, string> = {}
+): GrowthMetricsResponse {
+  return {
+    status,
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...extraHeaders },
+    body,
+  };
+}
+
+/**
+ * D-12 の順で判定する: ① GET 以外は 405 ② 合言葉を定数時間で比べて、合わなければ 401 ③ 合ったときだけ数える。
+ * 401・405 の前に DB に触らない。500 の本文にエラーの文を入れない
+ */
+export async function handleGrowthMetrics(
+  deps: GrowthMetricsDeps,
+  method: string,
+  authorization: string | null
+): Promise<GrowthMetricsResponse> {
+  if (method !== 'GET') {
+    deps.log('warn', `${LOG_PREFIX} method not allowed`);
+    return respond(405, { error: 'method not allowed' }, { Allow: 'GET' });
+  }
+
+  if (!isTokenConfigured(deps.expectedToken)) {
+    deps.log('warn', `${LOG_PREFIX} token not configured`);
+    return respond(401, { error: 'unauthorized' });
+  }
+  if (!(await tokenMatches(extractBearerToken(authorization), deps.expectedToken))) {
+    deps.log('warn', `${LOG_PREFIX} unauthorized`);
+    return respond(401, { error: 'unauthorized' });
+  }
+
+  const now = deps.now();
+  const windows = metricWindows(now);
+  let raw: unknown;
+  try {
+    raw = await deps.fetchCounts(toRpcParams(windows));
+  } catch (error) {
+    // SQL の引数は時刻だけなので、rpc のエラーの文に個人の値は入らない（D-14）
+    const detail = error instanceof Error ? error.message : String(error);
+    deps.log('error', `${LOG_PREFIX} failed: ${detail}`);
+    return respond(500, { error: 'internal error' });
+  }
+
+  let body: GrowthMetrics;
+  try {
+    body = buildMetrics(raw, windows, now);
+  } catch {
+    deps.log('error', `${LOG_PREFIX} failed: invalid counts`);
+    return respond(500, { error: 'internal error' });
+  }
+
+  deps.log('info', `${LOG_PREFIX} ok`);
+  return respond(200, body);
 }

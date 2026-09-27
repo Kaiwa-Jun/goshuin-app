@@ -2,13 +2,15 @@
 // 実行: deno test -A --node-modules-dir=none supabase/functions/growth-metrics/sql_test.ts
 //   ⚠ --node-modules-dir=none が要る（無いとルートの package.json 経由で npm: の解決に失敗する）
 //
-// 契約書: docs/issues/issue-285-growth-metrics.md（S1 / AC-1〜AC-9）
+// 契約書: docs/issues/issue-285-growth-metrics.md（S1 / AC-1〜AC-9、S3 / AC-24）
 //
 // PGlite は Postgres 17 の WASM。Supabase のロールや auth スキーマの権限までは同じでないので、
 // 使う列だけの最小のスキーマとロールをここで作ってから migration を流す。
 // 持ち主（postgres）が本番で auth.users を読めるかは H-3 で確かめる
 import { assert, assertEquals, assertMatch, assertNotEquals } from 'jsr:@std/assert@1';
 import { PGlite } from 'npm:@electric-sql/pglite@0.3.16';
+
+import { buildMetrics, metricWindows, toRpcParams } from './metrics.ts';
 
 const MIGRATION_URL = new URL(
   '../../migrations/20260927000000_growth_metrics.sql',
@@ -472,3 +474,145 @@ Deno.test('H-3 の確認 SQL は PGlite でも期待値の RESULT で終わる�
     );
   });
 });
+
+// --- AC-24: metricWindows → SQL → buildMetrics をつなぐ ---
+
+/**
+ * now = 2026-09-28（月）09:00 JST。4週それぞれの登録・6か月の記録・分母 2 の週（2026-09-07）を含む。
+ * 期待値は下の EXPECTED_CONNECTED に手で書いた
+ */
+const FIX_CONNECTED: Fixture = {
+  users: [
+    // 週 2026-08-31（3人。活性化 2）
+    [uid(61), '2026-08-31T01:00:00.000Z'],
+    [uid(62), '2026-09-02T00:00:00.000Z'],
+    [uid(63), '2026-09-06T14:00:00.000Z'], // 日本時間の日曜 23:00
+    // 週 2026-09-07（2人 → 内訳を伏せる）
+    [uid(64), '2026-09-08T00:00:00.000Z'],
+    [uid(65), '2026-09-10T00:00:00.000Z'],
+    // 週 2026-09-14（4人。活性化 1）
+    [uid(66), '2026-09-15T00:00:00.000Z'],
+    [uid(67), '2026-09-15T00:00:00.000Z'],
+    [uid(68), '2026-09-16T00:00:00.000Z'],
+    [uid(69), '2026-09-17T00:00:00.000Z'],
+    // 週 2026-09-21（3人。活性化 1。この7日の登録でもある）
+    [uid(70), '2026-09-21T00:00:00.000Z'],
+    [uid(71), '2026-09-24T00:00:00.000Z'],
+    [uid(72), '2026-09-27T14:59:59.000Z'], // 日本時間の日曜 23:59:59
+    // 継続だけに出てくる人（登録は対象の週より前）
+    [uid(81), '2026-01-01T00:00:00.000Z'],
+    [uid(82), '2026-01-01T00:00:00.000Z'],
+    [uid(83), '2026-01-01T00:00:00.000Z'],
+    [uid(84), '2026-01-01T00:00:00.000Z'],
+    [uid(85), '2026-01-01T00:00:00.000Z'],
+    [uid(86), '2026-01-01T00:00:00.000Z'],
+    [uid(87), '2026-01-01T00:00:00.000Z'],
+    [uid(88), '2026-01-01T00:00:00.000Z'],
+  ],
+  stamps: [
+    [uid(61), '2026-08-31T05:00:00.000Z'], // 登録の 4 時間後（日本時間 8/31 → 8月の記録）
+    [uid(62), '2026-09-09T00:00:00.000Z'], // 登録のちょうど 168 時間後 → 活性化しない
+    [uid(63), '2026-09-07T00:00:00.000Z'],
+    [uid(64), '2026-09-08T05:00:00.000Z'],
+    [uid(66), '2026-09-15T01:00:00.000Z'],
+    [uid(70), '2026-09-22T00:00:00.000Z'],
+    [uid(70), '2026-09-23T00:00:00.000Z'],
+    // uid(81): 3月〜9月の毎月
+    [uid(81), '2026-03-10T00:00:00.000Z'],
+    [uid(81), '2026-04-10T00:00:00.000Z'],
+    [uid(81), '2026-05-10T00:00:00.000Z'],
+    [uid(81), '2026-06-10T00:00:00.000Z'],
+    [uid(81), '2026-07-10T00:00:00.000Z'],
+    [uid(81), '2026-08-10T00:00:00.000Z'],
+    [uid(81), '2026-09-25T00:00:00.000Z'],
+    [uid(82), '2026-03-11T00:00:00.000Z'],
+    [uid(82), '2026-04-11T00:00:00.000Z'],
+    [uid(83), '2026-03-12T00:00:00.000Z'],
+    [uid(84), '2026-05-12T00:00:00.000Z'],
+    [uid(84), '2026-06-12T00:00:00.000Z'],
+    [uid(85), '2026-05-13T00:00:00.000Z'],
+    [uid(86), '2026-05-14T00:00:00.000Z'],
+    [uid(86), '2026-07-14T00:00:00.000Z'],
+    [uid(86), '2026-08-14T00:00:00.000Z'],
+    [uid(87), '2026-07-15T00:00:00.000Z'],
+    [uid(88), '2026-07-16T00:00:00.000Z'],
+    [uid(88), '2026-08-16T00:00:00.000Z'],
+  ],
+  spots: [
+    ['active', null, '2026-09-22T00:00:00.000Z'], // マスタ
+    ['active', uid(81), '2026-04-01T00:00:00.000Z'],
+    ['pending', uid(70), '2026-09-23T00:00:00.000Z'],
+    ['merged', uid(71), '2026-09-24T00:00:00.000Z'],
+  ],
+  research: [
+    [uid(70), '2026-09-22T00:00:00.000Z'],
+    [uid(71), '2026-09-26T00:00:00.000Z'],
+    [uid(70), '2026-09-19T00:00:00.000Z'], // この7日の前
+  ],
+};
+
+const EXPECTED_CONNECTED = {
+  schemaVersion: 1,
+  generatedAt: '2026-09-28T09:00:00+09:00',
+  timezone: 'Asia/Tokyo',
+  period: { from: '2026-09-21', to: '2026-09-27' },
+  users: { total: 20, last7Days: 3 },
+  activation: {
+    windowDays: 7,
+    minCohortSize: 3,
+    weeks: [
+      { weekStart: '2026-08-31', signups: 3, activated: 2, rate: 0.667, complete: true },
+      { weekStart: '2026-09-07', signups: 2, activated: null, rate: null, complete: true },
+      { weekStart: '2026-09-14', signups: 4, activated: 1, rate: 0.25, complete: true },
+      { weekStart: '2026-09-21', signups: 3, activated: 1, rate: 0.333, complete: false },
+    ],
+  },
+  retention: {
+    minCohortSize: 3,
+    months: [
+      { month: '2026-03', recorders: 3, retained: 2, rate: 0.667, complete: true },
+      { month: '2026-04', recorders: 2, retained: null, rate: null, complete: true },
+      { month: '2026-05', recorders: 4, retained: 2, rate: 0.5, complete: true },
+      { month: '2026-06', recorders: 2, retained: null, rate: null, complete: true },
+      { month: '2026-07', recorders: 4, retained: 3, rate: 0.75, complete: true },
+      { month: '2026-08', recorders: 4, retained: 1, rate: 0.25, complete: false },
+    ],
+  },
+  stamps: { total: 26, last7Days: 3, recordersLast7Days: 2 },
+  spotResearch: { requestsLast7Days: 2 },
+  addedSpots: {
+    total: { active: 1, pending: 1 },
+    last7Days: { active: 0, pending: 1 },
+  },
+};
+
+Deno.test(
+  'AC-24: metricWindows → growth_metrics_counts（toRpcParams のキーで名前付き）→ buildMetrics',
+  async () => {
+    await withDb(async db => {
+      await seed(db, FIX_CONNECTED);
+      const now = Date.parse('2026-09-28T09:00:00+09:00');
+      const windows = metricWindows(now);
+      // Edge Function と同じ service_role で、toRpcParams のキーをそのまま引数名にして呼ぶ
+      await db.exec('SET ROLE service_role');
+      let raw: Record<string, unknown>;
+      try {
+        raw = await callCounts(db, { ...toRpcParams(windows) });
+      } finally {
+        await db.exec('RESET ROLE');
+      }
+      const body = buildMetrics(raw, windows, now);
+      assertEquals(body, EXPECTED_CONNECTED);
+      assertEquals(JSON.stringify(body), JSON.stringify(EXPECTED_CONNECTED));
+      // TS が作るラベルと SQL が作るラベルが同じ（SQL の週・月がすべて labels に入っている）
+      assertEquals(
+        (raw.activation as { week: string }[]).map(r => r.week),
+        windows.weeks.labels
+      );
+      assertEquals(
+        (raw.retention as { month: string }[]).map(r => r.month),
+        windows.months.labels
+      );
+    });
+  }
+);

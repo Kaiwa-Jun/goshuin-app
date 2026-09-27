@@ -1,8 +1,9 @@
 // Deno ユニットテスト（Jest からは *_test.ts 命名により不可視）
 // 実行: deno test -A --node-modules-dir=none supabase/functions/growth-metrics/
 //
-// 契約書: docs/issues/issue-285-growth-metrics.md（S2 / AC-10〜AC-15）
-import { assertEquals, assertThrows } from 'jsr:@std/assert@1';
+// 契約書: docs/issues/issue-285-growth-metrics.md（S2 / AC-10〜AC-15、S3 / AC-17〜AC-21）
+// 合言葉はダミーの値だけを使う
+import { assert, assertEquals, assertThrows } from 'jsr:@std/assert@1';
 import {
   ACTIVATION_WEEKS,
   ACTIVATION_WINDOW_DAYS,
@@ -10,8 +11,11 @@ import {
   RETENTION_MONTHS,
   SCHEMA_VERSION,
   buildMetrics,
+  handleGrowthMetrics,
   metricWindows,
   toRpcParams,
+  type GrowthMetricsDeps,
+  type RpcParams,
 } from './metrics.ts';
 
 // 2026-09-28（月）09:00 JST
@@ -352,4 +356,156 @@ Deno.test('AC-15: 生の数の形が合わなければ throw する', () => {
   for (const [label, make] of cases) {
     assertThrows(() => build(make(rawCounts())), Error, 'invalid counts', label);
   }
+});
+
+// --- handleGrowthMetrics（S3） ---
+
+const TOKEN = 'dummy-token-'.padEnd(64, '0');
+const WRONG = 'wrong-dummy-'.padEnd(64, '9');
+
+function makeDeps(options: { expectedToken?: string; counts?: () => Promise<unknown> } = {}) {
+  const calls: RpcParams[] = [];
+  const logs: { level: string; message: string }[] = [];
+  const deps: GrowthMetricsDeps = {
+    expectedToken: 'expectedToken' in options ? options.expectedToken : TOKEN,
+    fetchCounts: params => {
+      calls.push(params);
+      return options.counts ? options.counts() : Promise.resolve(rawCounts());
+    },
+    now: () => NOW,
+    log: (level, message) => logs.push({ level, message }),
+  };
+  return { deps, calls, logs };
+}
+
+/** ログのどの行にも、合言葉（関数側・送られてきた値）が出ていない */
+function assertNoSecrets(logs: { message: string }[], ...secrets: string[]) {
+  for (const { message } of logs) {
+    for (const secret of secrets) assert(!message.includes(secret), 'ログに合言葉が出ている');
+  }
+}
+
+Deno.test('AC-17: GET 以外は合言葉が正しくても 405・Allow: GET で、数えない', async () => {
+  for (const method of ['POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']) {
+    const { deps, calls, logs } = makeDeps();
+    const res = await handleGrowthMetrics(deps, method, `Bearer ${TOKEN}`);
+    assertEquals(res.status, 405, method);
+    assertEquals(res.headers.Allow, 'GET');
+    assertEquals(res.body, { error: 'method not allowed' });
+    assertEquals(calls.length, 0);
+    assertEquals(logs, [{ level: 'warn', message: '[growth-metrics] method not allowed' }]);
+    assertNoSecrets(logs, TOKEN);
+  }
+});
+
+Deno.test(
+  'AC-18 / AC-21: 合言葉が無い・違う・Bearer でない・Basic は 401 で、数えない',
+  async () => {
+    const headers = [null, `Bearer ${WRONG}`, TOKEN, `Basic ${TOKEN}`, 'Bearer '];
+    for (const authorization of headers) {
+      const { deps, calls, logs } = makeDeps();
+      const res = await handleGrowthMetrics(deps, 'GET', authorization);
+      assertEquals(res.status, 401, String(authorization));
+      assertEquals(res.body, { error: 'unauthorized' });
+      assertEquals(calls.length, 0);
+      assertEquals(logs, [{ level: 'warn', message: '[growth-metrics] unauthorized' }]);
+      assertNoSecrets(logs, TOKEN, WRONG);
+    }
+  }
+);
+
+Deno.test(
+  'AC-18 / AC-21: 関数側の合言葉が未設定・空・31 文字なら、同じ値が来ても 401（token not configured）',
+  async () => {
+    const short = TOKEN.slice(0, 31);
+    const cases: [string | undefined, string][] = [
+      [undefined, `Bearer ${TOKEN}`],
+      ['', `Bearer ${TOKEN}`],
+      [short, `Bearer ${short}`],
+    ];
+    for (const [expectedToken, authorization] of cases) {
+      const { deps, calls, logs } = makeDeps({ expectedToken });
+      const res = await handleGrowthMetrics(deps, 'GET', authorization);
+      assertEquals(res.status, 401, String(expectedToken?.length));
+      assertEquals(res.body, { error: 'unauthorized' });
+      assertEquals(calls.length, 0);
+      assertEquals(logs, [{ level: 'warn', message: '[growth-metrics] token not configured' }]);
+      assertNoSecrets(logs, TOKEN, short);
+    }
+  }
+);
+
+Deno.test(
+  'AC-19 / AC-21: 合言葉が合うと 200。1回だけ数え、引数は toRpcParams(metricWindows(now))',
+  async () => {
+    const { deps, calls, logs } = makeDeps();
+    const res = await handleGrowthMetrics(deps, 'GET', `Bearer ${TOKEN}`);
+    assertEquals(res.status, 200);
+    assertEquals(calls, [toRpcParams(metricWindows(NOW))]);
+    assertEquals(res.headers['Content-Type'], 'application/json');
+    assertEquals(res.headers['Cache-Control'], 'no-store');
+    assertEquals(
+      Object.keys(res.headers).filter(h => h.toLowerCase().startsWith('access-control-')),
+      []
+    );
+    assertEquals(JSON.stringify(res.body), JSON.stringify(EXPECTED_BODY));
+    assertEquals(logs, [{ level: 'info', message: '[growth-metrics] ok' }]);
+    assertNoSecrets(logs, TOKEN);
+  }
+);
+
+Deno.test('AC-17〜AC-20: どの応答にも CORS のヘッダーを付けない', async () => {
+  const cases: [string, string | null][] = [
+    ['OPTIONS', null],
+    ['GET', null],
+    ['GET', `Bearer ${TOKEN}`],
+  ];
+  for (const [method, authorization] of cases) {
+    const { deps } = makeDeps();
+    const res = await handleGrowthMetrics(deps, method, authorization);
+    assertEquals(
+      Object.keys(res.headers).filter(h => h.toLowerCase().startsWith('access-control-')),
+      []
+    );
+  }
+});
+
+Deno.test(
+  'AC-20 / AC-21: 数えるのに失敗したら 500。本文は internal error だけで、エラーの文は返さない',
+  async () => {
+    const { deps, calls, logs } = makeDeps({
+      counts: () => Promise.reject(new Error('42P01 relation "public.stamps" does not exist')),
+    });
+    const res = await handleGrowthMetrics(deps, 'GET', `Bearer ${TOKEN}`);
+    assertEquals(res.status, 500);
+    assertEquals(res.body, { error: 'internal error' });
+    assertEquals(JSON.stringify(res.body).includes('relation'), false);
+    assertEquals(calls.length, 1);
+    assertEquals(logs.length, 1);
+    assertEquals(logs[0].level, 'error');
+    assert(logs[0].message.startsWith('[growth-metrics] failed:'));
+    assertEquals(
+      logs[0].message,
+      '[growth-metrics] failed: 42P01 relation "public.stamps" does not exist'
+    );
+    assertNoSecrets(logs, TOKEN);
+  }
+);
+
+Deno.test('AC-20 / AC-21: 生の数の形が合わなければ 500（failed: invalid counts）', async () => {
+  for (const counts of [{}, null, { ...rawCounts(), users_total: '42' }]) {
+    const { deps, logs } = makeDeps({ counts: () => Promise.resolve(counts) });
+    const res = await handleGrowthMetrics(deps, 'GET', `Bearer ${TOKEN}`);
+    assertEquals(res.status, 500);
+    assertEquals(res.body, { error: 'internal error' });
+    assertEquals(logs, [{ level: 'error', message: '[growth-metrics] failed: invalid counts' }]);
+  }
+});
+
+Deno.test('AC-21: Error でない値が throw されても 500 で、決まった書き出しのログ', async () => {
+  const { deps, logs } = makeDeps({ counts: () => Promise.reject('boom') });
+  const res = await handleGrowthMetrics(deps, 'GET', `Bearer ${TOKEN}`);
+  assertEquals(res.status, 500);
+  assertEquals(res.body, { error: 'internal error' });
+  assertEquals(logs, [{ level: 'error', message: '[growth-metrics] failed: boom' }]);
 });

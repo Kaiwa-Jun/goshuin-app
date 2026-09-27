@@ -35,3 +35,9 @@ verify_jwt = false
 
 [functions.research-spot]
 verify_jwt = false
+
+# growth-metrics（Issue #285）: グロースの集計だけを返す（GET）。呼び出し元はルーティン D（サーバー）で、ユーザーではない。
+# verify_jwt = false なので、合言葉（GROWTH_METRICS_TOKEN）の定数時間の比べが唯一の防衛線。
+# 合言葉が未設定・32 文字未満なら、関数はどんなリクエストにも 401 を返す
+[functions.growth-metrics]
+verify_jwt = false
