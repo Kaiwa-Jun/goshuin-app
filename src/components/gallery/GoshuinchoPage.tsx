@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import { Animated, View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
@@ -20,6 +20,9 @@ export const PAGE_ASPECT_RATIO = 1.5;
 
 const BLANK_ICON_SIZE = 32;
 
+/** 時計から引いた値。表示の切り替えの動きの間だけ渡される（Issue #276） */
+type AnimatedNumber = Animated.Value | Animated.AnimatedInterpolation<number>;
+
 type GoshuinchoPageProps = {
   width: number;
   isCurrent: boolean;
@@ -37,6 +40,13 @@ type GoshuinchoPageProps = {
   loadingBook?: LoadingBookMode;
   /** 視差効果を減らす。オンなら本は止まり、下地はその場で外す */
   reduceMotion?: boolean;
+  /**
+   * 表示の切り替えで、紙が縮む・広がる倍率（Issue #276）。紙の中心で縮む。
+   * 渡されていないときは transform を付けない
+   */
+  surfaceScale?: AnimatedNumber;
+  /** 表示の切り替えで、名前と日付の行が消える・出る不透明度（Issue #276） */
+  footerOpacity?: AnimatedNumber;
 } & (
   | {
       variant: 'stamp';
@@ -58,6 +68,8 @@ export function GoshuinchoPage(props: GoshuinchoPageProps) {
     hidden,
     loadingBook = 'still',
     reduceMotion = false,
+    surfaceScale,
+    footerOpacity,
   } = props;
   const testID = props.variant === 'blank' ? 'flip-blank-page' : `flip-page-${props.stampId}`;
 
@@ -77,12 +89,18 @@ export function GoshuinchoPage(props: GoshuinchoPageProps) {
       activeOpacity={0.9}
       style={[styles.page, { width }, !isCurrent && styles.peek]}
     >
-      <View
+      <Animated.View
         ref={node => {
-          registerNode?.('image', node);
+          // Animated.View の ref は中の View。型だけ LegacyRef が混ざる
+          registerNode?.('image', node as View | null);
         }}
         testID={props.variant === 'blank' ? undefined : `flip-page-surface-${props.stampId}`}
-        style={[styles.surface, { height: width * PAGE_ASPECT_RATIO }, hidden && styles.hidden]}
+        style={[
+          styles.surface,
+          { height: width * PAGE_ASPECT_RATIO },
+          hidden && styles.hidden,
+          surfaceScale !== undefined && { transform: [{ scale: surfaceScale }] },
+        ]}
       >
         {props.variant === 'blank' ? (
           <View style={styles.blankSlot}>
@@ -114,14 +132,19 @@ export function GoshuinchoPage(props: GoshuinchoPageProps) {
             />
           </>
         )}
-      </View>
+      </Animated.View>
 
       {props.variant === 'stamp' && (
-        <View
+        <Animated.View
           ref={node => {
-            registerNode?.('text', node);
+            registerNode?.('text', node as View | null);
           }}
-          style={[styles.footer, hidden && styles.hidden]}
+          testID={`flip-page-footer-${props.stampId}`}
+          style={[
+            styles.footer,
+            hidden && styles.hidden,
+            footerOpacity !== undefined && { opacity: footerOpacity },
+          ]}
         >
           <Text
             testID={`flip-page-spot-name-${props.stampId}`}
@@ -131,7 +154,7 @@ export function GoshuinchoPage(props: GoshuinchoPageProps) {
             {props.spotName}
           </Text>
           <PageDate stampId={props.stampId} visitedAt={props.visitedAt} />
-        </View>
+        </Animated.View>
       )}
     </TouchableOpacity>
   );

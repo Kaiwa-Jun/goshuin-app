@@ -277,6 +277,21 @@ describe('Theme', () => {
       expect(colors.primary[700]).toBe('#C2410C');
       expect(colors.seal).toBe('#C2342B');
     });
+
+    /*
+     * 表示を切り替えるときにめくれるタイルの紙の裏（Issue #276）。
+     * 値は試作 docs/design/mockups/2026-09-viewmode-transition-v2.html の .face.back のまま
+     */
+    it('タイルの紙の裏の色を持つ（AC-18）', () => {
+      expect(colors.tileBack).toEqual({
+        paper: '#FBF8F1',
+        edge: '#E6DFD0',
+        frame: 'rgba(194, 52, 43, 0.18)',
+      });
+      expect(colors.loadingBook.paper).toBe('#FBF8F1');
+      expect(colors.gray[100]).toBe('#F3F4F6');
+      expect(colors.primary[500]).toBe('#f27f0d');
+    });
   });
 
   describe('typography', () => {
@@ -328,6 +343,20 @@ describe('Theme', () => {
       expect(shadows.sm.elevation).toBe(1);
       expect(shadows.md.elevation).toBe(3);
       expect(shadows.lg.elevation).toBe(5);
+    });
+
+    /*
+     * 御朱印帳の表示の切り替えの白い台（Issue #276）。試作 toggle-v1 の A の
+     * box-shadow: 0 1px 4px rgba(0,0,0,.14)。CSS のぼかし 4px を iOS の shadowRadius 2 に写す
+     */
+    it('切り替えの白い台の影を持つ（AC-2）', () => {
+      expect(shadows.toggleThumb).toEqual({
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.14,
+        shadowRadius: 2,
+        elevation: 2,
+      });
     });
   });
 });
