@@ -34,8 +34,8 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: geocoding.jp ✓
 ('晴明神社', 35.0276, 135.7513, 'shrine', '京都府京都市上京区晴明町806', '京都府', 4, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: geocoding.jp ✓
-('宇治上神社', 34.8882, 135.8120, 'shrine', '京都府宇治市宇治山田59', '京都府', 4, 'active'),
--- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: geocoding.jp ✓
+('宇治上神社', 34.892091, 135.811456, 'shrine', '京都府宇治市宇治山田59', '京都府', 4, 'active'),
+-- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q583589（#292 で直した）
 ('蓮華王院（三十三間堂）', 34.9897, 135.7727, 'temple', '京都府京都市東山区三十三間堂廻り657', '京都府', 4, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: geocoding.jp ✓（町名で再取得）
 ('宇治神社', 34.8908, 135.8105, 'shrine', '京都府宇治市宇治山田1', '京都府', 4, 'active'),

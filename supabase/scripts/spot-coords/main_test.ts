@@ -1,6 +1,6 @@
 // Deno テスト（CLI の runCli。一時フォルダを --root にして、本物のファイルの読み書きで確かめる）
 // 実行: deno test -A --node-modules-dir=none supabase/scripts/spot-coords/
-// 契約書: docs/issues/issue-292-spot-coords.md（S1 / AC-10）
+// 契約書: docs/issues/issue-292-spot-coords.md（S1 / AC-10、S2 / AC-14）
 import { assert, assertEquals, assertMatch, assertStringIncludes } from 'jsr:@std/assert@1';
 
 import { CHECK_SQL_PATH, LEDGER_PATH, type Ledger, migrationPath, SEED_FILES } from './coords.ts';
@@ -397,3 +397,30 @@ Deno.test('知らないサブコマンド・引数は 1 で止まる', async () 
     );
   });
 });
+
+Deno.test(
+  'AC-14: リポジトリの migration・確かめる SQL・seed 8 本は、台帳からの生成物と同じ',
+  async () => {
+    const repo = new URL('../../../', import.meta.url).pathname;
+    const r = { out: '', err: '', writes: [] as string[] };
+    const base = denoIo();
+    const code = await runCli(
+      ['generate', '--batch', '1', '--version', VERSION, '--check', '--root', repo],
+      {
+        readTextFile: p => base.readTextFile(p),
+        writeTextFile: async p => {
+          r.writes.push(p);
+        },
+        stdout: t => {
+          r.out += t;
+        },
+        stderr: t => {
+          r.err += t;
+        },
+      }
+    );
+    assertEquals(code, 0, r.err);
+    assertEquals(r.writes, []);
+    assertStringIncludes(r.out, '10 ファイル');
+  }
+);

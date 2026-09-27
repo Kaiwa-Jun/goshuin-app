@@ -2,14 +2,24 @@
 // 実行: deno test -A --node-modules-dir=none supabase/scripts/spot-coords/
 //   ⚠ --node-modules-dir=none が要る（無いとルートの package.json 経由で npm: の解決に失敗する）
 //
-// 契約書: docs/issues/issue-292-spot-coords.md（S1 / AC-7〜AC-9）
+// 契約書: docs/issues/issue-292-spot-coords.md（S1 / AC-7〜AC-9、S2 / AC-16）
 //
 // PGlite は Postgres 17 の WASM。Supabase のロールや RLS までは同じでないので、
 // spots の列とトリガーだけの最小のスキーマを作る。本番の接続で行が見えるかは H-1・H-3 で確かめる
 import { assert, assertEquals, assertStringIncludes } from 'jsr:@std/assert@1';
 import { PGlite } from 'npm:@electric-sql/pglite@0.3.16';
 
-import { buildCheckSql, buildMigrationSql, emptyLedger, type LedgerEntry } from './coords.ts';
+import {
+  buildCheckSql,
+  buildMigrationSql,
+  CHECK_SQL_PATH,
+  emptyLedger,
+  LEDGER_PATH,
+  type LedgerEntry,
+  migrationPath,
+  parseLedger,
+  SEED_FILES,
+} from './coords.ts';
 
 export const SCHEMA = `
 CREATE TYPE public.spot_type AS ENUM ('shrine', 'temple');
@@ -392,6 +402,65 @@ Deno.test(
       assertStringIncludes(msg, '秋保神社');
       assertStringIncludes(msg, '変わったのが 0 行');
       assertEquals(await rows(db), before);
+    });
+  }
+);
+
+// --- 本物のデータ（S2 / AC-16）: 本物の seed 10 本・台帳・migration と確かめる SQL のファイル ---
+
+const REPO = new URL('../../../', import.meta.url);
+const readRepo = (rel: string) => Deno.readTextFile(new URL(rel, REPO));
+const MIGRATION_FILE = migrationPath('20260928000000', 1);
+
+const RESULT_BEFORE =
+  'RESULT total=1109 listed=458 rest=651 at_new=0 at_old=458 neither=0 not_one=0 inactive=0';
+const RESULT_AFTER =
+  'RESULT total=1109 listed=458 rest=651 at_new=458 at_old=0 neither=0 not_one=0 inactive=0';
+
+Deno.test(
+  'AC-16: 本物の seed に、ファイルの migration と確かめる SQL を流す（本番の再現・2回流す）',
+  async () => {
+    const ledger = parseLedger(await readRepo(LEDGER_PATH));
+    const migration = await readRepo(MIGRATION_FILE);
+    const check = await readRepo(CHECK_SQL_PATH);
+    await withDb(async db => {
+      for (const f of SEED_FILES) await db.exec(await readRepo(f));
+      const master = await db.query<{ n: number }>(
+        'SELECT count(*)::int AS n FROM public.spots WHERE created_by_user_id IS NULL'
+      );
+      assertEquals(master.rows[0].n, 1109);
+      const seeded = coordsOf(await rows(db));
+
+      // 新しい seed（直した座標）: 確かめる SQL は at_new=458、migration は何もしない
+      assertEquals(await raised(db, check), RESULT_AFTER);
+      assertEquals(await raised(db, migration), null);
+      assertEquals(coordsOf(await rows(db)), seeded);
+
+      // 台帳の 458 件を old に戻す（本番の再現）
+      for (const e of ledger.entries) {
+        const r = await db.query(
+          'UPDATE public.spots SET lat = $3, lng = $4 WHERE name = $1 AND prefecture = $2 AND created_by_user_id IS NULL',
+          [e.name, e.prefecture, e.old.lat, e.old.lng]
+        );
+        assertEquals(r.affectedRows, 1, e.name);
+      }
+      assertEquals(await raised(db, check), RESULT_BEFORE);
+
+      // 直す → 全 1,109 行が seed を流した直後と同じ（差 1e-9 未満）
+      assertEquals(await raised(db, migration), null);
+      assertEquals(await raised(db, check), RESULT_AFTER);
+      const fixed = coordsOf(await rows(db));
+      assertEquals(fixed.length, seeded.length);
+      for (const [i, r] of fixed.entries()) {
+        const s = seeded[i];
+        assertEquals([r[0], r[1]], [s[0], s[1]]);
+        assert(Math.abs((r[2] as number) - (s[2] as number)) < 1e-9, `${r[0]} の lat`);
+        assert(Math.abs((r[3] as number) - (s[3] as number)) < 1e-9, `${r[0]} の lng`);
+      }
+
+      // もう一度流しても変わらない
+      assertEquals(await raised(db, migration), null);
+      assertEquals(coordsOf(await rows(db)), fixed);
     });
   }
 );

@@ -1,6 +1,6 @@
 // Deno ユニットテスト（寺社の座標の台帳と、そこから作る SQL・seed の書き換え）
 // 実行: deno test -A --node-modules-dir=none supabase/scripts/spot-coords/
-// 契約書: docs/issues/issue-292-spot-coords.md（S1 / AC-1〜AC-6）
+// 契約書: docs/issues/issue-292-spot-coords.md（S1 / AC-1〜AC-6、S2 / AC-11・AC-13）
 import {
   assert,
   assertEquals,
@@ -509,4 +509,61 @@ Deno.test('buildCheckSql は読むだけで、先頭のコメントに弾ごと�
   assertEquals(head.filter(s => s.includes(expect[0])).length, 1); // 第1弾の前
   assertEquals(head.filter(s => s.includes(expect[1])).length, 2); // 第1弾の後 = 第2弾の前
   assertEquals(head.filter(s => s.includes(expect[2])).length, 1); // 第2弾の後
+});
+
+// --- 第1弾のデータ（S2）: リポジトリの台帳を読む ---
+
+const LEDGER_URL = new URL('../../data/spot-coords-292.json', import.meta.url);
+
+async function realLedger(): Promise<Ledger> {
+  return parseLedger(await Deno.readTextFile(LEDGER_URL));
+}
+
+Deno.test(
+  'AC-11: 台帳は検査を通り、第1弾 458 件（wikidata 403・osm 55）、全件 high で ref がある',
+  async () => {
+    const l = await realLedger();
+    assertEquals(l.entries.length, 458);
+    assert(l.entries.every(e => e.batch === 1));
+    assert(l.entries.every(e => e.confidence === 'high'));
+    assert(l.entries.every(e => e.ref !== null));
+    assertEquals(l.entries.filter(e => e.source === 'wikidata').length, 403);
+    assertEquals(l.entries.filter(e => e.source === 'osm').length, 55);
+    assertEquals(l.entries.filter(e => e.source === 'owner').length, 0);
+  }
+);
+
+Deno.test('AC-13: Issue の標本が入り、第2弾に回すものは入っていない', async () => {
+  const l = await realLedger();
+  const find = (name: string, prefecture: string) =>
+    l.entries.find(e => e.name === name && e.prefecture === prefecture);
+  const at = (name: string, prefecture: string, lat: number, lng: number) => {
+    const e = find(name, prefecture);
+    assert(e, `${name}（${prefecture}）が台帳に無い`);
+    assert(
+      distanceMeters(e.new, { lat, lng }) < 1,
+      `${name} の新座標が ${e.new.lat}, ${e.new.lng}`
+    );
+    return e;
+  };
+  assertEquals(at('尊永寺', '静岡県', 34.737787, 137.97723).ref, 'Q11555090');
+  at('志賀海神社', '福岡県', 33.667891, 130.313194);
+  at('金倉寺', '香川県', 34.250097, 133.781014);
+  at('長崎縣護國神社', '長崎県', 32.777222, 129.855556);
+  at('倭姫宮', '三重県', 34.48583, 136.72306);
+  at('秋田諏訪宮', '秋田県', 39.423611, 140.542778);
+  at('伊佐爾波神社', '愛媛県', 33.850726, 132.788679);
+  assertEquals(find('久伊豆神社', '埼玉県')?.ref, 'Q11368930');
+  const wakasa = find('若狭姫神社', '福井県');
+  assertEquals([wakasa?.source, wakasa?.ref], ['osm', 'way/799099092']);
+
+  for (const [name, prefecture] of [
+    ['護国寺', '沖縄県'],
+    ['姉倉比賣神社', '富山県'],
+    ['讃岐宮香川縣護國神社', '香川県'],
+    ['蠶養國神社', '福島県'],
+    ['雲昌寺', '秋田県'],
+  ]) {
+    assertEquals(find(name, prefecture), undefined, `${name}（${prefecture}）は入らないはず`);
+  }
 });
