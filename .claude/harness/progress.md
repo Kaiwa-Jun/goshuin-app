@@ -163,3 +163,5 @@
   - develop（#277・#282・#278）を取り込んだ（c6e9e25。ぶつかったのは progress.md だけで両方を残した）。取り込んだあと テスト 2272 件・lint 0 errors（警告 16）・typecheck OK
   - UI-9 ✅（読み込み中のまま切り替える。#275 の手順 3 の `TEMP_HOLD_MS = 4000` を一時的に入れて めくる → 一覧 → めくる を録画。**書き換えは戻し、`git grep -n TEMP_HOLD -- src` が0件**）: タイルは和紙の下地と薄い枠のまま飛び・集まり、裏返すと紙の裏が出る／見えている下地7枚の明るさはどのコマでも同じ（差 0.00・そろって 234〜240 で明滅）／ページの本はめくれ続けたまま縮む・広がり、待つ間も印が替わってめくれ続ける／写真が届くと約 0.2 秒（5% → 98% が 0.18 秒）で写真に替わる／白く抜けるコマ・下地が消えるコマは無し（いちばん少ないコマでも束だけが出ている）（`ui9-*`）
   - **未確認**: Release ビルド
+  - goshuin-evaluator **PASS**（AC 40/40・UI 13/13・Q 12/12）。Expo Web（UI-1〜5）は Evaluator が 8086 で実測。留保: UI-7 の広がる途中と行き過ぎはシミュレータの録画でコマが抜けて未確認（オーナーの実機では OK）、UI-8 の公称の終わりは 732〜816ms で 0.8 秒ぎりぎり（目視では 640〜740ms）、UI-11 の 100ms 以内の押し直しはシミュレータで起こせず実機と Jest で確認
+  - **Web 検証の手順メモ（次回のため）**: Playwright の Chrome は `prefers-reduced-motion: reduce` を既定で true と返す。react-native-web の AccessibilityInfo は import 時に1回だけ matchMedia を読むので、`MediaQueryList.prototype.matches` を上書きしてから `document.open(); document.write(await (await fetch(location.href)).text()); document.close();` で同じ窓のままアプリを起こし直すと、動きのある状態で測れる
