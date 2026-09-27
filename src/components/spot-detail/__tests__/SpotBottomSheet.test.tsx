@@ -192,7 +192,15 @@ describe('resolveCompactHeight', () => {
   it('小型端末では画面の 6 割を超えない（フッターを含めるため 0.5 → 0.6。Issue #253）', () => {
     expect(COMPACT_SCREEN_RATIO).toBe(0.6);
     expect(resolveCompactHeight(999, 618)).toBe(371);
-    expect(resolveCompactHeight(999, 800)).toBe(380);
+    expect(resolveCompactHeight(999, 800)).toBe(410);
+  });
+
+  // 帯の下の名前の行の位置（50）がつまみ（20）の代わりに入って 30 高くなった分を打ち消す。
+  // 380 のままだと、受付2行・写真の帯・見出しのある寺社で見出しがフッターに隠れた（Issue #293）
+  it('上限は 410（帯で増えた 30 を 380 に足す。Issue #293）', () => {
+    expect(COMPACT_MAX_HEIGHT).toBe(410);
+    expect(resolveCompactHeight(405, 800)).toBe(405);
+    expect(resolveCompactHeight(999, 700)).toBe(410);
   });
 
   it('不正な値はフォールバックする', () => {

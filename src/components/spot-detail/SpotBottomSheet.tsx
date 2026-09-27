@@ -67,7 +67,11 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 export const COMPACT_MIN_HEIGHT = 176;
-export const COMPACT_MAX_HEIGHT = 380;
+/**
+ * compact の高さの上限。帯の下の名前の行の位置（50）がつまみ（20）の代わりに入って
+ * 30 高くなった分を、もとの 380 に足した（Issue #293。見出しがフッターに隠れないように）
+ */
+export const COMPACT_MAX_HEIGHT = 410;
 /** レイアウト計測が終わるまでの初期値 */
 export const COMPACT_FALLBACK_HEIGHT = 240;
 
