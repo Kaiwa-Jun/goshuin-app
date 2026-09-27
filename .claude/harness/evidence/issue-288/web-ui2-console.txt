@@ -1,0 +1,30 @@
+Total messages: 8 (Errors: 1, Warnings: 5)
+Returning 15 messages for level "debug"
+
+[INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:8087/node_modules/expo/AppEntry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:18430
+[WARNING] "shadow*" style props are deprecated. Use "boxShadow". @ http://localhost:8087/node_modules/expo/AppEntry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:23334
+[WARNING] RNGoogleSignIn: you are calling a not-implemented method on web platform. Web support is only available to sponsors. 
+If you are a sponsor, please follow the installation instructions carefully to obtain the implementation. @ http://localhost:8087/node_modules/expo/AppEntry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:59430
+[LOG] Running application "main" with appParams:
+ {rootTag: #root, hydrate: undefined} 
+Development-level warnings: ON.
+Performance optimizations: OFF. @ http://localhost:8087/node_modules/expo/AppEntry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:4149
+[WARNING] Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md @ http://localhost:8087/node_modules/expo/AppEntry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:48209
+[ERROR] Received `%s` for a non-boolean attribute `%s`.
+
+If you want to write it to the DOM, pass a string instead: %s="%s" or %s={value.toString()}.
+
+If you used to conditionally omit it with %s={condition && value}, pass %s={condition ? value : undefined} instead. false collapsable collapsable false collapsable collapsable collapsable @ http://localhost:8087/node_modules/expo/AppEntry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:6447
+[WARNING] props.pointerEvents is deprecated. Use style.pointerEvents @ http://localhost:8087/node_modules/expo/AppEntry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:23334
+[INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:8087/node_modules/expo/AppEntry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:18430
+[WARNING] "shadow*" style props are deprecated. Use "boxShadow". @ http://localhost:8087/node_modules/expo/AppEntry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:23334
+[WARNING] RNGoogleSignIn: you are calling a not-implemented method on web platform. Web support is only available to sponsors. 
+If you are a sponsor, please follow the installation instructions carefully to obtain the implementation. @ http://localhost:8087/node_modules/expo/AppEntry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:59430
+[LOG] Running application "main" with appParams:
+ {rootTag: #root, hydrate: undefined} 
+Development-level warnings: ON.
+Performance optimizations: OFF. @ http://localhost:8087/node_modules/expo/AppEntry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:4149
+[WARNING] Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md @ http://localhost:8087/node_modules/expo/AppEntry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:48209
+[WARNING] props.pointerEvents is deprecated. Use style.pointerEvents @ http://localhost:8087/node_modules/expo/AppEntry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:23334
+[ERROR] Failed to load resource: the server responded with a status of 400 () @ https://tvnozkpxncmnehyomoff.supabase.co/rest/v1/spots?select=*&id=eq.:0
+[WARNING] fetchSpotById error: invalid input syntax for type uuid: "" @ http://localhost:8087/node_modules/expo/AppEntry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:115552
