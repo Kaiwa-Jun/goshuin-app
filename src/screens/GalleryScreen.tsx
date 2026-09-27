@@ -148,6 +148,11 @@ export function GalleryScreen({ navigation }: Props) {
    * 一覧を取り直したとき・並び替えたとき・めくる表示へ切り替えたときに忘れる
    */
   const closedGridStampId = useRef<string | null>(null);
+  /**
+   * ボタンで めくる → 一覧 に来たときの「見ていた1枚」（D-8 の ⓪。オーナーの判断 2026-09-27）。
+   * 指で一覧を動かした・一覧で御朱印を開いた・並び替えた・取り直した・めくるへ切り替えたら忘れる
+   */
+  const returnToFlipStampId = useRef<string | null>(null);
   const gridContentHeight = useRef<number | null>(null);
 
   // Expo Web の検証イネーブラ（Issue #116 S-7）。native では常に null
@@ -320,13 +325,23 @@ export function GalleryScreen({ navigation }: Props) {
     gridScrollY.current = event.nativeEvent.contentOffset.y;
   };
 
+  /** 指で一覧を動かし始めた。開く位置へ送った scrollToOffset はここに来ない */
+  const handleGridScrollBeginDrag = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    returnToFlipStampId.current = null;
+    handleGridScroll(event);
+  };
+
   /**
    * 一覧 → めくる で開くページ（オーナーの判断 2026-09-27。D-8）。
+   * ⓪ ボタンで めくる → 一覧 に来てから、指で動かさず・何も開いていなければ、めくる表示で見ていた1枚
    * ① 一覧で開いて閉じた御朱印のタイルが今も見える範囲にあれば、その御朱印
    * ② それ以外は、見える範囲の縦の真ん中を含む行の真ん中の列（3枚に満たなければその行の最後）
    * ③ 一覧の大きさが分からないなど、どちらも取れなければ null（最新）
    */
   const flipOpenStampIdFromGrid = (): string | null => {
+    const back = returnToFlipStampId.current;
+    if (back && displayStamps.some(s => s.id === back)) return back;
+
     const viewportHeight = gridViewportHeight.current;
     const count = displayStamps.length;
     if (viewportHeight === null || viewportHeight <= 0 || count === 0) return null;
@@ -356,6 +371,7 @@ export function GalleryScreen({ navigation }: Props) {
     gridOpenTarget.current = null;
     gridInitialRow.current = undefined;
     closedGridStampId.current = null;
+    returnToFlipStampId.current = null;
     setSortOrder(prev => (prev === 'date' ? 'spot' : 'date'));
   };
 
@@ -370,11 +386,13 @@ export function GalleryScreen({ navigation }: Props) {
     const stackTop = displayStamps[indexOfStamp(stackTopId)];
     if (next === 'grid') {
       gridOpenTarget.current = { stampId: flipStampId };
+      returnToFlipStampId.current = stackTop?.id ?? null;
       const firstRow = Math.floor(indexOfStamp(flipStampId) / NUM_COLUMNS) - ROWS_ABOVE_ON_OPEN;
       gridInitialRow.current = firstRow > 0 ? firstRow : undefined;
     } else {
       gridOpenTarget.current = null;
       closedGridStampId.current = null;
+      returnToFlipStampId.current = null;
       // 最新も名指しで渡す。めくる表示が最初の描画からそのページを描く
       setFlipOpenRequest({ stampId: stackTop?.id ?? null });
     }
@@ -395,6 +413,7 @@ export function GalleryScreen({ navigation }: Props) {
     gridOpenTarget.current = null;
     gridInitialRow.current = undefined;
     closedGridStampId.current = null;
+    returnToFlipStampId.current = null;
   }, [isLoading]);
 
   /*
@@ -597,6 +616,7 @@ export function GalleryScreen({ navigation }: Props) {
   openStampRef.current = openStamp;
   const handlePressTile = useCallback((index: number, stamp: StampWithSpot) => {
     gridDetailStampId.current = stamp.id;
+    returnToFlipStampId.current = null;
     openStampRef.current(index, stamp);
   }, []);
   const handleThumbMissingRef = useRef(handleThumbMissing);
@@ -800,6 +820,7 @@ export function GalleryScreen({ navigation }: Props) {
                        */
                       onContentSizeChange={handleGridContentSizeChange}
                       onScroll={handleGridScroll}
+                      onScrollBeginDrag={handleGridScrollBeginDrag}
                       onScrollEndDrag={handleGridScroll}
                       onMomentumScrollEnd={handleGridScroll}
                       testID="gallery-list"

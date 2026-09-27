@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { GalleryScreen } from '@screens/GalleryScreen';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useGalleryStamps } from '@hooks/useGalleryStamps';
 import { ensureStampVariants } from '@services/stamps';
 import {
@@ -1057,8 +1058,104 @@ describe('表示の切り替えの画面と開く位置（Issue #276）', () => 
     };
     const toGrid = (utils: ReturnType<typeof renderGalleryScreen>) =>
       fireEvent.press(utils.getByTestId('view-mode-grid'));
+    /** 指で一覧を動かし始める（⓪ を使わなくなる） */
+    const dragGrid = (utils: ReturnType<typeof renderGalleryScreen>) =>
+      fireEvent(utils.getByTestId('gallery-list'), 'scrollBeginDrag', {
+        nativeEvent: {
+          contentOffset: { x: 0, y: 0 },
+          layoutMeasurement: { width: W, height: 960 },
+          contentSize: { width: W, height: 1532 },
+        },
+      });
     const toFlip = (utils: ReturnType<typeof renderGalleryScreen>) =>
       fireEvent.press(utils.getByTestId('view-mode-flip'));
+
+    /*
+     * ⓪ めくる → 一覧 に切り替えて来てから、指でスクロールせず・何も開いていなければ、
+     * めくる表示で見ていたページで開く（オーナーの判断 2026-09-27。43 → 一覧 → めくる で 44 が開いていた）
+     */
+    describe('めくる表示から来て何もしていなければ、見ていたページに戻る（⓪）', () => {
+      it('何もせずに戻ると、左の列のページでも元のページで開く', () => {
+        withStamps(makeStamps(15));
+        const utils = renderGalleryScreen();
+        flipTo(utils, 6, 16);
+        toGrid(utils);
+        // 開く位置へ送ったスクロールの知らせは、指で動かしたことにしない
+        showGridAt(utils, 0);
+
+        toFlip(utils);
+
+        expect(counterOf(utils)).toBe('7 ／ 15');
+      });
+
+      it('指でスクロールしてから戻ると、見える範囲の真ん中で開く', () => {
+        withStamps(makeStamps(15));
+        const utils = renderGalleryScreen();
+        flipTo(utils, 6, 16);
+        toGrid(utils);
+        showGridAt(utils, 0);
+
+        dragGrid(utils);
+        toFlip(utils);
+
+        expect(counterOf(utils)).toBe('5 ／ 15');
+      });
+
+      it('一覧で開いて閉じてから戻ると、その御朱印で開く（①）', () => {
+        withStamps(makeStamps(15));
+        const utils = renderGalleryScreen();
+        flipTo(utils, 6, 16);
+        toGrid(utils);
+        showGridAt(utils, 0);
+
+        openAndClose(utils, 's8');
+        toFlip(utils);
+
+        expect(counterOf(utils)).toBe('9 ／ 15');
+      });
+
+      it('一覧から始めた（保存値が一覧）ときは使わない', async () => {
+        (AsyncStorage.getItem as jest.Mock).mockResolvedValueOnce('grid');
+        withStamps(makeStamps(15));
+        const utils = renderGalleryScreen();
+        await waitFor(() => expect(utils.getByTestId('gallery-grid-pane')).toBeTruthy());
+        showGridAt(utils, 0);
+
+        toFlip(utils);
+
+        expect(counterOf(utils)).toBe('5 ／ 15');
+      });
+
+      it('一覧を取り直したら使わない', () => {
+        const stamps = makeStamps(15);
+        withStamps(stamps);
+        const utils = renderGalleryScreen();
+        flipTo(utils, 6, 16);
+        toGrid(utils);
+
+        withStamps(stamps, true);
+        utils.rerender(<GalleryScreen navigation={mockNavigation as never} route={mockRoute} />);
+        withStamps(stamps);
+        utils.rerender(<GalleryScreen navigation={mockNavigation as never} route={mockRoute} />);
+        showGridAt(utils, 0);
+        toFlip(utils);
+
+        expect(counterOf(utils)).toBe('5 ／ 15');
+      });
+
+      it('並び替えたら使わない', () => {
+        withStamps(makeStamps(15));
+        const utils = renderGalleryScreen();
+        flipTo(utils, 6, 16);
+        toGrid(utils);
+
+        fireEvent.press(utils.getByTestId('sort-button'));
+        showGridAt(utils, 0);
+        toFlip(utils);
+
+        expect(counterOf(utils)).toBe('5 ／ 15');
+      });
+    });
 
     it('一覧で開いて閉じた御朱印が今も見えていれば、その御朱印で開く', () => {
       withStamps(makeStamps(15));
@@ -1101,10 +1198,11 @@ describe('表示の切り替えの画面と開く位置（Issue #276）', () => 
       expect(counterOf(utils)).toBe('11 ／ 15');
     });
 
-    it('何も開いていなければ、見える範囲の真ん中の行・真ん中の列の御朱印で開く', () => {
+    it('指でスクロールして何も開いていなければ、見える範囲の真ん中の行・真ん中の列の御朱印で開く', () => {
       withStamps(makeStamps(15));
       const utils = renderGalleryScreen();
       toGrid(utils);
+      dragGrid(utils);
       showGridAt(utils, 0);
 
       toFlip(utils);
@@ -1120,6 +1218,7 @@ describe('表示の切り替えの画面と開く位置（Issue #276）', () => 
       toGrid(utils);
       // 行 4 は s12 だけ。真ん中がその行に入るまで送る
       const y = 4.5 * ROW - 200;
+      dragGrid(utils);
       showGridAt(utils, y, 400);
 
       toFlip(utils);
@@ -1134,6 +1233,7 @@ describe('表示の切り替えの画面と開く位置（Issue #276）', () => 
       flipTo(utils, 4, 16);
 
       toGrid(utils);
+      dragGrid(utils);
       toFlip(utils);
 
       expect(counterOf(utils)).toBe('15 ／ 15');
@@ -1147,6 +1247,7 @@ describe('表示の切り替えの画面と開く位置（Issue #276）', () => 
       act(() => utils.UNSAFE_getByType(ImageGalleryModal).props.onClose());
 
       toGrid(utils);
+      dragGrid(utils);
       showGridAt(utils, 0);
       toFlip(utils);
 
@@ -1196,6 +1297,7 @@ describe('表示の切り替えの画面と開く位置（Issue #276）', () => 
         expect(counterOf(utils)).toBe('8 ／ 15');
 
         toGrid(utils);
+        dragGrid(utils);
         showGridAt(utils, 0);
         toFlip(utils);
 
@@ -1252,6 +1354,14 @@ describe('表示の切り替えの画面と開く位置（Issue #276）', () => 
       const y = 15.5 * row - 480;
       fireEvent(utils.getByTestId('gallery-list'), 'layout', {
         nativeEvent: { layout: { x: 0, y: 0, width: W, height: 960 } },
+      });
+      // 指で遠くへ送った
+      fireEvent(utils.getByTestId('gallery-list'), 'scrollBeginDrag', {
+        nativeEvent: {
+          contentOffset: { x: 0, y: 0 },
+          layoutMeasurement: { width: W, height: 960 },
+          contentSize: { width: W, height: 20 * row + 32 },
+        },
       });
       fireEvent.scroll(utils.getByTestId('gallery-list'), {
         nativeEvent: {
