@@ -165,3 +165,5 @@
   - **未確認**: Release ビルド
   - goshuin-evaluator **PASS**（AC 40/40・UI 13/13・Q 12/12）。Expo Web（UI-1〜5）は Evaluator が 8086 で実測。留保: UI-7 の広がる途中と行き過ぎはシミュレータの録画でコマが抜けて未確認（オーナーの実機では OK）、UI-8 の公称の終わりは 732〜816ms で 0.8 秒ぎりぎり（目視では 640〜740ms）、UI-11 の 100ms 以内の押し直しはシミュレータで起こせず実機と Jest で確認
   - **Web 検証の手順メモ（次回のため）**: Playwright の Chrome は `prefers-reduced-motion: reduce` を既定で true と返す。react-native-web の AccessibilityInfo は import 時に1回だけ matchMedia を読むので、`MediaQueryList.prototype.matches` を上書きしてから `document.open(); document.write(await (await fetch(location.href)).text()); document.close();` で同じ窓のままアプリを起こし直すと、動きのある状態で測れる
+- 2026-09-27: **#285 グロースの数字を集計だけ返す Edge Function growth-metrics**（ブランチ feature/issue-285-growth-metrics）。契約書 docs/issues/issue-285-growth-metrics.md。S1〜S4 を TDD で実装（Deno テスト 41 件。SQL は PGlite で本物の migration を読んで確かめる）。テスト 2272 件・lint 0 errors（警告 16）・typecheck OK・全関数の deno test 218 件。goshuin-evaluator **PASS**（AC 29/29・Q 6/6）
+  - **未確認（本番。PR のあとオーナーが H-1〜H-6）**: postgres が auth.users を読めるか・接続ロールが service_role に切り替えられるか（H-3）、`sql_test.ts` があってもデプロイが通るか（H-4）、ルーティンの API credentials で Authorization を差し込めるか（H-6）
