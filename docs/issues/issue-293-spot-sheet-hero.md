@@ -239,7 +239,7 @@ T は `bottom-sheet` の `getBoundingClientRect().top`。値はどれも ±1。
 
 - [ ] UI-1: **半分・神社**（390 × 844・地図タブ → 検索 → 「靖國」→ 1件目の `search-result-card` → 1.5秒待つ）: `spot-hero` の矩形が (0, T, 390, 208)、`getComputedStyle` の背景が `rgb(239, 234, 224)`・左上の角丸 `16px`。`sheet-handle` の最初の子（つまみの棒）の上の端が T + 8・40 × 4・背景 `rgb(209, 213, 219)`。`spot-sheet-body` の `style.transform` が `translateY(-128px)`、矩形の上の端が T + 24。`spot-name` の上の端が T + 50。`spot-hero-crest` の矩形が (115, T − 47, 250, 250)。`spot-hero-crest-mada` の `opacity` が 1・`spot-hero-crest-ink` が 0・`spot-hero-pages-reveal` が 0。`spot-hero-crest-mada` の `innerHTML` が `M17 22 Q50 30 83 22` を含む。`spot-hero-fade` の `backgroundImage` が `linear-gradient` を含む。スクリーンショットを撮る
 - [ ] UI-2: **大きく**（UI-1 のあと `sheet-handle` を押して 1.5秒待つ）: `spot-sheet-body` の `style.transform` が `translateY(0px)`、`spot-sheet-scroll` の上の端が T + 152。`spot-name` の上の端が T + 178。`spot-hero-crest` の矩形が (90, T − 28, 300, 300)。スクリーンショットを撮る
-- [ ] UI-3: **帯を押す**: UI-2 のあと、帯の (195, T + 100) を押して 1.5秒待つと、`spot-sheet-body` の `style.transform` が `translateY(-128px)`・`spot-name` の上の端が T + 50（半分に戻る）。もう一度同じ所を押すと大きく（`translateY(0px)`）
+- [ ] UI-3: **帯を押す**: UI-2 のあと、帯の (195, T + 100) を押して 1.5秒待つと、`spot-sheet-body` の `style.transform` が `translateY(-128px)`・`spot-name` の上の端が T + 50（半分に戻る）。続けて、半分の帯の見えている所（上の端から 24 まで。つまみの下の (195, T + 22) など）を押すと大きく（`translateY(0px)`）。半分では T + 24 から下は中身なので、(195, T + 100) では開かない（D-13。「実装で分かったこと」の3）
 - [ ] UI-4: **お寺**（検索 → 「浅草寺」。無ければ検索結果の中の任意の寺院）: `spot-hero-crest-mada` の `innerHTML` が `M47.5 27.5 L52.5 27.5` を含み、`M17 22 Q50 30 83 22` を含まない。スクリーンショットを半分・大きくで撮る
 - [ ] UI-5: **半分の高さ**: UI-1 の状態で、`spot-sheet-primary` の上の端が T + 50、`spot-sheet-footer` の上の端 − `spot-sheet-primary` の下の端 が 0（半分の高さが上限 410 に掛かっていないとき。掛かっていたら、そう書いて寺社を替える）
 - [ ] UI-6: UI-1・UI-2・UI-4 のスクリーンショットを、試作の状態 5（戸越八幡神社）・6（源覚寺）の 案い の半分・大きくと並べて PR に貼る
@@ -293,7 +293,7 @@ T は `bottom-sheet` の `getBoundingClientRect().top`。値はどれも ±1。
 1. `npx expo start --web --port 8081` を起こしておく（リーダー）。`browser_resize` で 390 × 844 にしてから `http://localhost:8081/` を開く。オンボーディングが出たら最後まで進める
 2. 下のタブ「地図」→ 画面上の検索バー（「神社・寺院を検索」）→ 「靖國」を入れる → 1件目の `search-result-card` を押す → 1.5秒待つ → UI-1・UI-5（T・矩形・`style.transform`・`getComputedStyle` は `browser_evaluate` で `document.querySelector('[data-testid="…"]')` から読む）
 3. `sheet-handle` を押す → 1.5秒待つ → UI-2
-4. 帯の (195, T + 100) を押す → 1.5秒待つ → もう一度 → UI-3
+4. 帯の (195, T + 100) を押す → 1.5秒待つ → 半分の帯の見えている所 (195, T + 22) を押す → UI-3
 5. シートを閉じ（つまみを下へ引くか、検索の × ）、「浅草寺」で同じように開く → UI-4
 6. 撮ったスクリーンショットを試作と並べる → UI-6
 7. 行った寺社・記録した瞬間・ドラッグ・視差効果を減らす は Web では確かめない（D-18）
@@ -338,6 +338,7 @@ T は `bottom-sheet` の `getBoundingClientRect().top`。値はどれも ±1。
 
 1. **半分の高さの上限を 380 → 410 にした**: iPhone 16 でも、受付2行・写真の帯・限定御朱印の見出しのある京都の神社で半分の高さが上限 380 に掛かり、見出しが約 15〜20pt フッターに隠れた（帯で 30 高くなったため）。増えた 30 を上限に足して打ち消す。画面の 0.6 の上限はそのまま
 2. **UI-8 の「大きくでスクロールしたまま中身の上を下へ引くと、シートが半分まで下がる」は前から**: 変更前の版（develop e3e2f64）でも同じ swipe でシートが下がった（ScrollView はネイティブのスクロールが始まってから responder を取るので、先に縦 8 を超えた動きでシートの PanResponder が取る）。#253 D-18 とは違うが、この Issue では直さない。大きくのときつまみが検索バーの下に重なって押せないのも、変更前の版から
+3. **UI-3 の2回目に押す所を、半分の帯の見えている所に直した**: 半分では T + 24 から下が中身（`spot-sheet-primary`）で、帯のつかむ所は上の 24（D-13 の決めどおり）。もとの UI-3 の「同じ所 (195, T + 100)」は中身の上なので開かない
 
 ## リスク・不確実な点／申し送り
 
