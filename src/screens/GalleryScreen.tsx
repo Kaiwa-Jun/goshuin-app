@@ -11,6 +11,8 @@ import {
   useWindowDimensions,
   type FlatListProps,
   type LayoutChangeEvent,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   type ViewProps,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -137,6 +139,15 @@ export function GalleryScreen({ navigation }: Props) {
     height: number;
   } | null>(null);
   const gridViewportHeight = useRef<number | null>(null);
+  /** 一覧のスクロールの位置。一覧 → めくる で開くページを決める（D-8） */
+  const gridScrollY = useRef(0);
+  /** 一覧のタイルから開いた詳細に今出ている御朱印。めくる表示から開いたときは null */
+  const gridDetailStampId = useRef<string | null>(null);
+  /**
+   * 一覧で開いて閉じたときに詳細に出ていた御朱印（D-8 の ①）。
+   * 一覧を取り直したとき・並び替えたとき・めくる表示へ切り替えたときに忘れる
+   */
+  const closedGridStampId = useRef<string | null>(null);
   const gridContentHeight = useRef<number | null>(null);
 
   // Expo Web の検証イネーブラ（Issue #116 S-7）。native では常に null
@@ -232,6 +243,7 @@ export function GalleryScreen({ navigation }: Props) {
     gridRef.current = node;
     gridViewportHeight.current = null;
     gridContentHeight.current = null;
+    gridScrollY.current = 0;
     if (!node) gridInitialRow.current = undefined;
   }, []);
 
@@ -303,25 +315,66 @@ export function GalleryScreen({ navigation }: Props) {
     openAtLatest();
   };
 
+  /** 一覧のスクロールの位置を控える（止まったときの位置も取りこぼさない） */
+  const handleGridScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    gridScrollY.current = event.nativeEvent.contentOffset.y;
+  };
+
+  /**
+   * 一覧 → めくる で開くページ（オーナーの判断 2026-09-27。D-8）。
+   * ① 一覧で開いて閉じた御朱印のタイルが今も見える範囲にあれば、その御朱印
+   * ② それ以外は、見える範囲の縦の真ん中を含む行の真ん中の列（3枚に満たなければその行の最後）
+   * ③ 一覧の大きさが分からないなど、どちらも取れなければ null（最新）
+   */
+  const flipOpenStampIdFromGrid = (): string | null => {
+    const viewportHeight = gridViewportHeight.current;
+    const count = displayStamps.length;
+    if (viewportHeight === null || viewportHeight <= 0 || count === 0) return null;
+    const top = gridScrollY.current;
+    const bottom = top + viewportHeight;
+
+    const closedIndex = closedGridStampId.current
+      ? displayStamps.findIndex(s => s.id === closedGridStampId.current)
+      : -1;
+    if (closedIndex >= 0) {
+      const tileTop = Math.floor(closedIndex / NUM_COLUMNS) * gridRowHeight;
+      // タイル（写真の枠）が縦に 1pt より多く見えている（D-10 の見えているタイルと同じ）
+      if (Math.min(tileTop + ITEM_SIZE, bottom) - Math.max(tileTop, top) > 1) {
+        return displayStamps[closedIndex].id;
+      }
+    }
+
+    const rows = Math.ceil(count / NUM_COLUMNS);
+    const row = Math.min(
+      rows - 1,
+      Math.max(0, Math.floor((top + viewportHeight / 2) / gridRowHeight))
+    );
+    return displayStamps[Math.min(row * NUM_COLUMNS + 1, count - 1)].id;
+  };
+
   const handleToggleSort = () => {
     gridOpenTarget.current = null;
     gridInitialRow.current = undefined;
+    closedGridStampId.current = null;
     setSortOrder(prev => (prev === 'date' ? 'spot' : 'date'));
   };
 
   /**
-   * ボタンで表示を切り替えた。開く位置は、めくる表示で見ていた1枚（D-8）。
+   * ボタンで表示を切り替えた（D-8）。めくる → 一覧 は、めくる表示で見ていた1枚の行で開く。
+   * 一覧 → めくる は、一覧で開いて閉じた御朱印か、一覧の見える範囲の真ん中の御朱印で開く。
    * 起動時・取り直したとき・並び替えたときの開く位置は今のまま
    */
   const handleViewModeChange = (next: GalleryViewMode) => {
-    // 見ていた1枚。白紙・見つからないなら最新（D-8）
-    const stackTop = displayStamps[indexOfStamp(flipStampId)];
+    // 束のいちばん上の1枚。取れなければ最新
+    const stackTopId = next === 'grid' ? flipStampId : flipOpenStampIdFromGrid();
+    const stackTop = displayStamps[indexOfStamp(stackTopId)];
     if (next === 'grid') {
       gridOpenTarget.current = { stampId: flipStampId };
       const firstRow = Math.floor(indexOfStamp(flipStampId) / NUM_COLUMNS) - ROWS_ABOVE_ON_OPEN;
       gridInitialRow.current = firstRow > 0 ? firstRow : undefined;
     } else {
       gridOpenTarget.current = null;
+      closedGridStampId.current = null;
       // 最新も名指しで渡す。めくる表示が最初の描画からそのページを描く
       setFlipOpenRequest({ stampId: stackTop?.id ?? null });
     }
@@ -341,6 +394,7 @@ export function GalleryScreen({ navigation }: Props) {
     if (!isLoading) return;
     gridOpenTarget.current = null;
     gridInitialRow.current = undefined;
+    closedGridStampId.current = null;
   }, [isLoading]);
 
   /*
@@ -426,6 +480,9 @@ export function GalleryScreen({ navigation }: Props) {
       setFlyingStampId(null);
       setResting(false);
       hero.end();
+      // 消した御朱印では開かない
+      gridDetailStampId.current = null;
+      closedGridStampId.current = null;
       if (stampId) {
         removeStamp(stampId);
       }
@@ -478,6 +535,10 @@ export function GalleryScreen({ navigation }: Props) {
    * 詳細では横に移れないので、帰り先は必ず来たタイル。例外の分岐が要らない
    */
   const closeStamp = () => {
+    // 一覧から開いた詳細なら、閉じたときに出ていた御朱印を控える（D-8 の ①）
+    if (gridDetailStampId.current) closedGridStampId.current = gridDetailStampId.current;
+    gridDetailStampId.current = null;
+
     if (resting && hero.flight) {
       setResting(false);
       hero.turnBack();
@@ -534,10 +595,10 @@ export function GalleryScreen({ navigation }: Props) {
    */
   const openStampRef = useRef(openStamp);
   openStampRef.current = openStamp;
-  const handlePressTile = useCallback(
-    (index: number, stamp: StampWithSpot) => openStampRef.current(index, stamp),
-    []
-  );
+  const handlePressTile = useCallback((index: number, stamp: StampWithSpot) => {
+    gridDetailStampId.current = stamp.id;
+    openStampRef.current(index, stamp);
+  }, []);
   const handleThumbMissingRef = useRef(handleThumbMissing);
   handleThumbMissingRef.current = handleThumbMissing;
   const handleTileThumbMissing = useCallback(
@@ -574,6 +635,7 @@ export function GalleryScreen({ navigation }: Props) {
   const displayStampsRef = useRef(displayStamps);
   displayStampsRef.current = displayStamps;
   const handlePressFlipStamp = useCallback((index: number) => {
+    gridDetailStampId.current = null;
     const stamp = displayStampsRef.current[index];
     // 蛇腹は contain。枠（1:1.5）と写真（3:4）がずれるので、
     // 写真が実際に占めているところから飛ばす（Issue #202）
@@ -737,6 +799,9 @@ export function GalleryScreen({ navigation }: Props) {
                        * ボタンで めくる → 一覧 にしたときは、見ていた1枚の行で開く（Issue #276）
                        */
                       onContentSizeChange={handleGridContentSizeChange}
+                      onScroll={handleGridScroll}
+                      onScrollEndDrag={handleGridScroll}
+                      onMomentumScrollEnd={handleGridScroll}
                       testID="gallery-list"
                     />
                   </View>
@@ -784,6 +849,12 @@ export function GalleryScreen({ navigation }: Props) {
         // その結びつきが切れて元のタイルへ戻れない。順に見る動線は
         // 蛇腹めくりが持っている（Issue #192）
         swipeable={false}
+        // 詳細の中で送ったら、閉じたときに出ている1枚を控える（D-8 の ①）
+        onIndexChange={index => {
+          if (gridDetailStampId.current) {
+            gridDetailStampId.current = displayStamps[index]?.id ?? gridDetailStampId.current;
+          }
+        }}
         // 指で写真を下へずらしてから離すと、そこから一覧へ戻る連続的な動きが
         // 始められない。閉じる合図だけ受け取って、写真は元の位置から戻す
         dismissFollowsFinger={false}

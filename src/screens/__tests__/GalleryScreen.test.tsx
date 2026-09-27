@@ -1016,47 +1016,202 @@ describe('表示の切り替えの画面と開く位置（Issue #276）', () => 
     });
   });
 
-  describe('めくる表示の開く位置（AC-26・AC-27）', () => {
-    it('一覧から戻ると、めくる表示で見ていたページで開く', () => {
+  /*
+   * 一覧 → めくる で開くページ（オーナーの判断 2026-09-27。D-8）。
+   * ① 一覧で開いて閉じた御朱印（詳細の中で送ったら最後に出ていたもの）が今も見えていればそれ
+   * ② それ以外は、一覧の見える範囲の縦の真ん中の行・真ん中の列（3枚に満たなければその行の最後）
+   * ③ どちらも取れなければ最新
+   */
+  describe('一覧 → めくる の開くページ（AC-26・AC-27）', () => {
+    const T = (W - spacing.lg * 2 - spacing.xs * 2) / 3;
+    /** 一覧の行の高さの見込み（getItemLayout と同じ。日付順） */
+    const ROW =
+      T +
+      spacing.xs +
+      (typography.caption.lineHeight as number) * PixelRatio.getFontScale() * 2 +
+      spacing.lg;
+
+    /** 一覧の見える範囲（高さ viewport）と中身の大きさを届け、y までスクロールした形にする */
+    const showGridAt = (
+      utils: ReturnType<typeof renderGalleryScreen>,
+      y: number,
+      viewport = 960
+    ) => {
+      fireEvent(utils.getByTestId('gallery-list'), 'layout', {
+        nativeEvent: { layout: { x: 0, y: 0, width: W, height: viewport } },
+      });
+      fireEvent(utils.getByTestId('gallery-list'), 'contentSizeChange', W, 1532);
+      fireEvent.scroll(utils.getByTestId('gallery-list'), {
+        nativeEvent: {
+          contentOffset: { x: 0, y },
+          layoutMeasurement: { width: W, height: viewport },
+          contentSize: { width: W, height: 1532 },
+        },
+      });
+    };
+    /** 一覧のタイルを押して詳細を開き、閉じる */
+    const openAndClose = (utils: ReturnType<typeof renderGalleryScreen>, id: string) => {
+      fireEvent.press(utils.getByTestId(`gallery-item-${id}`));
+      expect(utils.UNSAFE_getByType(ImageGalleryModal).props.visible).toBe(true);
+      act(() => utils.UNSAFE_getByType(ImageGalleryModal).props.onClose());
+    };
+    const toGrid = (utils: ReturnType<typeof renderGalleryScreen>) =>
+      fireEvent.press(utils.getByTestId('view-mode-grid'));
+    const toFlip = (utils: ReturnType<typeof renderGalleryScreen>) =>
+      fireEvent.press(utils.getByTestId('view-mode-flip'));
+
+    it('一覧で開いて閉じた御朱印が今も見えていれば、その御朱印で開く', () => {
+      withStamps(makeStamps(15));
+      const utils = renderGalleryScreen();
+      toGrid(utils);
+      showGridAt(utils, 0);
+
+      openAndClose(utils, 's7');
+      toFlip(utils);
+
+      expect(counterOf(utils)).toBe('8 ／ 15');
+    });
+
+    it('詳細の中で送っていたら、閉じたときに出ていた御朱印で開く', () => {
+      withStamps(makeStamps(15));
+      const utils = renderGalleryScreen();
+      toGrid(utils);
+      showGridAt(utils, 0);
+
+      fireEvent.press(utils.getByTestId('gallery-item-s7'));
+      act(() => utils.UNSAFE_getByType(ImageGalleryModal).props.onIndexChange(8));
+      act(() => utils.UNSAFE_getByType(ImageGalleryModal).props.onClose());
+      toFlip(utils);
+
+      expect(counterOf(utils)).toBe('9 ／ 15');
+    });
+
+    it('開いて閉じた御朱印がスクロールで見えなくなっていたら、見える範囲の真ん中の御朱印で開く', () => {
+      withStamps(makeStamps(15));
+      const utils = renderGalleryScreen();
+      toGrid(utils);
+      showGridAt(utils, 0);
+      openAndClose(utils, 's4');
+
+      // 見える範囲は 700〜1660。s4（行 1）のタイルは外。真ん中 1180 は行 3 → 真ん中の列は s10
+      showGridAt(utils, 700);
+      toFlip(utils);
+
+      expect(Math.floor((700 + 480) / ROW)).toBe(3);
+      expect(counterOf(utils)).toBe('11 ／ 15');
+    });
+
+    it('何も開いていなければ、見える範囲の真ん中の行・真ん中の列の御朱印で開く', () => {
+      withStamps(makeStamps(15));
+      const utils = renderGalleryScreen();
+      toGrid(utils);
+      showGridAt(utils, 0);
+
+      toFlip(utils);
+
+      // 真ん中 480 は行 1 → s4
+      expect(Math.floor(480 / ROW)).toBe(1);
+      expect(counterOf(utils)).toBe('5 ／ 15');
+    });
+
+    it('真ん中の行が3枚に満たなければ、その行の最後の御朱印で開く', () => {
+      withStamps(makeStamps(13));
+      const utils = renderGalleryScreen();
+      toGrid(utils);
+      // 行 4 は s12 だけ。真ん中がその行に入るまで送る
+      const y = 4.5 * ROW - 200;
+      showGridAt(utils, y, 400);
+
+      toFlip(utils);
+
+      expect(Math.floor((y + 200) / ROW)).toBe(4);
+      expect(counterOf(utils)).toBe('13 ／ 13');
+    });
+
+    it('一覧の大きさがまだ分からなければ、今までどおり最新で開く', () => {
       withStamps(makeStamps(15));
       const utils = renderGalleryScreen();
       flipTo(utils, 4, 16);
 
-      fireEvent.press(utils.getByTestId('view-mode-grid'));
-      fireEvent.press(utils.getByTestId('view-mode-flip'));
+      toGrid(utils);
+      toFlip(utils);
+
+      expect(counterOf(utils)).toBe('15 ／ 15');
+    });
+
+    it('めくる表示で開いた詳細は使わない', () => {
+      withStamps(makeStamps(15));
+      const utils = renderGalleryScreen();
+      flipTo(utils, 7, 16);
+      fireEvent.press(utils.getByTestId('flip-page-s7'));
+      act(() => utils.UNSAFE_getByType(ImageGalleryModal).props.onClose());
+
+      toGrid(utils);
+      showGridAt(utils, 0);
+      toFlip(utils);
 
       expect(counterOf(utils)).toBe('5 ／ 15');
     });
 
-    it('送っていなければ最新で開く', () => {
-      withStamps(makeStamps(15));
-      const utils = renderGalleryScreen();
+    describe('開いて閉じた御朱印を忘れる', () => {
+      it('並び替えたとき', () => {
+        withStamps(makeStamps(15));
+        const utils = renderGalleryScreen();
+        toGrid(utils);
+        showGridAt(utils, 0);
+        openAndClose(utils, 's7');
 
-      fireEvent.press(utils.getByTestId('view-mode-grid'));
-      fireEvent.press(utils.getByTestId('view-mode-flip'));
+        fireEvent.press(utils.getByTestId('sort-button'));
+        showGridAt(utils, 0);
+        toFlip(utils);
 
-      expect(counterOf(utils)).toBe('15 ／ 15');
-    });
+        expect(counterOf(utils)).toBe('5 ／ 15');
+      });
 
-    it('白紙のページを見ていたら最新で開く', () => {
-      withStamps(makeStamps(15));
-      const utils = renderGalleryScreen();
-      flipTo(utils, 15, 16);
+      it('一覧を取り直したとき', () => {
+        const stamps = makeStamps(15);
+        withStamps(stamps);
+        const utils = renderGalleryScreen();
+        toGrid(utils);
+        showGridAt(utils, 0);
+        openAndClose(utils, 's7');
 
-      fireEvent.press(utils.getByTestId('view-mode-grid'));
-      fireEvent.press(utils.getByTestId('view-mode-flip'));
+        withStamps(stamps, true);
+        utils.rerender(<GalleryScreen navigation={mockNavigation as never} route={mockRoute} />);
+        withStamps(stamps);
+        utils.rerender(<GalleryScreen navigation={mockNavigation as never} route={mockRoute} />);
+        showGridAt(utils, 0);
+        toFlip(utils);
 
-      expect(counterOf(utils)).toBe('15 ／ 15');
+        expect(counterOf(utils)).toBe('5 ／ 15');
+      });
+
+      it('めくる表示へ切り替えたとき', () => {
+        withStamps(makeStamps(15));
+        const utils = renderGalleryScreen();
+        toGrid(utils);
+        showGridAt(utils, 0);
+        openAndClose(utils, 's7');
+        toFlip(utils);
+        expect(counterOf(utils)).toBe('8 ／ 15');
+
+        toGrid(utils);
+        showGridAt(utils, 0);
+        toFlip(utils);
+
+        expect(counterOf(utils)).toBe('5 ／ 15');
+      });
     });
 
     it('取り直したときは今と同じく最新で開く（AC-27）', () => {
       const stamps = makeStamps(15);
       withStamps(stamps);
       const utils = renderGalleryScreen();
-      flipTo(utils, 4, 16);
-      fireEvent.press(utils.getByTestId('view-mode-grid'));
-      fireEvent.press(utils.getByTestId('view-mode-flip'));
-      expect(counterOf(utils)).toBe('5 ／ 15');
+      toGrid(utils);
+      showGridAt(utils, 0);
+      openAndClose(utils, 's7');
+      toFlip(utils);
+      expect(counterOf(utils)).toBe('8 ／ 15');
 
       withStamps(stamps, true);
       utils.rerender(<GalleryScreen navigation={mockNavigation as never} route={mockRoute} />);
@@ -1084,16 +1239,32 @@ describe('表示の切り替えの画面と開く位置（Issue #276）', () => 
       expect(utils.getByTestId('gallery-item-s45')).toBeTruthy();
     });
 
-    it('ボタンでめくる表示に戻したとき、最初の描画から見ていたページを描く', () => {
+    it('ボタンでめくる表示に戻したとき、最初の描画から開くページを描く', () => {
       withStamps(makeStamps(60));
       const utils = renderGalleryScreen();
-      flipTo(utils, 45, 61);
-
       fireEvent.press(utils.getByTestId('view-mode-grid'));
+      // 一覧の見える範囲の真ん中を行 15 にする → 開くのは真ん中の列の s46
+      const row =
+        T +
+        spacing.xs +
+        (typography.caption.lineHeight as number) * PixelRatio.getFontScale() * 2 +
+        spacing.lg;
+      const y = 15.5 * row - 480;
+      fireEvent(utils.getByTestId('gallery-list'), 'layout', {
+        nativeEvent: { layout: { x: 0, y: 0, width: W, height: 960 } },
+      });
+      fireEvent.scroll(utils.getByTestId('gallery-list'), {
+        nativeEvent: {
+          contentOffset: { x: 0, y },
+          layoutMeasurement: { width: W, height: 960 },
+          contentSize: { width: W, height: 20 * row + 32 },
+        },
+      });
+
       fireEvent.press(utils.getByTestId('view-mode-flip'));
 
-      expect(utils.getByTestId('flip-page-surface-s45')).toBeTruthy();
-      expect(counterOf(utils)).toBe('46 ／ 60');
+      expect(utils.getByTestId('flip-page-surface-s46')).toBeTruthy();
+      expect(counterOf(utils)).toBe('47 ／ 60');
     });
 
     // 行の高さが前もって分かるので、最初の中身の大きさの知らせから全体の高さになる（D-8）
