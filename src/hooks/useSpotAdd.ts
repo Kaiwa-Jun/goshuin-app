@@ -46,7 +46,8 @@ const IDLE: SpotAddState = {
 /**
  * 見つからない寺社を調べて追加する流れ（Issue #248 の ②〜④）。
  * 調べる前に地域を聞き（⓪ asking）、選んだ地域で調べ始める（Issue #277）。
- * 追加できた寺社は onAdded に渡して閉じる（記録画面でその寺社が選ばれる）
+ * 追加できた寺社は onAdded に渡して閉じる（記録画面でその寺社が選ばれる）。
+ * 候補がアプリに登録済みの寺社と同じときは、add-spot を呼ばずにその寺社を渡す（chooseExisting。Issue #278）
  */
 export function useSpotAdd(onAdded: (spot: Spot) => void) {
   const [state, setState] = useState<SpotAddState>(IDLE);
@@ -142,6 +143,20 @@ export function useSpotAdd(onAdded: (spot: Spot) => void) {
     [finish, state.researchId]
   );
 
+  /**
+   * 候補がアプリに登録済みの寺社と同じとき（Issue #278）。add-spot を呼ばずにその寺社を選んで閉じる。
+   * 状態は見ない（保存中はシートの「ここです」が押せない。#282 の D-2 と同じ考え）
+   */
+  const chooseExisting = useCallback(
+    (spot: Spot) => {
+      askingName.current = null;
+      requestId.current++;
+      setState(IDLE);
+      onAdded(spot);
+    },
+    [onAdded]
+  );
+
   const saveManual = useCallback(
     (manual: { name: string; type: SpotType; lat: number; lng: number }) =>
       finish(() => addManualSpot(manual)),
@@ -160,5 +175,16 @@ export function useSpotAdd(onAdded: (spot: Spot) => void) {
     setState(IDLE);
   }, []);
 
-  return { state, start, pick, changeRegion, retry, choose, openManual, saveManual, close };
+  return {
+    state,
+    start,
+    pick,
+    changeRegion,
+    retry,
+    choose,
+    chooseExisting,
+    openManual,
+    saveManual,
+    close,
+  };
 }

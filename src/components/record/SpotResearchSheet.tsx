@@ -140,9 +140,9 @@ function RegionAsk({
 
   return (
     <>
-      <Text style={styles.title}>{redo ? '地域を決めて調べ直す' : `「${name}」を調べます`}</Text>
+      <Text style={styles.title}>{redo ? '地域を決めて探し直す' : `「${name}」を探します`}</Text>
       <Text style={styles.why}>
-        {redo ? '選ぶとすぐ調べ直します。' : 'どのあたりの寺社ですか？ 選ぶとすぐ調べ始めます。'}
+        {redo ? '選ぶとすぐ探し直します。' : 'どのあたりの寺社ですか？ 選ぶとすぐ探し始めます。'}
       </Text>
       {recentPrefectures.length > 0 && <Text style={styles.regionCaption}>あなたの記録から</Text>}
       <View style={styles.chips}>
@@ -170,7 +170,7 @@ function RegionAsk({
             testID="region-input"
           />
           <Button
-            title="この地域で調べる"
+            title="この地域で探す"
             onPress={submit}
             variant="outline"
             testID="region-submit"
@@ -187,13 +187,17 @@ function RegionAsk({
       )}
       {redo && (
         <Text style={styles.quota} testID="region-quota">
-          調べ直すと、今日の回数（10回）を1回使います
+          探し直すと、今日の回数（10回）を1回使います
         </Text>
       )}
     </>
   );
 }
 
+/**
+ * 候補カード。アプリに登録済みの寺社と同じ候補でも見た目は変えない（Issue #278 D-13。
+ * 「ここです」で既存の寺社を選ぶのは記録画面が決める）
+ */
 function CandidateCard({
   candidate,
   selected,
@@ -314,7 +318,7 @@ export function SpotResearchSheet({
     case 'researching':
       body = (
         <>
-          <Text style={styles.title}>{`「${state.name}」を調べています`}</Text>
+          <Text style={styles.title}>{`「${state.name}」を探しています`}</Text>
           <Text style={styles.why}>公式サイトや地図の情報から、場所と住所を探しています。</Text>
           <HintLine hint={state.hint} done={false} />
           <View style={styles.skeleton}>
@@ -342,9 +346,9 @@ export function SpotResearchSheet({
     case 'error':
       body = (
         <>
-          <Text style={styles.title}>調べられませんでした。通信を確かめてください</Text>
+          <Text style={styles.title}>探せませんでした。通信を確かめてください</Text>
           <View style={styles.gap} />
-          <Button title="もう一度調べる" onPress={onRetry} testID="research-retry" />
+          <Button title="もう一度探す" onPress={onRetry} testID="research-retry" />
           <View style={styles.gapSmall} />
           {manualButton('地図で場所を決める', 'outline')}
         </>
@@ -353,7 +357,7 @@ export function SpotResearchSheet({
     case 'limit':
       body = (
         <>
-          <Text style={styles.title}>今日調べられる回数（10回）を使い切りました</Text>
+          <Text style={styles.title}>今日探せる回数（10回）を使い切りました</Text>
           <View style={styles.gap} />
           {manualButton('地図で場所を決める', 'primary')}
         </>
@@ -405,7 +409,6 @@ export function SpotResearchSheet({
           <TouchableOpacity onPress={onOpenManual} disabled={saving} testID="research-none">
             <Text style={styles.none}>どれでもない（地図で決める）</Text>
           </TouchableOpacity>
-          <Text style={styles.note}>確かめられたら、みんなの地図にも載ります</Text>
         </>
       );
       break;
@@ -527,12 +530,6 @@ const styles = StyleSheet.create({
     color: colors.gray[600],
     textAlign: 'center',
     marginTop: spacing.md,
-  },
-  note: {
-    ...typography.caption,
-    color: colors.gray[400],
-    textAlign: 'center',
-    marginTop: spacing.sm,
   },
   saveError: {
     ...typography.caption,

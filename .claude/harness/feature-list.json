@@ -160,6 +160,12 @@
       "title": "「調べずに、地図で場所を決める」を、AI で見つからなかったときだけ出す",
       "note": "契約書 docs/issues/issue-282-manual-after-research.md。地域を聞く画面・調べている間から地図のボタンを外し、見つからない・調べられない・回数の上限・どれでもない のときだけ出す。useSpotAdd・add-spot は変えない（地図で決めた寺社は今までどおり本人だけ）。goshuin-evaluator PASS（AC 1/1・UI 11/11・Q 5/5）・オーナーが実機で確認。",
       "passes": true
+    },
+    {
+      "id": "ISSUE-278",
+      "title": "同じ名前の寺社がマスタにあっても、別の寺社を探して記録できるようにする",
+      "note": "契約書 docs/issues/issue-278-same-name-research.md・承認試作 docs/design/mockups/2026-09-spot-samename-v1.html。同じ名前が一覧にあっても「ほかの{名前}を探す」を出し、探した候補が登録済みの寺社（正規化した名前が一致・300m 以内）なら add-spot を呼ばずにその寺社を選ぶ。オーナー判断（D-13）で流れの言葉を「探す」にそろえ、「登録済み」の札と「みんなの地図にも載ります」をやめた。goshuin-evaluator PASS（AC 11/11・UI 10/10・Q 7/7）・オーナーが実機で言葉を確認。未確認: 実際の research-spot の結果で祇園の八坂神社が既存の寺社として選ばれること（回数の上限）。",
+      "passes": true
     }
   ]
 }

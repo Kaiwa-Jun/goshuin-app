@@ -50,11 +50,13 @@ export function SpotSelector({
   const [showDropdown, setShowDropdown] = useState(false);
 
   const query = searchQuery.trim();
-  // 目当ての名前がそのまま候補にあるときは出さない。部分一致の候補（「八幡」で他の八幡）だけなら出す（D-10）
-  const canResearch =
-    !!onResearch &&
-    query.length >= RESEARCH_MIN_CHARS &&
-    !nearbySpots.some(i => normalizeSpotName(i.spot.name) === normalizeSpotName(query));
+  // 同じ名前の寺社が一覧にあっても出す。そのときは「ほかの〇〇」（Issue #278。#248 の D-10 を変えた）。
+  // 画面の言葉は「探す」にそろえる（#278 D-13。「調べて追加」はデータを足す側の言葉）
+  const canResearch = !!onResearch && query.length >= RESEARCH_MIN_CHARS;
+  // 「ほかの」は一覧に見えている同じ名前の寺社を指す。「もしかして」は数えない
+  const hasSameName = nearbySpots.some(
+    i => normalizeSpotName(i.spot.name) === normalizeSpotName(query)
+  );
 
   const handleResearch = () => {
     setShowDropdown(false);
@@ -188,9 +190,13 @@ export function SpotSelector({
                     </View>
                     <View style={styles.researchText}>
                       <Text style={styles.researchTitle} numberOfLines={1}>
-                        {`「${query}」を調べて追加`}
+                        {hasSameName ? `ほかの${query}を探す` : `「${query}」をもっと探す`}
                       </Text>
-                      <Text style={styles.researchSub}>名前から場所と住所を調べます</Text>
+                      <Text style={styles.researchSub}>
+                        {hasSameName
+                          ? `一覧にない場所の${query}を探します`
+                          : '地図にない寺社も、名前と地域から探します'}
+                      </Text>
                     </View>
                   </TouchableOpacity>
                 )}
