@@ -40,6 +40,13 @@ curl -sf -H "Authorization: Bearer $GROWTH_METRICS_TOKEN" https://tvnozkpxncmneh
 - 呼ぶときは上の `curl` の例のとおり、ヘッダーに載せる
 - このときは、ルーティンのプロンプトに「合言葉を出力・投稿・ログに書かない」を**必ず**入れる（下の 6 の例に入れてある）
 
+### いまの置き場所（2026-09-27）
+
+- ルーティン D は `goshuin-growth-weekly`（毎週月曜 9:03 JST）。実行環境は **D 専用の `goshuin-metrics`**（ネットワーク Full）で、合言葉はその環境の環境変数 `GROWTH_METRICS_TOKEN` に置いた（第二候補）
+- 第一候補の API credentials は、claude.ai の「クラウド環境を追加」の画面に欄が無く、既存の環境の設定（歯車）も開けなかったため使えなかった
+- 環境変数は、その環境を使える人とルーティンの Claude に見える（画面の注意書き）。見られるのは集計した数だけで、D 専用の自分だけの環境にしたので、オーナーの判断で許容した
+- ストア・季節・SNS のルーティン（A〜C）は `goshuin-growth` 環境のままで、合言葉は見えない。**`goshuin-growth` には合言葉を入れない**
+
 ## 4. 返す値の意味
 
 時刻はすべて日本時間（`Asia/Tokyo`）。週は**月曜**はじまり。月は日本時間の暦の月。配列は古い順。
@@ -97,7 +104,7 @@ curl -sf -H "Authorization: Bearer $GROWTH_METRICS_TOKEN" https://tvnozkpxncmneh
 ## 7. 合言葉の入れ替え
 
 1. 契約書の H-1 をやり直す（自分のターミナルで新しい値を作り、`supabase secrets set GROWTH_METRICS_TOKEN=...` で入れる。値は画面にも履歴にも出さない）
-2. ルーティン側（API credentials か環境変数）を同じ値に替える
+2. ルーティン側を同じ値に替える（いまは claude.ai の環境 `goshuin-metrics` の環境変数 `GROWTH_METRICS_TOKEN`）
 3. 替えるまでの間、ルーティンの呼び出しは 401 になる
 4. 関数を再デプロイしたときは、毎回 401 と 405 をもう一度確かめる（H-5）
 
