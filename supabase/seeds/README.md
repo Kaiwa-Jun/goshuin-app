@@ -27,6 +27,6 @@
 ## データ品質基準
 
 - 住所: 最低2つの情報源で確認済み
-- 座標: geocoding.jp で住所から変換、都道府県バウンディングボックス内を確認
+- 座標: geocoding.jp で住所から変換、都道府県バウンディングボックス内を確認（2026-09 の #292 で 458 件を Wikidata / OpenStreetMap の値に直した。直した行はコメントに「#292 で直した」。値の正は `supabase/data/spot-coords-292.json` で、seed の座標はそこから生成する。手で直さない。詳しくは [`supabase/data/README.md`](../data/README.md)）
 - rank: ホトカミ御朱印ランキング基準（rank 5: TOP10、rank 4: 11〜20位）
 - type: 神社→shrine、寺院→temple
