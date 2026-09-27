@@ -178,6 +178,12 @@
       "title": "グロースの数字を集計だけ返す、読み取り専用の Edge Function growth-metrics（ルーティン D 用）",
       "note": "契約書 docs/issues/issue-285-growth-metrics.md・手順 docs/project/growth-metrics-routine.md。SQL 関数 growth_metrics_counts（STABLE・SECURITY DEFINER・service_role だけ）で数え、Deno の純関数で期間の区切り・少人数の伏せ（分母1〜2人は null）・返す形を決める。合言葉は Authorization: Bearer を SHA-256 + XOR で比べ、405・401 は DB に触らない。goshuin-evaluator PASS（AC 29/29・Q 6/6）。本番（2026-09-27）: H-1〜H-6 すべて確認。ルーティン D（goshuin-growth-weekly）が Slack に数を投稿した。",
       "passes": true
+    },
+    {
+      "id": "ISSUE-288",
+      "title": "3件目の記録のあとに App Store のレビューを依頼し、設定から評価を書けるようにする",
+      "note": "契約書 docs/issues/issue-288-review-request.md。完了画面からメインのタブに戻って 1.5 秒後に、節目（3・10・30 枚）でシステムの依頼を出す（2回目から90日あける・3回まで・端末の履歴）。ネイティブの無い開発用アプリでも落ちない。設定の「アプリ情報」の最後に「App Store でレビューを書く」（iOS だけ）。goshuin-evaluator PASS（AC 36/36・UI-1〜4・Q 13/13）、UI-5〜7 はローカルの新しい .app で確認。未確認: 実機で App Store の「レビューを書く」が開くこと（H-1）、本番で依頼が出ること（H-3）。",
+      "passes": true
     }
   ]
 }

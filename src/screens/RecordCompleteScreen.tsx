@@ -7,6 +7,7 @@ import { NewBadgeRow } from '@components/record/NewBadgeRow';
 import { ManganNote, ManganSeal } from '@components/record/ManganSeal';
 import { PressableScale } from '@components/common/PressableScale';
 import { SaveMapReveal } from '@components/record/SaveMapReveal';
+import { noteRecordCompleted } from '@services/storeReview';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { shadows } from '@theme/shadows';
@@ -75,6 +76,17 @@ export function RecordCompleteScreen({ navigation, route }: Props) {
     stampWidth: COMPLETE_LAYOUT.stampMaxWidth,
     gap: COMPLETE_LAYOUT.gapMax,
   });
+
+  /*
+   * 「N枚目」と同じ枚数を、レビュー依頼の印に置く（Issue #288 D-3・D-6 ①）。数字を出せない
+   * ときは推し量らず置かない。取り出すのはメインのタブ（useStoreReviewRequest）なので、
+   * 画面が閉じても消さない（後始末で消すと、戻ったときに印が無くなる）
+   */
+  useEffect(() => {
+    if (!countUnavailable && totalStampCount !== undefined) noteRecordCompleted(totalStampCount);
+    // 開いたときの1回だけ
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // 記録画面は地図と御朱印帳の両方から開ける。どちらから来たか分からない
   // ときは地図に返す（入口として多く、迷子になりにくい）

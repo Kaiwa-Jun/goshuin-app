@@ -1,10 +1,14 @@
 import React from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, within } from '@testing-library/react-native';
+import { requireOptionalNativeModule } from 'expo';
 import { Alert, DevSettings, Linking, Platform, StyleSheet } from 'react-native';
 
 import { SettingsScreen } from '../SettingsScreen';
 import type { MainTabScreenProps } from '@/navigation/types';
+import { colors } from '@theme/colors';
+import { spacing } from '@theme/spacing';
+import { typography } from '@theme/typography';
 
 // 年報の開発用の行（Issue #274）が @services/annualReport を読む。Supabase には出ない
 jest.mock('@services/supabase', () => ({
@@ -513,5 +517,152 @@ describe('開発用 — 年報', () => {
     ]) {
       expect(StyleSheet.flatten(ui.getByTestId(id).props.style)).toEqual(base);
     }
+  });
+});
+
+/*
+ * Issue #288 AC-32〜36・UI-1: 「アプリ情報」の最後の「App Store でレビューを書く」（iOS だけ）。
+ * 押すと App Store の「レビューを書く」画面の URL を開くだけで、システムの依頼は呼ばない（D-8・D-9）
+ */
+describe('App Store でレビューを書く（Issue #288）', () => {
+  const LABEL = 'App Store でレビューを書く';
+  const URL = 'https://apps.apple.com/app/id6797201465?action=write-review';
+  const originalOS = Platform.OS;
+  const setOS = (os: string) =>
+    Object.defineProperty(Platform, 'OS', { get: () => os, configurable: true });
+  const requireOptional = jest.mocked(requireOptionalNativeModule);
+  const defaultRequireOptional = requireOptional.getMockImplementation();
+
+  const navigate = jest.fn();
+  const parentNavigate = jest.fn();
+  const navigation = {
+    navigate,
+    goBack: jest.fn(),
+    getParent: jest.fn(() => ({ navigate: parentNavigate })),
+  } as unknown as MainTabScreenProps<'Settings'>['navigation'];
+  const renderScreen = () => render(<SettingsScreen navigation={navigation} route={mockRoute} />);
+  const appInfo = (ui: ReturnType<typeof renderScreen>) =>
+    within(ui.getByTestId('settings-section-app-info'));
+
+  const login = () => {
+    mockUseAuthReturn = {
+      ...mockUseAuthReturn,
+      user: { id: 'u1', email: 'a@example.com', user_metadata: {} },
+      isAuthenticated: true,
+    };
+  };
+  const guest = () => {
+    mockUseAuthReturn = { ...mockUseAuthReturn, user: null, isAuthenticated: false };
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    guest();
+  });
+
+  afterEach(() => {
+    setOS(originalOS);
+    requireOptional.mockImplementation(defaultRequireOptional);
+    jest.restoreAllMocks();
+    jest.spyOn(Alert, 'alert');
+  });
+
+  it.each([
+    ['ゲスト', guest],
+    ['ログイン済み', login],
+  ])('AC-32: iOS では%sでも「アプリ情報」に行がある', (_label, as) => {
+    as();
+    const ui = renderScreen();
+
+    const row = appInfo(ui).getByTestId('store-review-row');
+    expect(within(row).getByText(LABEL)).toBeTruthy();
+    expect(row.props.accessibilityRole).toBe('link');
+  });
+
+  it.each(['android', 'web'])('AC-33: %s では行を出さない（ほかの3行はある）', os => {
+    setOS(os);
+    const ui = renderScreen();
+
+    expect(ui.queryByTestId('store-review-row')).toBeNull();
+    expect(ui.queryByText(LABEL)).toBeNull();
+    expect(appInfo(ui).getByText('バージョン')).toBeTruthy();
+    expect(appInfo(ui).getByText('利用規約')).toBeTruthy();
+    expect(appInfo(ui).getByText('プライバシーポリシー')).toBeTruthy();
+  });
+
+  it('AC-34: 押すと URL を開くだけで、システムの依頼も画面の移動もしない', async () => {
+    const fake = {
+      isAvailableAsync: jest.fn(async () => true),
+      requestReview: jest.fn(async () => undefined),
+    };
+    requireOptional.mockImplementation(
+      (name: string) => (name === 'ExpoStoreReview' ? fake : null) as never
+    );
+    const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+    const ui = renderScreen();
+    requireOptional.mockClear();
+
+    fireEvent.press(ui.getByTestId('store-review-row'));
+    await waitFor(() => expect(openURL).toHaveBeenCalledTimes(1));
+
+    expect(openURL).toHaveBeenCalledWith(URL);
+    expect(requireOptional).not.toHaveBeenCalled();
+    expect(fake.requestReview).not.toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
+    expect(parentNavigate).not.toHaveBeenCalled();
+  });
+
+  it('AC-35: 開けなければ知らせて、画面は残る', async () => {
+    jest.spyOn(Linking, 'openURL').mockRejectedValue(new Error('cannot open'));
+    const alert = jest.spyOn(Alert, 'alert');
+    const ui = renderScreen();
+
+    fireEvent.press(ui.getByTestId('store-review-row'));
+    await waitFor(() => expect(alert).toHaveBeenCalledTimes(1));
+
+    expect(alert).toHaveBeenCalledWith('App Store を開けませんでした');
+    expect(ui.getByTestId('store-review-row')).toBeTruthy();
+  });
+
+  it('AC-36: 「プライバシーポリシー」の下、いちばん最後に並ぶ', () => {
+    const ui = renderScreen();
+
+    const labels = appInfo(ui)
+      .getAllByText(/^(バージョン|利用規約|プライバシーポリシー|App Store でレビューを書く)$/)
+      .map(el => el.props.children);
+    expect(labels).toEqual(['バージョン', '利用規約', 'プライバシーポリシー', LABEL]);
+  });
+
+  describe('UI-1: 行の見た目は「利用規約」と同じ', () => {
+    it('行の並び・余白', () => {
+      const ui = renderScreen();
+
+      expect(StyleSheet.flatten(ui.getByTestId('store-review-row').props.style)).toEqual(
+        expect.objectContaining({
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingVertical: spacing.md,
+          gap: spacing.md,
+        })
+      );
+    });
+
+    it('字は typography.body・gray[700]・flex 1 で、「利用規約」と等しい', () => {
+      const ui = renderScreen();
+
+      const label = StyleSheet.flatten(ui.getByText(LABEL).props.style);
+      expect(label).toEqual(
+        expect.objectContaining({ ...typography.body, color: colors.gray[700], flex: 1 })
+      );
+      expect(label).toEqual(StyleSheet.flatten(ui.getByText('利用規約').props.style));
+    });
+
+    it('矢印は chevron-right・24・gray[400]', () => {
+      const ui = renderScreen();
+
+      const icon = within(ui.getByTestId('store-review-row')).getByText('chevron-right');
+      expect(icon.props.size).toBe(24);
+      expect(icon.props.color).toBe(colors.gray[400]);
+    });
   });
 });

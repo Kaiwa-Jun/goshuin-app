@@ -24,6 +24,7 @@ import { PlusSettingsCard } from '@components/plus/PlusSettingsCard';
 import { PlusThanksToast } from '@components/plus/PlusThanksToast';
 import { BILLING_ENABLED } from '@/constants/plus';
 import { clearAutoPlayShown } from '@services/annualReport';
+import { openAppStoreWriteReview } from '@services/storeReview';
 import { DEV_AS_DECEMBER_KEY } from '@utils/annualReport';
 import { annualReportNow } from '@utils/annualReportNow';
 import { ANNUAL_SAMPLE_YEAR } from '@utils/annualReportSample';
@@ -309,6 +310,26 @@ export function SettingsScreen({ navigation, route }: Props) {
               <Text style={styles.rowLabel}>プライバシーポリシー</Text>
               <MaterialIcons name="chevron-right" size={24} color={colors.gray[400]} />
             </TouchableOpacity>
+            {/*
+             * 評価を書きたい人の入口（Issue #288 D-9）。アプリの外へ出る行なのでいちばん下に置く。
+             * ここではシステムの依頼を呼ばない（ボタンを押した結果として呼ばない。D-8）。
+             * Android は Google Play が未公開・Web は配らないので iOS だけ（D-10）
+             */}
+            {Platform.OS === 'ios' && (
+              <TouchableOpacity
+                style={styles.row}
+                accessibilityRole="link"
+                testID="store-review-row"
+                onPress={() => {
+                  openAppStoreWriteReview().catch(() =>
+                    Alert.alert('App Store を開けませんでした')
+                  );
+                }}
+              >
+                <Text style={styles.rowLabel}>App Store でレビューを書く</Text>
+                <MaterialIcons name="chevron-right" size={24} color={colors.gray[400]} />
+              </TouchableOpacity>
+            )}
           </Card>
         </View>
       </ScrollView>

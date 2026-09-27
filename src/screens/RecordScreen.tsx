@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -40,6 +40,7 @@ import { buildMapParams } from '@utils/completeMapParams';
 import { useAuth } from '@hooks/useAuth';
 import { isNetworkError } from '@/utils/errorClassifier';
 import { evaluateNewBadges } from '@services/badges';
+import { clearRecordCompleted } from '@services/storeReview';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { spacing, borderRadius } from '@theme/spacing';
@@ -66,6 +67,12 @@ export function RecordScreen({ navigation, route }: Props) {
   );
 
   const form = useRecordForm(initialSpotId ? { initialSpotId } : { autoSelectableSpot });
+
+  // 記録画面が開いたら、完了画面が置いたレビュー依頼の印を消す（Issue #288 D-6 ②）。
+  // 「もう1枚記録する」のあとに ✕ で戻った・保存に失敗して戻った、の直後に依頼を出さない
+  useEffect(() => {
+    clearRecordCompleted();
+  }, []);
 
   // 見つからない寺社を調べて追加し、そのまま記録に使う（Issue #248）。
   // 調べる前に地域を聞き、選んだ瞬間に調べ始める（Issue #277）。選択肢は自分の記録にある県・

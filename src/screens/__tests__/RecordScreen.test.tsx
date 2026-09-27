@@ -3,6 +3,7 @@ import { render, fireEvent, waitFor, act, within } from '@testing-library/react-
 import { Image, Keyboard, ScrollView, StyleSheet } from 'react-native';
 import { RecordScreen } from '@screens/RecordScreen';
 import { evaluateNewBadges } from '@services/badges';
+import { noteRecordCompleted, takeRecordCompleted } from '@services/storeReview';
 import type { Spot, Stamp } from '@/types/supabase';
 import { MAX_PHOTOS_PER_RECORD } from '@/constants/record';
 
@@ -2139,5 +2140,23 @@ describe('見つからない寺社を探して追加し、そのまま記録す�
     expect(mockSelectSpot).toHaveBeenCalledTimes(1);
     expect(mockSelectSpot.mock.calls[0][0]).toBe(kyoto);
     expect(mockSelectSpot.mock.calls[0][0].id).toBe('kyoto-yasaka');
+  });
+});
+
+/*
+ * Issue #288 D-6 ②。記録画面が開いたら、レビュー依頼の印を消す。
+ * 「もう1枚記録する」のあとに ✕ で戻った・保存に失敗して戻った、の直後に依頼を出さない
+ */
+describe('レビュー依頼の印を消す（Issue #288）', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('AC-28: 記録画面が開くと、完了画面が置いた印が消える', () => {
+    noteRecordCompleted(3);
+
+    render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+
+    expect(takeRecordCompleted()).toBeNull();
   });
 });
