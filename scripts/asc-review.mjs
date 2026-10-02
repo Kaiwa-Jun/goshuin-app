@@ -197,80 +197,79 @@ async function cmdTestflight() {
 function notesText(iosVersion) {
   return `=== 2. Devices and OS tested ===
 
-- ${DEVICE_MODEL} running iOS ${iosVersion}  (physical device)
-- iPhone 16 Plus simulator running iOS 26.5 (Xcode 26.6)
+- ${DEVICE_MODEL} running iOS ${iosVersion} (physical device, TestFlight build)
+- iPhone 16 simulator (Xcode 26.6)
 
-=== 3. Function, target audience, and the problem it solves ===
+=== 3. Function, audience, problem solved ===
 
-御朱印さんぽ (Goshuin Sampo) is a personal record-keeping app for goshuin —
-the calligraphic seals visitors receive at Japanese shrines and temples.
+御朱印さんぽ (Goshuin Sampo) is a personal record-keeping app for goshuin, the
+calligraphic seals visitors receive at Japanese shrines and temples. Users
+photograph each seal, attach the shrine/temple and visit date, and see their
+visits fill in a map of Japan. Audience: goshuin collectors in Japan. The app is
+Japanese-language only.
 
-Collectors keep goshuin in paper books and lose track of where and when they
-visited. This app lets them photograph each seal, attach the shrine/temple and
-the visit date, and see their visits accumulate on a map.
+Features (all free; no purchases are offered):
+1. Map of about 1,100 shrines and temples (our own master data)
+2. Recording a goshuin: photo + spot + visit date + optional memo
+3. A digital goshuin book (flip through, or a grid)
+4. Stats, badges, and a map of Japan that fills in
+5. Visit plans: pick spots for a date; the app suggests an order and can open
+   the route in Google Maps (a plain link, no Google SDK)
+6. Finding a shrine/temple missing from the database (see 5b)
+7. Limited-edition goshuin info from shrines' own websites and Instagram
+8. A year-in-review shown in December
 
-Target audience: people in Japan who visit shrines and temples and collect
-goshuin. The app is Japanese-language only.
+After the 3rd, 10th and 30th record the app may show Apple's standard rating
+prompt (SKStoreReviewController, at most 3 times a year, never from a button).
+There is no custom rating screen. Settings has an "App Store でレビューを書く"
+link.
 
-Core features (all free, no purchases of any kind):
-1. Map of shrines and temples (about 1,100 spots nationwide, our own master data)
-2. Recording a goshuin: one photo + spot + visit date + optional memo
-3. A digital goshuin book that you flip through
-4. Collection stats and badges
-5. "Limited-edition goshuin" information gathered from each shrine's own website
-   and public Instagram account
+=== 4. How to reach the features ===
 
-=== 4. How to set up and reach the main features ===
+Browsing needs no account. Finish the 4 onboarding screens and allow location;
+the map shows nearby spots. Tap a pin for details.
 
-No account is required to browse. Launch the app, complete the 4 onboarding
-screens, and allow location access when prompted — the map then shows shrines
-and temples near you. Tapping a pin opens a sheet; tapping its handle expands
-it to show limited-edition goshuin information.
+Recording and visit plans need an account: tap "+" on the map and sign in with
+Apple or Google. Reviewers may use their own Apple ID (private relay is
+supported); no demo credentials are needed. Account deletion: "設定" tab ->
+"アカウントを削除".
 
-An account is required only to record a goshuin. Tap the "+" button on the map
-and sign in with Sign in with Apple or Google. Reviewers may use their own
-Apple ID; the private email relay is supported, and no demo credentials are
-needed. Account deletion is at "自分" (Me) tab -> "アカウントを削除".
+To find a missing shrine: on the record screen, type a name in the spot field,
+tap the orange row at the bottom ("…をもっと探す") and choose a region. Limit:
+10 searches per account per day.
 
-The app is built for Japan. Outside Japan the map shows no spots, so please set
-the location to Japan — for example 35.6786, 139.7442 (central Tokyo).
+Outside Japan the map has no spots; please set the location to Japan, e.g.
+35.6786, 139.7442 (Tokyo). There are no region-gated features.
 
-=== 5. External services used ===
+=== 5. External services ===
 
-- Supabase (supabase.com) — authentication, PostgreSQL database, file storage
-  for goshuin photos, and serverless functions.
-- Sign in with Apple, and Google Sign-In — authentication only.
-- Anthropic Claude API (api.anthropic.com, claude-haiku-4-5) — when a user writes
-  a free-text memo on a record, the memo text is sent to Claude to extract
-  structured facts (parking, reception hours, access notes) shown on the spot
-  page. Only the memo text is sent; photos and personal identifiers are not. The
-  same API summarises limited-edition announcements found on shrine websites.
-- Meta Graph API (graph.facebook.com) — server-side only, reads public posts from
-  shrines' own public Instagram business accounts to surface limited-edition
-  goshuin announcements. No user data is sent to Meta.
-- Apple Maps (MapKit via react-native-maps) — map rendering.
+- Supabase: authentication, database, photo storage, server functions.
+- Cloudflare R2 / Images: storage, resizing and delivery of photos.
+- Sign in with Apple, Google Sign-In: authentication only.
+- Anthropic Claude API (claude-haiku-4-5), called only from our server:
+  (a) memo text is sent to extract facts (parking, hours, access) shown on the
+      spot page; photos and personal identifiers are not sent.
+  (b) for a missing-shrine search, the typed name and the region the user chose
+      are sent, and Claude uses Anthropic's web search tool to find the address
+      and location. Device location is not sent.
+  (c) summarising limited-edition announcements on shrine websites.
+- Meta Graph API: server-side only, reads public posts of shrines' own public
+  Instagram business accounts. No user data is sent to Meta.
+- Maps: MapLibre with OpenFreeMap tiles (OpenStreetMap data).
+- RevenueCat SDK: included for a possible future optional purchase, but switched
+  off in this version: no purchase screen, the SDK is never initialised, and no
+  in-app purchase products exist.
+No advertising or analytics SDKs.
 
-There are no payment processors, no advertising SDKs, and no analytics SDKs.
+=== 7. Third-party material / user content ===
 
-=== 6. Regional differences ===
-
-The app behaves identically in all regions; there are no region-gated features.
-The content is Japan-specific: the spot database covers Japanese shrines and
-temples only, and the interface is Japanese-language only. Outside Japan the app
-runs normally but the map contains no spots.
-
-=== 7. Regulated industry / third-party material ===
-
-The app is not part of a regulated industry and contains no protected
-third-party material.
-
-- The shrine and temple master data is factual public information (name, address,
-  coordinates, category) that we compiled ourselves.
-- Goshuin photographs are taken and uploaded by the user and are visible only to
-  the user who created them. The app does not display any other user's content.
-- Limited-edition goshuin information consists of short factual summaries of
-  announcements each shrine publishes on its own website or public Instagram
-  account, and each item links back to the original source.
+Not a regulated industry; no protected third-party material.
+- Spot master data is factual public information we compiled.
+- Goshuin photos are visible only to the user who took them.
+- A user-added missing shrine/temple stores only factual place data found in
+  public web sources (name, address, coordinates, source URLs). It can appear on
+  other users' maps. Users cannot post free text or photos that others see.
+- Limited-edition info is short factual summaries that link to the source.
 `;
 }
 
