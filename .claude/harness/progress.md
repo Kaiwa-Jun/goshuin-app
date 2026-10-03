@@ -200,3 +200,5 @@
   - 最初の `fetch` で、本物の thumburl が `thumb.wikimedia.org` で返ることが分かり、6b170c2 の置き場所の検査を thumb・upload の2つに直した（0aaea21）
   - `generate`: migration 275,789 バイト・確かめる SQL 278,398 バイト（#292 の 61KB より大きい。H-11 で断られたら弾を分ける）。`generate --check` 0。PGlite で本物の seed に流して `present=692 not_one=0 missing=0`
   - 一覧の画像と決めた控え（理由付き）: `~/goshuin-work/spot-photos/review-sheets/`（`sheet-01〜32.jpg`・`decisions.txt`）。R2・本番の Supabase には触っていない（H はオーナー）
+- 2026-10-04: **#302 S7**（docs と証跡）。`supabase/data/README.md` に spot-photos-302.json の節（キー・規則・作業フォルダ・コマンド・戻し方）。契約書の H の表を、台帳の件数 692 を入れ、H-0（キャッシュと道具の確かめ）・H-1 の R2 のトークンのダッシュボードの押す所・H-7 と H-11 に「大きさ・送り方のエラーなら止めてリーダーに渡す」を足して直した。証跡は `.claude/harness/evidence/issue-302/`
+  - 📌 Expo Web の UI-1〜6 とシミュレータの UI-7〜10 は未（この worktree に `.env` が無く、実装の側では Expo を起こせない）。一時的な書き換えは `~/goshuin-work/spot-photos/temp-web-photos.patch`（`git apply` で入れ、`git checkout -- src/components/spot-detail/SpotBottomSheet.tsx` で戻す。型の検査は通る）。Expo は 8081 でなく 8088 などで起こす

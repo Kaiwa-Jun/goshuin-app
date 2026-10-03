@@ -1,0 +1,5 @@
+
+> goshuin-app@1.0.0 typecheck
+> tsc --noEmit
+
+tc exit=0

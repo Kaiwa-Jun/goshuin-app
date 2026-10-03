@@ -192,3 +192,108 @@ deno test -A --node-modules-dir=none supabase/scripts/spot-wikidata/
 - **Wikimedia Commons**: ライセンスはファイルごと（`license`・`licenseUrl`）。使うときは撮影者・ライセンス・元のページを出す（#302）
 - **OpenStreetMap**（ODbL）・**国土地理院**: 公開の2ファイルには入れない。画面のデータ（作業フォルダ）だけに置き、画面の地図には「出典: 国土地理院」を出す
 - これはリーダーの判断で、法的な確認ではない
+
+## spot-photos-302.json（地図のピンのシートの帯に出す寺社の写真の台帳）
+
+`spot-photos-301.json` の写真の候補から、帯に出す写真を 1 寺社 1 枚選んで承認したものだけを入れた**公開の台帳**。Issue #302 で作った。本番の表 `spot_photos` の中身は、ここから作る migration で入れる。写真そのものは R2（`goshuin-images` の `spot-photos/<sha1>.<jpg|png>`）に置き、アプリは `img.goshuinsanpo.com` の変換 URL（幅 1200・webp）で読む。
+
+- `supabase/scripts/spot-photos/main.ts export` で作る**生成物**。手で直さない（直すときは選ぶ画面で選び直して `export` する）
+- 入れるのは、寺社（`idx`・`name`・`prefecture`・`qid`・結びつきの確かさ）と、写真（ファイル名・`sha1`・R2 のキー・縦横・`focusY`）と、Commons の表示のままの撮影者・ライセンス・元のページだけ。**日付・選んだ人・外した寺社と理由・パスは入れない**（外した理由は作業フォルダの `choices.json` だけ）
+- 本番の SQL（`supabase/migrations/20261004010000_spot_photos_302_batch1.sql`・`supabase/validation/spot_photos_302_check.sql`）は台帳から `generate` で作る生成物。台帳を変えたら `generate` し直してコミットする
+- 契約書: [`docs/issues/issue-302-spot-photo-band.md`](../../docs/issues/issue-302-spot-photo-band.md)
+
+### いまの中身（第1弾・2026-10-04）
+
+| 項目                 | 数                                                                                                |
+| -------------------- | ------------------------------------------------------------------------------------------------- |
+| 候補                 | 733 寺社・755 ファイル（`high` 707・`medium` 26）                                                 |
+| 採った（台帳の行）   | **692**（`high` 670・`medium` 22）。全部 `batch: 1`・`status: approved`                           |
+| 外した               | 41（人が大きく写る 4・別の寺社や場所 7・寺社が写っていない 9・暗い/ぼけ/建物が小さい 15・ほか 6） |
+| `focusY` が 0.5 以外 | 28                                                                                                |
+| 縮小版を取った時間   | 1,433 秒（692 枚・277MB）                                                                         |
+| 生成した SQL         | migration 約 276KB・確かめる SQL 約 278KB                                                         |
+
+- `medium` で外したのは、#301 で誤りと分かった尾張猿田彦神社・円福寺と、Wikidata の項目がその寺社だと確かめきれない熊野皇大神社・尖閣神社
+- 同じファイルを持つ3組は、写真が写している寺社だけで採った（中尊寺金色堂・甲斐國一宮浅間神社・都農神社）
+
+### 候補の規則（契約書 D-5。`select.ts` の `screenFile`）
+
+次の全部を満たすファイルだけを候補にする。寺社は、候補のファイルが1つ以上あるもの。
+
+1. 横長（`width > height`）
+2. 幅 1280 以上（縮小版 1280 を作れる）
+3. ライセンスがあり、`GFDL` で始まらない（GFDL だけのファイルは全文の同梱が要る）
+4. `restrictions` が空（`personality`・`trademarked` を外す）
+5. `image/jpeg` か `image/png`
+6. 撮影者（`artist`）が無いなら、帰属の表示が要らないもの（`attributionRequired: false`）だけ
+
+`medium` の寺社は、選ぶ画面で「Wikidata の項目がこの寺社だと確かめた」（`linkChecked`）を付けないと採れない。1 ファイルは 1 寺社だけ（同じ `sha1` を別の寺社で採れない）。
+
+### 台帳のキー
+
+| キー                                              | 決まり                                                                         |
+| ------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `batch` / `idx`                                   | 弾（いまは 1）と seed の行の番号。`(batch, idx)` の順                          |
+| `name` / `prefecture` / `qid`                     | seed と対応表の値。本番では名前・都道府県・作成者なしで 1 行の `spots` に結ぶ  |
+| `linkConfidence` / `linkChecked`                  | 対応表の確かさと、`medium` を人が確かめたしるし（`medium` は true だけ）       |
+| `file` / `sha1`                                   | Commons のファイル名と、承認したときの元の写真の sha1                          |
+| `r2Key`                                           | `spot-photos/<sha1>.jpg`（PNG は `.png`）                                      |
+| `width` / `height`                                | 元の写真の縦横（縦横比にだけ使う）                                             |
+| `focusY`                                          | 見せたい所の縦の位置（0〜1・小数2桁まで）                                      |
+| `author` / `license` / `licenseUrl` / `sourceUrl` | Commons の表示のまま（`author` が null は Public domain・CC0。帯では「不明」） |
+| `isCropped`                                       | いつも true（帯に合わせて切る）                                                |
+| `status`                                          | `approved` か `withdrawn`（外すときは行を消さずに `withdrawn` にする）         |
+
+### 作業フォルダ `~/goshuin-work/spot-photos`
+
+リポジトリの外。`--work` で変えられる。
+
+- `review/candidates.json`: 選ぶ画面のデータ（`candidates` で作る）
+- `review/choices.json`: 選んだ途中と外した理由（選ぶたびに保存。閉じても続きから）
+- `cache/<sha1>.<jpg|png>`・`cache/<sha1>.json`: Commons の縮小版（幅 1280）と、取ったときの API の値（連絡先・時刻は入れない）。`upload` はここだけを読む
+- `review-sheets/`: S6 で全部を見た一覧の画像と、決めた控え（`decisions.txt`）
+
+### コマンド
+
+リポジトリの直下で打つ。`--node-modules-dir=none` が要る。
+
+```sh
+# 候補を作る（ネットに出ない）→ 作業フォルダの review/candidates.json
+deno run -A --node-modules-dir=none supabase/scripts/spot-photos/main.ts candidates
+# 選ぶ画面（127.0.0.1 だけ。既定のポートは 8302）
+deno run -A --node-modules-dir=none supabase/scripts/spot-photos/main.ts serve [--port 8302]
+# 決めた数・まだの数・採った数（high / medium）と、外した理由ごとの数
+deno run -A --node-modules-dir=none supabase/scripts/spot-photos/main.ts status
+# 採ったものを台帳に書く（まだがあっても書けるが、標準エラーに数を出す）
+deno run -A --node-modules-dir=none supabase/scripts/spot-photos/main.ts export
+# 台帳の写真の縮小版を Commons から取る（実装する人）→ 作業フォルダの cache/
+SPOT_WIKIDATA_CONTACT=<連絡先> deno run -A --node-modules-dir=none supabase/scripts/spot-photos/main.ts fetch
+# R2 に置く（オーナー。R2_ACCOUNT_ID・R2_ACCESS_KEY_ID・R2_SECRET_ACCESS_KEY が要る）。upload --dry-run は数えるだけ
+deno run -A --node-modules-dir=none supabase/scripts/spot-photos/main.ts upload --dry-run
+deno run -A --node-modules-dir=none supabase/scripts/spot-photos/main.ts upload
+# 置いた写真が独自ドメインで読めるか（鍵は要らない。変換を使わない）
+deno run -A --node-modules-dir=none supabase/scripts/spot-photos/main.ts verify
+# 台帳から本番の migration と確かめる SQL を作る。generate --check は書かずに比べ、違えば終了コード 1
+deno run -A --node-modules-dir=none supabase/scripts/spot-photos/main.ts generate [--check]
+```
+
+- `SPOT_WIKIDATA_CONTACT`: Commons の User-Agent（`goshuin-spot-photos/1 (<連絡先>)`）に入れる連絡先（公開のリポジトリの URL）。**既定の値は無い**。流すときだけ環境変数で渡し、コミットしない
+- R2 の鍵は、オーナーが自分のターミナルで `read -rs` で入れる（会話・履歴・リポジトリに残さない）。`goshuin-images` だけに書ける短い期限のトークンを作り、終わったら消す。`upload` は `spot-photos/` の外のキーを作ろうとしたら何も置かずに止め、消すことはしない
+- 間隔: Commons は1度に1つで、前の呼び出しの終わりから 1,000ms あける。imageinfo は 50 件ずつ・`maxlag=5`。429・5xx で止まる（同じコマンドで続きから）
+- 本番への入れ方（オーナー）は契約書の「本番」の表（H-0〜H-15）。`db push` は使えない
+
+テスト（ネットに出ない。本物の台帳の検査は `data_test.ts`）:
+
+```sh
+deno test -A --node-modules-dir=none supabase/scripts/spot-photos/
+```
+
+### 戻すとき
+
+- 1 寺社を出さなくする: 台帳のその行を `status: "withdrawn"` にして `generate` し直し、コミットしてから、同じ migration をもう一度 `supabase db query --linked -f` で流す（upsert なので上書き。行は消さず、RLS で見えなくなる）
+- 全部をやめる: `UPDATE public.spot_photos SET status = 'withdrawn';`（アプリは写真の無い帯に戻る）。R2 の `spot-photos/` は残してよい
+
+### 出典
+
+- **Wikimedia Commons**: ライセンスは写真ごと（`license`・`licenseUrl`）。帯の左下の ⓘ で、撮影者・ライセンス（リンク）・元のページ（リンク）・トリミングの注記を出す
+- これはリーダーの判断で、法的な確認ではない

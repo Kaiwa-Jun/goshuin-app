@@ -220,6 +220,12 @@
       "title": "地図のピンのシートの上部に「場所の顔」の帯を足す（第1段: 写真なし・空押しの印と自分の御朱印）",
       "note": "契約書 docs/issues/issue-293-spot-sheet-hero.md・承認試作 docs/design/mockups/2026-09-spot-sheet-hero-v2.html（案B ＋ 案い 空押し）。半分は帯 80pt・大きくで 208pt、行っていない寺社は色の無い鳥居・お堂の印、行った寺社は右に自分の御朱印のページ（回数ぶん重なる）、記録した瞬間に朱が乗ってページに替わる。地図に戻るたびに訪問済みとシートの記録を取り直す（useFocusEffect）。半分の上限 380→410。goshuin-evaluator PASS。未確認: iPhone SE（UI-12）・実際に記録しての瞬間（UI-14）・オーナーの実機。**1.2.0 の公開のあとにマージ**（10月のビルドに入れないため）。",
       "passes": true
+    },
+    {
+      "id": "ISSUE-302",
+      "title": "地図のピンのシートの帯に寺社の写真を出す（#293 第2段・Wikimedia Commons → R2 → spot_photos）",
+      "note": "契約書 docs/issues/issue-302-spot-photo-band.md・試作 preview/302-photo-band（オーナーが実機で OK）。表 spot_photos（RLS で承認済みだけ読める）・選ぶ画面（supabase/scripts/spot-photos/）・台帳 supabase/data/spot-photos-302.json（692 寺社。high 670・medium 22）・本番の SQL（migration 約 276KB）。帯に写真の地・写真に挟むページ・白いつまみ・ⓘ の吹き出し。#295 の上に積む。未: Expo Web UI-1〜6（.env が要るのでリーダー）・シミュレータ UI-7〜10・H（オーナー）・AC-39 の抜き取り（evaluator）。passes は evaluator の PASS のあとでリーダーが付ける。",
+      "passes": false
     }
   ]
 }
