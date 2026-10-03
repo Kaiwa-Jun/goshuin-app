@@ -3,16 +3,21 @@
 // 契約書: docs/issues/issue-302-spot-photo-band.md（S2 / AC-7〜AC-10）
 import { assert, assertEquals, assertStringIncludes, assertThrows } from 'jsr:@std/assert@1';
 
-import { SEED_FILES } from '../spot-coords/coords.ts';
 import {
   type PhotoFile,
   type Photos,
-  parseMapping,
   parsePhotos,
-  readSeedRows,
   type SeedRow,
   serializeJson,
 } from '../spot-wikidata/match.ts';
+import {
+  fixtureLedgerJson,
+  fixturePhotos,
+  readFixture,
+  readRepo,
+  realMapping,
+  realSeedRows,
+} from './fixtures/load.ts';
 import {
   buildCandidates,
   CHECK_SQL_PATH,
@@ -27,25 +32,6 @@ import {
   r2KeyOf,
   screenFile,
 } from './select.ts';
-
-const REPO = new URL('../../../', import.meta.url);
-const readRepo = (rel: string) => Deno.readTextFile(new URL(rel, REPO));
-const readFixture = (name: string) =>
-  Deno.readTextFile(new URL(`./fixtures/${name}`, import.meta.url));
-
-export async function realSeedRows(): Promise<SeedRow[]> {
-  return readSeedRows(
-    await Promise.all(SEED_FILES.map(async path => ({ path, text: await readRepo(path) })))
-  );
-}
-
-async function realMapping() {
-  return parseMapping(await readRepo('supabase/data/spot-wikidata-301.json'));
-}
-
-export async function fixturePhotos(): Promise<Photos> {
-  return parsePhotos(await readFixture('photos-301.json'), await realMapping());
-}
 
 /** フィクスチャの寺社の1つ目（またはファイル名の）ファイル */
 function fileOf(photos: Photos, name: string, file?: string): PhotoFile {
@@ -259,11 +245,7 @@ Deno.test('AC-9: r2KeyOf は spot-photos/<sha1>.jpg、PNG は .png', () => {
 
 // --- AC-10: 台帳の検査 ---
 
-async function fixtureLedger(): Promise<
-  Record<string, unknown> & { entries: Record<string, unknown>[] }
-> {
-  return JSON.parse(await readFixture('ledger-302.json'));
-}
+const fixtureLedger = fixtureLedgerJson;
 
 Deno.test('AC-10: 正しい台帳は通り、3 行を (batch, idx) の順に返す', async () => {
   const ledger = parseLedger302(await fixtureLedger(), await fixturePhotos(), await realSeedRows());

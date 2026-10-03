@@ -1,0 +1,268 @@
+// 帯の写真（Issue #302）の CLI。候補を作り、選ぶ画面を立て、採ったものを台帳に書く。
+//
+//   deno run -A --node-modules-dir=none supabase/scripts/spot-photos/main.ts candidates [--root <dir>] [--work <dir>]
+//   deno run -A --node-modules-dir=none supabase/scripts/spot-photos/main.ts serve [--port 8302] [--work <dir>]
+//   deno run -A --node-modules-dir=none supabase/scripts/spot-photos/main.ts status [--work <dir>]
+//   deno run -A --node-modules-dir=none supabase/scripts/spot-photos/main.ts export [--root <dir>] [--work <dir>]
+//
+// --root の既定はカレントディレクトリ（リポジトリの直下で打つ）、--work の既定は $HOME/goshuin-work/spot-photos。
+// エラーは標準エラーに、寺社の名前・都道府県か無いファイルの名前を含めて出し、終了コード 1。
+// 契約書: docs/issues/issue-302-spot-photo-band.md（D-1・D-7・「CLI」）
+import { SEED_FILES } from '../spot-coords/coords.ts';
+import {
+  MAPPING_PATH,
+  parseMapping,
+  parsePhotos,
+  type Photos,
+  PHOTOS_PATH,
+  readSeedRows,
+  type SeedRow,
+  serializeJson,
+} from '../spot-wikidata/match.ts';
+import {
+  buildCandidates,
+  buildLedger,
+  type Candidates,
+  type Choice,
+  LEDGER_PATH,
+  parseChoices,
+  REJECT_REASONS,
+} from './select.ts';
+import {
+  CANDIDATES_FILE,
+  CHOICES_FILE,
+  DEFAULT_PORT,
+  loadCandidates,
+  startServer,
+} from './server.ts';
+
+export interface CliIo {
+  /** 無いときは null */
+  readTextFile(path: string): Promise<string | null>;
+  /** 親のフォルダも作る */
+  writeTextFile(path: string, text: string): Promise<void>;
+  stdout(text: string): void;
+  stderr(text: string): void;
+  env(name: string): string | undefined;
+}
+
+export interface Args {
+  command: string;
+  root: string;
+  work: string | null;
+  port?: number;
+}
+
+const VALUE_FLAGS = ['--root', '--work', '--port'];
+
+function parseArgs(argv: string[]): Args {
+  const [command, ...rest] = argv;
+  const a: Args = { command: command ?? '', root: '.', work: null };
+  for (let i = 0; i < rest.length; i++) {
+    const arg = rest[i];
+    if (VALUE_FLAGS.includes(arg)) {
+      const v = rest[++i];
+      if (v === undefined) throw new Error(`${arg} の値が無い`);
+      if (arg === '--root') a.root = v;
+      else if (arg === '--work') a.work = v;
+      else {
+        const n = Number(v);
+        if (!Number.isInteger(n) || n < 1) throw new Error(`${arg} は 1 以上の整数: ${v}`);
+        a.port = n;
+      }
+    } else throw new Error(`知らない引数: ${arg}`);
+  }
+  return a;
+}
+
+export function joinPath(root: string, rel: string): string {
+  return `${root.replace(/\/+$/, '')}/${rel}`;
+}
+
+export function workDir(io: CliIo, a: Args): string {
+  if (a.work) return a.work.replace(/\/+$/, '');
+  const home = io.env('HOME');
+  if (!home) throw new Error('HOME が無い。--work で作業フォルダを渡す');
+  return `${home}/goshuin-work/spot-photos`;
+}
+
+export async function readRequired(io: CliIo, path: string): Promise<string> {
+  const text = await io.readTextFile(path);
+  if (text === null) throw new Error(`ファイルが無い: ${path}`);
+  return text;
+}
+
+export async function loadSeedRows(io: CliIo, root: string): Promise<SeedRow[]> {
+  const files = [];
+  for (const path of SEED_FILES) {
+    files.push({ path, text: await readRequired(io, joinPath(root, path)) });
+  }
+  return readSeedRows(files);
+}
+
+/** #301 の写真の候補（対応表と食い違わないかも見る）と seed */
+async function loadSources(
+  io: CliIo,
+  root: string
+): Promise<{ photos: Photos; candidates: Candidates; rows: SeedRow[] }> {
+  const photosText = await readRequired(io, joinPath(root, PHOTOS_PATH));
+  const mapping = parseMapping(await readRequired(io, joinPath(root, MAPPING_PATH)));
+  const photos = parsePhotos(photosText, mapping);
+  const rows = await loadSeedRows(io, root);
+  return { photos, candidates: buildCandidates(photos, mapping, rows), rows };
+}
+
+async function readCandidates(io: CliIo, work: string): Promise<Candidates> {
+  const path = `${work}/review/${CANDIDATES_FILE}`;
+  const text = await io.readTextFile(path);
+  if (text === null)
+    throw new Error(`${CANDIDATES_FILE} が無い: ${path}（先に candidates を打つ）`);
+  return JSON.parse(text) as Candidates;
+}
+
+async function readChoices(io: CliIo, work: string, candidates: Candidates): Promise<Choice[]> {
+  const text = await io.readTextFile(`${work}/review/${CHOICES_FILE}`);
+  return text === null ? [] : parseChoices(text, candidates);
+}
+
+// --- candidates ---
+
+async function candidatesCommand(io: CliIo, a: Args): Promise<number> {
+  const { candidates } = await loadSources(io, a.root);
+  const path = `${workDir(io, a)}/review/${CANDIDATES_FILE}`;
+  await io.writeTextFile(path, serializeJson(candidates));
+  const c = candidates.counts;
+  io.stdout(
+    `${path} を書いた（${c.spots} 寺社・${c.files} ファイル。high ${c.high}・medium ${c.medium}）\n`
+  );
+  return 0;
+}
+
+// --- status ---
+
+export function statusText(candidates: Candidates, choices: Choice[]): string {
+  const conf = new Map(candidates.entries.map(e => [e.idx, e.linkConfidence]));
+  const mine = choices.filter(c => conf.has(c.idx));
+  const approved = mine.filter(c => c.decision === 'approve');
+  const rejected = mine.filter(c => c.decision === 'reject');
+  const high = approved.filter(c => conf.get(c.idx) === 'high').length;
+  const total = candidates.entries.length;
+  const reasons = REJECT_REASONS.map(
+    r => `${r} ${rejected.filter(c => c.decision === 'reject' && c.reason === r).length}`
+  );
+  return [
+    `決めた ${mine.length} / ${total}・採る ${approved.length}（high ${high}・medium ${approved.length - high}）・外す ${rejected.length}・まだ ${total - mine.length}`,
+    `外した理由: ${reasons.join('・')}`,
+    '',
+  ].join('\n');
+}
+
+async function status(io: CliIo, a: Args): Promise<number> {
+  const work = workDir(io, a);
+  const candidates = await readCandidates(io, work);
+  io.stdout(statusText(candidates, await readChoices(io, work, candidates)));
+  return 0;
+}
+
+// --- export ---
+
+async function exportCommand(io: CliIo, a: Args): Promise<number> {
+  const { photos, candidates, rows } = await loadSources(io, a.root);
+  const work = workDir(io, a);
+  // 画面のデータと、いまの #301・規則から作った候補が同じでなければ、選んだものは信じない
+  const saved = await readCandidates(io, work);
+  if (JSON.stringify(saved) !== JSON.stringify(candidates)) {
+    throw new Error(
+      `${work}/review/${CANDIDATES_FILE} が、いまの #301 から作る候補と違う（candidates を打ち直して選び直す）`
+    );
+  }
+  const choices = await readChoices(io, work, candidates);
+  const ledger = buildLedger(choices, photos, rows);
+  if (ledger.entries.length === 0) throw new Error('採ったものが無い（台帳は書かない）');
+  const path = joinPath(a.root, LEDGER_PATH);
+  await io.writeTextFile(path, serializeJson(ledger));
+  const pending = candidates.entries.length - choices.length;
+  if (pending > 0) io.stderr(`まだ ${pending} 件（決めていない寺社は台帳に入らない）\n`);
+  const medium = ledger.entries.filter(e => e.linkConfidence === 'medium').length;
+  io.stdout(
+    `${LEDGER_PATH} を書いた（採る ${ledger.entries.length} 件。high ${ledger.entries.length - medium}・medium ${medium}）\n`
+  );
+  return 0;
+}
+
+// --- serve ---
+
+async function serve(io: CliIo, a: Args): Promise<number> {
+  const work = workDir(io, a);
+  await loadCandidates(work);
+  const server = await startServer({
+    work,
+    port: a.port ?? DEFAULT_PORT,
+    onListen: (port, count) => io.stdout(`http://127.0.0.1:${port}/ で開けます（${count} 寺社）\n`),
+  });
+  await server.finished;
+  return 0;
+}
+
+// --- 入口 ---
+
+export type Command = (io: CliIo, a: Args) => Promise<number>;
+
+const COMMANDS: Record<string, Command> = {
+  candidates: candidatesCommand,
+  serve,
+  status,
+  export: exportCommand,
+};
+
+export async function runCli(argv: string[], io: CliIo): Promise<number> {
+  try {
+    const a = parseArgs(argv);
+    const command = COMMANDS[a.command];
+    if (!command) {
+      throw new Error(`サブコマンドは ${Object.keys(COMMANDS).join(' / ')} のどれか: ${a.command}`);
+    }
+    return await command(io, a);
+  } catch (e) {
+    io.stderr(`エラー: ${(e as Error).message}\n`);
+    return 1;
+  }
+}
+
+function writeAll(w: { writeSync(p: Uint8Array): number }, text: string): void {
+  const data = new TextEncoder().encode(text);
+  let off = 0;
+  while (off < data.length) off += w.writeSync(data.subarray(off));
+}
+
+async function ensureDir(path: string): Promise<void> {
+  const dir = path.slice(0, path.lastIndexOf('/'));
+  if (dir) await Deno.mkdir(dir, { recursive: true });
+}
+
+export function denoIo(): CliIo {
+  return {
+    readTextFile: async path => {
+      try {
+        return await Deno.readTextFile(path);
+      } catch (e) {
+        if (e instanceof Deno.errors.NotFound) return null;
+        throw e;
+      }
+    },
+    writeTextFile: async (path, text) => {
+      await ensureDir(path);
+      // 途中で止まっても半端なファイルを残さない
+      const tmp = `${path}.tmp-${crypto.randomUUID()}`;
+      await Deno.writeTextFile(tmp, text);
+      await Deno.rename(tmp, path);
+    },
+    stdout: text => writeAll(Deno.stdout, text),
+    stderr: text => writeAll(Deno.stderr, text),
+    env: name => Deno.env.get(name),
+  };
+}
+
+if (import.meta.main) {
+  Deno.exit(await runCli(Deno.args, denoIo()));
+}

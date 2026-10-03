@@ -381,3 +381,122 @@ export function parseLedger302(json: unknown, photos: Photos, rows: SeedRow[]): 
     entries,
   };
 }
+
+// --- D-7: 選ぶ画面の1件（choices.json） ---
+
+/** 外した理由（人が大きく写る・別の寺社や場所・寺社が写っていない・暗い/ぼけ/傾き・そのほか） */
+export const REJECT_REASONS = ['person', 'other-place', 'not-spot', 'quality', 'other'] as const;
+export type RejectReason = (typeof REJECT_REASONS)[number];
+
+export type Choice =
+  | { idx: number; decision: 'approve'; file: string; focusY: number; linkChecked: boolean }
+  | { idx: number; decision: 'reject'; reason: RejectReason };
+
+const CHOICE_KEYS = ['idx', 'decision', 'file', 'focusY', 'linkChecked', 'reason'];
+
+/**
+ * 選ぶ画面から届いた1件を確かめる（サーバーが保存する前と export）。others は保存してある分で、
+ * 同じ idx の行は置き換えるので見ない。だめなら寺社の名前を含む文で止める
+ */
+export function parseChoice(body: unknown, candidates: Candidates, others: Choice[]): Choice {
+  if (!isObject(body)) throw new Error('選んだ1件がオブジェクトでない');
+  const entry = candidates.entries.find(e => e.idx === body.idx);
+  if (!entry) throw new Error(`idx ${String(body.idx)} は候補の寺社ではない`);
+  const who = label(entry);
+  const extra = Object.keys(body).filter(k => !CHOICE_KEYS.includes(k));
+  if (extra.length > 0) throw new Error(`${who}: 知らないキー ${extra.join(', ')}`);
+
+  if (body.decision === 'reject') {
+    if (!REJECT_REASONS.includes(body.reason as RejectReason)) {
+      throw new Error(
+        `${who}: 外す理由が ${REJECT_REASONS.join(' / ')} のどれでもない: ${String(body.reason)}`
+      );
+    }
+    return { idx: entry.idx, decision: 'reject', reason: body.reason as RejectReason };
+  }
+  if (body.decision !== 'approve') {
+    throw new Error(`${who}: decision が approve / reject でない: ${String(body.decision)}`);
+  }
+  const file = entry.files.find(f => f.file === body.file);
+  if (!file) throw new Error(`${who}: ${String(body.file)} はこの寺社の候補のファイルではない`);
+  if (!isFocusY(body.focusY)) {
+    throw new Error(`${who}: focusY が 0〜1 で小数2桁までの数でない: ${String(body.focusY)}`);
+  }
+  if (body.linkChecked !== undefined && typeof body.linkChecked !== 'boolean') {
+    throw new Error(`${who}: linkChecked が真偽でない`);
+  }
+  const linkChecked = body.linkChecked === true;
+  if (entry.linkConfidence === 'medium' && !linkChecked) {
+    throw new Error(
+      `${who}: 結びつきが「中」なので、Wikidata の項目がこの寺社だと確かめてから採る`
+    );
+  }
+  for (const o of others) {
+    if (o.idx === entry.idx || o.decision !== 'approve') continue;
+    const other = candidates.entries.find(e => e.idx === o.idx);
+    const sha1 = other?.files.find(f => f.file === o.file)?.sha1;
+    if (other && sha1 === file.sha1) {
+      throw new Error(`${who}: このファイルは ${label(other)} で採っている（1 ファイル 1 寺社）`);
+    }
+  }
+  return { idx: entry.idx, decision: 'approve', file: file.file, focusY: body.focusY, linkChecked };
+}
+
+/** choices.json の全部を確かめる（idx の順・1 idx 1 行）。だめなら寺社の名前で止める */
+export function parseChoices(json: unknown, candidates: Candidates): Choice[] {
+  const raw = typeof json === 'string' ? JSON.parse(json) : json;
+  if (!isObject(raw) || !Array.isArray(raw.choices))
+    throw new Error('choices.json に choices が無い');
+  const out: Choice[] = [];
+  for (const c of raw.choices) {
+    if (isObject(c) && out.some(o => o.idx === c.idx)) {
+      throw new Error(`idx ${String(c.idx)} が choices.json に2行ある`);
+    }
+    out.push(parseChoice(c, candidates, out));
+  }
+  return out.sort((a, b) => a.idx - b.idx);
+}
+
+/** 1 回目の承認の弾 */
+export const BATCH = 1;
+
+/** 採った寺社だけを台帳にする（(batch, idx) の順）。#301 の値をそのまま写し、parseLedger302 を通す */
+export function buildLedger(choices: Choice[], photos: Photos, rows: SeedRow[]): Ledger302 {
+  const byIdx = new Map(photos.entries.map(p => [p.idx, p]));
+  const entries: LedgerEntry302[] = [];
+  for (const c of [...choices].sort((a, b) => a.idx - b.idx)) {
+    if (c.decision !== 'approve') continue;
+    const p = byIdx.get(c.idx);
+    const f = p?.files.find(x => x.file === c.file);
+    if (!p || !f) throw new Error(`idx ${c.idx}: #301 の写真の候補に ${c.file} が無い`);
+    entries.push({
+      batch: BATCH,
+      idx: p.idx,
+      name: p.name,
+      prefecture: p.prefecture,
+      qid: p.qid,
+      linkConfidence: p.linkConfidence,
+      linkChecked: c.linkChecked,
+      file: f.file,
+      sha1: f.sha1,
+      r2Key: r2KeyOf(f),
+      width: f.width,
+      height: f.height,
+      focusY: c.focusY,
+      author: f.artist,
+      license: f.license as string,
+      licenseUrl: f.licenseUrl,
+      sourceUrl: f.descriptionUrl,
+      isCropped: true,
+      status: 'approved',
+    });
+  }
+  const ledger: Ledger302 = {
+    schemaVersion: 1,
+    issue: 302,
+    note: LEDGER_NOTE,
+    attribution: LEDGER_ATTRIBUTION,
+    entries,
+  };
+  return parseLedger302(ledger, photos, rows);
+}
