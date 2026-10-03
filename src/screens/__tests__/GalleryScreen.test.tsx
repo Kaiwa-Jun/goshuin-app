@@ -21,6 +21,7 @@ import {
 import { computePageLayout } from '@components/gallery/GoshuinchoFlipView';
 import { ViewModeToggle } from '@components/gallery/ViewModeToggle';
 import { ImageGalleryModal } from '@components/common/ImageGalleryModal';
+import { EditStampModal } from '@components/stamp-detail/EditStampModal';
 import { colors } from '@theme/colors';
 import { spacing } from '@theme/spacing';
 import { typography } from '@theme/typography';
@@ -333,6 +334,33 @@ describe('GalleryScreen', () => {
 
     expect(getByTestId('gallery-image').props.source.uri).toBe(
       'https://example.com/user-1/old.jpg'
+    );
+  });
+
+  /*
+   * 編集の今の写真は、全画面と同じ R2 の 1200（全画面で読み込み済みなので通信が増えない）。
+   * R2 に無ければ元の写真に落とす（#227 S4a-2 AC-28）
+   */
+  it('編集を開くと、今の写真は大きい方の URL で、落とす先は元の写真', async () => {
+    mockUseGalleryStamps.mockReturnValue({
+      stamps: [makeStamp({ id: 'stamp-abc', image_path: 'user-1/a.jpg' })],
+      totalCount: 1,
+      isLoading: false,
+      error: null,
+      removeStamp: jest.fn(),
+      updateStamp: jest.fn(),
+    });
+    const utils = renderGalleryScreenInGrid();
+    fireEvent.press(utils.getByTestId('gallery-item-stamp-abc'));
+    await waitFor(() => expect(utils.getByTestId('gallery-image')).toBeTruthy());
+
+    act(() => utils.UNSAFE_getByType(ImageGalleryModal).props.onEdit(0));
+
+    expect(utils.UNSAFE_getByType(EditStampModal).props).toEqual(
+      expect.objectContaining({
+        initialImageUrl: 'https://example.com/cdn-cgi/image/width=1200/user-1/a.jpg',
+        initialImageFallbackUrl: 'https://example.com/user-1/a.jpg',
+      })
     );
   });
 

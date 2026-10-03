@@ -830,7 +830,9 @@ export function GalleryScreen({ navigation }: Props) {
               isUpdating={isUpdating}
               initialVisitedAt={currentStamp.visited_at}
               initialMemo={currentStamp.memo}
-              initialImageUrl={getStampImageUrl(currentStamp.image_path)}
+              // 全画面と同じ R2 の 1200（読み込み済み）。R2 に無ければ元の写真（Issue #227 S4a-2）
+              initialImageUrl={getStampViewUrl(currentStamp.image_path)}
+              initialImageFallbackUrl={getStampImageUrl(currentStamp.image_path)}
             />
             <DeleteConfirmModal
               visible={deleteModalVisible}
