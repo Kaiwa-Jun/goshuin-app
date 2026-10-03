@@ -1,0 +1,80 @@
+{
+  "issue": 292,
+  "from": "spot-wikidata review (#301)",
+  "exported_at": "2026-10-03T07:42:52.596Z",
+  "count": 4,
+  "items": [
+    {
+      "idx": 1,
+      "name": "北海道神宮",
+      "prefecture": "北海道",
+      "file": "supabase/seeds/01_hokkaido_tohoku.sql",
+      "line": 10,
+      "verdict": "suggest",
+      "seed": {
+        "lat": 43.0544,
+        "lng": 141.3094
+      },
+      "choice": "wd",
+      "lat": 43.061595,
+      "lng": 141.3094,
+      "ref": "Q999000001",
+      "note": "",
+      "chosen_at": "2026-10-03T07:42:14.707Z"
+    },
+    {
+      "idx": 90,
+      "name": "慈恩寺",
+      "prefecture": "山形県",
+      "file": "supabase/seeds/01_hokkaido_tohoku.sql",
+      "line": 224,
+      "verdict": "suggest",
+      "seed": {
+        "lat": 38.4103,
+        "lng": 140.2509
+      },
+      "choice": "seed",
+      "lat": 38.4103,
+      "lng": 140.2509,
+      "ref": null,
+      "note": "",
+      "chosen_at": "2026-10-03T07:42:16.813Z"
+    },
+    {
+      "idx": 181,
+      "name": "武蔵一宮氷川神社",
+      "prefecture": "埼玉県",
+      "file": "supabase/seeds/02_kanto.sql",
+      "line": 155,
+      "verdict": "suggest",
+      "seed": {
+        "lat": 35.9168,
+        "lng": 139.6297
+      },
+      "choice": "custom",
+      "lat": 35.915372,
+      "lng": 139.632705,
+      "ref": null,
+      "note": "",
+      "chosen_at": "2026-10-03T07:42:33.492Z"
+    },
+    {
+      "idx": 342,
+      "name": "諏訪大社上社本宮",
+      "prefecture": "長野県",
+      "file": "supabase/seeds/03_chubu.sql",
+      "line": 253,
+      "verdict": "owner",
+      "seed": {
+        "lat": 35.9982,
+        "lng": 138.1195
+      },
+      "choice": "seed",
+      "lat": 35.9982,
+      "lng": 138.1195,
+      "ref": null,
+      "note": "",
+      "chosen_at": "2026-10-03T07:42:42.345Z"
+    }
+  ]
+}
