@@ -1,9 +1,10 @@
 import React from 'react';
-import { Dimensions, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
+import { FallbackImage } from '@components/common/FallbackImage';
 import type { GalleryImage } from '@components/common/ImageGalleryModal';
 
-import { getStampImageUrl } from '@services/stamps';
+import { getStampImageUrl, getStampThumbUrl, getStampViewUrl } from '@services/stamps';
 import type { Stamp, PublicStampWithUser } from '@/types/supabase';
 import { colors } from '@theme/colors';
 import { spacing, borderRadius } from '@theme/spacing';
@@ -41,7 +42,8 @@ export function selectSheetThumbnails(
 
 /**
  * シートのギャラリーに渡す画像の列。自分の記録 → 公開の順、id で重複排除（帯と同じ順なので、
- * 帯の i 枚目を押したら i 番目から開ける。Issue #253）
+ * 帯の i 枚目を押したら i 番目から開ける。Issue #253）。
+ * 全画面は R2 の 1200 で、R2 に無ければ元の写真に落ちる（Issue #227 S4a-2）
  */
 export function buildSpotGalleryImages(
   stamps: Stamp[],
@@ -54,7 +56,8 @@ export function buildSpotGalleryImages(
     seen.add(s.id);
     images.push({
       id: s.id,
-      imageUrl: getStampImageUrl(s.image_path),
+      imageUrl: getStampViewUrl(s.image_path),
+      fallbackUrl: getStampImageUrl(s.image_path),
       memo: s.memo,
       visitedAt: s.visited_at,
     });
@@ -64,7 +67,8 @@ export function buildSpotGalleryImages(
     seen.add(ps.id);
     images.push({
       id: ps.id,
-      imageUrl: getStampImageUrl(ps.image_path),
+      imageUrl: getStampViewUrl(ps.image_path),
+      fallbackUrl: getStampImageUrl(ps.image_path),
       userName: ps.profiles?.display_name,
       memo: ps.memo,
       visitedAt: ps.visited_at,
@@ -107,7 +111,13 @@ export function SpotThumbnailStrip({
           activeOpacity={0.7}
           testID={`spot-thumbnail-${index}`}
         >
-          <Image source={{ uri: getStampImageUrl(thumbnail.imagePath) }} style={styles.image} />
+          {/* 帯は一覧のタイルと同じ大きさなので R2 の 400。R2 に無ければ元の写真（Issue #227 S4a-2） */}
+          <FallbackImage
+            uri={getStampThumbUrl(thumbnail.imagePath)}
+            fallbackUri={getStampImageUrl(thumbnail.imagePath)}
+            style={styles.image}
+            testID={`spot-thumbnail-image-${index}`}
+          />
           {more > 0 && index === thumbnails.length - 1 && (
             <View style={styles.more} testID="spot-thumbnail-more">
               <View style={styles.moreShade} />
