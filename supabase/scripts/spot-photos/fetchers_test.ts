@@ -44,6 +44,8 @@ interface CommonsFile {
   thumbwidth?: number;
   /** 縮小版の URL（既定は upload.wikimedia.org） */
   thumburl?: string;
+  /** 縮小版を取りに来たら、このURLへ 302 を返す（リダイレクトの確かめ） */
+  redirectTo?: string;
   /** 縮小版の中身（既定は mime の頭） */
   body?: Uint8Array<ArrayBuffer>;
 }
@@ -51,8 +53,17 @@ interface CommonsFile {
 /** 偽の Commons（api.php と upload.wikimedia.org の縮小版） */
 function fakeCommons(files: Record<string, CommonsFile>, clock = fakeClock()) {
   const calls: Call[] = [];
+  /** 本物の fetch と同じく、redirect が manual でなければ 3xx の Location へついて行く */
   const fetch = async (input: Request | string, init?: RequestInit): Promise<Response> => {
     const req = input instanceof Request ? input : new Request(input, init);
+    const res = await answer(req);
+    const location = res.headers.get('location');
+    if (res.status >= 300 && res.status < 400 && location && req.redirect !== 'manual') {
+      return await fetch(location, { headers: req.headers });
+    }
+    return res;
+  };
+  const answer = async (req: Request): Promise<Response> => {
     const start = clock.now();
     clock.tick(50);
     const call: Call = {
@@ -103,8 +114,12 @@ function fakeCommons(files: Record<string, CommonsFile>, clock = fakeClock()) {
       );
       const f = files[key.replaceAll('_', ' ')];
       if (!f) return new Response('nope', { status: 404 });
+      if (f.redirectTo) {
+        return new Response(null, { status: 302, headers: { location: f.redirectTo } });
+      }
       return new Response(f.body ?? (f.mime === 'image/png' ? PNG : JPEG));
     }
+    if (url.host === 'evil.example') return new Response(JPEG);
     return new Response('unexpected', { status: 500 });
   };
   return { fetch, calls, clock };
@@ -675,3 +690,57 @@ Deno.test(
     }
   }
 );
+
+Deno.test(
+  'AC-20: 縮小版が別のホストへ 302 を返しても、ついて行かずに名前を出す（ほかは保存する）',
+  async () => {
+    const work = await Deno.makeTempDir({ prefix: 'spot-photos-fetch-' });
+    try {
+      const entries = manyEntries(2);
+      const files = commonsFilesOf(entries);
+      files['Test 2.jpg'] = { ...files['Test 2.jpg'], redirectTo: 'https://evil.example/x.jpg' };
+      const c = fakeCommons(files);
+      const { io, err } = captured({ fetch: c.fetch, now: c.clock.now, sleep: c.clock.sleep });
+      const result = await fetchPhotos(entries, { io, work, contact: CONTACT });
+      assertEquals(
+        c.calls.filter(x => x.url.startsWith('https://evil.example/')),
+        []
+      );
+      assertEquals(result.saved, 1);
+      assertEquals(result.failed, ['テスト寺2（静岡県）']);
+      assertStringIncludes(err(), '302');
+      const exists = await Deno.stat(cachePaths(work, entries[1]).image).then(
+        () => true,
+        () => false
+      );
+      assertEquals(exists, false);
+    } finally {
+      await Deno.remove(work, { recursive: true });
+    }
+  }
+);
+
+Deno.test('AC-22: verify もリダイレクトについて行かない（3xx は 200 と数えない）', async () => {
+  const entries = manyEntries(2);
+  const seen: string[] = [];
+  const fetch = (input: Request | string, init?: RequestInit) => {
+    const req = input instanceof Request ? input : new Request(input, init);
+    seen.push(`${req.redirect} ${req.url}`);
+    if (req.url.endsWith(entries[1].r2Key)) {
+      return Promise.resolve(
+        req.redirect === 'manual'
+          ? new Response(null, { status: 302, headers: { location: 'https://evil.example/' } })
+          : new Response(null, { status: 200 })
+      );
+    }
+    return Promise.resolve(new Response(null, { status: 200 }));
+  };
+  const r = captured({ fetch });
+  assertEquals(await verifyPhotos(entries, { io: r.io }), 1);
+  assertStringIncludes(r.out(), '1/2 件 200');
+  assertStringIncludes(r.err(), 'テスト寺2');
+  assert(
+    seen.every(x => x.startsWith('manual ')),
+    seen.join('\n')
+  );
+});

@@ -102,7 +102,11 @@ class Paced {
     }
     try {
       this.calls++;
-      const res = await this.io.fetch(url, { headers: { 'User-Agent': this.ua } });
+      // リダイレクトにはついて行かない（3xx は失敗。置き場所の検査を最初の URL だけで済ませないため）
+      const res = await this.io.fetch(url, {
+        headers: { 'User-Agent': this.ua },
+        redirect: 'manual',
+      });
       const body = new Uint8Array(await res.arrayBuffer());
       return { status: res.status, body, retryAfter: res.headers.get('retry-after') };
     } finally {
@@ -392,7 +396,11 @@ export async function verifyPhotos(
   for (const e of approved) {
     let status: number | string;
     try {
-      const res = await io.fetch(`${R2_PUBLIC_ORIGIN}/${e.r2Key}`, { method: 'HEAD' });
+      // リダイレクトにはついて行かない（3xx は 200 と数えない）
+      const res = await io.fetch(`${R2_PUBLIC_ORIGIN}/${e.r2Key}`, {
+        method: 'HEAD',
+        redirect: 'manual',
+      });
       await res.body?.cancel();
       status = res.status;
     } catch (err) {
