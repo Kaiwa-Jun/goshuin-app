@@ -1,0 +1,54 @@
+Issue #288 S5 ② — 新しい .app（expo-store-review 入り）での確認の記録
+シミュレータ goshuin-repro (5363465A-5B02-4490-B1AB-B070C6125C16, iOS 26.5)・2026-09-27 JST
+
+■ 新しい .app の作り方（契約書 S5 ② のとおり。EAS は使っていない）
+  npx expo prebuild --platform ios --no-install（package.json の scripts の書き換えは git checkout で戻した）
+  pod install（rbenv 3.2.2）: Podfile.lock に ExpoStoreReview (9.0.9)
+  xcodebuild -workspace app.xcworkspace -scheme app -configuration Debug -sdk iphonesimulator -derivedDataPath build/dd build → BUILD SUCCEEDED
+  できた app.app の app.debug.dylib に "ExpoStoreReview/StoreReviewModule.swift" がある
+  simctl install で上書き（ログインと AsyncStorage は残る）。入れる前の AsyncStorage に store_review_history は無かった（履歴なし）
+  JS はこの worktree の Metro（--dev-client --port 8087・CI モード）から読んだ
+
+■ 確かめ方（前回と同じく記録は保存していない・本番に書かない）
+  コミットしない一時の開発用の行（TEMP288）で、地図のタブに切り替えてから
+  RecordComplete を { totalStampCount: 12, stampCount: 1, prefecture: '宮城県', stampCountByPrefecture: { 宮城県: 12 }, origin: 'map' } で開いた。
+  12枚にしたのは、UI-7（履歴 count 1）で「10枚以上だが90日たっていない」の条件で止まることを見るため。
+  フックに一時のログ（[TEMP288] take / fired … decide / requestStoreReview）を入れた。確認のあと、一時のコードはすべて戻した。
+
+■ UI-4（新しい .app）
+  設定 →「アプリ情報」のいちばん下に「App Store でレビューを書く」＞（sim-ui4-settings-app-info-new-app.png。字と矢印は上の行と同じ形）
+  押したときの SpringBoard のログ:
+    2026-09-27 19:22:19.893 Df SpringBoard[71272:27c5a06] [com.apple.SpringBoard:Common] Handling OpenURL from app:65507: https://apps.apple.com/app/id6797201465?action=write-review
+  押したあともアプリのプロセス（pid 65507）は生きていた。押しても [TEMP288] のログは出ていない（依頼のフックは動かない）
+
+■ UI-5（完了画面 →「もう1枚記録する」→ 記録画面の ✕ → 地図）  録画 sim-ui5-record-another-close-no-request.mp4
+  完了画面 19:27 ごろ → 記録画面 → ✕ で地図に戻ったのは 19:28:09 ごろ（録画）→ 19:28:23 まで（約14秒）見ていた
+  Metro に [TEMP288] take のログが1行も出ていない = 記録画面が開いたときに印が消え、戻っても何もしていない
+  録画は地図が落ち着いたあと画面の変化がない（依頼は出ていない）。履歴は変わっていない
+
+■ UI-6（完了画面を3秒以上見る →「地図に戻る」→ 依頼）  録画 sim-ui6-review-prompt-after-return.mp4・静止画 sim-ui6-review-prompt.png
+  完了画面を見ていた時間: 約32秒（録画 26.8s〜59.25s）。その間、依頼は出ていない
+  Metro のログ:
+    [TEMP288] take 12 2026-09-27T10:30:33.692Z                        ← 戻り始め（MainTabs にフォーカス）
+    [TEMP288] fired 2026-09-27T10:30:35.211Z decide true {"count":0,"lastRequestedAt":null}   ← +1.519 秒
+    [TEMP288] requestStoreReview true 2026-09-27T10:30:35.231Z        ← requestReview が resolve
+  録画のコマ（生の録画の時刻。take ≒ 完了画面が閉じ始めるコマ 59.25s）:
+    59.25s 完了画面が閉じ始める
+    59.92s 地図が全部見える（閉じる動きの最後のコマ）
+    63.12s 背景が暗くなり始める（システムの依頼の出始め）
+    63.33s 依頼の文字が読める（「"御朱印さんぽ" はいかがですか？ 星をタップして App Store で評価してください。」☆×5・「今はしない」）
+  → 地図が全部見えてから依頼が出始めるまで 約3.2秒（読めるまで 約3.4秒）。押して閉じ始めてからは 約3.9秒
+  → 内訳: アプリが requestReview を呼んだのは閉じ始めから 1.52 秒（地図が見えてから約0.9秒）。呼んでから画面に出るまで約2.3秒はシステム側
+  依頼は「今はしない」で閉じた（送信していない）
+  端末の履歴: store_review_history = {"count":1,"lastRequestedAt":"2026-09-27T10:30:35.231Z"}
+
+■ UI-7（もう一度 完了画面 →「地図に戻る」）  録画 sim-ui7-second-return-no-request.mp4・静止画 sim-ui7-map-12s-after-return.png
+  Metro のログ:
+    [TEMP288] take 12 2026-09-27T10:34:12.440Z
+    [TEMP288] fired 2026-09-27T10:34:13.943Z decide false {"count":1,"lastRequestedAt":"2026-09-27T10:30:35.231Z"}
+  = 12枚は2回目の節目（10枚）以上だが、前回から90日たっていないので出さない。requestReview は呼んでいない
+  録画: 地図が全部見えたのは 42.77s。そのあと画面の変化は 47.66s の1回（地図のまま）だけで、録画を止めた約 56.6s まで依頼は出ていない（約14秒）
+  静止画は戻り始めから約12秒後（19:34:24.7）
+
+■ 録画・静止画の加工
+  設定の画面（名前・メール）が写る部分は切り落とした。地図（本アカウントの記録のピン）はぼかした。依頼の枠の中だけはぼかしていない

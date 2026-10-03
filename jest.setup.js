@@ -204,3 +204,45 @@ jest.mock('expo-location', () => ({
  * ワーカーごとに一度、先に呼んで覚えさせておく。
  */
 require('react-native').Easing.ease(0);
+
+// react-native-purchases（RevenueCat）のモック（Issue #270 D-22）。
+// 既定は「plus なし・offerings の current に package が1つ」。値段はアプリの文言と違う形（'¥980'）にして、
+// コードに値段を直書きしていないことが分かるようにする。各テストは jest.mocked(...).mockResolvedValueOnce で上書き
+jest.mock('react-native-purchases', () => {
+  const noPlus = { entitlements: { active: {} } };
+  const pkg = {
+    identifier: '$rc_lifetime',
+    packageType: 'LIFETIME',
+    product: { identifier: 'com.goshuin.app.plus', priceString: '¥980' },
+  };
+  const Purchases = {
+    configure: jest.fn(),
+    logIn: jest.fn(async () => ({ customerInfo: noPlus, created: false })),
+    logOut: jest.fn(async () => noPlus),
+    getCustomerInfo: jest.fn(async () => noPlus),
+    getOfferings: jest.fn(async () => ({ current: { availablePackages: [pkg] }, all: {} })),
+    purchasePackage: jest.fn(async () => ({
+      customerInfo: noPlus,
+      productIdentifier: 'com.goshuin.app.plus',
+    })),
+    restorePurchases: jest.fn(async () => noPlus),
+    addCustomerInfoUpdateListener: jest.fn(),
+    removeCustomerInfoUpdateListener: jest.fn(),
+  };
+  return { __esModule: true, default: Purchases };
+});
+
+// expo の requireOptionalNativeModule（Issue #288 D-2）。App Store のレビュー依頼のネイティブ
+// （ExpoStoreReview）は、既定では「無い」（= 今の開発用アプリと同じ）にする。jest-expo は
+// ExpoStoreReview を自動でモックしていて、何もしないと「モジュールがある・isAvailableAsync() が
+// undefined」になるため。それ以外の名前は本物を呼ぶ。モジュールがあるときのテストは
+// jest.mocked(requireOptionalNativeModule).mockImplementation(…) で偽のモジュールを返す
+jest.mock('expo', () => {
+  const actual = jest.requireActual('expo');
+  return {
+    ...actual,
+    requireOptionalNativeModule: jest.fn(name =>
+      name === 'ExpoStoreReview' ? null : actual.requireOptionalNativeModule(name)
+    ),
+  };
+});

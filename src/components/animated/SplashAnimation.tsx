@@ -35,7 +35,6 @@ interface SplashAnimationProps {
 }
 
 export const SplashAnimation: React.FC<SplashAnimationProps> = ({ onAnimationComplete }) => {
-  const backgroundOpacity = useRef(new Animated.Value(0)).current;
   const iconScale = useRef(new Animated.Value(0.3)).current;
   const iconOpacity = useRef(new Animated.Value(0)).current;
   const textTranslateY = useRef(new Animated.Value(20)).current;
@@ -54,12 +53,6 @@ export const SplashAnimation: React.FC<SplashAnimationProps> = ({ onAnimationCom
 
   useEffect(() => {
     Animated.sequence([
-      // 1. 背景フェードイン
-      Animated.timing(backgroundOpacity, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }),
       // 2. アイコン: スケールアップ + フェードイン
       Animated.parallel([
         Animated.timing(iconScale, {
@@ -95,19 +88,20 @@ export const SplashAnimation: React.FC<SplashAnimationProps> = ({ onAnimationCom
       // 5. 退場アニメーション
       playExit();
     });
-  }, [backgroundOpacity, iconScale, iconOpacity, textTranslateY, textOpacity, playExit]);
+  }, [iconScale, iconOpacity, textTranslateY, textOpacity, playExit]);
 
   return (
     <Animated.View
       style={[StyleSheet.absoluteFill, styles.container, { opacity: exitOpacity }]}
       testID="splash-animation"
     >
-      {/* 地は和紙。ネイティブの起動画面と同じ色にして、継ぎ目を消す */}
-      <Animated.View
-        style={[
-          StyleSheet.absoluteFill,
-          { opacity: backgroundOpacity, backgroundColor: colors.washi },
-        ]}
+      {/*
+       * 地は最初のフレームから不透明にする。この画面は RootNavigator の上に重なって
+       * いるので、フェードインさせると下のオンボーディングが一瞬透けて見える（1.2.0 の実機）。
+       * 色はネイティブの起動画面と同じにして、切り替わりの継ぎ目を消す
+       */}
+      <View
+        style={[StyleSheet.absoluteFill, { backgroundColor: colors.splash }]}
         testID="splash-ground"
       />
 

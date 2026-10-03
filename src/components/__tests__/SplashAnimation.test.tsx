@@ -52,13 +52,33 @@ describe('SplashAnimation', () => {
     expect(queryByText('御朱印めぐり')).toBeNull();
   });
 
-  // 地は和紙。ネイティブの起動画面と同じ色にして継ぎ目を消す
-  it('地は和紙。オレンジのグラデーションではない', () => {
+  // 地は和紙の色。ネイティブの起動画面と同じ色にして継ぎ目を消す
+  it('地は和紙の色。オレンジのグラデーションではない', () => {
     const { getByTestId, queryByTestId } = render(
       <SplashAnimation onAnimationComplete={() => {}} />
     );
     const ground = StyleSheet.flatten(getByTestId('splash-ground').props.style);
-    expect(ground.backgroundColor).toBe(colors.washi);
+    expect(ground.backgroundColor).toBe(colors.splash);
     expect(queryByTestId('splash-gradient')).toBeNull();
+  });
+
+  /*
+   * ⚠️ 初回起動で「オンボーディング1枚目 → 印 → オンボーディング」とちらついた（1.2.0 の実機）。
+   * この起動画面は RootNavigator の上に重なっている。地が透明から始まってフェードインすると、
+   * ネイティブの起動画面が消えた直後の数フレーム、下のオンボーディングが透けて見える。
+   * 地は最初のフレームから不透明にし、色もネイティブの起動画面（app.json）と揃える
+   */
+  it('最初のフレームから地が不透明で、下の画面が透けない', () => {
+    const { getByTestId } = render(<SplashAnimation onAnimationComplete={() => {}} />);
+    const ground = StyleSheet.flatten(getByTestId('splash-ground').props.style);
+    expect(ground.opacity ?? 1).toBe(1);
+  });
+
+  it('地の色はネイティブの起動画面と同じ', () => {
+    const { getByTestId } = render(<SplashAnimation onAnimationComplete={() => {}} />);
+    const ground = StyleSheet.flatten(getByTestId('splash-ground').props.style);
+    expect(String(ground.backgroundColor).toUpperCase()).toBe(
+      appJson.expo.splash.backgroundColor.toUpperCase()
+    );
   });
 });

@@ -15,7 +15,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <NavigationContainer>
-        <RootNavigator />
+        <RootNavigator splashDone={splashComplete} />
       </NavigationContainer>
       {!splashComplete && <SplashAnimation onAnimationComplete={handleSplashComplete} />}
     </SafeAreaProvider>

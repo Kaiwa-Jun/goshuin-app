@@ -148,3 +148,55 @@ describe('SpotDetailContent - 限定御朱印', () => {
     expect(queryByTestId('limited-goshuin-section')).toBeNull();
   });
 });
+
+/* Issue #253 AC-12: スポット詳細（standalone）の並びは変えない */
+describe('SpotDetailContent - 並び（Issue #253 で変えない）', () => {
+  beforeEach(() => jest.useFakeTimers().setSystemTime(new Date('2026-09-25T12:00:00+09:00')));
+  afterEach(() => jest.useRealTimers());
+
+  it('名前 → 限定御朱印 → ボタン → 月参り → 御朱印のグリッド → アクセス', () => {
+    type Node = { props: { testID?: string }; children: (Node | string)[] };
+    const ORDER = [
+      'spot-sheet-header',
+      'limited-goshuin-section',
+      'spot-sheet-actions',
+      'tsukimairi',
+      'stamp-grid',
+      'mini-map',
+    ];
+    // 2ヶ月続いていると月参りのカードが出る
+    const stamp = { ...mockPublicStamps[0], id: 'mine', visited_at: '2026-09-01' };
+    const lastMonth = { ...mockPublicStamps[0], id: 'mine-8', visited_at: '2026-08-01' };
+    const ui = render(
+      <SpotDetailContent
+        {...defaultProps}
+        showMiniMap
+        stamps={[stamp, lastMonth] as never}
+        spotInfo={{
+          limitedGoshuin: {
+            items: [
+              {
+                name: '限定',
+                period: null,
+                period_start: null,
+                period_end: null,
+                description: null,
+                source_url: 'https://example.jp/x',
+                fetched_at: '2026-09-01T00:00:00Z',
+              },
+            ],
+            fetched_at: '2026-09-01T00:00:00Z',
+          },
+        }}
+      />
+    );
+    const seen: string[] = [];
+    const walk = (node: Node) => {
+      const id = node.props?.testID?.startsWith('tsukimairi-') ? 'tsukimairi' : node.props?.testID;
+      if (id && ORDER.includes(id) && !seen.includes(id)) seen.push(id);
+      node.children.forEach(c => typeof c !== 'string' && walk(c));
+    };
+    walk(ui.getByTestId('spot-detail-content') as unknown as Node);
+    expect(seen).toEqual(ORDER);
+  });
+});

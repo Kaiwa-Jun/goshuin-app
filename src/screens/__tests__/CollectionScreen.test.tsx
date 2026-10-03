@@ -6,6 +6,7 @@ import { CollectionScreen } from '../CollectionScreen';
 import { JapanMap } from '@components/collection/JapanMap';
 import { colors } from '@theme/colors';
 import type { CollectionStackScreenProps } from '@/navigation/types';
+import type { AnnualYearSummary } from '@utils/annualReport';
 
 /* react-native-svg は fill を ARGB の数値に正規化する（JapanMap.test.tsx と同じ） */
 const asPayload = (hex: string) => 0xff000000 + parseInt(hex.slice(1), 16);
@@ -52,6 +53,7 @@ let mockCollectionStats = {
     maxSameDayVisits: 1,
   },
   tsukimairi: [],
+  mouSukoshi: [] as unknown[],
   pilgrimageProgress: [
     {
       id: 'pilgrimage-1',
@@ -73,6 +75,7 @@ let mockCollectionStats = {
   isLoading: false,
   error: null,
   refetch: jest.fn(),
+  annualReports: { card: null as AnnualYearSummary | null, shelf: [] as AnnualYearSummary[] },
 };
 
 jest.mock('@hooks/useCollectionStats', () => ({
@@ -185,6 +188,7 @@ describe('CollectionScreen', () => {
         maxSameDayVisits: 1,
       },
       tsukimairi: [],
+      mouSukoshi: [] as unknown[],
       pilgrimageProgress: [
         {
           id: 'pilgrimage-1',
@@ -206,6 +210,7 @@ describe('CollectionScreen', () => {
       isLoading: false,
       error: null,
       refetch: jest.fn(),
+      annualReports: { card: null, shelf: [] },
     };
   });
 
@@ -517,10 +522,12 @@ describe('CollectionScreen', () => {
           maxSameDayVisits: 1,
         },
         tsukimairi: [],
+        mouSukoshi: [] as unknown[],
         pilgrimageProgress: [],
         isLoading: false,
         error: null,
         refetch: jest.fn(),
+        annualReports: { card: null, shelf: [] },
       };
       const { getByText, queryByTestId } = render(
         <CollectionScreen navigation={mockNavigation} route={mockRoute} />
@@ -573,5 +580,256 @@ describe('上の数字が、塗り広がりに合わせて増える', () => {
     act(() => map.props.onRevealed(1));
     expect(tree.getByText('1')).toBeTruthy();
     expect(tree.getByText('まだ 46')).toBeTruthy();
+  });
+});
+
+describe('もう少し（Issue #245）', () => {
+  const base = mockCollectionStats;
+  afterEach(() => {
+    mockCollectionStats = base;
+    mockAuth = { user: { id: 'user-1' }, isAuthenticated: true };
+  });
+
+  const area = {
+    kind: 'area',
+    label: '仙台',
+    months: 7,
+    spots: [
+      {
+        id: 'rinnoji',
+        name: '輪王寺',
+        address: '宮城県仙台市青葉区北山1-14-1',
+        type: 'temple',
+        distanceKm: 1.8,
+      },
+    ],
+    alsoInCourse: [],
+  };
+  const withRows = (rows: unknown[]) => {
+    mockCollectionStats = { ...base, mouSukoshi: rows };
+  };
+
+  it('行があれば、地図のカードより上にカードが出る', () => {
+    withRows([area]);
+    const tree = render(<CollectionScreen navigation={mockNavigation} route={mockRoute} />);
+    const scroll = tree.getByTestId('ayumi-scroll');
+    const ids: string[] = [];
+    const walk = (n: { props?: { testID?: string }; children?: unknown[] } | string) => {
+      if (typeof n === 'string') return;
+      if (n.props?.testID) ids.push(n.props.testID);
+      (n.children as never[] | undefined)?.forEach(walk);
+    };
+    walk(scroll as never);
+    expect(ids.indexOf('mou-sukoshi')).toBeGreaterThanOrEqual(0);
+    expect(ids.indexOf('mou-sukoshi')).toBeLessThan(ids.indexOf('ayumi-map-card'));
+  });
+
+  it('行が無ければカードは出ない', () => {
+    withRows([]);
+    const tree = render(<CollectionScreen navigation={mockNavigation} route={mockRoute} />);
+    expect(tree.queryByTestId('mou-sukoshi')).toBeNull();
+    expect(tree.queryByText('もう少し')).toBeNull();
+  });
+
+  it('エリアの行を押すとシートが開き、寺社を押すと地図でその寺社へ', () => {
+    withRows([area]);
+    mockParentNavigate.mockClear();
+    const tree = render(<CollectionScreen navigation={mockNavigation} route={mockRoute} />);
+    expect(tree.queryByTestId('frequent-area-sheet')).toBeNull();
+
+    fireEvent.press(tree.getByTestId('mou-sukoshi-area'));
+    expect(tree.getByText('よく行く、仙台のまわり')).toBeTruthy();
+
+    fireEvent.press(tree.getByTestId('area-spot-rinnoji'));
+    expect(mockParentNavigate).toHaveBeenCalledWith('MapTab', {
+      screen: 'Map',
+      params: { focusSpotId: 'rinnoji' },
+    });
+  });
+
+  it('巡礼の行を押すと巡礼の詳細へ', () => {
+    withRows([
+      {
+        kind: 'pilgrimage',
+        pilgrimage: {
+          id: 'p1',
+          name: '仙台六芒星巡り',
+          description: null,
+          category: null,
+          totalSpots: 6,
+          visitedCount: 5,
+        },
+        remaining: 1,
+      },
+    ]);
+    const tree = render(<CollectionScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent.press(tree.getByTestId('mou-sukoshi-pilgrimage-p1'));
+    expect(mockNavigation.navigate).toHaveBeenCalledWith('PilgrimageDetail', {
+      pilgrimageId: 'p1',
+      pilgrimageName: '仙台六芒星巡り',
+    });
+  });
+
+  it('印の行を押すと、印の欄までスクロールする', () => {
+    withRows([
+      {
+        kind: 'seal',
+        badge: { id: 'visit-50', name: '50箇所達成', mark: 'gojuu' },
+        remaining: 7,
+        unit: '箇所',
+      },
+    ]);
+    const tree = render(<CollectionScreen navigation={mockNavigation} route={mockRoute} />);
+    const scroll = tree.UNSAFE_getByType(ScrollView);
+    const scrollTo = jest.fn();
+    // ScrollView の実体の scrollTo を差し替える
+    (scroll as unknown as { instance: { scrollTo: jest.Mock } }).instance.scrollTo = scrollTo;
+    fireEvent(tree.getByTestId('seal-card'), 'layout', {
+      nativeEvent: { layout: { x: 0, y: 820, width: 0, height: 0 } },
+    });
+
+    fireEvent.press(tree.getByTestId('mou-sukoshi-seal'));
+    expect(scrollTo).toHaveBeenCalledWith(
+      expect.objectContaining({ y: expect.any(Number), animated: true })
+    );
+    expect(scrollTo.mock.calls[0][0].y).toBeLessThanOrEqual(820);
+  });
+
+  it('未ログインではカードを出さない', () => {
+    mockAuth = { user: null, isAuthenticated: false };
+    withRows([area]);
+    const guest = render(<CollectionScreen navigation={mockNavigation} route={mockRoute} />);
+    expect(guest.queryByTestId('mou-sukoshi')).toBeNull();
+  });
+});
+
+/* Issue #274 AC-47・48: 年報の入口。12月はいちばん上のカード、1月からはいちばん下の欄 */
+describe('年報の入口', () => {
+  const base = mockCollectionStats;
+
+  type Node = { props?: { testID?: string }; children?: (Node | string)[] };
+
+  /** その要素の中で最初に見つかる testID（部品の外側の testID） */
+  const firstTestID = (node: Node | string): string | undefined => {
+    if (typeof node === 'string') return undefined;
+    if (node.props?.testID) return node.props.testID;
+    for (const child of node.children ?? []) {
+      const found = firstTestID(child);
+      if (found) return found;
+    }
+    return undefined;
+  };
+
+  /** スクロールの中身の、いちばん外側の要素を順に（testID の無い要素は undefined） */
+  const topLevel = (tree: ReturnType<typeof render>) => {
+    // RCTScrollView → 中身の View（部品）→ 中身の View（host）→ 並んだ要素
+    const scroll = tree.getByTestId('ayumi-scroll') as unknown as Node;
+    const content = (scroll.children?.[0] as Node).children?.[0] as Node;
+    return (content.children ?? []).map(firstTestID);
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockAuth = { user: { id: 'user-1' }, isAuthenticated: true };
+  });
+
+  afterEach(() => {
+    mockCollectionStats = base;
+    mockAuth = { user: { id: 'user-1' }, isAuthenticated: true };
+  });
+
+  it('AC-47: 12月のカードはスクロールの中身のいちばん上（もう少し より前）。押すと年報', () => {
+    mockCollectionStats = {
+      ...base,
+      mouSukoshi: [
+        {
+          kind: 'seal',
+          badge: { id: 'visit-30', name: '30箇所達成', mark: 'sanjuu' },
+          remaining: 2,
+          unit: '箇所',
+        },
+      ] as unknown[],
+      annualReports: { card: { year: 2026, spots: 6, stamps: 8 }, shelf: [] },
+    };
+    const tree = render(<CollectionScreen navigation={mockNavigation} route={mockRoute} />);
+
+    const ids = topLevel(tree);
+    expect(ids[0]).toBe('ayumi-annual-card');
+    expect(ids.indexOf('mou-sukoshi')).toBeGreaterThan(0);
+    expect(tree.getByText('12月の特別編')).toBeTruthy();
+    expect(tree.getByText('2026年のふりかえり')).toBeTruthy();
+    expect(tree.getByText('6社・8枚の一年を、動くふりかえりで')).toBeTruthy();
+
+    fireEvent.press(tree.getByTestId('ayumi-annual-card'));
+    expect(mockNavigate).toHaveBeenCalledTimes(1);
+    expect(mockNavigate).toHaveBeenCalledWith('AnnualReport', { year: 2026 });
+  });
+
+  it('AC-48: ふりかえりの欄は巡礼チャレンジの後（いちばん下）。新しい年から', () => {
+    mockCollectionStats = {
+      ...base,
+      annualReports: {
+        card: null,
+        shelf: [
+          { year: 2027, spots: 3, stamps: 4 },
+          { year: 2026, spots: 6, stamps: 8 },
+        ],
+      },
+    };
+    const tree = render(<CollectionScreen navigation={mockNavigation} route={mockRoute} />);
+
+    const ids = topLevel(tree);
+    expect(ids[ids.length - 1]).toBe('ayumi-annual-section');
+    expect(within(tree.getByTestId('ayumi-annual-section')).getByText('ふりかえり')).toBeTruthy();
+    const rows = tree.getAllByTestId(/^ayumi-annual-row-\d+$/).map(el => el.props.testID);
+    expect(rows).toEqual(['ayumi-annual-row-2027', 'ayumi-annual-row-2026']);
+    expect(within(tree.getByTestId('ayumi-annual-row-2026')).getByText('6社・8枚')).toBeTruthy();
+
+    fireEvent.press(tree.getByTestId('ayumi-annual-row-2026'));
+    expect(mockNavigate).toHaveBeenCalledWith('AnnualReport', { year: 2026 });
+  });
+
+  it('AC-48: ふりかえりの見出しは巡礼チャレンジと同じ見た目', () => {
+    mockCollectionStats = {
+      ...base,
+      annualReports: { card: null, shelf: [{ year: 2026, spots: 6, stamps: 8 }] },
+    };
+    const tree = render(<CollectionScreen navigation={mockNavigation} route={mockRoute} />);
+    expect(StyleSheet.flatten(tree.getByText('ふりかえり').props.style)).toEqual(
+      StyleSheet.flatten(tree.getByText('巡礼チャレンジ').props.style)
+    );
+  });
+
+  it('AC-48: 入口が無ければ、カードも欄も出ない', () => {
+    const tree = render(<CollectionScreen navigation={mockNavigation} route={mockRoute} />);
+    expect(tree.queryByTestId('ayumi-annual-card')).toBeNull();
+    expect(tree.queryByTestId('ayumi-annual-section')).toBeNull();
+  });
+
+  it('AC-48: ゲストにはデータがあっても出さない。画面に「年報」の字は無い', () => {
+    mockAuth = { user: null, isAuthenticated: false };
+    mockCollectionStats = {
+      ...base,
+      annualReports: {
+        card: { year: 2026, spots: 6, stamps: 8 },
+        shelf: [{ year: 2025, spots: 1, stamps: 1 }],
+      },
+    };
+    const tree = render(<CollectionScreen navigation={mockNavigation} route={mockRoute} />);
+    expect(tree.queryByTestId('ayumi-annual-card')).toBeNull();
+    expect(tree.queryByTestId('ayumi-annual-section')).toBeNull();
+    expect(tree.queryByText(/年報/)).toBeNull();
+  });
+
+  it('AC-48: ログイン済みでも「年報」の字は出さない', () => {
+    mockCollectionStats = {
+      ...base,
+      annualReports: {
+        card: { year: 2026, spots: 6, stamps: 8 },
+        shelf: [{ year: 2025, spots: 1, stamps: 1 }],
+      },
+    };
+    const tree = render(<CollectionScreen navigation={mockNavigation} route={mockRoute} />);
+    expect(tree.queryByText(/年報/)).toBeNull();
   });
 });

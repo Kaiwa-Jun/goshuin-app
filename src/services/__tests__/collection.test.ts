@@ -1,4 +1,9 @@
-import { fetchCollectionStats, fetchRegionStats } from '@services/collection';
+import {
+  RECENT_PREFECTURE_COUNT,
+  fetchCollectionStats,
+  fetchRecentPrefectures,
+  fetchRegionStats,
+} from '@services/collection';
 
 const mockSelect = jest.fn();
 const mockEq = jest.fn();
@@ -307,5 +312,78 @@ describe('fetchRegionStats — 県の濃さ', () => {
     await fetchRegionStats('user-1');
 
     expect(stampsSelect).toHaveBeenCalledWith('spot_id, spots!inner(prefecture)');
+  });
+});
+
+/* 契約書: docs/issues/issue-277-spot-research-region.md（S1 / AC-1〜AC-4） */
+describe('fetchRecentPrefectures', () => {
+  const mockOrder = jest.fn();
+  const mockLimit = jest.fn();
+
+  // stamps → select → eq → order(visited_at) → order(created_at) の順につなぐ
+  function mockRows(result: { data: unknown; error: unknown }) {
+    mockFrom.mockReturnValue({ select: mockSelect });
+    mockSelect.mockReturnValue({ eq: mockEq, limit: mockLimit });
+    mockEq.mockReturnValue({ order: mockOrder, limit: mockLimit });
+    mockOrder
+      .mockReturnValueOnce({ order: mockOrder, limit: mockLimit })
+      .mockReturnValueOnce({ ...result, limit: mockLimit });
+  }
+  const rows = (...prefectures: (string | null)[]) =>
+    prefectures.map(prefecture => ({ spots: { prefecture } }));
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockOrder.mockReset();
+  });
+
+  it('stamps を1回だけ、本人の記録を参拝日 → 記録した日の新しい順に取る。limit は付けない', async () => {
+    mockRows({ data: [], error: null });
+
+    await fetchRecentPrefectures('user-1');
+
+    expect(mockFrom).toHaveBeenCalledTimes(1);
+    expect(mockFrom).toHaveBeenCalledWith('stamps');
+    expect(mockSelect).toHaveBeenCalledWith(expect.stringContaining('spots!inner(prefecture)'));
+    expect(mockEq).toHaveBeenCalledWith('user_id', 'user-1');
+    expect(mockOrder.mock.calls).toEqual([
+      ['visited_at', { ascending: false }],
+      ['created_at', { ascending: false }],
+    ]);
+    expect(mockLimit).not.toHaveBeenCalled();
+  });
+
+  it('上から順に、重複と null を飛ばして3つで打ち切る', async () => {
+    mockRows({
+      data: rows('宮城県', '宮城県', null, '京都府', '東京都', '大阪府'),
+      error: null,
+    });
+
+    expect(await fetchRecentPrefectures('user-1')).toEqual(['宮城県', '京都府', '東京都']);
+    expect(RECENT_PREFECTURE_COUNT).toBe(3);
+  });
+
+  it('47都道府県に無い値は飛ばす', async () => {
+    mockRows({ data: rows('ほげ県', '', '北海道'), error: null });
+
+    expect(await fetchRecentPrefectures('user-1')).toEqual(['北海道']);
+  });
+
+  it('記録が無ければ []', async () => {
+    mockRows({ data: [], error: null });
+
+    expect(await fetchRecentPrefectures('user-1')).toEqual([]);
+  });
+
+  it('エラーなら投げずに [] を返し、warn を1回出す', async () => {
+    mockRows({ data: null, error: { message: 'x' } });
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const result = await fetchRecentPrefectures('user-1');
+
+    expect(result).toEqual([]);
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy).toHaveBeenCalledWith('fetchRecentPrefectures error:', 'x');
+    warnSpy.mockRestore();
   });
 });

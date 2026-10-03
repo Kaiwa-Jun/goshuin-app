@@ -45,6 +45,13 @@ export type RootStackParamList = {
   PrivacyPolicy: undefined;
   // Settings はスタックを持たないタブ画面なので、そこから開く画面は RootStack に置く
   AccountDeletion: undefined;
+  /** 「御朱印さんぽ プラス」（Issue #270）。設定から開く */
+  Plus: undefined;
+  /**
+   * 年報「{年}年のふりかえり」（Issue #274）。あゆみ・12月の自動再生・開発用から開く。
+   * sample: 開発用と Expo Web の確認のための見本（本番の分岐には使わない）
+   */
+  AnnualReport: { year: number; sample?: 'full' | 'few' };
   Error: {
     type: 'network' | 'location' | 'upload';
     origin?: 'record';
@@ -64,9 +71,19 @@ export type CollectionStackParamList = {
 
 export type MainTabParamList = {
   MapTab: NavigatorScreenParams<MapStackParamList>;
+  /** 参拝の予定（Issue #258）。地図の次 */
+  PlanTab: NavigatorScreenParams<PlanStackParamList>;
   GalleryTab: NavigatorScreenParams<GalleryStackParamList>;
   CollectionTab: NavigatorScreenParams<CollectionStackParamList>;
-  Settings: undefined;
+  /** purchased: プラスの画面で買って戻ってきた（Issue #270） */
+  Settings: { purchased?: boolean } | undefined;
+};
+
+export type PlanStackParamList = {
+  /** savedOn: 保存した日（YYYY-MM-DD）。その月を開いて「に保存しました」を出す */
+  PlanCalendar: { savedOn?: string } | undefined;
+  /** planId: 保存済みの予定を開く / date: その日付で組む（YYYY-MM-DD）/ purchased: プラスを買った直後（Issue #270） */
+  PlanEditor: { planId?: string; date?: string; purchased?: boolean };
 };
 
 export type MapStackParamList = {
@@ -98,6 +115,11 @@ export type MapStackScreenProps<T extends keyof MapStackParamList> = CompositeSc
 
 export type GalleryStackScreenProps<T extends keyof GalleryStackParamList> = CompositeScreenProps<
   NativeStackScreenProps<GalleryStackParamList, T>,
+  MainTabScreenProps<keyof MainTabParamList>
+>;
+
+export type PlanStackScreenProps<T extends keyof PlanStackParamList> = CompositeScreenProps<
+  NativeStackScreenProps<PlanStackParamList, T>,
   MainTabScreenProps<keyof MainTabParamList>
 >;
 

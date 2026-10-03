@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -18,6 +18,11 @@ import { Header } from '@components/common/Header';
 import { SpotSelector } from '@components/record/SpotSelector';
 import { PhotoSection } from '@components/record/PhotoSection';
 import { SavingOverlay } from '@components/record/SavingOverlay';
+import { SpotPlacePicker } from '@components/record/SpotPlacePicker';
+import { SpotResearchSheet } from '@components/record/SpotResearchSheet';
+import { useSpotAdd } from '@hooks/useSpotAdd';
+import { useRecentPrefectures } from '@hooks/useRecentPrefectures';
+import { DEFAULT_LOCATION } from '@utils/geo';
 import { usePhotoPicker } from '@hooks/usePhotoPicker';
 import { useRecordForm } from '@hooks/useRecordForm';
 import { useNearbySpots } from '@hooks/useNearbySpots';
@@ -25,6 +30,7 @@ import { useLocation } from '@hooks/useLocation';
 import { formatJapaneseEraDate } from '@utils/japaneseEra';
 import { toLocalDateString } from '@utils/localDate';
 import { pickAutoSelectableSpot } from '@utils/autoSelectSpot';
+import { findRegisteredSpot } from '@utils/registeredSpot';
 import { MAX_PHOTOS_PER_RECORD } from '@/constants/record';
 import { scrollTargetToReveal, scrollTargetToShow } from '@utils/revealInScrollView';
 import { getStampImageUrl, fetchVisitedSpotIds } from '@services/stamps';
@@ -34,6 +40,7 @@ import { buildMapParams } from '@utils/completeMapParams';
 import { useAuth } from '@hooks/useAuth';
 import { isNetworkError } from '@/utils/errorClassifier';
 import { evaluateNewBadges } from '@services/badges';
+import { clearRecordCompleted } from '@services/storeReview';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { spacing, borderRadius } from '@theme/spacing';
@@ -45,8 +52,11 @@ type Props = RootStackScreenProps<'Record'>;
 export function RecordScreen({ navigation, route }: Props) {
   const initialSpotId = route.params?.spotId;
   const { user } = useAuth();
-  const { permissionStatus } = useLocation();
-  const { nearbySpots, filteredSpots, searchQuery, setSearchQuery } = useNearbySpots();
+  const { location, permissionStatus } = useLocation();
+  const { nearbySpots, filteredSpots, didYouMeanSpots, searchQuery, setSearchQuery } =
+    useNearbySpots();
+  // 距離・手がかりは位置情報が許可されているときだけ（未許可でも useLocation は仙台を返す）
+  const granted = permissionStatus === 'granted';
   const { takePhoto, pickFromLibrary } = usePhotoPicker();
 
   // 境内にいるときだけ最寄りを既定選択する。位置情報が未許可でも useLocation は
@@ -57,6 +67,33 @@ export function RecordScreen({ navigation, route }: Props) {
   );
 
   const form = useRecordForm(initialSpotId ? { initialSpotId } : { autoSelectableSpot });
+
+  // 記録画面が開いたら、完了画面が置いたレビュー依頼の印を消す（Issue #288 D-6 ②）。
+  // 「もう1枚記録する」のあとに ✕ で戻った・保存に失敗して戻った、の直後に依頼を出さない
+  useEffect(() => {
+    clearRecordCompleted();
+  }, []);
+
+  // 見つからない寺社を調べて追加し、そのまま記録に使う（Issue #248）。
+  // 調べる前に地域を聞き、選んだ瞬間に調べ始める（Issue #277）。選択肢は自分の記録にある県・
+  // 「全国から」・本人が入れた地域だけ。家に帰ってから記録することも多いので、いまいる場所を
+  // 手がかりにしない（東京の自宅で仙台の寺社を調べると「東京都 狛江市のあたり」になって
+  // 見つからなかった）。位置情報そのものは送らない
+  const spotAdd = useSpotAdd(form.selectSpot);
+  const handleResearch = (name: string) => spotAdd.start(name);
+  // 調べた候補がアプリに登録済みの寺社と同じなら、追加せずにその寺社を選ぶ（Issue #278）。
+  // 比べるのは読み込み済みの全国の寺社（検索語で絞る前）。registeredSpots[i] は index が i の候補。
+  // 画面には出さない（候補カードは同じ見た目。#278 D-13）
+  const registeredSpots = useMemo(() => {
+    const loaded = nearbySpots.map(i => i.spot);
+    return spotAdd.state.candidates.map(c => findRegisteredSpot(c, loaded));
+  }, [spotAdd.state.candidates, nearbySpots]);
+  const handleChoose = (index: number) => {
+    const existing = registeredSpots[index];
+    return existing ? spotAdd.chooseExisting(existing) : spotAdd.choose(index);
+  };
+  // 記録画面を開いたときに1回だけ取る（押してから取るとチップが後から出て並びが動く）
+  const recentPrefectures = useRecentPrefectures(user?.id ?? null);
 
   const scrollViewRef = useRef<ScrollView>(null);
   const memoRect = useRef({ y: 0, height: 0 });
@@ -313,6 +350,9 @@ export function RecordScreen({ navigation, route }: Props) {
               onSelectSpot={form.selectSpot}
               error={form.spotError}
               isAutoSelected={form.isSpotAutoSelected}
+              didYouMeanSpots={didYouMeanSpots}
+              showDistance={granted}
+              onResearch={handleResearch}
             />
           </View>
 
@@ -439,6 +479,27 @@ export function RecordScreen({ navigation, route }: Props) {
         total={form.imageUris.length}
         saved={form.savedCount}
         top={headerBottom}
+      />
+
+      <SpotResearchSheet
+        state={spotAdd.state}
+        userLocation={granted ? location : null}
+        recentPrefectures={recentPrefectures}
+        onClose={spotAdd.close}
+        onPick={spotAdd.pick}
+        onChangeRegion={spotAdd.changeRegion}
+        onRetry={spotAdd.retry}
+        onChoose={handleChoose}
+        onOpenManual={spotAdd.openManual}
+      />
+      <SpotPlacePicker
+        visible={spotAdd.state.placing}
+        initialName={spotAdd.state.name}
+        initialCenter={(granted && location) || DEFAULT_LOCATION}
+        saving={spotAdd.state.status === 'saving'}
+        saveFailed={spotAdd.state.saveFailed}
+        onBack={spotAdd.close}
+        onSave={spotAdd.saveManual}
       />
     </SafeAreaView>
   );

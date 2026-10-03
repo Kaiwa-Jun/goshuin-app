@@ -1,5 +1,11 @@
 import { renderHook, waitFor } from '@testing-library/react-native';
 import { useCollectionStats, RECENT_VISITS_COUNT } from '@hooks/useCollectionStats';
+import { setDevAsDecember } from '@utils/annualReportNow';
+
+const mockSupabaseFrom = jest.fn();
+jest.mock('@services/supabase', () => ({
+  supabase: { from: (...args: unknown[]) => mockSupabaseFrom(...args) },
+}));
 
 const mockFetchCollectionStats = jest.fn();
 const mockFetchRegionStats = jest.fn();
@@ -17,6 +23,11 @@ jest.mock('@services/collection', () => ({
   fetchCollectionStats: (...args: unknown[]) => mockFetchCollectionStats(...args),
   fetchRegionStats: (...args: unknown[]) => mockFetchRegionStats(...args),
   fetchVisitLog: (...args: unknown[]) => mockFetchVisitLog(...args),
+}));
+
+const mockFetchSpotsByBounds = jest.fn().mockResolvedValue([]);
+jest.mock('@services/spots', () => ({
+  fetchSpotsByBounds: (...args: unknown[]) => mockFetchSpotsByBounds(...args),
 }));
 
 jest.mock('@services/pilgrimages', () => ({
@@ -146,5 +157,152 @@ describe('useCollectionStats — 最近の参拝', () => {
       expect(mockFetchAllStamps).toHaveBeenCalledWith(expect.any(String), RECENT_VISITS_COUNT)
     );
     expect(RECENT_VISITS_COUNT).toBe(3);
+  });
+});
+
+describe('useCollectionStats — もう少し（Issue #245）', () => {
+  const SENDAI = { lat: 38.267, lng: 140.859 };
+  const months = ['2025-10-01', '2025-11-01', '2025-12-01', '2026-01-01'];
+  const log = months.map((d, i) => ({
+    spot_id: `visited-${i}`,
+    visited_at: d,
+    spotName: `寺社${i}`,
+    spotType: 'shrine',
+    lat: SENDAI.lat + i * 0.001,
+    lng: SENDAI.lng,
+    address: '宮城県仙台市青葉区',
+    prefecture: '宮城県',
+  }));
+  const spotRow = (id: string, rank: number, dLat: number) => ({
+    id,
+    name: `候補${id}`,
+    lat: SENDAI.lat + dLat,
+    lng: SENDAI.lng,
+    type: 'temple',
+    address: '宮城県仙台市青葉区北山1',
+    prefecture: '宮城県',
+    status: 'active',
+    rank,
+  });
+
+  beforeEach(() => {
+    mockUser = { id: 'user-1' };
+    mockFetchCollectionStats.mockResolvedValue({ spotCount: 4, stampCount: 4 });
+    mockFetchRegionStats.mockResolvedValue([]);
+    mockFetchPilgrimageProgress.mockResolvedValue([]);
+    mockFetchVisitLog.mockResolvedValue(log);
+  });
+
+  it('よく行くエリアのまだの寺社を、ランク3以上・未訪問・近い順で返す', async () => {
+    mockFetchSpotsByBounds.mockResolvedValue([
+      spotRow('far', 5, 0.03),
+      spotRow('near', 3, 0.005),
+      spotRow('lowRank', 1, 0.001),
+      spotRow('visited-0', 5, 0),
+      spotRow('outside', 5, 0.2),
+    ]);
+
+    const { result } = renderHook(() => useCollectionStats());
+
+    await waitFor(() => expect(result.current.mouSukoshi.some(r => r.kind === 'area')).toBe(true));
+    const area = result.current.mouSukoshi.find(r => r.kind === 'area');
+    if (area?.kind !== 'area') throw new Error();
+    expect(area.label).toBe('仙台');
+    expect(area.spots.map(s => s.id)).toEqual(['near', 'far']);
+  });
+
+  it('よく行くエリアが無ければ、寺社を取りに行かない', async () => {
+    mockFetchVisitLog.mockResolvedValue(log.slice(0, 2));
+    mockFetchSpotsByBounds.mockClear();
+
+    const { result } = renderHook(() => useCollectionStats());
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(mockFetchSpotsByBounds).not.toHaveBeenCalled();
+    expect(result.current.mouSukoshi).toEqual([]);
+  });
+});
+
+/* Issue #274 AC-49: あゆみの年報の入口。今ある visitLog から作る（問い合わせを足さない） */
+describe('useCollectionStats — 年報の入口', () => {
+  // テスト方針のデータ F（2025 1件・2026 8件・2027 1件）
+  const F = [
+    ['2025-06-01', 's1'],
+    ['2026-01-03', 's1'],
+    ['2026-01-03', 's1'],
+    ['2026-03-10', 's2'],
+    ['2026-05-02', 's3'],
+    ['2026-05-02', 's4'],
+    ['2026-05-03', 's5'],
+    ['2026-07-07', 's6'],
+    ['2026-08-15', 's1'],
+    ['2027-01-02', 's1'],
+  ].map(([visited_at, spot_id]) => ({
+    visited_at,
+    spot_id,
+    spotName: `寺社${spot_id}`,
+    spotType: 'shrine',
+  }));
+
+  const renderAt = async (iso: string) => {
+    jest.useFakeTimers({ now: new Date(iso) });
+    const hook = renderHook(() => useCollectionStats());
+    await waitFor(() => expect(hook.result.current.isLoading).toBe(false));
+    await waitFor(() => expect(mockFetchVisitLog).toHaveBeenCalled());
+    return hook;
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockUser = { id: 'user-1' };
+    mockFetchCollectionStats.mockResolvedValue({ spotCount: 6, stampCount: 10 });
+    mockFetchRegionStats.mockResolvedValue([]);
+    mockFetchPilgrimageProgress.mockResolvedValue([]);
+    mockFetchAllStamps.mockResolvedValue([]);
+    mockFetchVisitLog.mockResolvedValue(F);
+  });
+
+  afterEach(() => {
+    setDevAsDecember(false);
+    jest.useRealTimers();
+  });
+
+  it('12月は今の年がカード', async () => {
+    const { result } = await renderAt('2026-12-05T10:00:00+09:00');
+    await waitFor(() =>
+      expect(result.current.annualReports.card).toEqual({ year: 2026, spots: 6, stamps: 8 })
+    );
+    expect(result.current.annualReports.shelf).toEqual([]);
+  });
+
+  it('1月からは過ぎた年が欄に', async () => {
+    const { result } = await renderAt('2027-01-05T10:00:00+09:00');
+    await waitFor(() =>
+      expect(result.current.annualReports.shelf).toEqual([{ year: 2026, spots: 6, stamps: 8 }])
+    );
+    expect(result.current.annualReports.card).toBeNull();
+  });
+
+  it('12月より前はどちらも無い', async () => {
+    const { result } = await renderAt('2026-09-27T10:00:00+09:00');
+    expect(result.current.annualReports).toEqual({ card: null, shelf: [] });
+  });
+
+  it('開発用で12月にしていれば、9月でもカードが出る', async () => {
+    setDevAsDecember(true);
+    const { result } = await renderAt('2026-09-27T10:00:00+09:00');
+    await waitFor(() =>
+      expect(result.current.annualReports.card).toEqual({ year: 2026, spots: 6, stamps: 8 })
+    );
+  });
+
+  it('年報の入口のために問い合わせを足していない', async () => {
+    await renderAt('2026-12-05T10:00:00+09:00');
+    expect(mockFetchVisitLog).toHaveBeenCalledTimes(1);
+    expect(mockFetchCollectionStats).toHaveBeenCalledTimes(1);
+    expect(mockFetchRegionStats).toHaveBeenCalledTimes(1);
+    expect(mockFetchPilgrimageProgress).toHaveBeenCalledTimes(1);
+    expect(mockFetchAllStamps).toHaveBeenCalledTimes(1);
+    expect(mockSupabaseFrom).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,6 @@
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
-import { StyleSheet, Dimensions } from 'react-native';
+import { render, fireEvent, act } from '@testing-library/react-native';
+import { Animated, StyleSheet, Dimensions, FlatList } from 'react-native';
 import {
   GoshuinchoFlipView,
   computePageLayout,
@@ -9,6 +9,11 @@ import {
   PAGE_GAP,
   FOLD_ANGLE_DEG,
 } from '@components/gallery/GoshuinchoFlipView';
+import {
+  isLoadingClockRunning,
+  loadingClock,
+  resetLoadingClockForTests,
+} from '@components/gallery/loadingClock';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import type { StampWithSpot } from '@/types/supabase';
@@ -53,6 +58,41 @@ const ASC_STAMPS: StampWithSpot[] = [
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const LAYOUT = computePageLayout(SCREEN_WIDTH);
+
+/*
+ * 読み込み中の動きの時計（Issue #275）。本物の loop を回すと値がネイティブ扱いになり、
+ * 後のテストで setValue が描画に届かなくなることがある。呼ぶたびに新しいスタブを返し、
+ * 「start の回数 − stop の回数」（回っている本数）を控える
+ */
+type Anim = { start: jest.Mock; stop: jest.Mock; reset: jest.Mock };
+let loopSpy: jest.SpyInstance;
+let running = 0;
+let runningSeen: number[] = [];
+
+beforeEach(() => {
+  /*
+   * 読み込み中の本を描くぶん1件の描画が延び、FlatList が 50ms 後に回す描き直しが
+   * 検査の途中で走って act の警告が出るようになった。時間を止めて走らせない
+   */
+  jest.useFakeTimers();
+  resetLoadingClockForTests();
+  running = 0;
+  runningSeen = [];
+  loopSpy = jest.spyOn(Animated, 'loop').mockImplementation(() => {
+    const anim: Anim = {
+      start: jest.fn(() => runningSeen.push(++running)),
+      stop: jest.fn(() => runningSeen.push(--running)),
+      reset: jest.fn(),
+    };
+    return anim as unknown as Animated.CompositeAnimation;
+  });
+});
+
+afterEach(() => {
+  loopSpy.mockRestore();
+  act(() => resetLoadingClockForTests());
+  jest.useRealTimers();
+});
 
 function renderFlipView(props: Partial<React.ComponentProps<typeof GoshuinchoFlipView>> = {}) {
   return render(
@@ -344,5 +384,305 @@ describe('GoshuinchoFlipView 開く位置', () => {
       <GoshuinchoFlipView stamps={ASC_STAMPS} onPressStamp={jest.fn()} onPressBlank={jest.fn()} />
     );
     expect(getByTestId('flip-page-counter').props.children).toBe('1 ／ 3');
+  });
+});
+
+describe('GoshuinchoFlipView 読み込み中の本（Issue #275）', () => {
+  /** 下地は読み上げない（飾り）ので、既定の検索からは外れる。外れたものも探す */
+  const hidden = { includeHiddenElements: true };
+
+  // ページ 0〜5 が御朱印、6 が白紙。最後の御朱印（ページ 5）で開く
+  const SIX = Array.from({ length: 6 }, (_, i) =>
+    makeStamp({ id: `s${i}`, image_path: `user-1/stamp-${i}.jpg` })
+  );
+  const renderSix = () =>
+    render(<GoshuinchoFlipView stamps={SIX} onPressStamp={jest.fn()} onPressBlank={jest.fn()} />);
+
+  /** 描いた値を読む。ノードならその値、値そのものならそれ */
+  const read = (value: unknown): number => {
+    const v =
+      value && typeof value === 'object' && '__getValue' in value
+        ? (value as { __getValue: () => unknown }).__getValue()
+        : value;
+    return typeof v === 'string' ? parseFloat(v) : (v as number);
+  };
+  const leafRotateOf = (utils: ReturnType<typeof renderSix>, id: string) => {
+    const leaf = utils.getByTestId(`flip-page-loading-${id}-book-leaf-front`, hidden);
+    const transform = (flatten(leaf).transform ?? []) as Record<string, unknown>[];
+    return read(transform.find(t => 'rotateY' in t)?.rotateY);
+  };
+  const hasBook = (utils: ReturnType<typeof renderSix>, id: string) =>
+    utils.queryByTestId(`flip-page-loading-${id}-book`, hidden) !== null;
+
+  // 回っている時計は、どの時点でも 0 か 1 本
+  const expectOneClockAtMost = () => {
+    expect(runningSeen.every(n => n === 0 || n === 1)).toBe(true);
+  };
+
+  it('画面に出ているページと両隣は本が動き、2つ離れたページは止まった本、それより先は本を描かない（AC-20）', () => {
+    const utils = renderSix();
+    act(() => loadingClock.setValue(425));
+
+    expect(leafRotateOf(utils, 's5')).toBeCloseTo(-90, 3);
+    expect(leafRotateOf(utils, 's4')).toBeCloseTo(-90, 3);
+    expect(leafRotateOf(utils, 's3')).toBe(0);
+    for (const id of ['s2', 's1', 's0']) {
+      expect(utils.getByTestId(`flip-page-loading-${id}`, hidden)).toBeTruthy();
+      expect(hasBook(utils, id)).toBe(false);
+    }
+    expect(isLoadingClockRunning()).toBe(true);
+    expectOneClockAtMost();
+  });
+
+  it('1ページ目までめくると、動く本もそれに合わせて移る（AC-20）', () => {
+    const utils = renderSix();
+    scrollTo(utils.getByTestId, 0, SIX.length + 1);
+    act(() => loadingClock.setValue(425));
+
+    expect(leafRotateOf(utils, 's0')).toBeCloseTo(-90, 3);
+    expect(leafRotateOf(utils, 's1')).toBeCloseTo(-90, 3);
+    expect(leafRotateOf(utils, 's2')).toBe(0);
+    for (const id of ['s3', 's4', 's5']) {
+      expect(hasBook(utils, id)).toBe(false);
+    }
+    expect(isLoadingClockRunning()).toBe(true);
+    expectOneClockAtMost();
+  });
+
+  describe('写真が届いたら（AC-21）', () => {
+    let timingSpy: jest.SpyInstance;
+    let fades: Anim[];
+
+    beforeEach(() => {
+      fades = [];
+      timingSpy = jest.spyOn(Animated, 'timing').mockImplementation(value => {
+        const anim: Anim = { start: jest.fn(), stop: jest.fn(), reset: jest.fn() };
+        if (value !== loadingClock) fades.push(anim);
+        return anim as unknown as Animated.CompositeAnimation;
+      });
+    });
+
+    afterEach(() => {
+      timingSpy.mockRestore();
+    });
+
+    const loadAndFinish = (utils: ReturnType<typeof renderSix>, id: string) => {
+      fireEvent(utils.getByTestId(`flip-page-image-${id}`), 'load', {
+        nativeEvent: { source: { width: 600, height: 800 } },
+      });
+      const fade = fades[fades.length - 1];
+      act(() => fade.start.mock.calls[0][0]({ finished: true }));
+    };
+
+    it('動いている本の写真が届き終わると、止まった本・本の無い下地だけでは時計を回さない', () => {
+      const utils = renderSix();
+      loadAndFinish(utils, 's5');
+      loadAndFinish(utils, 's4');
+
+      for (const id of ['s0', 's1', 's2', 's3']) {
+        expect(utils.getByTestId(`flip-page-loading-${id}`, hidden)).toBeTruthy();
+      }
+      expect(isLoadingClockRunning()).toBe(false);
+
+      scrollTo(utils.getByTestId, 0, SIX.length + 1);
+      expect(isLoadingClockRunning()).toBe(true);
+      expectOneClockAtMost();
+    });
+  });
+});
+
+describe('GoshuinchoFlipView 表示の切り替えの受け口（Issue #276）', () => {
+  // ページ 0〜5 が御朱印、6 が白紙
+  const SIX = Array.from({ length: 6 }, (_, i) =>
+    makeStamp({ id: `s${i}`, image_path: `user-1/stamp-${i}.jpg` })
+  );
+  const renderSix = (props: Partial<React.ComponentProps<typeof GoshuinchoFlipView>> = {}) =>
+    render(
+      <GoshuinchoFlipView
+        stamps={SIX}
+        onPressStamp={jest.fn()}
+        onPressBlank={jest.fn()}
+        {...props}
+      />
+    );
+  const counterOf = (utils: ReturnType<typeof renderSix>) =>
+    utils.getByTestId('flip-page-counter').props.children;
+
+  let scrollToIndexSpy: jest.SpyInstance;
+  beforeEach(() => {
+    scrollToIndexSpy = jest.spyOn(FlatList.prototype, 'scrollToIndex');
+  });
+  afterEach(() => {
+    scrollToIndexSpy.mockRestore();
+  });
+
+  describe('開くページ（AC-19）', () => {
+    it('initialStampId のページで開く', () => {
+      const onCurrentStampChange = jest.fn();
+      const utils = renderSix({ initialStampId: 's2', onCurrentStampChange });
+
+      expect(counterOf(utils)).toBe('3 ／ 6');
+      expect(scrollToIndexSpy).toHaveBeenCalledWith({ index: 2, animated: false });
+      expect(onCurrentStampChange).toHaveBeenCalledWith('s2');
+    });
+
+    it.each([
+      ['見つからない', 'nope'],
+      ['null', null],
+      ['渡さない', undefined],
+    ])('%s ときは最新で開く', (_label, initialStampId) => {
+      const utils = renderSix({ initialStampId });
+      expect(counterOf(utils)).toBe('6 ／ 6');
+    });
+
+    /*
+     * 離れたページでも、最初の描画からそのページを描く。めくり直し（スクロールの知らせ）を
+     * 待って描くと、表示を切り替える動きの準備が間に合わない（Issue #276 S6）
+     */
+    it('離れたページを指定されたら、最初の描画からそのページを描く', () => {
+      const TWENTY = Array.from({ length: 20 }, (_, i) =>
+        makeStamp({ id: `t${i}`, image_path: `user-1/t-${i}.jpg` })
+      );
+      const utils = render(
+        <GoshuinchoFlipView
+          stamps={TWENTY}
+          onPressStamp={jest.fn()}
+          onPressBlank={jest.fn()}
+          initialStampId="t15"
+        />
+      );
+
+      expect(utils.getByTestId('flip-page-surface-t15')).toBeTruthy();
+      expect(utils.getByTestId('flip-page-counter').props.children).toBe('16 ／ 20');
+    });
+
+    it('最初に開くときだけ使う', () => {
+      const utils = renderSix({ initialStampId: 's2' });
+      utils.rerender(
+        <GoshuinchoFlipView
+          stamps={SIX}
+          onPressStamp={jest.fn()}
+          onPressBlank={jest.fn()}
+          initialStampId="s0"
+        />
+      );
+      expect(counterOf(utils)).toBe('3 ／ 6');
+    });
+  });
+
+  describe('出ているページの知らせ（AC-20）', () => {
+    it('開いたとき・めくったとき・覗いているページで送ったときに知らせる', () => {
+      const onCurrentStampChange = jest.fn();
+      const utils = renderSix({ onCurrentStampChange });
+      expect(onCurrentStampChange).toHaveBeenLastCalledWith('s5');
+
+      scrollTo(utils.getByTestId, 1, SIX.length + 1);
+      expect(onCurrentStampChange).toHaveBeenLastCalledWith('s1');
+
+      scrollTo(utils.getByTestId, 6, SIX.length + 1);
+      expect(onCurrentStampChange).toHaveBeenLastCalledWith(null);
+
+      scrollTo(utils.getByTestId, 1, SIX.length + 1);
+      fireEvent.press(utils.getByTestId('flip-page-s2'));
+      expect(onCurrentStampChange).toHaveBeenLastCalledWith('s2');
+    });
+  });
+
+  describe('動きの受け口（AC-21）', () => {
+    type TestNode = { props: { style?: unknown }; parent: TestNode | null };
+
+    /**
+     * 動きの値を読む。Animated の部品（描いた View の2つ上）の style に入ったノードの今の値。
+     * 折りの包みはスクロール（ネイティブ）の値と一緒に動きの値を持つので、動きの値も
+     * ネイティブ扱いになり、setValue のあとで描いた View の style には届かない
+     */
+    const animatedOf = (
+      el: TestNode,
+      pick: (style: Record<string, unknown>) => unknown
+    ): number => {
+      let node: TestNode | null = el;
+      for (let i = 0; i < 3 && node; i++) {
+        const value = pick((StyleSheet.flatten(node.props.style) ?? {}) as Record<string, unknown>);
+        if (value && typeof value === 'object' && '__getValue' in value) {
+          return (value as { __getValue: () => number }).__getValue();
+        }
+        node = node.parent;
+      }
+      return pick(flatten(el)) as number;
+    };
+    const opacityOf = (el: TestNode) => animatedOf(el, style => style.opacity);
+    const scaleOf = (el: TestNode) =>
+      animatedOf(
+        el,
+        style =>
+          (style.transform as Record<string, unknown>[] | undefined)?.find(t => 'scale' in t)?.scale
+      );
+
+    it('出ているページの紙と、周りの不透明度を時計から引く', () => {
+      const v = new Animated.Value(0);
+      const motion = {
+        pageScale: v.interpolate({ inputRange: [0, 1], outputRange: [1, 0.5] }),
+        surroundOpacity: v.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
+      };
+      const utils = renderSix({ motion });
+
+      act(() => v.setValue(1));
+
+      const surface = utils.getByTestId('flip-page-surface-s5');
+      const transform = (flatten(surface).transform ?? []) as Record<string, unknown>[];
+      expect(transform.map(t => Object.keys(t)[0])).toEqual(['scale']);
+      expect(scaleOf(surface)).toBe(0.5);
+      expect(opacityOf(utils.getByTestId('flip-page-footer-s5'))).toBe(0);
+      expect(opacityOf(utils.getByTestId('flip-fold-s4'))).toBe(0);
+      expect(opacityOf(utils.getByTestId('flip-fold-blank'))).toBe(0);
+      expect(opacityOf(utils.getByTestId('flip-page-counter'))).toBe(0);
+      expect(flatten(utils.getByTestId('flip-fold-s5'))).not.toHaveProperty('opacity');
+    });
+
+    /*
+     * 周りと一緒に消える・出るのは、画面に出うるページ（2つ離れたページまで）だけ。
+     * それより先は画面に出ないので値を付けず、動きの値が付いても描き直さない（S6）
+     */
+    /*
+     * 動きの間は描くページを近くに絞る。広げると数十ページの本を描き足して、
+     * ページが広がる動きのコマが飛ぶ（S6 のシミュレータで約 0.2秒止まった）
+     */
+    it('動きの間は、描くページを画面の近くに絞る', () => {
+      const v = new Animated.Value(0);
+      const motion = {
+        pageScale: v.interpolate({ inputRange: [0, 1], outputRange: [1, 0.5] }),
+        surroundOpacity: v.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
+      };
+      const utils = renderSix({ motion });
+      expect(utils.getByTestId('flip-list').props.windowSize).toBe(3);
+
+      utils.rerender(
+        <GoshuinchoFlipView stamps={SIX} onPressStamp={jest.fn()} onPressBlank={jest.fn()} />
+      );
+      expect(utils.getByTestId('flip-list').props.windowSize).toBeUndefined();
+    });
+
+    it('2つより遠いページには値を付けない', () => {
+      const v = new Animated.Value(0);
+      const motion = {
+        pageScale: v.interpolate({ inputRange: [0, 1], outputRange: [1, 0.5] }),
+        surroundOpacity: v.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
+      };
+      const utils = renderSix({ motion });
+
+      expect(flatten(utils.getByTestId('flip-fold-s3'))).toHaveProperty('opacity');
+      expect(flatten(utils.getByTestId('flip-fold-s2'))).not.toHaveProperty('opacity');
+      expect(flatten(utils.getByTestId('flip-fold-s0'))).not.toHaveProperty('opacity');
+    });
+
+    it('渡されていないときは transform も opacity も付けない', () => {
+      const utils = renderSix();
+
+      expect(flatten(utils.getByTestId('flip-page-surface-s5'))).not.toHaveProperty('transform');
+      for (const el of utils.getAllByTestId(/^flip-fold-/)) {
+        expect(flatten(el)).not.toHaveProperty('opacity');
+      }
+      expect(flatten(utils.getByTestId('flip-page-counter'))).not.toHaveProperty('opacity');
+    });
   });
 });

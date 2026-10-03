@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import type { NativeSyntheticEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Camera, GeoJSONSource, Layer, Map } from '@maplibre/maplibre-react-native';
+import { Camera, Map } from '@maplibre/maplibre-react-native';
 import type {
   CameraRef,
   PressEvent,
@@ -25,6 +25,7 @@ import { SearchBar } from '@components/common/SearchBar';
 import { LoginPromptModal } from '@components/common/LoginPromptModal';
 import { MAP_STYLE } from '@components/map/mapStyle';
 import { SpotMapLayers } from '@components/map/SpotMapLayers';
+import { CurrentLocationLayer } from '@components/map/CurrentLocationLayer';
 import { SpotBottomSheet } from '@components/spot-detail/SpotBottomSheet';
 import { useAuth } from '@hooks/useAuth';
 import { useLocation } from '@hooks/useLocation';
@@ -34,7 +35,7 @@ import { useUserStamps } from '@hooks/useUserStamps';
 import { useWishlist } from '@hooks/useWishlist';
 import type { MapStackScreenProps } from '@/navigation/types';
 import type { Spot } from '@/types/supabase';
-import { buildSpotSources, pointCollection, spotFilterIds } from '@utils/spotGeoJson';
+import { buildSpotSources, spotFilterIds } from '@utils/spotGeoJson';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { spacing, borderRadius } from '@theme/spacing';
@@ -102,7 +103,6 @@ export function MapScreen({ navigation, route }: Props) {
     () => buildSpotSources({ spots: displaySpots, visitedSpotIds, wishlistSpotIds }),
     [displaySpots, visitedSpotIds, wishlistSpotIds]
   );
-  const currentLocationSource = useMemo(() => pointCollection(location), [location]);
 
   const searchRowTop = insets.top + spacing.xs;
   // 検索行の直下。行きたいチップを外したので1段上がった
@@ -472,28 +472,7 @@ export function MapScreen({ navigation, route }: Props) {
           }
         />
 
-        {/* 現在地。ネイティブビューではなくレイヤなので再描画コストがない */}
-        <GeoJSONSource id="goshuin-current-location" data={currentLocationSource}>
-          <Layer
-            id="goshuin-current-location-halo"
-            type="circle"
-            paint={{
-              'circle-radius': 20,
-              'circle-color': colors.pin.currentLocation,
-              'circle-opacity': 0.2,
-            }}
-          />
-          <Layer
-            id="goshuin-current-location-dot"
-            type="circle"
-            paint={{
-              'circle-radius': 7,
-              'circle-color': colors.pin.currentLocation,
-              'circle-stroke-width': 3,
-              'circle-stroke-color': colors.white,
-            }}
-          />
-        </GeoJSONSource>
+        <CurrentLocationLayer coords={location} />
 
         <SpotMapLayers
           clustered={clustered}

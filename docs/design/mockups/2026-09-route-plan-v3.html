@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>参拝の予定 v3 — 入れる・並ぶ動き、日付はドロワーに</title>
+<style>
+/* 値は src/theme と既存のシート・ボタン・タブの StyleSheet から */
+:root{
+  --brand:#f27f0d; --brand50:#FFF7ED; --brand100:#FFEDD5; --brand600:#EA580C; --brand700:#C2410C;
+  --seal:#C2342B; --teal:#0D9488; --teal50:#F0FDFA;
+  --shrine100:#FEE2E2; --shrine600:#DC2626; --temple100:#F3E8FF; --temple600:#9333EA;
+  --g50:#F9FAFB; --g100:#F3F4F6; --g200:#E5E7EB; --g300:#D1D5DB; --g400:#9CA3AF; --g500:#6B7280; --g600:#4B5563; --g800:#1F2937; --g900:#111827;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#4B5563;font-family:-apple-system,"Hiragino Sans",sans-serif;color:var(--g900);padding:22px 16px 40px}
+h1{color:#fff;font-size:19px;margin-bottom:6px}
+.lead{color:#E5E7EB;font-size:13px;line-height:1.8;max-width:1700px;margin-bottom:18px}
+.lead b{color:#FDBA74}
+.row{display:flex;gap:22px;align-items:flex-start;flex-wrap:wrap}
+.col h2{color:#fff;font-size:15px;margin-bottom:4px}
+.col p{color:#D1D5DB;font-size:12px;line-height:1.7;margin-bottom:10px;max-width:390px;min-height:58px}
+.phone{width:390px;height:844px;border-radius:34px;overflow:hidden;position:relative;box-shadow:0 18px 50px rgba(0,0,0,.45);background:#fff;user-select:none}
+.status{height:44px;display:flex;justify-content:space-between;align-items:center;padding:0 26px;font-size:15px;font-weight:600;background:#fff;position:relative;z-index:3}
+.screen{position:absolute;top:44px;left:0;right:0;bottom:78px;overflow:hidden}
+.tabs{position:absolute;left:0;right:0;bottom:0;height:78px;border-top:1px solid var(--g200);background:#fff;display:flex;justify-content:space-around;padding-top:9px;font-size:10px;color:var(--g400);z-index:3}
+.tabs div{display:flex;flex-direction:column;align-items:center;gap:2px;width:64px}
+.tabs .ic{font-size:20px;line-height:22px}
+.tabs .on{color:var(--brand);font-weight:700}
+/* カレンダー */
+.calhead{display:flex;align-items:center;justify-content:space-between;padding:10px 20px 6px}
+.calhead b{font-size:22px}
+.calhead .nav{display:flex;gap:18px;font-size:22px;color:var(--g500);cursor:pointer}
+.wk{display:grid;grid-template-columns:repeat(7,1fr);padding:0 12px;font-size:11px;color:var(--g400);text-align:center;margin-top:4px}
+.wk span:first-child{color:var(--shrine600)} .wk span:last-child{color:#2563EB}
+.days{display:grid;grid-template-columns:repeat(7,1fr);padding:4px 12px;gap:2px}
+.day{height:58px;border-radius:10px;display:flex;flex-direction:column;align-items:center;padding-top:6px;font-size:15px;cursor:pointer;position:relative}
+.day.out{color:var(--g300)}
+.day.today .n{background:var(--g900);color:#fff;border-radius:999px;width:28px;height:28px;display:grid;place-items:center}
+.day .n{width:28px;height:28px;display:grid;place-items:center}
+.day.has{background:var(--brand50)}
+.day .dot{margin-top:3px;font-size:10px;font-weight:800;color:var(--seal);display:flex;gap:2px;align-items:center}
+.day .dot i{width:6px;height:6px;border-radius:50%;background:var(--seal);display:inline-block}
+.day.past.has{background:var(--g100)} .day.past .dot{color:var(--g500)} .day.past .dot i{background:var(--g400)}
+.day:hover{outline:2px solid var(--brand100)}
+.next{margin:10px 16px 0;border-radius:14px;border:1px solid var(--g200);padding:12px 14px;cursor:pointer}
+.next .k{font-size:11px;font-weight:700;color:var(--g400)}
+.next b{display:block;font-size:16px;margin-top:2px}
+.next span{font-size:12px;color:var(--g500)}
+.hint{font-size:12px;color:var(--g500);text-align:center;margin:12px 20px 0;line-height:1.7}
+.fab{position:absolute;left:16px;right:16px;bottom:14px;height:50px;border-radius:14px;background:var(--brand);color:#fff;font-size:16px;font-weight:700;display:grid;place-items:center;cursor:pointer;box-shadow:0 4px 12px rgba(242,127,13,.35)}
+/* 組む画面 */
+.bhdr{height:48px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;position:relative;border-bottom:1px solid var(--g200);background:#fff;z-index:2}
+.bhdr .l{position:absolute;left:16px;font-size:22px;color:var(--g600);font-weight:400;cursor:pointer}
+.bhdr .date{position:absolute;right:16px;font-size:12px;color:var(--brand700);font-weight:700;background:var(--brand50);border-radius:999px;padding:3px 10px}
+.map{position:absolute;left:0;right:0;top:48px;height:360px;background:#E8ECE6;overflow:hidden}
+.map svg{position:absolute;inset:0;width:100%;height:100%}
+.minicard{position:absolute;left:12px;right:12px;bottom:12px;background:#fff;border-radius:14px;box-shadow:0 4px 16px rgba(0,0,0,.18);padding:12px 14px;display:flex;align-items:center;gap:10px;z-index:2}
+.minicard .nm{flex:1}.minicard .nm b{font-size:15px}.minicard .nm .sub{display:block;font-size:12px;color:var(--g500);margin-top:2px}
+.minicard .add{height:38px;padding:0 14px;border-radius:10px;background:var(--brand);color:#fff;font-size:13px;font-weight:700;display:grid;place-items:center;cursor:pointer;white-space:nowrap}
+.minicard .add.rm{background:#fff;border:1.5px solid var(--g300);color:var(--g600)}
+.drawer{position:absolute;left:0;right:0;top:396px;bottom:0;background:#fff;border-radius:16px 16px 0 0;box-shadow:0 -4px 16px rgba(0,0,0,.12);display:flex;flex-direction:column;z-index:2}
+.grab{display:flex;justify-content:center;padding:8px 0}.grab i{width:40px;height:4px;border-radius:4px;background:var(--g300)}
+.dtitle{display:flex;align-items:baseline;gap:8px;padding:0 16px 6px}.dtitle b{font-size:16px}.dtitle span{font-size:12px;color:var(--g500)}
+.dlist{flex:1;overflow:auto;padding:0 16px 80px}
+.sel{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--g100)}
+.sel .nm{flex:1;font-size:15px}
+.sel .x{color:var(--g400);font-size:18px;cursor:pointer;padding:0 4px}
+.badge{font-size:11px;font-weight:600;padding:2px 7px;border-radius:999px;background:var(--shrine100);color:var(--shrine600)}
+.badge.t{background:var(--temple100);color:var(--temple600)}
+.wishhead{font-size:12px;font-weight:700;color:var(--teal);margin:6px 0 2px}
+.wish{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--g100);cursor:pointer}
+.wish .nm{flex:1;font-size:15px}
+.wish .pl{font-size:13px;font-weight:700;color:var(--teal)}
+.empty{font-size:13px;color:var(--g500);line-height:1.7;padding:4px 0 8px}
+.dbar{position:absolute;left:0;right:0;bottom:0;padding:10px 16px 14px;background:#fff;border-top:1px solid var(--g200);display:flex;gap:10px}
+.dbar .b{flex:1;height:48px;border-radius:12px;display:grid;place-items:center;font-size:15px;font-weight:700;cursor:pointer}
+.dbar .p{background:var(--brand);color:#fff}.dbar .s{border:1.5px solid var(--g300);color:var(--g600);flex:.55}
+.dbar .p.dis{background:var(--g200);color:var(--g400);cursor:default}
+/* 順番 */
+.stop{display:flex;align-items:center;gap:10px;padding:8px 0}
+.num{width:26px;height:26px;border-radius:50%;background:var(--seal);color:#fff;font-size:13px;font-weight:800;display:grid;place-items:center;flex:none}
+.num.done{background:var(--g400)}
+.stop .nm{flex:1}.stop .nm b{font-size:15px;font-weight:600}.stop .nm span{display:block;font-size:12px;color:var(--g500);margin-top:1px}
+.stop .nm span.late{color:var(--seal);font-weight:700}
+.stop .t{font-size:12px;color:var(--g400);width:40px;text-align:right}
+.stop .ck{font-size:12px;font-weight:800;color:#15803D;background:#DCFCE7;border-radius:999px;padding:2px 8px}
+.stop .miss{font-size:12px;color:var(--g400)}
+.handle{color:var(--g300);font-size:18px;cursor:grab;padding:0 2px}
+.leg{margin-left:12px;border-left:2px dashed var(--g300);padding:5px 0 5px 20px;display:flex;align-items:center;gap:8px}
+.leg .m{flex:1;font-size:12px;color:var(--g600)}
+.leg .gm{font-size:12px;font-weight:700;color:var(--brand600);border:1px solid var(--brand100);background:var(--brand50);border-radius:999px;padding:4px 10px;cursor:pointer;white-space:nowrap}
+.sug{font-size:12px;color:var(--brand700);background:var(--brand50);border-radius:8px;padding:6px 10px;margin:0 0 4px;line-height:1.6}
+/* 保存 */
+.dim{position:absolute;inset:0;background:rgba(0,0,0,.3);z-index:5}
+.savesheet{position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:18px 18px 0 0;padding:10px 20px 24px;z-index:6}
+.savesheet h3{font-size:18px;margin:4px 0 14px}
+.lbl{font-size:12px;font-weight:700;color:var(--g500);margin:10px 0 6px}
+.datepick{display:flex;align-items:center;gap:10px}
+.datepick .v{flex:1;height:46px;border:1px solid var(--g200);border-radius:12px;display:flex;align-items:center;padding:0 14px;font-size:16px;font-weight:600}
+.datepick .st{width:46px;height:46px;border:1px solid var(--g200);border-radius:12px;display:grid;place-items:center;font-size:18px;color:var(--g600);cursor:pointer}
+.inp{height:46px;border:1px solid var(--g200);border-radius:12px;display:flex;align-items:center;padding:0 14px;font-size:16px}
+.inp input{border:0;outline:0;font:inherit;width:100%}
+.savebtn{margin-top:18px;height:50px;border-radius:12px;background:var(--brand);color:#fff;font-weight:700;display:grid;place-items:center;cursor:pointer}
+.toast{position:absolute;left:16px;right:16px;bottom:96px;background:rgba(17,24,39,.9);color:#fff;font-size:12px;border-radius:10px;padding:10px 12px;display:none;line-height:1.6;z-index:9}
+.toggle{display:inline-flex;gap:6px;margin:0 0 14px}.toggle button{font:inherit;font-size:12px;padding:6px 12px;border-radius:999px;border:0;background:#fff;color:#1F2937;cursor:pointer}.toggle button.on{background:#f27f0d;color:#fff}
+.fly{position:absolute;z-index:8;background:#fff;border-radius:14px;box-shadow:0 4px 16px rgba(0,0,0,.18);padding:10px 14px;font-size:14px;font-weight:700;transition:transform .42s cubic-bezier(.5,0,.2,1),opacity .42s ease-in;pointer-events:none}
+.sel.new{animation:rowin .35s ease-out}
+@keyframes rowin{from{background:#FFEDD5;transform:translateY(-6px)}to{background:transparent;transform:none}}
+.cnt.bump{animation:bump .3s}
+@keyframes bump{50%{transform:scale(1.25)}}
+.stagger{opacity:0;transform:translateY(6px);transition:opacity .2s,transform .2s}.stagger.in{opacity:1;transform:none}
+.ddate{font-size:13px;font-weight:700;color:var(--brand700);background:var(--brand50);border-radius:999px;padding:3px 10px;cursor:pointer}
+.notes{max-width:1700px;color:#E5E7EB;font-size:13px;line-height:1.8;margin-top:24px}
+.notes b{color:#FDBA74}
+</style>
+</head>
+<body>
+<h1>参拝の予定 v3 — 入れる・並ぶ動き、日付はドロワーに</h1>
+<p class="lead">
+  要件: <code>docs/design/2026-09-route-plan-spec.md</code> §0（v1 へのご意見で決めたこと）。例は京都・東山（寺社と座標は本番のマスタ）。今日は <b>2026年9月26日（土）</b>として動かしています。<br>
+  <b>v2 からの変更</b>: ①「＋ 予定に入れる」でカードがドロワーに流れ込む ②「順番を決める」で 1 番から順に点線が引かれ、ドロワーの行も同じ間隔で出る ③ 日付はドロワーの見出しだけ（押すと変えられる。保存は名前だけ）④「寺社を変える」→「選び直す」⑤ 選んだピンの見せ方を <b>上のボタンで切り替え</b>（輪 / 大きく＋✓）。<br>
+  <b>4台とも最初から最後まで操作できます</b>（それぞれ違う段階から始まるだけ）。カレンダーの空いた日を押す → 地図のピンを押して「＋ 予定に入れる」→「順番を決める」→ 「⋮⋮」で並べ替え →「この予定を保存」→ カレンダーに印。
+</p>
+<div class="toggle" id="tg"><button data-m="ring" class="on">選んだピン: 輪</button><button data-m="big">選んだピン: 大きく＋✓</button></div>
+<div class="row" id="row"></div>
+<div class="notes">
+  <b>順番の自動提案</b>: 位置が近い順に回り、受付の終わりが早い寺社を先に置く（試作では、出発点を全通り試して「受付に間に合わない数 → 移動の合計」が一番少ない順）。<b>無料</b>で使える。<br>
+  <b>目安の出し方</b>: 寺社どうしの直線距離 ×1.3 が 1.5km 以内なら徒歩（分速80m）、それより遠ければ「電車などで移動」（1km あたり4分＋乗り換え10分で仮置き）。滞在は各30分、出発 9:00。<br>
+  <b>プラス</b>: 予定をいくつでもカレンダーに入れる（無料は1つ）。課金をオンにするまでは誰でも入れられるので、試作には印を出していない。<br>
+  <b>過ぎた予定</b>: 実際に記録した寺社に ✓（9月20日の予定で試せる）。地図の絵は仮（実装は既存の MapLibre に番号つきピンと点線のレイヤを重ねる）。
+</div>
+
+<script>
+const SPOTS = {
+  yasaka:  {name:'八坂神社', type:'shrine', lat:35.0036, lng:135.7780, close:'17:00', state:'visited'},
+  kennin:  {name:'建仁寺',   type:'temple', lat:34.9996, lng:135.7742, close:'16:30', state:'visited'},
+  rokuhara:{name:'六波羅蜜寺',type:'temple', lat:34.9973, lng:135.7735, close:'17:00', state:'none'},
+  kiyomizu:{name:'清水寺',   type:'temple', lat:34.9950, lng:135.7843, close:'18:00', state:'wish'},
+  sanju:   {name:'三十三間堂', type:'temple', lat:34.9897, lng:135.7727, close:'16:00', state:'none'},
+  fushimi: {name:'伏見稲荷大社', type:'shrine', lat:34.9672, lng:135.7732, close:'16:30', state:'wish'},
+  heian:   {name:'平安神宮', type:'shrine', lat:35.0153, lng:135.7837, close:'17:00', state:'wish'},
+};
+const PIN = {visited:{shrine:'#DC2626',temple:'#9333EA'}, wish:'#0D9488', none:'#f27f0d'};
+const TODAY = new Date(2026,8,26);
+let PIN_MODE='ring'; const APPS=[];
+const BOX = {minLat:34.962, maxLat:35.020, minLng:135.758, maxLng:135.796};
+const R=6371000, rad=Math.PI/180;
+const dist=(a,b)=>{const dLat=(b.lat-a.lat)*rad,dLng=(b.lng-a.lng)*rad;const h=Math.sin(dLat/2)**2+Math.cos(a.lat*rad)*Math.cos(b.lat*rad)*Math.sin(dLng/2)**2;return 2*R*Math.asin(Math.sqrt(h));};
+const toMin=t=>{const [h,m]=t.split(':').map(Number);return h*60+m;};
+const fmt=m=>`${Math.floor(m/60)}:${String(Math.round(m%60)).padStart(2,'0')}`;
+const WD='日月火水木金土';
+const dkey=d=>`${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+const label=d=>`${d.getMonth()+1}月${d.getDate()}日（${WD[d.getDay()]}）`;
+function legOf(a,b){const d=dist(a,b)*1.3; if(d<=1500){const min=Math.round(d/80);return {text:`徒歩 約${min}分`,min};} const km=d/1000; return {text:`電車などで移動・約${km.toFixed(1)}km`,min:Math.round(km*4+10)};}
+function schedule(order){let t=toMin('9:00');return order.map((k,i)=>{const at=t;const late=at>toMin(SPOTS[k].close)-30;t+=30;let leg=null;if(i<order.length-1){leg=legOf(SPOTS[k],SPOTS[order[i+1]]);t+=leg.min;}return {k,at,late,leg};});}
+function suggest(keys){
+  // 出発点を全通り試し、近い順に回る。受付に間に合わない数 → 移動の合計 が少ない順を採る
+  let best=null;
+  for(const start of keys){const rest=keys.filter(k=>k!==start), out=[start];
+    while(rest.length){const cur=SPOTS[out.at(-1)];rest.sort((a,b)=>dist(cur,SPOTS[a])-dist(cur,SPOTS[b]));out.push(rest.shift());}
+    const sc=schedule(out); const late=sc.filter(s=>s.late).length; const total=sc.reduce((a,s)=>a+(s.leg?s.leg.min:0),0);
+    if(!best||late<best.late||(late===best.late&&total<best.total))best={out,late,total};}
+  return best.out;
+}
+
+function mount(root, start){
+  const S={view:'calendar', month:new Date(2026,9,1), plans:{
+      '2026-10-12':{name:'東山めぐり',order:['yasaka','kennin','rokuhara','kiyomizu','sanju']},
+      '2026-9-20':{name:'東山の朝',order:['yasaka','kennin','rokuhara','kiyomizu']}},
+    date:null, chosen:[], order:[], tapped:null, saving:false, readonly:false, past:false, suggested:false};
+  const visitedOn={'2026-9-20':['yasaka','kennin','kiyomizu']};
+  if(start==='build'){S.view='build';S.date=new Date(2026,9,3);S.chosen=['kiyomizu','yasaka'];S.tapped='fushimi';}
+  if(start==='order'){S.view='order';S.date=new Date(2026,9,3);S.chosen=['kiyomizu','yasaka','fushimi','kennin','sanju'];S.order=suggest(S.chosen);S.suggested=true;}
+  if(start==='save'){S.view='order';S.date=new Date(2026,9,3);S.chosen=['kiyomizu','yasaka','fushimi','kennin','sanju'];S.order=suggest(S.chosen);S.suggested=true;S.saving=true;}
+  const phone=document.createElement('div');phone.className='phone';root.appendChild(phone);
+  function toast(html){const t=phone.querySelector('.toast');t.innerHTML=html;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',3200);}
+  function mapSvg(keys, numbered){
+    const W=390,H=360,pad=34; const xy=s=>[pad+(s.lng-BOX.minLng)/(BOX.maxLng-BOX.minLng)*(W-2*pad), pad+(BOX.maxLat-s.lat)/(BOX.maxLat-BOX.minLat)*(H-2*pad)];
+    let g=`<rect width="${W}" height="${H}" fill="#E8ECE6"/><path d="M130 -10 C 110 140, 160 250, 118 ${H+10}" stroke="#BFD9EE" stroke-width="10" fill="none"/><path d="M-10 128 L ${W+10} 120" stroke="#fff" stroke-width="7"/><path d="M-10 222 L ${W+10} 216" stroke="#fff" stroke-width="6"/><path d="M226 -10 L 236 ${H+10}" stroke="#fff" stroke-width="6"/><path d="M300 -10 C 330 90 ${W} 180 ${W+10} 290 L ${W+10} -10 Z" fill="#D6E6CC"/>`;
+    if(numbered){const pts=keys.map(k=>xy(SPOTS[k]));for(let i=0;i<pts.length-1;i++){g+=`<path class="seg" data-i="${i}" d="M${pts[i].join(' ')} L${pts[i+1].join(' ')}" stroke="#C2342B" stroke-width="3" stroke-dasharray="6 6" fill="none"/>`;}}
+    for(const [k,s] of Object.entries(SPOTS)){const [x,y]=xy(s);const i=keys.indexOf(k);
+      if(numbered&&i>=0){g+=`<g data-k="${k}" class="npin" data-n="${i}"><circle cx="${x}" cy="${y}" r="13" fill="#C2342B" stroke="#fff" stroke-width="2.5"/><text x="${x}" y="${y+4.5}" text-anchor="middle" font-size="12" font-weight="800" fill="#fff">${i+1}</text><text x="${x}" y="${y+28}" text-anchor="middle" font-size="10" font-weight="700" fill="#1F2937" stroke="#fff" stroke-width="3" paint-order="stroke">${s.name}</text></g>`;continue;}
+      const chosen=!numbered&&S.chosen.includes(k);
+      const c=s.state==='visited'?PIN.visited[s.type]:s.state==='wish'?PIN.wish:PIN.none;
+      const big=chosen&&PIN_MODE==='big'; const sc=big?1.45:1;
+      g+=`<g data-k="${k}" style="cursor:pointer;opacity:${numbered?0.45:1}">${chosen&&!big?`<circle cx="${x}" cy="${y-15}" r="16" fill="none" stroke="#C2342B" stroke-width="3"/>`:''}<g transform="translate(${x} ${y}) scale(${sc}) translate(${-x} ${-y})"><path d="M${x} ${y} c-6 -9 -10 -12 -10 -17 a10 10 0 1 1 20 0 c0 5 -4 8 -10 17z" fill="${c}" stroke="#fff" stroke-width="1.5"/><circle cx="${x}" cy="${y-17}" r="3.6" fill="#fff"/></g>${big?`<circle cx="${x+11}" cy="${y-31}" r="7.5" fill="#f27f0d" stroke="#fff" stroke-width="2"/><text x="${x+11}" y="${y-28}" text-anchor="middle" font-size="9" font-weight="900" fill="#fff">✓</text>`:''}<text x="${x}" y="${y+13}" text-anchor="middle" font-size="10" font-weight="700" fill="#1F2937" stroke="#fff" stroke-width="3" paint-order="stroke">${s.name}</text></g>`;}
+    return `<svg viewBox="0 0 ${W} ${H}">${g}</svg>`;
+  }
+  const badge=s=>`<span class="badge ${s.type==='temple'?'t':''}">${s.type==='temple'?'寺院':'神社'}</span>`;
+  function render(){
+    let html=`<div class="status"><span>9:41</span><span>●●● ▮</span></div><div class="screen">`;
+    if(S.view==='calendar'){
+      const m=S.month, first=new Date(m.getFullYear(),m.getMonth(),1), startD=new Date(first); startD.setDate(1-first.getDay());
+      html+=`<div class="calhead"><b>${m.getFullYear()}年${m.getMonth()+1}月</b><div class="nav"><span data-a="prev">‹</span><span data-a="nextm">›</span></div></div>
+        <div class="wk">${[...WD].map(w=>`<span>${w}</span>`).join('')}</div><div class="days">`;
+      for(let i=0;i<42;i++){const d=new Date(startD);d.setDate(startD.getDate()+i);const k=dkey(d);const p=S.plans[k];const past=d<TODAY&&dkey(d)!==dkey(TODAY);
+        const done=p&&past?(visitedOn[k]||[]).filter(x=>p.order.includes(x)).length:0;
+        html+=`<div class="day ${d.getMonth()!==m.getMonth()?'out':''} ${dkey(d)===dkey(TODAY)?'today':''} ${p?'has':''} ${past?'past':''}" data-d="${k}"><div class="n">${d.getDate()}</div>${p?`<div class="dot">${past?`✓${done}/${p.order.length}`:`<i></i>${p.order.length}社`}</div>`:''}</div>`;}
+      html+=`</div>`;
+      const up=Object.entries(S.plans).map(([k,p])=>{const [y,mo,da]=k.split('-').map(Number);return {d:new Date(y,mo-1,da),k,p};}).filter(x=>x.d>=TODAY).sort((a,b)=>a.d-b.d)[0];
+      if(up) html+=`<div class="next" data-d="${up.k}"><div class="k">次の予定</div><b>${label(up.d)} ${up.p.name}</b><span>${up.p.order.map(k=>SPOTS[k].name).join(' → ')}</span></div>`;
+      else html+=`<div class="hint">行きたい寺社を回る予定を組んでみましょう。<br>空いている日を押すと、その日の予定を組めます。</div>`;
+      html+=`<div class="fab" data-a="new">＋ 予定を組む</div>`;
+    } else {
+      const building=S.view==='build';
+      html+=`<div class="bhdr"><span class="l" data-a="back">${building?'✕':'‹'}</span>${S.readonly?(S.plans[dkey(S.date)]||{}).name:'予定を組む'}</div>`;
+      html+=`<div class="map">${mapSvg(building?S.chosen:S.order, !building)}`;
+      if(building&&S.tapped){const s=SPOTS[S.tapped];const inn=S.chosen.includes(S.tapped);
+        html+=`<div class="minicard"><div class="nm"><b>${s.name}</b> ${badge(s)}<span class="sub">受付 〜${s.close}${s.state==='wish'?'・行きたい':''}${s.state==='visited'?'・参拝済み':''}</span></div><div class="add ${inn?'rm':''}" data-a="toggle">${inn?'予定から外す':'＋ 予定に入れる'}</div></div>`;}
+      html+=`</div><div class="drawer"><div class="grab"><i></i></div>`;
+      if(building){
+        html+=`<div class="dtitle"><span class="ddate" data-a="datepick">${label(S.date||nextSat())}の予定 ▾</span><span><b class="cnt">${S.chosen.length}</b>社・ピンを押して足す</span></div><div class="dlist">`;
+        if(!S.chosen.length) html+=`<div class="empty">まだありません。地図のピンを押すか、下の「行きたい」から足してください。</div>`;
+        S.chosen.forEach(k=>{html+=`<div class="sel ${k===S.justAdded?'new':''}" data-row="${k}"><div class="nm">${SPOTS[k].name}</div>${badge(SPOTS[k])}<span class="x" data-rm="${k}">✕</span></div>`;});
+        const wl=Object.entries(SPOTS).filter(([k,s])=>s.state==='wish'&&!S.chosen.includes(k));
+        if(wl.length){html+=`<div class="wishhead">行きたいから選ぶ</div>`;wl.forEach(([k,s])=>{html+=`<div class="wish" data-add="${k}"><div class="nm">${s.name}</div>${badge(s)}<span class="pl">＋</span></div>`;});}
+        html+=`</div><div class="dbar"><div class="b p ${S.chosen.length<2?'dis':''}" data-a="order">順番を決める</div></div>`;
+      } else {
+        const past=S.past; const vis=past?(visitedOn[dkey(S.date)]||[]):[];
+        html+=`<div class="dtitle">${S.readonly?`<b>${label(S.date)}</b>`:`<span class="ddate" data-a="datepick">${label(S.date||nextSat())}の予定 ▾</span>`}<span>${past?`${vis.filter(k=>S.order.includes(k)).length} / ${S.order.length}社 回れた`:'⋮⋮ で並べ替え'}</span></div><div class="dlist">`;
+        if(S.suggested&&!S.readonly) html+=`<div class="sug">✦ 近い順・受付の早い順に並べました。つまんで変えられます</div>`;
+        schedule(S.order).forEach((x,i)=>{const s=SPOTS[x.k];const done=vis.includes(x.k);
+          html+=`<div class="stop ${S.animate?'stagger':''}" data-st="${i}" draggable="${!S.readonly}" data-i="${i}"><div class="num ${past&&!done?'done':''}">${i+1}</div><div class="nm"><b>${s.name}</b><span class="${x.late&&!past?'late':''}">受付 〜${s.close}${x.late&&!past?'　間に合わないかも':''}</span></div>${past?(done?'<span class="ck">✓ 記録</span>':'<span class="miss">行けなかった</span>'):`<div class="t">${fmt(x.at)}</div>${S.readonly?'':'<div class="handle">⋮⋮</div>'}`}</div>`;
+          if(x.leg){const b=SPOTS[S.order[i+1]];const url=`https://www.google.com/maps/dir/?api=1&origin=${s.lat},${s.lng}&destination=${b.lat},${b.lng}&travelmode=transit`;
+            html+=`<div class="leg ${S.animate?'stagger':''}" data-st="${i}"><div class="m">${x.leg.text}</div>${past?'':`<div class="gm" data-url="${url}" data-from="${s.name}" data-to="${b.name}">Google マップで</div>`}</div>`;}});
+        html+=`</div><div class="dbar">${S.readonly?`<div class="b s" data-a="edit">編集</div><div class="b p" data-a="back">カレンダーへ</div>`:`<div class="b s" data-a="reselect">選び直す</div><div class="b p" data-a="saveopen">この予定を保存</div>`}</div>`;
+      }
+      html+=`</div>`;
+    }
+    html+=`</div><div class="tabs"><div><span class="ic">🧭</span>地図</div><div class="on"><span class="ic">🗓</span>予定</div><div><span class="ic">📖</span>御朱印帳</div><div><span class="ic">〰</span>あゆみ</div><div><span class="ic">⚙︎</span>設定</div></div>`;
+    if(S.saving){const d=S.date||nextSat();const nm=S.name||'東山めぐり';
+      html+=`<div class="dim" data-a="saveclose"></div><div class="savesheet"><div class="grab"><i></i></div><h3>この予定を保存</h3>
+        <div class="lbl">${label(d)}の予定の名前</div><div class="inp"><input value="${nm}" data-f="name"></div>
+        <div class="savebtn" data-a="save">保存してカレンダーに入れる</div></div>`;}
+    if(S.picking){const d=S.date||nextSat();html+=`<div class="dim" data-a="pickclose"></div><div class="savesheet"><div class="grab"><i></i></div><h3>いつの予定？</h3><div class="datepick"><div class="st" data-a="dprev">‹</div><div class="v">${label(d)}</div><div class="st" data-a="dnext">›</div></div><div class="savebtn" data-a="pickclose">この日にする</div></div>`;}
+    html+=`<div class="toast"></div>`;
+    phone.innerHTML=html; bind();
+    if(S.animate){S.animate=false;const segs=[...phone.querySelectorAll('.seg')],pins=[...phone.querySelectorAll('.npin')],rows=[...phone.querySelectorAll('.stagger')];
+      segs.forEach(p=>{const L=p.getTotalLength();p.style.strokeDasharray=`${L}`;p.style.strokeDashoffset=`${L}`;});
+      pins.forEach(p=>p.style.opacity=0);
+      const STEP=220; pins.forEach(p=>{const n=+p.dataset.n;setTimeout(()=>{p.style.transition='opacity .18s';p.style.opacity=1;},n*STEP);});
+      segs.forEach(p=>{const i=+p.dataset.i;setTimeout(()=>{p.style.transition=`stroke-dashoffset ${STEP}ms linear`;p.style.strokeDashoffset='0';setTimeout(()=>{p.style.strokeDasharray='6 6';p.style.transition='';},STEP+10);},i*STEP+60);});
+      rows.forEach(r=>{const n=+r.dataset.st;const isLeg=r.classList.contains('leg');setTimeout(()=>r.classList.add('in'),n*STEP+(isLeg?STEP/2:0));});}
+    if(S.justAdded){const c=phone.querySelector('.cnt');if(c)c.classList.add('bump');S.justAdded=null;}
+  }
+  function nextSat(){const d=new Date(TODAY);d.setDate(d.getDate()+((6-d.getDay()+7)%7||7));return d;}
+  function openDay(k){const [y,m,d]=k.split('-').map(Number);S.date=new Date(y,m-1,d);const p=S.plans[k];
+    if(p){S.view='order';S.order=[...p.order];S.readonly=true;S.past=S.date<TODAY;S.suggested=false;}
+    else{S.view='build';S.chosen=[];S.tapped=null;S.readonly=false;S.past=false;}
+    render();}
+  function bind(){
+    phone.querySelectorAll('[data-d]').forEach(el=>el.onclick=()=>openDay(el.dataset.d));
+    phone.querySelectorAll('.map g[data-k]').forEach(el=>el.onclick=()=>{if(S.view!=='build')return;S.tapped=el.dataset.k;render();});
+    phone.querySelectorAll('[data-rm]').forEach(el=>el.onclick=()=>{S.chosen=S.chosen.filter(k=>k!==el.dataset.rm);render();});
+    phone.querySelectorAll('[data-add]').forEach(el=>el.onclick=()=>{S.chosen.push(el.dataset.add);S.justAdded=el.dataset.add;render();});
+    phone.querySelectorAll('.gm').forEach(el=>el.onclick=()=>toast(`${el.dataset.from} → ${el.dataset.to} の電車＋徒歩の道順を Google マップで開きます<br><span style="color:#9CA3AF;word-break:break-all">${el.dataset.url}</span>`));
+    const inp=phone.querySelector('[data-f="name"]'); if(inp) inp.oninput=e=>S.name=e.target.value;
+    let from=null;
+    phone.querySelectorAll('.stop[draggable="true"]').forEach(el=>{el.addEventListener('dragstart',()=>from=+el.dataset.i);el.addEventListener('dragover',e=>e.preventDefault());
+      el.addEventListener('drop',()=>{const to=+el.dataset.i;if(from===null||from===to)return;const [m]=S.order.splice(from,1);S.order.splice(to,0,m);S.suggested=false;render();});});
+    phone.querySelectorAll('[data-a]').forEach(el=>el.onclick=()=>{const a=el.dataset.a;
+      if(a==='prev'){S.month=new Date(S.month.getFullYear(),S.month.getMonth()-1,1);}
+      if(a==='nextm'){S.month=new Date(S.month.getFullYear(),S.month.getMonth()+1,1);}
+      if(a==='new'){S.view='build';S.date=nextSat();S.chosen=[];S.tapped=null;S.readonly=false;S.past=false;}
+      if(a==='back'){S.view='calendar';S.tapped=null;S.saving=false;S.readonly=false;}
+      if(a==='toggle'){const k=S.tapped;
+        if(S.chosen.includes(k)){S.chosen=S.chosen.filter(x=>x!==k);}
+        else{ // カードがドロワーの一覧へ流れ込む
+          const card=phone.querySelector('.minicard'),list=phone.querySelector('.dlist'),pr=phone.getBoundingClientRect(),cr=card.getBoundingClientRect(),lr=list.getBoundingClientRect();
+          const f=document.createElement('div');f.className='fly';f.textContent=SPOTS[k].name;f.style.left=(cr.left-pr.left)+'px';f.style.top=(cr.top-pr.top)+'px';f.style.width=cr.width+'px';phone.appendChild(f);
+          card.style.visibility='hidden';
+          const dy=(lr.top-pr.top)+S.chosen.length*42+8-(cr.top-pr.top);
+          requestAnimationFrame(()=>{f.style.transform=`translate(0,${dy}px) scale(.6)`;f.style.opacity='0.2';});
+          setTimeout(()=>{S.chosen=[...S.chosen,k];S.justAdded=k;S.tapped=null;render();},420);
+          return;}
+      }
+      if(a==='order'){if(S.chosen.length<2)return;S.order=suggest(S.chosen);S.view='order';S.suggested=true;S.tapped=null;S.animate=true;if(!S.date)S.date=nextSat();}
+      if(a==='datepick'){S.picking=true;if(!S.date)S.date=nextSat();}
+      if(a==='pickclose'){S.picking=false;}
+      if(a==='reselect'){S.view='build';S.chosen=[...S.order];}
+      if(a==='edit'){S.readonly=false;S.past=false;S.view='order';}
+      if(a==='saveopen'){S.saving=true;if(!S.date)S.date=nextSat();}
+      if(a==='saveclose'){S.saving=false;}
+      if(a==='dprev'){S.date=new Date(S.date);S.date.setDate(S.date.getDate()-1);}
+      if(a==='dnext'){S.date=new Date(S.date);S.date.setDate(S.date.getDate()+1);}
+      if(a==='save'){S.plans[dkey(S.date)]={name:S.name||'東山めぐり',order:[...S.order]};S.saving=false;S.view='calendar';S.month=new Date(S.date.getFullYear(),S.date.getMonth(),1);S.readonly=false;setTimeout(()=>toast(`${label(S.date)} に保存しました`),0);}
+      render();});
+  }
+  render(); APPS.push(render);
+}
+document.getElementById('tg').querySelectorAll('button').forEach(b=>b.onclick=()=>{PIN_MODE=b.dataset.m;document.querySelectorAll('#tg button').forEach(x=>x.classList.toggle('on',x===b));APPS.forEach(r=>r());});
+const steps=[['calendar','① 予定タブ（カレンダー）','予定のある日に印（社の数）。過ぎた日は回れた数（✓3/4）。下に「次の予定」。空いた日を押す or 「＋ 予定を組む」。'],
+  ['build','② 予定を組む（地図＋ドロワー）','ピンを押すと下にカード。「＋ 予定に入れる」でカードがドロワーへ流れ込む。日付はドロワーの見出し（押すと変えられる）。'],
+  ['order','③ 順番（同じ画面のまま）','「順番を決める」で 1 番から順に点線が引かれ、ドロワーの行も同じ間隔で出る。位置と受付時間から自動で提案し、⋮⋮ で並べ替え。（②で押すと動きが見られます）'],
+  ['save','④ 保存','日付はドロワーで決めてあるので、ここは名前だけ。保存するとカレンダーに印。']];
+const row=document.getElementById('row');
+for(const [st,t,d] of steps){const col=document.createElement('div');col.className='col';col.innerHTML=`<h2>${t}</h2><p>${d}</p>`;row.appendChild(col);mount(col,st);}
+</script>
+</body>
+</html>

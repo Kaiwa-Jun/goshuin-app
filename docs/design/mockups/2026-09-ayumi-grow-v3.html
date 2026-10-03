@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<title>あゆみ — もう少し v3（暮らしの中で踏み出せる一歩だけ）</title>
+<style>
+:root{
+  --brand:#f27f0d; --brand700:#C2410C; --brand300:#FDBA74;
+  --seal:#C2342B; --sealEmpty:#D3D6DC; --temple:#9333EA; --shrine:#DC2626;
+  --ink:#111827; --ink2:#4B5563; --ink3:#9CA3AF; --rule:#E5E7EB;
+  --paper:#F2F2F7; --card:#FFFFFF; --empty:#E3E4E8;
+}
+*{box-sizing:border-box;margin:0}
+body{background:#d9d6cf;font-family:-apple-system,"Hiragino Sans",sans-serif;color:var(--ink);padding:28px}
+h1{font-size:20px;margin:0 0 6px}
+.lead{font-size:13px;color:#3f3a33;margin-bottom:22px;line-height:1.7;max-width:1250px}
+.row{display:flex;gap:32px;align-items:flex-start}
+.col h2{font-size:15px;margin-bottom:10px}
+.phone{width:390px;height:844px;background:var(--paper);border-radius:36px;overflow:hidden;box-shadow:0 18px 40px rgba(0,0,0,.18);position:relative}
+.status{height:44px;display:flex;justify-content:space-between;align-items:center;padding:0 28px;font-size:15px;font-weight:600}
+.hdr{font-size:28px;font-weight:800;padding:4px 20px 12px}
+.card{background:var(--card);border-radius:16px;margin:0 16px 12px;padding:16px}
+.t{font-size:15px;font-weight:700}
+.sub{font-size:12px;color:var(--ink2)}
+.soon .item{display:flex;gap:12px;align-items:center;padding:11px 0;border-top:1px solid var(--rule)}
+.soon .item.first{border-top:0;padding-top:6px}
+.soon .icon{width:44px;height:44px;flex:none;display:grid;place-items:center}
+.soon .what{flex:1;min-width:0}
+.soon .name{font-size:14px;font-weight:700}
+.soon .left{font-size:13px;font-weight:800;color:var(--seal);white-space:nowrap;text-align:right;line-height:1.35}
+.soon .chev{color:var(--ink3);font-size:18px;margin-left:2px}
+.soon .kind{font-size:10px;font-weight:700;color:var(--ink3);letter-spacing:.06em}
+.dots{display:flex;gap:3px;margin-top:5px}
+.dots i{width:8px;height:8px;border-radius:50%;background:var(--sealEmpty)}
+.dots i.on{background:var(--seal)}
+.hexa{display:flex;gap:3px;margin-top:5px}
+.hexa i{width:16px;height:6px;border-radius:3px;background:var(--sealEmpty)}
+.hexa i.on{background:var(--seal)}
+.maphead{display:flex;justify-content:space-between;align-items:baseline}
+.maphead .big{font-size:34px;font-weight:900}
+.maphead .of{font-size:13px;color:var(--ink3);margin-left:4px}
+.maphead .r{font-size:13px;color:var(--ink2)}
+.maphead .r b{font-size:20px;font-weight:900;color:var(--ink);margin-right:2px}
+svg.map{display:block;margin:6px auto 0}
+.tabbar{height:84px;border-top:1px solid var(--rule);background:#fff;display:flex;justify-content:space-around;padding-top:10px;font-size:10px;color:var(--ink3);position:absolute;left:0;right:0;bottom:0;z-index:2}
+.tabbar b{color:var(--brand)}
+/* シート */
+.dim{position:absolute;inset:0;background:rgba(0,0,0,.28)}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:22px 22px 0 0;padding:10px 20px 34px;z-index:3}
+.grab{width:40px;height:5px;border-radius:3px;background:#D1D5DB;margin:0 auto 14px}
+.sheet h3{font-size:19px;font-weight:800}
+.sheet .why{font-size:12px;color:var(--ink2);margin:4px 0 12px;line-height:1.6}
+.spot{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--rule)}
+.spot .pin{width:12px;height:12px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);flex:none}
+.spot .nm{flex:1}
+.spot .nm b{font-size:15px}
+.spot .nm span{display:block;font-size:12px;color:var(--ink2);margin-top:2px}
+.spot .km{font-size:12px;color:var(--ink3);white-space:nowrap}
+.btn{margin-top:14px;height:50px;border-radius:12px;background:#F3F4F6;color:var(--ink3);display:grid;place-items:center;font-size:14px;font-weight:700}
+.btn small{display:block;font-size:10px;font-weight:600;margin-top:-6px}
+.notes{max-width:470px;font-size:13px;line-height:1.8;color:#2f2b25}
+.notes h3{font-size:14px;margin:0 0 6px}
+.notes ul{padding-left:18px;margin-bottom:14px}
+.notes li{margin-bottom:4px}
+.notes b{color:#7a2a1c}
+table.rule{border-collapse:collapse;font-size:12px;margin-bottom:14px;width:100%}
+table.rule th,table.rule td{border-bottom:1px solid #bdb7ab;padding:6px 6px;text-align:left;vertical-align:top}
+table.rule th{font-size:11px;color:#5b554b}
+</style>
+</head>
+<body>
+<h1>あゆみ — 「もう少し」v3</h1>
+<p class="lead">
+  方針: <b>暮らしの中で踏み出せる一歩だけを促す</b>。月参り・よく行くエリア・日帰りの巡礼コース・印。地方の制覇や47都道府県は促さず、地図で眺めるだけ。<br>
+  「よく行くエリア」は端末の位置ではなく、<b>記録した寺社の位置から</b>割り出す（5km でまとめ、参拝した<b>月の数</b>で数える＝旅行先は入らない）。
+  データは本アカウントの記録から（月参りの1行だけ例として仮の値）。
+</p>
+
+<div class="row">
+  <div class="col">
+    <h2>① あゆみを開いた瞬間</h2>
+    <div class="phone" id="p1">
+      <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+      <div class="hdr">あゆみ</div>
+      <div class="card soon">
+        <div class="t" style="margin-bottom:2px">もう少し</div>
+        <div class="item first">
+          <div class="icon"><svg width="40" height="40" viewBox="0 0 100 100" id="hex"></svg></div>
+          <div class="what"><div class="kind">巡礼</div><div class="name">仙台六芒星巡り</div><div class="hexa"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div></div>
+          <div class="left">あと1社</div><span class="chev">›</span>
+        </div>
+        <div class="item">
+          <div class="icon"><svg width="40" height="40" viewBox="0 0 100 100" id="ring"></svg></div>
+          <div class="what"><div class="kind">月参り</div><div class="name">竹駒神社</div><div class="dots" id="dots"></div></div>
+          <div class="left">満願まで<br>あと3ヶ月</div><span class="chev">›</span>
+        </div>
+        <div class="item">
+          <div class="icon"><svg width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="17" fill="#FFF7ED"/><path d="M20 9c-4.4 0-8 3.4-8 7.8 0 5.6 8 13.2 8 13.2s8-7.6 8-13.2C28 12.4 24.4 9 20 9z" fill="#f27f0d"/><circle cx="20" cy="17" r="3.2" fill="#fff"/></svg></div>
+          <div class="what"><div class="kind">よく行くエリア</div><div class="name">仙台のまわり</div><div class="sub">輪王寺・瑞鳳殿・陸奥国分寺</div></div>
+          <div class="left">まだの<br>寺社 3</div><span class="chev">›</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="maphead"><div><span class="big">6</span><span class="of">/ 47 都道府県</span></div><div class="r"><b>62</b>枚</div></div>
+        <svg class="map" id="map" width="330" height="373"></svg>
+      </div>
+      <div class="tabbar"><span>地図</span><span>御朱印帳</span><b>あゆみ</b><span>設定</span></div>
+    </div>
+  </div>
+
+  <div class="col">
+    <h2>② 「仙台のまわり」を押したとき</h2>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+      <div class="hdr">あゆみ</div>
+      <div class="dim"></div>
+      <div class="sheet">
+        <div class="grab"></div>
+        <h3>よく行く、仙台のまわり</h3>
+        <p class="why">この7ヶ月、よく参拝しているあたりです。まだ御朱印をいただいていない寺社を、近い順に。</p>
+        <div class="spot"><i class="pin" style="background:var(--temple)"></i><div class="nm"><b>輪王寺</b><span>青葉区北山 ・ お寺</span></div><div class="km">1.8km</div></div>
+        <div class="spot"><i class="pin" style="background:var(--temple)"></i><div class="nm"><b>瑞鳳殿</b><span>青葉区霊屋下 ・ お寺</span></div><div class="km">2.0km</div></div>
+        <div class="spot"><i class="pin" style="background:var(--temple)"></i><div class="nm"><b>陸奥国分寺</b><span>若林区木ノ下 ・ お寺</span></div><div class="km">3.1km</div></div>
+        <div class="spot" style="opacity:.55"><i class="pin" style="background:var(--shrine)"></i><div class="nm"><b>亀岡八幡宮</b><span>仙台六芒星巡りの、残りの1社</span></div><div class="km">1.5km</div></div>
+        <div class="btn">この寺社を回る予定を組む<small>参拝ルート（準備中）</small></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h3>「もう少し」に出す条件</h3>
+    <table class="rule">
+      <tr><th>種類</th><th>出す条件</th><th>押すと</th></tr>
+      <tr><td>巡礼</td><td>残り<b>2社以下</b>のコース</td><td>コースの詳細</td></tr>
+      <tr><td>月参り</td><td>満願まで<b>1〜3ヶ月</b>、今月まだ</td><td>寺社の詳細</td></tr>
+      <tr><td>よく行くエリア</td><td>参拝した月が<b>3ヶ月以上</b>のエリアに、まだの寺社がある</td><td>②のシート</td></tr>
+      <tr><td>印</td><td>次の印まで<b>2割以内</b>、四季の印ならあと1季節</td><td>印の欄</td></tr>
+    </table>
+    <ul>
+      <li>最大3行。<b>近い順</b>（あとの数が小さい順）。同じ寺社が2行に出ないよう、巡礼の残りはエリアの一覧では薄く添えるだけ</li>
+      <li>何も当てはまらなければ、<b>カードごと出さない</b>（「まだ何もありません」とも言わない）</li>
+      <li>エリア名は寺社の住所の市区町村から（「仙台のまわり」）。<b>「家」「あなたの位置」とは言わない</b></li>
+      <li>地方の制覇・都道府県は<b>促さない</b>。地図と地方の帯（v2 の帯から点線と朱を外したもの）で眺めるだけ</li>
+    </ul>
+    <h3>よく行くエリアの割り出し（本アカウントで試算）</h3>
+    <ul>
+      <li>5km 以内の記録を1つにまとめる → 仙台の街なか <b>7ヶ月</b>・竹駒 3・米沢 3・<b>京都 2（旅行2回）</b></li>
+      <li>「3ヶ月以上」なら仙台・竹駒・米沢が候補、京都は入らない。まだの寺社は、スポットマスタのうち中心から 5km 以内・ランクの高い順</li>
+      <li>記録が少ないうち（3ヶ月に満たない）は、この行は出ない</li>
+    </ul>
+    <h3>②の「予定を組む」</h3>
+    <ul>
+      <li>参拝ルート計画（マネタイズ設計のあと）の入口として置くだけ。今回は出さない or 準備中表記のどちらか</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const NS = 'http://www.w3.org/2000/svg';
+const COUNT = { 宮城県: 39, 京都府: 17, 山形県: 5, 栃木県: 2, 東京都: 1 };
+const tier = n => n >= 6 ? '#C2410C' : n >= 3 ? '#f27f0d' : n >= 1 ? '#FDBA74' : '#E3E4E8';
+const ring = document.getElementById('ring');
+for (let i = 0; i < 12; i++) { const a = -Math.PI / 2 + i * Math.PI / 6, c = document.createElementNS(NS, 'circle'); c.setAttribute('cx', 50 + 36 * Math.cos(a)); c.setAttribute('cy', 50 + 36 * Math.sin(a)); c.setAttribute('r', 9); c.setAttribute('fill', i < 9 ? '#C2342B' : '#D3D6DC'); ring.appendChild(c); }
+document.getElementById('dots').innerHTML = Array.from({ length: 12 }, (_, i) => `<i class="${i < 9 ? 'on' : ''}"></i>`).join('');
+const hex = document.getElementById('hex');
+for (let i = 0; i < 6; i++) { const a = -Math.PI / 2 + i * Math.PI / 3, c = document.createElementNS(NS, 'circle'); c.setAttribute('cx', 50 + 34 * Math.cos(a)); c.setAttribute('cy', 50 + 34 * Math.sin(a)); c.setAttribute('r', 11); c.setAttribute('fill', i < 5 ? '#C2342B' : '#D3D6DC'); hex.appendChild(c); }
+fetch('japan-paths.json').then(r => r.json()).then(({ paths }) => {
+  const svg = document.getElementById('map'); svg.setAttribute('viewBox', '0 0 1000 1132');
+  for (const [n, d] of Object.entries(paths)) { const p = document.createElementNS(NS, 'path'); p.setAttribute('d', d); p.setAttribute('fill', tier(COUNT[n] || 0)); p.setAttribute('stroke', '#fff'); p.setAttribute('stroke-width', 1.4); svg.appendChild(p); }
+});
+</script>
+</body>
+</html>

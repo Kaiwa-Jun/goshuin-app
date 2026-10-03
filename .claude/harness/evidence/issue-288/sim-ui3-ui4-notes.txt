@@ -1,0 +1,41 @@
+Issue #288 S5 — シミュレータ goshuin-repro (5363465A-5B02-4490-B1AB-B070C6125C16, iOS 26.5) の記録
+2026-09-27 JST
+
+■ 使った .app（入れ替えていない）
+  ~/Library/Developer/CoreSimulator/Devices/5363465A-5B02-4490-B1AB-B070C6125C16/data/Containers/Bundle/Application/79147C5C-715F-4854-BB05-C7A5AC61FDCE/app.app
+  app.app 更新 2026-09-26 18:27 / 実行ファイル 18:19 / CFBundleShortVersionString 1.2.0 (1)
+  app.debug.dylib に "StoreReview" の文字列 0 件 = expo-store-review が入る前のビルド（オーナーの開発用アプリと同じ条件）
+  JS はこの worktree の Metro（--dev-client --port 8087・CI モード）から読んだ。開発用アプリは読み込みを拒まなかった（fingerprint の違いで止まらない）
+
+■ UI-3 の進め方（契約書からの変更）
+  本番の Supabase に書かないため、記録の保存はしていない。コミットしない一時の開発用の行（TEMP288）で
+  navigation.getParent().navigate('RecordComplete', { totalStampCount: 3, stampCount: 1, prefecture: '宮城県',
+  stampCountByPrefecture: { 宮城県: 3 }, origin: 'map' }) を開き、「地図に戻る」を押した。
+  保存 → 完了画面の params の経路は Jest（AC-26・AC-30）で確かめている。一時のコードと一時のログは確認後に戻した。
+
+■ UI-3 の時刻（JST）
+  完了画面が出た          17:28:52 ごろ（録画）
+  「地図に戻る」を押し始め  17:29:01.9（Maestro。tap に数秒かかる）
+  フックが印を取り出した    17:29:10.799  [Metro] LOG [TEMP288] take 3 2026-09-27T08:29:10.799Z
+  1500ms 後に判定が走った   17:29:12.307  [Metro] LOG [TEMP288] fired 2026-09-27T08:29:12.307Z
+  依頼の呼び出しの結果      [Metro] LOG [TEMP288] requestStoreReview false {"count":0,"lastRequestedAt":null}
+                            = 履歴なし・3枚で「出す」と判定し、ExpoStoreReview が無いので何もせず false（履歴は書かない）
+  見届けの終わり            17:29:26.8（地図に戻ってから約16秒。sim-ui3-map-16s-after-return.png）
+  この間、赤い画面・LogBox・Cannot find native module は出ず、アプリのプロセス（pid 45750）は生きたまま。
+  Metro のログの警告は既存の "fetchSpotById error: invalid input syntax for type uuid" の1件だけ。
+  録画（simctl recordVideo）は画面が変わったときだけコマを書くので、地図が落ち着いた 17:29:15 ごろ以降はコマが無い
+  （= 何も出ていない）。録画は完了画面から切り出し、地図の部分はオーナーの記録が写らないようにぼかした。
+
+■ UI-4（一部・古い .app ＋新しい JS で確認。新しい .app は作れていない）
+  設定 →「アプリ情報」: バージョン / 利用規約 / プライバシーポリシー / App Store でレビューを書く ＞（sim-ui3-ui4-settings-app-info-old-app.png）
+  押したとき SpringBoard のログ:
+    2026-09-27 17:32:08.859 Df SpringBoard[49664:2715a35] [com.apple.SpringBoard:Common] Handling OpenURL from app:45750: https://apps.apple.com/app/id6797201465?action=write-review
+  Safari は開いたが「ページを開けません。アドレスが無効です。」（sim-ui4-safari-after-tap.png）。アプリは落ちていない。
+  理由: apps.apple.com は iPhone の Safari に 301 で itms-appss:// を返す（App Store アプリの scheme）。シミュレータには App Store アプリが無い。
+    curl（iPhone の UA）: 301 → itms-appss://apps.apple.com/app/id6797201465?action=write-review
+    curl（Mac の UA）  : 200 https://apps.apple.com/jp/app/御朱印さんぽ/id6797201465 「御朱印さんぽアプリ - App Store」
+  → 契約書の「シミュレータでは Safari で御朱印さんぽのページが開く」はシミュレータでは成り立たない。実機で App Store の「レビューを書く」が開くかは H-1 で見る。
+
+■ UI-5・UI-6・UI-7: 未確認
+  新しい .app（expo-store-review 入り）を作れなかった。Mac の空きが 1.5〜1.7GB（契約書の前提は 15GB 以上。
+  hamlet の ios/build だけで 3.2GB・Pods 0.9GB）。prebuild / pod install / xcodebuild は実行していない。

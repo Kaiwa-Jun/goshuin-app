@@ -22,6 +22,7 @@ appId: com.goshuin.app
       - tapOn: "続ける"
 # メインタブの表示確認
 - assertVisible: "地図"
+- assertVisible: "予定"
 - assertVisible: "御朱印帳"
 - assertVisible: "あゆみ"
 - assertVisible: "設定"

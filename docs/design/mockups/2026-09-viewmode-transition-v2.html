@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>御朱印帳の表示の切り替え — 切り替わりの動き v2</title>
+<style>
+/* 動かすのは 位置・大きさ・回転（rotateZ / rotateY）・透明度 だけ。RN の Animated（spring / timing）と
+   transform・backfaceVisibility で作れるもの。「写真の代わり」の図は、どの投稿がどこへ動いたか追うための仮の絵 */
+:root{--brand:#f27f0d;--g100:#F3F4F6;--g200:#E5E7EB;--g400:#9CA3AF;--g500:#6B7280;--g800:#1F2937;--washi:#EFEAE0;--paper:#FBF8F1;--seal:#C2342B}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#E7E5E0;font-family:-apple-system,"Hiragino Sans",sans-serif;color:var(--g800);padding:22px 24px 40px}
+h1{font-size:20px;font-weight:800}
+.lead{font-size:13px;color:#4B5563;line-height:1.8;margin:4px 0 12px;max-width:1100px}
+.ctl{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;margin-bottom:16px}
+.ctl button{border:0;border-radius:10px;padding:8px 14px;font-weight:800;cursor:pointer}
+.demo{background:var(--seal);color:#fff}
+.seg{display:inline-flex;background:#fff;border-radius:999px;padding:3px}
+.seg button{background:transparent;border-radius:999px;padding:5px 12px;font-size:12.5px;color:#6B7280}
+.seg button.on{background:var(--g100);color:var(--g800)}
+.wrap{display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start}
+.col{width:300px}
+.col h2{font-size:15px;font-weight:800;margin-bottom:6px}
+.col h2 .tag{font-size:11px;font-weight:800;color:#fff;background:var(--seal);border-radius:999px;padding:1px 8px;margin-left:6px;vertical-align:2px}
+.col p{font-size:12.5px;color:#4B5563;line-height:1.7;margin-top:10px}
+.col p b{color:var(--g800)}
+.took{font-size:12px;font-weight:800;color:var(--seal);margin-top:8px;min-height:18px}
+.phone{width:300px;height:560px;border-radius:30px;overflow:hidden;position:relative;background:#fff;box-shadow:0 14px 40px rgba(17,24,39,.22)}
+.sb{height:36px;display:flex;justify-content:space-between;align-items:center;padding:0 22px;font-size:12px;font-weight:600}
+.hd{display:flex;justify-content:space-between;align-items:center;padding:4px 16px 8px}
+.hd b{font-size:22px;font-weight:800}
+.stage{position:relative;height:460px;overflow:hidden}
+.flipv,.gridv{position:absolute;inset:0}
+.page{position:absolute;left:50px;top:10px;width:200px;height:300px;border:1px solid var(--g200);border-radius:12px;overflow:hidden;background:#fff}
+.pcap{position:absolute;left:50px;top:318px;width:200px;display:flex;justify-content:space-between;font-size:12px}
+.pcap span{font-size:10.5px;color:var(--g500)}
+.sort{position:absolute;left:16px;top:4px;font-size:12px;color:var(--g500)}
+/* タイル: 表（写真）と裏（和紙の紙）。めくれるときは裏が見える */
+.tile{position:absolute;width:82px;height:82px;transform-style:preserve-3d}
+.face{position:absolute;inset:0;border-radius:8px;overflow:hidden;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.face.back{transform:rotateY(180deg);background:var(--paper);border:1px solid #E6DFD0}
+.face.back::after{content:'';position:absolute;inset:8px;border:1px solid rgba(194,52,43,.18);border-radius:4px}
+.ph{position:absolute;inset:0;background:var(--washi)}
+.ph::after{content:'';position:absolute;inset:6px;border:1px solid rgba(0,0,0,.06);border-radius:5px}
+.fly{position:absolute;z-index:6;transform-style:preserve-3d}
+.fly .face{border-radius:10px}
+svg{display:block;width:100%;height:100%}
+/* 切り替えボタン A */
+.segA{position:relative;display:flex;background:var(--g100);border-radius:12px;padding:3px;cursor:pointer}
+.segA .thumb{position:absolute;top:3px;left:3px;width:44px;height:34px;border-radius:9px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.14)}
+.segA .opt{position:relative;width:44px;height:34px;display:grid;place-items:center;color:var(--g400)}
+.segA .opt.on{color:var(--brand)}
+.ic{position:relative;width:22px;height:22px}
+.book{perspective:120px}
+.book .p{position:absolute;top:4px;width:9.5px;height:14px;border-radius:1.5px;background:currentColor}
+.book .p.r{left:11.5px}.book .p.l{left:1px;transform-origin:right center}
+.grid4 .t{position:absolute;width:8.5px;height:8.5px;border-radius:2px;background:currentColor}
+.grid4 .t:nth-child(1){left:2px;top:2px}.grid4 .t:nth-child(2){left:11.5px;top:2px}.grid4 .t:nth-child(3){left:2px;top:11.5px}.grid4 .t:nth-child(4){left:11.5px;top:11.5px}
+</style>
+</head>
+<body>
+<h1>御朱印帳の表示の切り替え — 切り替わりの動き v2</h1>
+<p style="display:inline-block;font-size:12px;font-weight:700;color:#065F46;background:#D1FAE5;border-radius:999px;padding:2px 10px;margin:6px 0">2026-09-27 オーナーが 5（束から、めくれながら並ぶ）を選択（Issue #276）</p>
+<p class="lead">v1 の「3 束が広がる」「4 めくれて並ぶ」を<b>全体で約0.6秒に詰めた版</b>と、2つを<b>合わせた案（5）</b>。3 と 5 は<b>束のいちばん上が「見ていたページ」</b>で、それが自分の場所へ着く（戻るときは、その1枚がページに広がる）。<b>画面の下に隠れているタイル（16〜18枚目）は動かさずに置くだけ</b>。各スマホの下に、実際にかかった時間を出す。</p>
+<div class="ctl"><button class="demo" id="auto">自動で切り替える</button>
+  <span class="seg" id="spd"><button data-v="1" class="on">ふつうの速さ</button><button data-v="3">ゆっくり（3倍）</button></span>
+  <span class="seg" id="ph"><button data-v="off" class="on">写真あり</button><button data-v="on">読み込み中の下地で試す</button></span>
+  <span class="seg" id="rm"><button data-v="off" class="on">動きあり</button><button data-v="on">視差効果を減らす</button></span></div>
+<div class="wrap" id="wrap"></div>
+
+<script>
+const IDEAS=[
+ {id:3, t:'3. 束が広がる（詰めた版）', d:'見ていたページが<b>縮んで束</b>になり、そこから投稿がばねで<b>それぞれの場所へ散って並ぶ</b>。見ていた1枚は束のいちばん上から自分の場所へ。戻るときは真ん中に集まって束になり、その1枚がページに広がる'},
+ {id:4, t:'4. めくれて並ぶ（詰めた版）', d:'ページが<b>めくれて消え</b>、投稿が<b>斜めの順にくるりとめくれて</b>現れる。戻るときは逆。位置は動かず、その場でめくれる'},
+ {id:5, t:'5. 束から、めくれながら並ぶ', tag:'合わせた案', d:'見ていたページが<b>縮んで束（閉じた御朱印帳）</b>になり、そこから1枚ずつ<b>くるりとめくれながら</b>自分の場所へ散って並ぶ（めくれている間は紙の裏が見える）。見ていた1枚は束のいちばん上から最初に着く。戻るときは、めくれながら真ん中に集まって束になり、その1枚がページに広がる'},
+];
+const N=18, CUR=4, VISIBLE=15; // 16枚目から下は画面の外
+const state={speed:1, rm:false, ph:false};
+function art(i){ const tones=['#F4EEE2','#EAF0F4','#F6EEE6','#EEF0E6','#F3E9E9','#EDEAF3'];
+  const x=18+(i*23)%44, y=70+(i*13)%40, rot=(i%2?-1:1)*(3+i%5);
+  const strokes=Array.from({length:3},(_,k)=>`<rect x="${52+k*13-(i%3)*6}" y="${16+(k*9+i*5)%18}" width="6" height="${62-(k*11+i*3)%24}" rx="2" fill="#2B2B2B" opacity=".82"/>`).join('');
+  return `<svg viewBox="0 0 100 150" preserveAspectRatio="xMidYMid slice"><rect width="100" height="150" fill="${tones[i%6]}"/>${strokes}<g transform="rotate(${rot} ${x+14} ${y+14})"><rect x="${x}" y="${y}" width="28" height="28" rx="3" fill="none" stroke="#C2342B" stroke-width="4"/><rect x="${x+8}" y="${y+8}" width="12" height="12" fill="#C2342B" opacity=".85"/></g><circle cx="${20+(i*9)%16}" cy="${36+(i*7)%20}" r="${9+i%5}" fill="none" stroke="#C2342B" stroke-width="3" opacity=".8"/></svg>`; }
+const front=i=>state.ph?'<div class="ph"></div>':art(i);
+const tilePos=i=>({x:16+(i%3)*91, y:28+Math.floor(i/3)*91, w:82, h:82});
+const PAGE={x:50,y:10,w:200,h:300};
+const STACK={x:PAGE.x+PAGE.w/2-41, y:PAGE.y+PAGE.h/2-60, w:82, h:82};
+const book=()=>`<div class="ic book"><div class="p r"></div><div class="p l"></div></div>`, grid4=()=>`<div class="ic grid4"><div class="t"></div><div class="t"></div><div class="t"></div><div class="t"></div></div>`;
+function render(){
+  document.getElementById('wrap').innerHTML=IDEAS.map(x=>`<div class="col" id="c${x.id}"><h2>${x.t}${x.tag?`<span class="tag">${x.tag}</span>`:''}</h2>
+  <div class="phone"><div class="sb"><span>9:41</span><span>▮▮▮ ◠ ▭</span></div>
+   <div class="hd"><b>御朱印帳</b><div class="segA"><div class="thumb"></div><div class="opt on" data-m="flip">${book()}</div><div class="opt" data-m="grid">${grid4()}</div></div></div>
+   <div class="stage"><div class="flipv"><div class="page">${front(CUR)}</div><div class="pcap">大崎八幡宮<span>1月3日</span></div></div>
+    <div class="gridv" style="display:none"><div class="sort">日付順 ▼</div>${Array.from({length:N},(_,i)=>{const p=tilePos(i);return `<div class="tile" data-i="${i}" style="left:${p.x}px;top:${p.y}px"><div class="face front">${front(i)}</div><div class="face back"></div></div>`}).join('')}</div></div></div>
+  <div class="took" id="took${x.id}"></div><p>${x.d}</p></div>`).join('');
+  IDEAS.forEach(x=>document.querySelector(`#c${x.id} .segA`).addEventListener('click',()=>go(x.id)));
+  Object.keys(mode).forEach(k=>mode[k]='flip');
+}
+/* 道具 */
+const ease=t=>1-Math.pow(1-t,3), easeIn=t=>t*t;
+const spring=t=>1-Math.exp(-7*t)*Math.cos(9*t);
+const lerp=(a,b,p)=>a+(b-a)*p, css=(el,o)=>Object.assign(el.style,o);
+const place=(el,r)=>css(el,{left:r.x+'px',top:r.y+'px',width:r.w+'px',height:r.h+'px'});
+const mixR=(a,b,p)=>({x:lerp(a.x,b.x,p),y:lerp(a.y,b.y,p),w:lerp(a.w,b.w,p),h:lerp(a.h,b.h,p)});
+function anim(ms,fn,e=ease,delay=0){ return new Promise(res=>{ if(state.rm){ fn(1); res(); return; } ms*=state.speed; delay*=state.speed;
+  setTimeout(()=>{ const t0=performance.now(); const step=now=>{ const p=Math.min(1,(now-t0)/ms); fn(e(p)); if(p<1) requestAnimationFrame(step); else res(); }; requestAnimationFrame(step); },delay); }); }
+function toggleButton(col,mode){ const seg=col.querySelector('.segA'), th=seg.querySelector('.thumb'); const from=+(th.dataset.x||0), to=mode==='flip'?0:44; th.dataset.x=to;
+  anim(480,p=>th.style.transform=`translateX(${lerp(from,to,p)}px)`,t=>1-Math.exp(-6.5*t)*Math.cos(9.5*t));
+  seg.querySelectorAll('.opt').forEach(o=>o.classList.toggle('on',o.dataset.m===mode)); const o=seg.querySelector(`.opt[data-m="${mode}"]`);
+  if(mode==='flip'){ const l=o.querySelector('.p.l'); anim(560,p=>l.style.transform=`rotateY(${lerp(180,0,p)}deg)`); }
+  else o.querySelectorAll('.t').forEach((t,i)=>{ t.style.transform='scale(0)'; anim(240,p=>t.style.transform=`scale(${p})`,spring,i*60); }); }
+const V=col=>({flip:col.querySelector('.flipv'),grid:col.querySelector('.gridv'),tiles:[...col.querySelectorAll('.tile')],page:col.querySelector('.page')});
+const rot=i=>((i*37)%17-8);
+const dist=i=>Math.hypot((i%3)-(CUR%3),Math.floor(i/3)-Math.floor(CUR/3));
+/* 散る順: 見ていた1枚が最初、あとは近い順。最後の1枚が動き出すまで最大 120ms */
+function order(tiles){ const vis=tiles.filter(t=>+t.dataset.i<VISIBLE); const sorted=vis.slice().sort((a,b)=>dist(+a.dataset.i)-dist(+b.dataset.i)); const m=new Map(); sorted.forEach((t,k)=>m.set(t, k===0?0:20+100*k/(sorted.length-1))); return m; }
+function resetTiles(v){ v.tiles.forEach(t=>{ place(t,tilePos(+t.dataset.i)); css(t,{transform:'none',opacity:1,zIndex:''}); }); }
+
+/* ── 3. 束が広がる ── */
+async function t3(col,to){ const v=V(col);
+  if(to==='grid'){ await anim(100,p=>css(v.page,{transform:`scale(${lerp(1,.42,p)})`}),easeIn); v.flip.style.display='none'; v.grid.style.display='block';
+    const od=order(v.tiles);
+    v.tiles.forEach(t=>{ const i=+t.dataset.i; if(i>=VISIBLE){ place(t,tilePos(i)); return; } place(t,STACK); css(t,{transform:`rotate(${i===CUR?0:rot(i)}deg)`,zIndex:i===CUR?3:1}); });
+    await Promise.all(v.tiles.filter(t=>+t.dataset.i<VISIBLE).map(t=>{ const i=+t.dataset.i; return anim(345,p=>{ place(t,mixR(STACK,tilePos(i),p)); t.style.transform=`rotate(${lerp(i===CUR?0:rot(i),0,p)}deg)`; },spring,od.get(t)); }));
+    resetTiles(v); }
+  else { const od=order(v.tiles);
+    await Promise.all(v.tiles.filter(t=>+t.dataset.i<VISIBLE).map(t=>{ const i=+t.dataset.i; t.style.zIndex=i===CUR?3:1; return anim(240,p=>{ place(t,mixR(tilePos(i),STACK,p)); t.style.transform=`rotate(${lerp(0,i===CUR?0:rot(i),p)}deg)`; },ease,80-80*od.get(t)/120); }));
+    v.grid.style.display='none'; v.flip.style.display='block'; css(v.page,{transform:'scale(.42)'});
+    await anim(280,p=>css(v.page,{transform:`scale(${lerp(.42,1,p)})`}),spring); resetTiles(v); } }
+
+/* ── 4. めくれて並ぶ ── */
+async function t4(col,to){ const v=V(col); const diag=i=>(i%3)+Math.floor(i/3);
+  if(to==='grid'){ await anim(160,p=>css(v.page,{transform:`perspective(700px) rotateY(${lerp(0,-90,p)}deg)`,transformOrigin:'left center'}),easeIn); v.flip.style.display='none'; v.grid.style.display='block';
+    await Promise.all(v.tiles.map(t=>{ const i=+t.dataset.i; if(i>=VISIBLE){ t.style.transform='none'; return; } t.style.transform='perspective(700px) rotateY(180deg)'; return anim(280,p=>t.style.transform=`perspective(700px) rotateY(${lerp(180,0,p)}deg)`,ease,Math.min(diag(i),5)*28); })); resetTiles(v); }
+  else { await Promise.all(v.tiles.filter(t=>+t.dataset.i<VISIBLE).map(t=>{ const i=+t.dataset.i; return anim(180,p=>t.style.transform=`perspective(700px) rotateY(${lerp(0,-180,p)}deg)`,easeIn,(5-Math.min(diag(i),5))*20); }));
+    v.grid.style.display='none'; v.flip.style.display='block';
+    await anim(280,p=>css(v.page,{transform:`perspective(700px) rotateY(${lerp(90,0,p)}deg)`,transformOrigin:'right center'}),ease); resetTiles(v); } }
+
+/* ── 5. 束から、めくれながら並ぶ ── */
+async function t5(col,to){ const v=V(col);
+  if(to==='grid'){ await anim(100,p=>css(v.page,{transform:`scale(${lerp(1,.42,p)})`}),easeIn); v.flip.style.display='none'; v.grid.style.display='block';
+    const od=order(v.tiles);
+    v.tiles.forEach(t=>{ const i=+t.dataset.i; if(i>=VISIBLE){ place(t,tilePos(i)); return; } place(t,STACK); css(t,{transform:`rotate(${i===CUR?0:rot(i)}deg) rotateY(${i===CUR?0:180}deg)`,zIndex:i===CUR?3:1}); });
+    await Promise.all(v.tiles.filter(t=>+t.dataset.i<VISIBLE).map(t=>{ const i=+t.dataset.i; const r0=i===CUR?0:rot(i), y0=i===CUR?0:180;
+      return anim(345,p=>{ place(t,mixR(STACK,tilePos(i),spring(p))); t.style.transform=`perspective(700px) rotate(${lerp(r0,0,p)}deg) rotateY(${lerp(y0,0,ease(p))}deg)`; },t=>t,od.get(t)); }));
+    resetTiles(v); }
+  else { const od=order(v.tiles);
+    await Promise.all(v.tiles.filter(t=>+t.dataset.i<VISIBLE).map(t=>{ const i=+t.dataset.i; t.style.zIndex=i===CUR?3:1; const r1=i===CUR?0:rot(i), y1=i===CUR?0:180;
+      return anim(250,p=>{ place(t,mixR(tilePos(i),STACK,p)); t.style.transform=`perspective(700px) rotate(${lerp(0,r1,p)}deg) rotateY(${lerp(0,y1,p)}deg)`; },ease,80-80*od.get(t)/120); }));
+    v.grid.style.display='none'; v.flip.style.display='block'; css(v.page,{transform:'scale(.42)'});
+    await anim(260,p=>css(v.page,{transform:`scale(${lerp(.42,1,p)})`}),spring); resetTiles(v); } }
+
+const T={3:t3,4:t4,5:t5}; const mode={3:'flip',4:'flip',5:'flip'}; const busy={};
+async function go(id){ if(busy[id]) return; busy[id]=true; const col=document.getElementById('c'+id); const to=mode[id]==='flip'?'grid':'flip'; mode[id]=to;
+  toggleButton(col,to); const t0=performance.now(); await T[id](col,to);
+  const s=(performance.now()-t0)/state.speed/1000; document.getElementById('took'+id).textContent=state.rm?'視差効果を減らす: 動きなし':`${to==='grid'?'めくる → 一覧':'一覧 → めくる'}: ${s.toFixed(2)}秒${state.speed>1?'（ゆっくりを 1倍に換算）':''}`; busy[id]=false; }
+render();
+let timer=null; document.getElementById('auto').onclick=()=>{ const b=document.getElementById('auto'); if(timer){ clearInterval(timer); timer=null; b.textContent='自動で切り替える'; return; }
+  b.textContent='止める'; const run=()=>IDEAS.forEach(x=>go(x.id)); run(); timer=setInterval(run,1800*state.speed); };
+const segs={spd:v=>state.speed=+v, rm:v=>state.rm=v==='on', ph:v=>{ state.ph=v==='on'; render(); }};
+Object.keys(segs).forEach(k=>document.querySelectorAll(`#${k} button`).forEach(b=>b.onclick=()=>{ document.querySelectorAll(`#${k} button`).forEach(x=>x.classList.toggle('on',x===b)); segs[k](b.dataset.v); }));
+window.__go=go; window.__mode=mode;
+</script>
+</body>
+</html>

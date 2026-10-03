@@ -72,8 +72,8 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
 ('最勝院', 40.5965, 140.4685, 'temple', '青森県弘前市銅屋町63', '青森県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
-('恐山菩提寺', 41.2790, 141.1200, 'temple', '青森県むつ市大字田名部字宇曽利山3-2', '青森県', 5, 'active'),
--- 住所確認: ホトカミ ✓, NAVITIME ✓ | 座標: Wikipedia（恐山） ✓
+('恐山菩提寺', 41.327256, 141.090254, 'temple', '青森県むつ市大字田名部字宇曽利山3-2', '青森県', 5, 'active'),
+-- 住所確認: ホトカミ ✓, NAVITIME ✓ | 座標: Wikidata Q11619992（#292 で直した）
 ('高山稲荷神社', 40.9385, 140.3124, 'shrine', '青森県つがる市牛潟町鷲ノ沢147-1', '青森県', 5, 'active')
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
 ;
@@ -135,8 +135,8 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
 ('身照寺', 39.3935, 141.1170, 'temple', '岩手県花巻市石神町389', '岩手県', 4, 'active'),
 -- 住所確認: ホトカミ ✓, NAVITIME ✓ | 座標: 花巻市住所推定 ※要検証
-('盛岡天満宮', 39.7050, 141.1480, 'shrine', '岩手県盛岡市新庄町5-43', '岩手県', 4, 'active'),
--- 住所確認: ホトカミ ✓, NAVITIME ✓ | 座標: 盛岡市住所推定 ※要検証
+('盛岡天満宮', 39.702756, 141.167322, 'shrine', '岩手県盛岡市新庄町5-43', '岩手県', 4, 'active'),
+-- 住所確認: ホトカミ ✓, NAVITIME ✓ | 座標: OpenStreetMap way/708201555（© OpenStreetMap contributors, ODbL・#292 で直した）
 ('高館義経堂', 38.9973, 141.1135, 'temple', '岩手県西磐井郡平泉町平泉柳御所14', '岩手県', 4, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
 ('日高神社', 39.1429, 141.1324, 'shrine', '岩手県奥州市水沢区日高小路14番地', '岩手県', 4, 'active'),
@@ -145,8 +145,8 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
 ('志和古稲荷神社', 39.5570, 141.0750, 'shrine', '岩手県紫波郡紫波町升沢字小森108番地', '岩手県', 4, 'active'),
 -- 住所確認: ホトカミ ✓, NAVITIME ✓ | 座標: 志和稲荷近傍推定 ※要検証
-('住吉神社', 39.6880, 141.1520, 'shrine', '岩手県盛岡市住吉町9-1', '岩手県', 4, 'active'),
--- 住所確認: ホトカミ ✓, NAVITIME ✓ | 座標: 盛岡市住所推定 ※要検証
+('住吉神社', 39.700577, 141.165009, 'shrine', '岩手県盛岡市住吉町9-1', '岩手県', 4, 'active'),
+-- 住所確認: ホトカミ ✓, NAVITIME ✓ | 座標: OpenStreetMap way/708184863（© OpenStreetMap contributors, ODbL・#292 で直した）
 ('志賀理和氣神社', 39.5473, 141.1744, 'shrine', '岩手県紫波郡紫波町桜町字本町川原3番地1', '岩手県', 4, 'active')
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
 ;
@@ -178,14 +178,14 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 
 -- rank 4（11〜20位）
 INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALUES
-('三皇熊野神社里宮', 39.7000, 140.1150, 'shrine', '秋田県秋田市牛島東2丁目2-36', '秋田県', 4, 'active'),
--- 住所確認: ホトカミ ✓, 公式サイト ✓ | 座標: 秋田市住所推定 ※要検証
+('三皇熊野神社里宮', 39.700798, 140.118805, 'shrine', '秋田県秋田市牛島東2丁目2-36', '秋田県', 4, 'active'),
+-- 住所確認: ホトカミ ✓, 公式サイト ✓ | 座標: OpenStreetMap way/810501084（© OpenStreetMap contributors, ODbL・#292 で直した）
 ('土崎神明社', 39.7569, 140.0708, 'shrine', '秋田県秋田市土崎港中央3丁目9-37', '秋田県', 4, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
-('大館神明社', 40.2710, 140.5640, 'shrine', '秋田県大館市中神明町1-5', '秋田県', 4, 'active'),
--- 住所確認: ホトカミ ✓, NAVITIME ✓ | 座標: 大館市住所推定 ※要検証
-('横手神明社', 39.3130, 140.5530, 'shrine', '秋田県横手市神明町7-2', '秋田県', 4, 'active'),
--- 住所確認: ホトカミ ✓, NAVITIME ✓ | 座標: 横手市住所推定 ※要検証
+('大館神明社', 40.266625, 140.551948, 'shrine', '秋田県大館市中神明町1-5', '秋田県', 4, 'active'),
+-- 住所確認: ホトカミ ✓, NAVITIME ✓ | 座標: OpenStreetMap way/877956686（© OpenStreetMap contributors, ODbL・#292 で直した）
+('横手神明社', 39.307944, 140.568611, 'shrine', '秋田県横手市神明町7-2', '秋田県', 4, 'active'),
+-- 住所確認: ホトカミ ✓, NAVITIME ✓ | 座標: Wikidata Q24867946（#292 で直した）
 ('角館總鎮守神明社', 39.5960, 140.5620, 'shrine', '秋田県仙北市角館町岩瀬117', '秋田県', 4, 'active'),
 -- 住所確認: ホトカミ ✓, NAVITIME ✓ | 座標: 角館住所推定 ※要検証
 ('愛宕神社', 39.1630, 140.4960, 'shrine', '秋田県湯沢市愛宕山13', '秋田県', 4, 'active'),
@@ -194,10 +194,10 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 -- 住所確認: ホトカミ ✓, NAVITIME ✓ | 座標: 男鹿市住所推定 ※要検証
 ('総社神社', 39.7106, 140.1000, 'shrine', '秋田県秋田市川尻総社町14-6', '秋田県', 4, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
-('秋田諏訪宮', 39.4190, 140.5530, 'shrine', '秋田県仙北郡美郷町六郷字本道町20', '秋田県', 4, 'active'),
--- 住所確認: ホトカミ ✓, NAVITIME ✓ | 座標: 美郷町住所推定 ※要検証
-('日吉神社', 39.7090, 140.0740, 'shrine', '秋田県秋田市新屋日吉町10-67', '秋田県', 4, 'active')
--- 住所確認: ホトカミ ✓, NAVITIME ✓ | 座標: 秋田市住所推定 ※要検証
+('秋田諏訪宮', 39.423611, 140.542778, 'shrine', '秋田県仙北郡美郷町六郷字本道町20', '秋田県', 4, 'active'),
+-- 住所確認: ホトカミ ✓, NAVITIME ✓ | 座標: Wikidata Q17191063（#292 で直した）
+('日吉神社', 39.677700, 140.082397, 'shrine', '秋田県秋田市新屋日吉町10-67', '秋田県', 4, 'active')
+-- 住所確認: ホトカミ ✓, NAVITIME ✓ | 座標: Wikidata Q107005965（#292 で直した）
 ;
 
 -- === 山形県 ===
@@ -213,8 +213,8 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
 ('荘内神社', 38.7283, 139.8243, 'shrine', '山形県鶴岡市馬場町4番1号', '山形県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
-('里之宮湯殿山神社', 38.2530, 140.3350, 'shrine', '山形県山形市旅篭町3-4-6', '山形県', 5, 'active'),
--- 住所確認: ホトカミ ✓, 公式サイト ✓ | 座標: 山形市住所推定 ※要検証
+('里之宮湯殿山神社', 38.257365, 140.340059, 'shrine', '山形県山形市旅篭町3-4-6', '山形県', 5, 'active'),
+-- 住所確認: ホトカミ ✓, 公式サイト ✓ | 座標: OpenStreetMap way/909125591（© OpenStreetMap contributors, ODbL・#292 で直した）
 ('山寺日枝神社', 38.3130, 140.4370, 'shrine', '山形県山形市大字山寺4449-4', '山形県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, NAVITIME ✓（立石寺登山口） | 座標: 立石寺近傍推定 ※要検証
 ('山形縣護國神社', 38.2626, 140.3472, 'shrine', '山形県山形市薬師町2-8-75', '山形県', 5, 'active'),
@@ -227,10 +227,10 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 
 -- rank 4（11〜20位）
 INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALUES
-('鳥海月山両所宮', 38.2640, 140.3420, 'shrine', '山形県山形市宮町3-8-41', '山形県', 4, 'active'),
--- 住所確認: ホトカミ ✓, NAVITIME ✓ | 座標: 山形市住所推定 ※要検証
-('歌懸稲荷神社', 38.2490, 140.3310, 'shrine', '山形県山形市十日町1-1-26', '山形県', 4, 'active'),
--- 住所確認: ホトカミ ✓, NAVITIME ✓ | 座標: 山形市住所推定 ※要検証
+('鳥海月山両所宮', 38.270928, 140.337183, 'shrine', '山形県山形市宮町3-8-41', '山形県', 4, 'active'),
+-- 住所確認: ホトカミ ✓, NAVITIME ✓ | 座標: Wikidata Q11675030（#292 で直した）
+('歌懸稲荷神社', 38.246485, 140.334207, 'shrine', '山形県山形市十日町1-1-26', '山形県', 4, 'active'),
+-- 住所確認: ホトカミ ✓, NAVITIME ✓ | 座標: OpenStreetMap way/909130242（© OpenStreetMap contributors, ODbL・#292 で直した）
 ('湯殿山神社', 38.5416, 139.9858, 'shrine', '山形県鶴岡市田麦俣字六十里山7', '山形県', 4, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
 ('松岬神社', 37.9093, 140.1066, 'shrine', '山形県米沢市丸の内1-1-38', '山形県', 4, 'active'),
@@ -239,8 +239,8 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
 ('寒河江八幡宮', 38.3783, 140.2708, 'shrine', '山形県寒河江市八幡町5-70', '山形県', 4, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
-('總宮神社', 38.1080, 140.0380, 'shrine', '山形県長井市横町14-24', '山形県', 4, 'active'),
--- 住所確認: ホトカミ ✓, NAVITIME ✓ | 座標: 長井市住所推定 ※要検証
+('總宮神社', 38.115360, 140.034772, 'shrine', '山形県長井市横町14-24', '山形県', 4, 'active'),
+-- 住所確認: ホトカミ ✓, NAVITIME ✓ | 座標: OpenStreetMap node/5110630723（© OpenStreetMap contributors, ODbL・#292 で直した）
 ('立石寺奥之院', 38.3126, 140.4374, 'temple', '山形県山形市山寺4456-1', '山形県', 4, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓（立石寺境内、御朱印別授与） | 座標: Wikipedia ✓
 ('若松寺', 38.3631, 140.4189, 'temple', '山形県天童市大字山元2205-1', '山形県', 4, 'active'),
@@ -254,8 +254,8 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALUES
 ('伊佐須美神社', 37.4568, 139.8407, 'shrine', '福島県大沼郡会津美里町宮林甲4377', '福島県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
-('阿邪訶根神社', 37.3990, 140.3840, 'shrine', '福島県郡山市大町2丁目14-1', '福島県', 5, 'active'),
--- 住所確認: ホトカミ ✓, 公式サイト ✓ | 座標: 郡山市住所推定 ※要検証
+('阿邪訶根神社', 37.402863, 140.386428, 'shrine', '福島県郡山市大町2丁目14-1', '福島県', 5, 'active'),
+-- 住所確認: ホトカミ ✓, 公式サイト ✓ | 座標: OpenStreetMap way/625707367（© OpenStreetMap contributors, ODbL・#292 で直した）
 ('開成山大神宮', 37.3976, 140.3532, 'shrine', '福島県郡山市開成3丁目1-38', '福島県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
 ('滑川神社', 37.2870, 140.3720, 'shrine', '福島県須賀川市宮の杜1番地', '福島県', 5, 'active'),
@@ -278,8 +278,8 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALUES
 ('安積國造神社', 37.3988, 140.3820, 'shrine', '福島県郡山市清水台1丁目6-23', '福島県', 4, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
-('豊景神社', 37.4120, 140.3940, 'shrine', '福島県郡山市富久山町福原字福原1', '福島県', 4, 'active'),
--- 住所確認: ホトカミ ✓, NAVITIME ✓ | 座標: 郡山市住所推定 ※要検証
+('豊景神社', 37.420944, 140.389889, 'shrine', '福島県郡山市富久山町福原字福原1', '福島県', 4, 'active'),
+-- 住所確認: ホトカミ ✓, NAVITIME ✓ | 座標: Wikidata Q30937956（#292 で直した）
 ('蠶養國神社', 37.5100, 139.9220, 'shrine', '福島県会津若松市蚕養町2-1', '福島県', 4, 'active'),
 -- 住所確認: ホトカミ ✓, NAVITIME ✓ | 座標: 会津若松市住所推定 ※要検証
 ('都々古別神社（八槻）', 36.9945, 140.3921, 'shrine', '福島県東白川郡棚倉町八槻字大宮224', '福島県', 4, 'active'),
@@ -294,6 +294,6 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
 ('大鏑神社', 37.4680, 140.2520, 'shrine', '福島県郡山市熱海町安子島字町164', '福島県', 4, 'active'),
 -- 住所確認: ホトカミ ✓, NAVITIME ✓ | 座標: 郡山市熱海住所推定 ※要検証
-('高屋敷稲荷神社', 37.4130, 140.3250, 'shrine', '福島県郡山市白岩町字高屋敷277-2', '福島県', 4, 'active')
--- 住所確認: ホトカミ ✓, NAVITIME ✓ | 座標: 郡山市住所推定 ※要検証
+('高屋敷稲荷神社', 37.406978, 140.448075, 'shrine', '福島県郡山市白岩町字高屋敷277-2', '福島県', 4, 'active')
+-- 住所確認: ホトカミ ✓, NAVITIME ✓ | 座標: Wikidata Q11669277（#292 で直した）
 ;

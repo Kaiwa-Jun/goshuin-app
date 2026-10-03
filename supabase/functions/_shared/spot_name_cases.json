@@ -1,0 +1,14 @@
+[
+  { "a": "鹿島台神社", "b": "鹿島神宮", "similar": true },
+  { "a": "天龍寺", "b": "天竜寺", "similar": true },
+  { "a": "八幡神社", "b": "八幡宮", "similar": true },
+  { "a": "東福寺", "b": "東福寺", "similar": true },
+  { "a": "大崎八幡宮", "b": "八幡神社", "similar": true },
+  { "a": "瑞巌寺", "b": "瑞鳳寺", "similar": false },
+  { "a": "鹿島台神社", "b": "鹽竈神社", "similar": false },
+  { "a": "鹿島 台神社", "b": "鹿島台神社", "similar": true },
+  { "a": "音羽山 清水寺（京都）", "b": "清水寺", "similar": true },
+  { "a": "宮", "b": "宮", "similar": true },
+  { "a": "森八幡", "b": "八幡神社", "similar": true },
+  { "a": "輪王寺", "b": "瑞鳳殿", "similar": false }
+]

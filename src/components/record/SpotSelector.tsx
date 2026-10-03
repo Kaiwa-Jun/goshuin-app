@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, FlatList, StyleSheet } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { SearchBar } from '@components/common/SearchBar';
 import { Badge } from '@components/common/Badge';
 import type { Spot } from '@/types/supabase';
@@ -7,6 +8,7 @@ import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { spacing, borderRadius } from '@theme/spacing';
 import { shadows } from '@theme/shadows';
+import { normalizeSpotName } from '@utils/spotName';
 
 export interface SpotWithDistance {
   spot: Spot;
@@ -22,7 +24,16 @@ interface SpotSelectorProps {
   error: string | null;
   /** 現在地から自動で選ばれた状態か。勝手に選ばれたことを隠さないためのラベルを出す */
   isAutoSelected?: boolean;
+  /** 似た名前の寺社（「もしかして」。Issue #248） */
+  didYouMeanSpots?: SpotWithDistance[];
+  /** 距離を出してよいか（位置情報が許可されているときだけ） */
+  showDistance?: boolean;
+  /** 「〇〇を調べて追加」。無ければ行を出さない */
+  onResearch?: (name: string) => void;
 }
+
+/** 「調べて追加」を出すのは2文字から */
+const RESEARCH_MIN_CHARS = 2;
 
 export function SpotSelector({
   selectedSpot,
@@ -32,8 +43,25 @@ export function SpotSelector({
   onSelectSpot,
   error,
   isAutoSelected = false,
+  didYouMeanSpots = [],
+  showDistance = true,
+  onResearch,
 }: SpotSelectorProps) {
   const [showDropdown, setShowDropdown] = useState(false);
+
+  const query = searchQuery.trim();
+  // 同じ名前の寺社が一覧にあっても出す。そのときは「ほかの〇〇」（Issue #278。#248 の D-10 を変えた）。
+  // 画面の言葉は「探す」にそろえる（#278 D-13。「調べて追加」はデータを足す側の言葉）
+  const canResearch = !!onResearch && query.length >= RESEARCH_MIN_CHARS;
+  // 「ほかの」は一覧に見えている同じ名前の寺社を指す。「もしかして」は数えない
+  const hasSameName = nearbySpots.some(
+    i => normalizeSpotName(i.spot.name) === normalizeSpotName(query)
+  );
+
+  const handleResearch = () => {
+    setShowDropdown(false);
+    onResearch?.(query);
+  };
 
   const handleSelectSpot = (spot: Spot) => {
     onSelectSpot(spot);
@@ -112,15 +140,69 @@ export function SpotSelector({
               </TouchableOpacity>
             )}
             ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>候補が見つかりません</Text>
-              </View>
+              canResearch || didYouMeanSpots.length > 0 ? null : (
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyText}>候補が見つかりません</Text>
+                </View>
+              )
+            }
+            ListFooterComponent={
+              <>
+                {didYouMeanSpots.length > 0 && (
+                  <View testID="spot-did-you-mean">
+                    <Text style={styles.maybe}>もしかして</Text>
+                    {didYouMeanSpots.map(item => (
+                      <TouchableOpacity
+                        key={item.spot.id}
+                        style={styles.spotRow}
+                        onPress={() => handleSelectSpot(item.spot)}
+                        activeOpacity={0.7}
+                        testID={`spot-did-you-mean-${item.spot.id}`}
+                      >
+                        <View style={styles.spotInfo}>
+                          <Text style={styles.spotName} numberOfLines={1}>
+                            {item.spot.name}
+                          </Text>
+                          <Badge type={item.spot.type} />
+                        </View>
+                        {item.spot.prefecture && (
+                          <Text style={styles.prefecture} numberOfLines={1}>
+                            {item.spot.prefecture}
+                          </Text>
+                        )}
+                        {showDistance && (
+                          <Text style={styles.distance}>{item.distanceKm.toFixed(0)}km</Text>
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+                {canResearch && (
+                  <TouchableOpacity
+                    style={styles.researchRow}
+                    onPress={handleResearch}
+                    activeOpacity={0.7}
+                    testID="spot-research"
+                    accessibilityRole="button"
+                  >
+                    <View style={styles.researchPlus}>
+                      <MaterialIcons name="add" size={20} color={colors.white} />
+                    </View>
+                    <View style={styles.researchText}>
+                      <Text style={styles.researchTitle} numberOfLines={1}>
+                        {hasSameName ? `ほかの${query}を探す` : `「${query}」をもっと探す`}
+                      </Text>
+                      <Text style={styles.researchSub}>
+                        {hasSameName
+                          ? `一覧にない場所の${query}を探します`
+                          : '地図にない寺社も、名前と地域から探します'}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                )}
+              </>
             }
           />
-          {/* 「スポットが見つからない場合は追加」はここにあったが外した。
-              追加したスポットは status: 'pending' で入り、RLS の SELECT は
-              active しか返さないので、作った本人にも二度と出てこなかった。
-              動線の設計をやり直すまで出さない（Issue #184） */}
         </View>
       )}
     </View>
@@ -201,6 +283,42 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.gray[400],
     marginLeft: spacing.sm,
+  },
+  maybe: {
+    ...typography.caption,
+    fontWeight: '700',
+    color: colors.gray[500],
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+  },
+  researchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.primary[50],
+  },
+  researchPlus: {
+    width: 30,
+    height: 30,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.primary[500],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  researchText: {
+    flex: 1,
+  },
+  researchTitle: {
+    ...typography.body,
+    fontWeight: '700',
+    color: colors.primary[600],
+  },
+  researchSub: {
+    ...typography.caption,
+    color: colors.gray[600],
+    marginTop: 2,
   },
   emptyContainer: {
     paddingVertical: spacing.xl,

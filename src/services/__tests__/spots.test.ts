@@ -9,6 +9,8 @@ import type { BoundingBox } from '@utils/geo';
 
 const mockSelect = jest.fn();
 const mockEq = jest.fn();
+// .in('status', …) のあとの鎖は .eq と同じ形なので、戻り値は mockEq の並びをそのまま使う
+const mockIn = jest.fn((...args: unknown[]) => mockEq(...args));
 const mockOrder = jest.fn();
 const mockRange = jest.fn();
 const mockGte = jest.fn();
@@ -28,7 +30,7 @@ describe('spots service', () => {
     jest.clearAllMocks();
     // Chain: from().select().eq().gte().lte().gte().lte()
     mockFrom.mockReturnValue({ select: mockSelect });
-    mockSelect.mockReturnValue({ eq: mockEq });
+    mockSelect.mockReturnValue({ eq: mockEq, in: mockIn });
     mockEq.mockReturnValue({ gte: mockGte });
     mockGte.mockReturnValueOnce({ lte: mockLte });
     mockLte.mockReturnValueOnce({ gte: mockGte });
@@ -56,14 +58,16 @@ describe('spots service', () => {
 
       expect(mockFrom).toHaveBeenCalledWith('spots');
       expect(mockSelect).toHaveBeenCalledWith('*');
-      expect(mockEq).toHaveBeenCalledWith('status', 'active');
+      // 本人の pending も出す（他人の pending は RLS で落ちる / #248 D-8）
+      expect(mockIn).toHaveBeenCalledWith('status', ['active', 'pending']);
+      expect(mockEq).not.toHaveBeenCalledWith('status', 'active');
       expect(result).toHaveLength(1);
       expect(result[0].name).toBe('Test Shrine');
     });
 
     it('returns empty array on error', async () => {
       mockFrom.mockReturnValue({ select: mockSelect });
-      mockSelect.mockReturnValue({ eq: mockEq });
+      mockSelect.mockReturnValue({ eq: mockEq, in: mockIn });
       mockEq.mockReturnValue({ gte: mockGte });
       mockGte.mockReset();
       mockGte.mockReturnValueOnce({ lte: mockLte });
@@ -83,7 +87,7 @@ describe('spots service', () => {
 
     it('fetches a single spot by id', async () => {
       mockFrom.mockReturnValue({ select: mockSelect });
-      mockSelect.mockReturnValue({ eq: mockEq });
+      mockSelect.mockReturnValue({ eq: mockEq, in: mockIn });
       mockEq.mockReturnValue({ single: mockSingle });
       mockSingle.mockReturnValue({
         data: { id: 'spot-1', name: 'Test Shrine', type: 'shrine' },
@@ -98,7 +102,7 @@ describe('spots service', () => {
 
     it('returns null on error', async () => {
       mockFrom.mockReturnValue({ select: mockSelect });
-      mockSelect.mockReturnValue({ eq: mockEq });
+      mockSelect.mockReturnValue({ eq: mockEq, in: mockIn });
       mockEq.mockReturnValue({ single: mockSingle });
       mockSingle.mockReturnValue({ data: null, error: { message: 'Not found' } });
 
@@ -110,7 +114,7 @@ describe('spots service', () => {
   describe('searchSpotsByName', () => {
     it('searches spots by name with ilike', async () => {
       mockFrom.mockReturnValue({ select: mockSelect });
-      mockSelect.mockReturnValue({ eq: mockEq });
+      mockSelect.mockReturnValue({ eq: mockEq, in: mockIn });
       mockEq.mockReturnValue({ ilike: mockIlike });
       mockIlike.mockReturnValue({ limit: mockLimit });
       mockLimit.mockReturnValue({
@@ -119,6 +123,7 @@ describe('spots service', () => {
       });
 
       const result = await searchSpotsByName('Test');
+      expect(mockIn).toHaveBeenCalledWith('status', ['active', 'pending']);
       expect(mockIlike).toHaveBeenCalledWith('name', '%Test%');
       expect(mockLimit).toHaveBeenCalledWith(10);
       expect(result).toHaveLength(1);
@@ -126,7 +131,7 @@ describe('spots service', () => {
 
     it('returns empty array on error', async () => {
       mockFrom.mockReturnValue({ select: mockSelect });
-      mockSelect.mockReturnValue({ eq: mockEq });
+      mockSelect.mockReturnValue({ eq: mockEq, in: mockIn });
       mockEq.mockReturnValue({ ilike: mockIlike });
       mockIlike.mockReturnValue({ limit: mockLimit });
       mockLimit.mockReturnValue({ data: null, error: { message: 'error' } });
@@ -158,7 +163,7 @@ describe('spots service', () => {
       ];
 
       mockFrom.mockReturnValue({ select: mockSelect });
-      mockSelect.mockReturnValue({ eq: mockEq });
+      mockSelect.mockReturnValue({ eq: mockEq, in: mockIn });
       mockEq.mockReturnValueOnce({ eq: mockEq });
       mockEq.mockReturnValueOnce({ data: mockSpots, error: null });
 
@@ -166,7 +171,9 @@ describe('spots service', () => {
 
       expect(mockFrom).toHaveBeenCalledWith('spots');
       expect(mockSelect).toHaveBeenCalledWith('*');
-      expect(mockEq).toHaveBeenCalledWith('status', 'active');
+      // 本人の pending も出す（他人の pending は RLS で落ちる / #248 D-8）
+      expect(mockIn).toHaveBeenCalledWith('status', ['active', 'pending']);
+      expect(mockEq).not.toHaveBeenCalledWith('status', 'active');
       expect(mockEq).toHaveBeenCalledWith('prefecture', '宮城県');
       expect(result).toHaveLength(2);
       expect(result[0].name).toBe('宮城縣護國神社');
@@ -174,7 +181,7 @@ describe('spots service', () => {
 
     it('エラー時は空配列を返す', async () => {
       mockFrom.mockReturnValue({ select: mockSelect });
-      mockSelect.mockReturnValue({ eq: mockEq });
+      mockSelect.mockReturnValue({ eq: mockEq, in: mockIn });
       mockEq.mockReturnValueOnce({ eq: mockEq });
       mockEq.mockReturnValueOnce({ data: null, error: { message: 'DB error' } });
 
@@ -198,7 +205,7 @@ describe('spots service', () => {
     beforeEach(() => {
       // Chain: from().select().eq().order().range()
       mockFrom.mockReturnValue({ select: mockSelect });
-      mockSelect.mockReturnValue({ eq: mockEq });
+      mockSelect.mockReturnValue({ eq: mockEq, in: mockIn });
       mockEq.mockReturnValue({ order: mockOrder });
       mockOrder.mockReturnValue({ range: mockRange });
     });
@@ -210,6 +217,7 @@ describe('spots service', () => {
 
       const result = await fetchAllActiveSpots();
 
+      expect(mockIn).toHaveBeenCalledWith('status', ['active', 'pending']);
       expect(mockRange).toHaveBeenNthCalledWith(1, 0, 999);
       expect(mockRange).toHaveBeenNthCalledWith(2, 1000, 1999);
       expect(result).toHaveLength(1010);

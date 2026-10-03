@@ -1,8 +1,9 @@
 import React from 'react';
-import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, act, within } from '@testing-library/react-native';
 import { Image, Keyboard, ScrollView, StyleSheet } from 'react-native';
 import { RecordScreen } from '@screens/RecordScreen';
 import { evaluateNewBadges } from '@services/badges';
+import { noteRecordCompleted, takeRecordCompleted } from '@services/storeReview';
 import type { Spot, Stamp } from '@/types/supabase';
 import { MAX_PHOTOS_PER_RECORD } from '@/constants/record';
 
@@ -75,13 +76,20 @@ jest.mock('@hooks/useRecordForm', () => ({
   useRecordForm: () => mockFormState,
 }));
 
+let mockSearchQuery = '';
+// 読み込んだ全国の寺社（nearbySpots）と検索語で絞ったもの（filteredSpots）。
+// テストの中で上書きしたら afterEach で既定に戻す（Issue #278）
+const defaultSpotList = () => [{ spot: fakeSpot, distanceKm: 1.2 }];
+let mockNearbyList = defaultSpotList();
+let mockFilteredList = defaultSpotList();
 jest.mock('@hooks/useNearbySpots', () => ({
   useNearbySpots: () => ({
-    nearbySpots: [{ spot: fakeSpot, distanceKm: 1.2 }],
-    filteredSpots: [{ spot: fakeSpot, distanceKm: 1.2 }],
+    nearbySpots: [...mockNearbyList],
+    filteredSpots: [...mockFilteredList],
+    didYouMeanSpots: [],
     isLoading: false,
     error: null,
-    searchQuery: '',
+    searchQuery: mockSearchQuery,
     setSearchQuery: jest.fn(),
   }),
 }));
@@ -117,10 +125,13 @@ const mockFetchVisitedSpotIds = jest.fn();
 const mockFetchRegionStats = jest.fn().mockResolvedValue([]);
 
 const mockFetchVisitLog = jest.fn().mockResolvedValue([]);
+// 記録画面を開いたときに取る（Issue #277）。テストの中で上書きしたら [] に戻す
+const mockFetchRecentPrefectures = jest.fn().mockResolvedValue([]);
 
 jest.mock('@services/collection', () => ({
   fetchRegionStats: (...args: unknown[]) => mockFetchRegionStats(...args),
   fetchVisitLog: (...args: unknown[]) => mockFetchVisitLog(...args),
+  fetchRecentPrefectures: (...args: unknown[]) => mockFetchRecentPrefectures(...args),
 }));
 
 jest.mock('@services/stamps', () => ({
@@ -132,8 +143,14 @@ jest.mock('@services/badges', () => ({
   evaluateNewBadges: jest.fn(() => null),
 }));
 
-jest.mock('@services/spots', () => ({
-  createSpot: jest.fn(),
+jest.mock('@services/spots', () => ({}));
+
+const mockResearchSpot = jest.fn();
+const mockAddResearchedSpot = jest.fn();
+jest.mock('@services/spotAdd', () => ({
+  researchSpot: (...a: unknown[]) => mockResearchSpot(...a),
+  addResearchedSpot: (...a: unknown[]) => mockAddResearchedSpot(...a),
+  addManualSpot: jest.fn(),
 }));
 
 jest.mock('@react-native-community/datetimepicker', () => {
@@ -1887,5 +1904,259 @@ describe('保存中の覆い（Issue #190）', () => {
     });
     expect(dismiss).toHaveBeenCalled();
     dismiss.mockRestore();
+  });
+});
+
+describe('見つからない寺社を探して追加し、そのまま記録する（Issue #248 / AC-36・UI-9、Issue #277 / AC-19・AC-20、Issue #278 / AC-9〜AC-11）', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockSearchQuery = '鹿島台神社';
+    mockFormState = {
+      ...mockFormState,
+      selectedSpot: null,
+      isSubmitting: false,
+    } as typeof mockFormState;
+  });
+  afterEach(() => {
+    mockSearchQuery = '';
+    mockNearbyList = defaultSpotList();
+    mockFilteredList = defaultSpotList();
+    mockFetchRecentPrefectures.mockResolvedValue([]);
+  });
+
+  it('「もっと探す」ではまだ探さずに地域を聞く →「全国から」で探し、「ここです」で追加した寺社が選ばれ、シートが閉じる', async () => {
+    const added = { ...fakeSpot, id: 'new-spot', name: '鹿島台神社', status: 'pending' };
+    mockResearchSpot.mockResolvedValue({
+      kind: 'ok',
+      researchId: 'r1',
+      candidates: [
+        {
+          index: 0,
+          name: '鹿島台神社',
+          type: 'shrine',
+          address: '宮城県大崎市鹿島台平渡',
+          prefecture: '宮城県',
+          lat: 38.48,
+          lng: 141.09,
+          sourceCount: 3,
+          sourceLabels: [],
+        },
+      ],
+    });
+    mockAddResearchedSpot.mockResolvedValue(added);
+
+    const ui = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent(ui.getByPlaceholderText('スポット名で検索'), 'focus');
+    await act(async () => {
+      fireEvent.press(ui.getByTestId('spot-research'));
+    });
+    expect(mockResearchSpot).not.toHaveBeenCalled();
+    expect(ui.getByText('「鹿島台神社」を探します')).toBeTruthy();
+    await act(async () => {
+      fireEvent.press(ui.getByTestId('region-all'));
+    });
+    expect(mockResearchSpot).toHaveBeenCalledTimes(1);
+    expect(mockResearchSpot).toHaveBeenCalledWith('鹿島台神社', null);
+    expect(ui.getByText('これですか？')).toBeTruthy();
+    await act(async () => {
+      fireEvent.press(ui.getByText('ここです'));
+    });
+    expect(mockAddResearchedSpot).toHaveBeenCalledWith('r1', 0);
+    expect(mockSelectSpot).toHaveBeenCalledWith(added);
+    expect(ui.queryByText('これですか？')).toBeNull();
+    for (const w of [/確認待ち/, /公開/, /追加した寺社/]) expect(ui.queryByText(w)).toBeNull();
+  });
+
+  it('記録画面を開いたときに自分の記録の県を取り、地域を聞くシートの県のチップから探す', async () => {
+    mockFetchRecentPrefectures.mockResolvedValue(['宮城県']);
+    mockResearchSpot.mockReturnValue(new Promise(() => {}));
+
+    const ui = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    await act(async () => {});
+    expect(mockFetchRecentPrefectures).toHaveBeenCalledTimes(1);
+    expect(mockFetchRecentPrefectures).toHaveBeenCalledWith('user-1');
+
+    fireEvent(ui.getByPlaceholderText('スポット名で検索'), 'focus');
+    await act(async () => {
+      fireEvent.press(ui.getByTestId('spot-research'));
+    });
+    const chip = ui.getByTestId('region-recent-0');
+    expect(within(chip).getByText('宮城県')).toBeTruthy();
+    await act(async () => {
+      fireEvent.press(chip);
+    });
+    expect(mockResearchSpot).toHaveBeenCalledTimes(1);
+    expect(mockResearchSpot).toHaveBeenCalledWith('鹿島台神社', {
+      prefecture: '宮城県',
+      city: null,
+    });
+  });
+
+  /* 同じ名前の寺社がマスタにあっても、別の寺社を探して追加できる（Issue #278）。
+     契約書: docs/issues/issue-278-same-name-research.md（S3 / AC-9〜AC-11。D-13 の形:
+     登録済みの候補も見た目はほかと同じ。判定は add-spot が呼ばれず既存の寺社が選ばれることで見る） */
+  const kyoto: Spot = {
+    ...fakeSpot,
+    id: 'kyoto-yasaka',
+    name: '八坂神社',
+    lat: 35.0036,
+    lng: 135.778,
+    prefecture: '京都府',
+  };
+  const gunma: Spot = {
+    ...fakeSpot,
+    id: 'gunma-yasaka',
+    name: '八坂神社',
+    lat: 36.2679,
+    lng: 139.2786,
+    prefecture: '群馬県',
+  };
+  const yasakaCandidate = (index: number, over: Record<string, unknown>) => ({
+    index,
+    name: '八坂神社',
+    type: 'shrine',
+    prefecture: '京都府',
+    sourceCount: 2,
+    sourceLabels: [],
+    ...over,
+  });
+  const gion = yasakaCandidate(0, {
+    address: '京都府京都市東山区祇園町北側625',
+    lat: 35.0036,
+    lng: 135.7785,
+  });
+  const fukuchiyama = yasakaCandidate(1, {
+    address: '京都府福知山市',
+    lat: 35.2966,
+    lng: 135.1264,
+  });
+
+  /** 検索欄を開き、行を押して「全国から」で探す */
+  const researchAll = async (ui: ReturnType<typeof render>) => {
+    fireEvent(ui.getByPlaceholderText('スポット名で検索'), 'focus');
+    await act(async () => {
+      fireEvent.press(ui.getByTestId('spot-research'));
+    });
+    await act(async () => {
+      fireEvent.press(ui.getByTestId('region-all'));
+    });
+  };
+
+  it('AC-9: 同じ名前が一覧にあっても「ほかの八坂神社を探す」。登録済みの寺社と同じ候補も見た目はほかと同じで、「ここです」で追加せずにその寺社を選ぶ', async () => {
+    mockSearchQuery = '八坂神社';
+    mockNearbyList = [
+      { spot: fakeSpot, distanceKm: 1.2 },
+      { spot: kyoto, distanceKm: 612 },
+      { spot: gunma, distanceKm: 305 },
+    ];
+    mockFilteredList = [
+      { spot: kyoto, distanceKm: 612 },
+      { spot: gunma, distanceKm: 305 },
+    ];
+    mockResearchSpot.mockResolvedValue({
+      kind: 'ok',
+      researchId: 'r1',
+      candidates: [gion, fukuchiyama],
+    });
+
+    const ui = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent(ui.getByPlaceholderText('スポット名で検索'), 'focus');
+    expect(within(ui.getByTestId('spot-research')).getByText('ほかの八坂神社を探す')).toBeTruthy();
+    await researchAll(ui);
+    expect(mockResearchSpot).toHaveBeenCalledTimes(1);
+    expect(mockResearchSpot).toHaveBeenCalledWith('八坂神社', null);
+    const card = within(ui.getByTestId('candidate-0'));
+    expect(card.getByText('住所の情報源 2件')).toBeTruthy();
+    expect(card.queryByTestId('badge-registered')).toBeNull();
+    expect(ui.queryByText(/登録済み/)).toBeNull();
+    expect(ui.queryByText(/みんなの地図/)).toBeNull();
+
+    await act(async () => {
+      fireEvent.press(ui.getByText('ここです'));
+    });
+    expect(mockAddResearchedSpot).not.toHaveBeenCalled();
+    expect(mockSelectSpot).toHaveBeenCalledTimes(1);
+    expect(mockSelectSpot.mock.calls[0][0]).toBe(kyoto);
+    expect(mockSelectSpot.mock.calls[0][0].id).toBe('kyoto-yasaka');
+    expect(ui.queryByText('これですか？')).toBeNull();
+    for (const w of [/確認待ち/, /公開/, /追加した寺社/, /登録済み/]) {
+      expect(ui.queryByText(w)).toBeNull();
+    }
+  });
+
+  it('AC-10: 登録済みでない候補を選べば、今までどおり add-spot で追加する', async () => {
+    mockSearchQuery = '八坂神社';
+    mockNearbyList = [
+      { spot: fakeSpot, distanceKm: 1.2 },
+      { spot: kyoto, distanceKm: 612 },
+      { spot: gunma, distanceKm: 305 },
+    ];
+    mockFilteredList = [
+      { spot: kyoto, distanceKm: 612 },
+      { spot: gunma, distanceKm: 305 },
+    ];
+    mockResearchSpot.mockResolvedValue({
+      kind: 'ok',
+      researchId: 'r1',
+      candidates: [gion, fukuchiyama],
+    });
+    const added = { ...fakeSpot, id: 'new-spot', name: '八坂神社', status: 'pending' };
+    mockAddResearchedSpot.mockResolvedValue(added);
+
+    const ui = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    await researchAll(ui);
+    fireEvent.press(ui.getByText('ほかの候補を見る（1件）'));
+    fireEvent.press(ui.getByTestId('candidate-1'));
+    await act(async () => {
+      fireEvent.press(ui.getByText('ここです'));
+    });
+
+    expect(mockAddResearchedSpot).toHaveBeenCalledTimes(1);
+    expect(mockAddResearchedSpot).toHaveBeenCalledWith('r1', 1);
+    expect(mockSelectSpot).toHaveBeenCalledWith(added);
+  });
+
+  it('AC-11: 検索で絞った一覧に無くても、読み込み済みの寺社と比べて登録済みと判定する', async () => {
+    mockSearchQuery = '八坂神社';
+    mockNearbyList = [
+      { spot: fakeSpot, distanceKm: 1.2 },
+      { spot: kyoto, distanceKm: 612 },
+    ];
+    mockFilteredList = [];
+    mockResearchSpot.mockResolvedValue({ kind: 'ok', researchId: 'r1', candidates: [gion] });
+
+    const ui = render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+    fireEvent(ui.getByPlaceholderText('スポット名で検索'), 'focus');
+    expect(
+      within(ui.getByTestId('spot-research')).getByText('「八坂神社」をもっと探す')
+    ).toBeTruthy();
+    await researchAll(ui);
+    expect(within(ui.getByTestId('candidate-0')).getByText('住所の情報源 2件')).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.press(ui.getByText('ここです'));
+    });
+    expect(mockAddResearchedSpot).not.toHaveBeenCalled();
+    expect(mockSelectSpot).toHaveBeenCalledTimes(1);
+    expect(mockSelectSpot.mock.calls[0][0]).toBe(kyoto);
+    expect(mockSelectSpot.mock.calls[0][0].id).toBe('kyoto-yasaka');
+  });
+});
+
+/*
+ * Issue #288 D-6 ②。記録画面が開いたら、レビュー依頼の印を消す。
+ * 「もう1枚記録する」のあとに ✕ で戻った・保存に失敗して戻った、の直後に依頼を出さない
+ */
+describe('レビュー依頼の印を消す（Issue #288）', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('AC-28: 記録画面が開くと、完了画面が置いた印が消える', () => {
+    noteRecordCompleted(3);
+
+    render(<RecordScreen navigation={mockNavigation} route={mockRoute} />);
+
+    expect(takeRecordCompleted()).toBeNull();
   });
 });

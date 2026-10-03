@@ -57,6 +57,8 @@ describe('fetchPilgrimageProgress', () => {
       category: '観音',
       totalSpots: 33,
       visitedCount: 2,
+      // まだの寺社（あゆみの「もう少し」でエリアの一覧と重ねないため。Issue #245）
+      unvisitedSpotIds: ['spot-3'],
     });
     const pilgrimage2 = result.find(p => p.id === 'pilgrimage-2');
     expect(pilgrimage2).toEqual({
@@ -66,6 +68,7 @@ describe('fetchPilgrimageProgress', () => {
       category: '七福神',
       totalSpots: 7,
       visitedCount: 1,
+      unvisitedSpotIds: ['spot-5'],
     });
   });
 

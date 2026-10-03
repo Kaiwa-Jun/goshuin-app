@@ -53,9 +53,9 @@ appId: com.goshuin.app
 
 # ボトムシートを展開する。
 # ⚠️ スワイプだと地図のパンになってしまうので、ハンドルのタップで展開する
-#    （Issue #114 で入れた挙動）。⚠️ ハンドルは画面の 73% 付近（66% は地図側）
+#    （Issue #114 で入れた挙動）。シートの高さは中身で変わるので、座標ではなく id で押す（Issue #253）
 - tapOn:
-    point: '50%,73%'
+    id: 'sheet-handle'
 - waitForAnimationToEnd:
     timeout: 4000
 - takeScreenshot: screenshots/store/04-limited-goshuin

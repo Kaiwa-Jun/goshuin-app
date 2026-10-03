@@ -159,4 +159,50 @@ describe('legal constants', () => {
       expect(find('第三者提供').body).toContain('【Cloudflare, Inc.】');
     });
   });
+
+  // Issue #248: 見つからない寺社を調べて追加する
+  describe('寺社の追加（Issue #248）', () => {
+    const body = (doc: typeof PRIVACY_POLICY, title: string) =>
+      doc.sections.find((s: LegalSection) => s.title === title)!.body;
+
+    it('Anthropic に送るのは名前と、本人が絞った地域だけで、位置情報そのものは送らない', () => {
+      expect(body(PRIVACY_POLICY, '第三者提供')).toContain(
+        'スポットを追加するとき、調べる手がかりとして、入力したスポット名と、地域を絞ったときはその都道府県・市区町村名をAnthropicのClaude APIに送信します。位置情報そのものは送信しません。'
+      );
+      expect(body(PRIVACY_POLICY, '情報の利用目的')).toContain('【スポットの追加】');
+    });
+
+    it('地図で決めたピンの位置は、スポットの位置として保存する', () => {
+      expect(body(PRIVACY_POLICY, '収集する情報')).toContain(
+        '地図で場所を決めてスポットを追加したときは、決めたピンの位置をスポットの位置として保存します。'
+      );
+    });
+
+    it('追加したスポットは他のユーザーの地図にも出ることがあり、退会後も残る', () => {
+      expect(body(TERMS_OF_SERVICE, 'ユーザーコンテンツ')).toContain(
+        'ユーザーが追加したスポットの情報は、他のユーザーの地図にも表示されることがあり、アカウントを削除した後も残ります。'
+      );
+    });
+
+    it('利用規約の更新日は 2026-09-24', () => {
+      expect(TERMS_OF_SERVICE.lastUpdated).toBe('2026-09-24');
+    });
+  });
+
+  describe('参拝の予定（Issue #258）', () => {
+    const body = (doc: typeof PRIVACY_POLICY, title: string) =>
+      doc.sections.find((s: LegalSection) => s.title === title)!.body;
+
+    it('ユーザー入力データに参拝の予定が入っている', () => {
+      expect(body(PRIVACY_POLICY, '収集する情報')).toContain('参拝の予定（行く日と寺社の順番）');
+    });
+
+    it('アカウントを削除すると参拝の予定も消える', () => {
+      expect(body(PRIVACY_POLICY, 'データの保持と削除')).toContain('・参拝の予定');
+    });
+
+    it('プライバシーポリシーの更新日は 2026-10-01', () => {
+      expect(PRIVACY_POLICY.lastUpdated).toBe('2026-10-01');
+    });
+  });
 });

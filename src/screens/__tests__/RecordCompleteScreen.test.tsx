@@ -3,6 +3,7 @@ import { StyleSheet } from 'react-native';
 import { render, fireEvent, act, within } from '@testing-library/react-native';
 import { Svg } from 'react-native-svg';
 import { RecordCompleteScreen } from '@screens/RecordCompleteScreen';
+import { clearRecordCompleted, takeRecordCompleted } from '@services/storeReview';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { shadows } from '@theme/shadows';
@@ -760,6 +761,53 @@ describe('枚数が数え上がる', () => {
   } as never;
 
   /*
+   * 初回投稿は要素が全部出るので、小さい画面で写真がカードの上にはみ出した（1.2.0 の実機）。
+   * 入りきらないぶんはまず地図を縮める（iPhone 16 相当: カード 688・中身 698）
+   */
+  it('カードに入りきらないときは、まず地図を縮めて収める', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+    const { SaveMapReveal } = require('@components/record/SaveMapReveal');
+    const { getByTestId, UNSAFE_getByType } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={routeCounting} />
+    );
+    const layout = (height: number) => ({
+      nativeEvent: { layout: { height, width: 0, x: 0, y: 0 } },
+    });
+
+    expect(UNSAFE_getByType(SaveMapReveal).props.width).toBe(210);
+
+    act(() => {
+      fireEvent(getByTestId('complete-card'), 'layout', layout(688));
+      fireEvent(getByTestId('complete-content'), 'layout', layout(698));
+    });
+
+    const width = UNSAFE_getByType(SaveMapReveal).props.width as number;
+    expect(width).toBeLessThan(210);
+    // 地図の縮んだぶんで、カードの中（688 - 余白 48）に入る
+    expect(698 - (210 - width) * (1132 / 1000)).toBeLessThanOrEqual(688 - 48);
+    // 写真はまだ縮めない
+    expect(StyleSheet.flatten(getByTestId('stamp-frame').props.style).width).toBe(150);
+  });
+
+  it('収まっているときは、地図を縮めない', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+    const { SaveMapReveal } = require('@components/record/SaveMapReveal');
+    const { getByTestId, UNSAFE_getByType } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={routeCounting} />
+    );
+    const layout = (height: number) => ({
+      nativeEvent: { layout: { height, width: 0, x: 0, y: 0 } },
+    });
+
+    act(() => {
+      fireEvent(getByTestId('complete-card'), 'layout', layout(792));
+      fireEvent(getByTestId('complete-content'), 'layout', layout(700));
+    });
+
+    expect(UNSAFE_getByType(SaveMapReveal).props.width).toBe(210);
+  });
+
+  /*
    * いきなり最後の数字が出ていると、「増えた」ではなく「そういう数字だった」に
    * 見える。地図が色づくのに合わせて数え上げる
    */
@@ -814,4 +862,54 @@ it('御朱印が影で浮いている（トークン由来）', () => {
   expect(style.shadowOpacity).toBe(shadows.lg.shadowOpacity);
   expect(style.shadowRadius).toBe(shadows.lg.shadowRadius);
   expect(style.elevation).toBe(shadows.lg.elevation);
+});
+
+/*
+ * Issue #288 D-6 ①。完了画面が開いたら「N枚目」と同じ枚数を、この起動の中だけの印に置く。
+ * 取り出すのはメインのタブのフック（useStoreReviewRequest）で、この画面では消さない
+ */
+describe('レビュー依頼の印を置く（Issue #288）', () => {
+  const route = (params?: Record<string, unknown>) =>
+    ({ key: 'test', name: 'RecordComplete' as const, params }) as never;
+  const counted = {
+    totalStampCount: 3,
+    stampCount: 1,
+    prefecture: '宮城県',
+    stampCountByPrefecture: { 宮城県: 3 },
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    clearRecordCompleted();
+  });
+
+  it('AC-26: 「N枚目」が出るとき、その枚数を置く', () => {
+    render(<RecordCompleteScreen navigation={mockNavigation} route={route(counted)} />);
+
+    expect(takeRecordCompleted()).toBe(3);
+  });
+
+  it('AC-27: 枚数を取れなかった（countUnavailable）ときは置かない', () => {
+    render(
+      <RecordCompleteScreen
+        navigation={mockNavigation}
+        route={route({ countUnavailable: true, totalStampCount: 3 })}
+      />
+    );
+
+    expect(takeRecordCompleted()).toBeNull();
+  });
+
+  it('AC-27: params が無いときは置かない', () => {
+    render(<RecordCompleteScreen navigation={mockNavigation} route={route(undefined)} />);
+
+    expect(takeRecordCompleted()).toBeNull();
+  });
+
+  it('AC-29: 画面が閉じても印は消さない', () => {
+    const ui = render(<RecordCompleteScreen navigation={mockNavigation} route={route(counted)} />);
+    ui.unmount();
+
+    expect(takeRecordCompleted()).toBe(3);
+  });
 });

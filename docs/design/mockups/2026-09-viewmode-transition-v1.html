@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>御朱印帳の表示の切り替え — 切り替わりの動き v1</title>
+<style>
+/* 動かすのは 位置・大きさ・回転・透明度 だけ（RN の Animated の spring / timing と transform で作れるもの）。
+   「写真の代わり」の図は、どの投稿がどこへ動いたか追えるように描いた仮の絵。実物は御朱印の写真 */
+:root{--brand:#f27f0d;--g100:#F3F4F6;--g200:#E5E7EB;--g400:#9CA3AF;--g500:#6B7280;--g800:#1F2937;--washi:#EFEAE0;--seal:#C2342B}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#E7E5E0;font-family:-apple-system,"Hiragino Sans",sans-serif;color:var(--g800);padding:22px 24px 40px}
+h1{font-size:20px;font-weight:800}
+.lead{font-size:13px;color:#4B5563;line-height:1.8;margin:4px 0 12px;max-width:1320px}
+.ctl{display:flex;gap:14px;align-items:center;margin-bottom:16px}
+.ctl button{border:0;border-radius:10px;padding:8px 14px;font-weight:800;cursor:pointer}
+.demo{background:var(--seal);color:#fff}
+.seg{display:inline-flex;background:#fff;border-radius:999px;padding:3px}
+.seg button{background:transparent;border-radius:999px;padding:5px 12px;font-size:12.5px;color:#6B7280}
+.seg button.on{background:var(--g100);color:var(--g800)}
+.wrap{display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start}
+.col{width:300px}
+.col h2{font-size:15px;font-weight:800;margin-bottom:6px}
+.col p{font-size:12.5px;color:#4B5563;line-height:1.7;margin-top:10px}
+.col p b{color:var(--g800)}
+.phone{width:300px;height:560px;border-radius:30px;overflow:hidden;position:relative;background:#fff;box-shadow:0 14px 40px rgba(17,24,39,.22)}
+.sb{height:36px;display:flex;justify-content:space-between;align-items:center;padding:0 22px;font-size:12px;font-weight:600}
+.hd{display:flex;justify-content:space-between;align-items:center;padding:4px 16px 8px}
+.hd b{font-size:22px;font-weight:800}
+.stage{position:relative;height:460px;overflow:hidden}
+.flipv{position:absolute;inset:0}
+.page{position:absolute;left:50px;top:10px;width:200px;height:300px;border:1px solid var(--g200);border-radius:12px;overflow:hidden;background:#fff}
+.pcap{position:absolute;left:50px;top:318px;width:200px;display:flex;justify-content:space-between;font-size:12px}
+.pcap span{font-size:10.5px;color:var(--g500)}
+.gridv{position:absolute;inset:0}
+.sort{position:absolute;left:16px;top:4px;font-size:12px;color:var(--g500)}
+.tile{position:absolute;width:82px;height:82px;border-radius:8px;overflow:hidden;background:var(--washi)}
+.fly{position:absolute;overflow:hidden;border-radius:10px;z-index:5;background:#fff;box-shadow:0 8px 20px rgba(0,0,0,.18)}
+svg{display:block;width:100%;height:100%}
+/* 切り替えボタン（A スライドする台） */
+.segA{position:relative;display:flex;background:var(--g100);border-radius:12px;padding:3px;cursor:pointer}
+.segA .thumb{position:absolute;top:3px;left:3px;width:44px;height:34px;border-radius:9px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.14)}
+.segA .opt{position:relative;width:44px;height:34px;display:grid;place-items:center;color:var(--g400)}
+.segA .opt.on{color:var(--brand)}
+.ic{position:relative;width:22px;height:22px}
+.book{perspective:120px}
+.book .p{position:absolute;top:4px;width:9.5px;height:14px;border-radius:1.5px;background:currentColor}
+.book .p.r{left:11.5px}.book .p.l{left:1px;transform-origin:right center}
+.grid4 .t{position:absolute;width:8.5px;height:8.5px;border-radius:2px;background:currentColor}
+.grid4 .t:nth-child(1){left:2px;top:2px}.grid4 .t:nth-child(2){left:11.5px;top:2px}.grid4 .t:nth-child(3){left:2px;top:11.5px}.grid4 .t:nth-child(4){left:11.5px;top:11.5px}
+</style>
+</head>
+<body>
+<h1>御朱印帳の表示の切り替え — 切り替わりの動き v1</h1>
+<p style="display:inline-block;font-size:12px;font-weight:700;color:#92400E;background:#FEF3C7;border-radius:999px;padding:2px 10px;margin:6px 0">経緯: 3 と 4 が良いとの意見 → v2 で詰めて、合わせた案 5 を足した</p>
+<p class="lead">切り替えボタンは <b>A（スライドする台）</b>に決まった前提。<b>ボタンを押したときの中身の動き</b>を4案。どれも「めくる」では5枚目（大崎八幡宮）を見ている状態から始まる。<b>「写真の代わり」の図は1枚ずつ違う仮の絵</b>なので、どの投稿がどこへ動いたか追える。「自動で切り替える」で4案が同時に動く。</p>
+<div class="ctl"><button class="demo" id="auto">自動で切り替える</button>
+  <span class="seg" id="rm"><button data-v="off" class="on">動きあり</button><button data-v="on">視差効果を減らす</button></span>
+  <span class="seg" id="spd"><button data-v="1" class="on">ふつうの速さ</button><button data-v="3">ゆっくり（3倍）</button></span></div>
+<div class="wrap" id="wrap"></div>
+
+<script>
+const IDEAS = [
+ {id:1, t:'1. その1枚がつながる', d:'見ていたページが<b>縮みながら、一覧のその1枚の場所へ飛ぶ</b>。ほかの投稿は、その1枚に<b>近いものから順に</b>ふわっと出る。戻るときは、そのタイルが広がってページになる（Framer Motion の <code>layoutId</code> の形）。今どこを見ていたかが途切れない。タイルから詳細を開くときの動き（#192）と同じ考え方'},
+ {id:2, t:'2. 順に出てくる', d:'投稿が<b>左上から1枚ずつ</b>、ばねで少し浮き上がって並ぶ（スタッガー）。戻るときは、ページが下からばねで上がる。いちばん素直で軽い'},
+ {id:3, t:'3. 束が広がる', d:'見ていたページの場所に投稿が<b>束になっていて、それぞれの場所へ散って並ぶ</b>。戻るときは真ん中に集まって束になり、いちばん上がページになる。「御朱印帳から出して並べる」感じ'},
+ {id:4, t:'4. めくれて並ぶ', d:'ページが<b>めくれて消え</b>、投稿が<b>斜めの順にくるりとめくれて</b>現れる。戻るときは逆。御朱印帳の「めくる」に寄せた案。4つの中でいちばん動きが多い'},
+];
+const NAMES=['仙台東照宮','塩竈神社','瑞鳳殿','伏見稲荷大社','大崎八幡宮','清水寺','明治神宮','浅草寺','鶴岡八幡宮','円覚寺','出羽三山神社','東大寺'];
+const CUR=4; // めくる表示で見ている1枚
+const state={rm:false, speed:1};
+
+function art(i){ const tones=['#F4EEE2','#EAF0F4','#F6EEE6','#EEF0E6','#F3E9E9','#EDEAF3'];
+  const x=18+(i*23)%44, y=70+(i*13)%40, rot=(i%2?-1:1)*(3+i%5);
+  const strokes=Array.from({length:3},(_,k)=>`<rect x="${52+k*13-(i%3)*6}" y="${16+(k*9+i*5)%18}" width="6" height="${62-(k*11+i*3)%24}" rx="2" fill="#2B2B2B" opacity=".82"/>`).join('');
+  return `<svg viewBox="0 0 100 150" preserveAspectRatio="xMidYMid slice"><rect width="100" height="150" fill="${tones[i%6]}"/>${strokes}
+   <g transform="rotate(${rot} ${x+14} ${y+14})"><rect x="${x}" y="${y}" width="28" height="28" rx="3" fill="none" stroke="#C2342B" stroke-width="4"/><rect x="${x+8}" y="${y+8}" width="12" height="12" fill="#C2342B" opacity=".85"/></g>
+   <circle cx="${20+(i*9)%16}" cy="${36+(i*7)%20}" r="${9+i%5}" fill="none" stroke="#C2342B" stroke-width="3" opacity=".8"/></svg>`; }
+const tilePos = i => ({x:16 + (i%3)*(82+9), y:28 + Math.floor(i/3)*(82+9), w:82, h:82});
+const PAGE = {x:50, y:10, w:200, h:300};
+
+const book=()=>`<div class="ic book"><div class="p r"></div><div class="p l"></div></div>`, grid4=()=>`<div class="ic grid4"><div class="t"></div><div class="t"></div><div class="t"></div><div class="t"></div></div>`;
+document.getElementById('wrap').innerHTML = IDEAS.map(x=>`<div class="col" id="c${x.id}"><h2>${x.t}</h2>
+  <div class="phone"><div class="sb"><span>9:41</span><span>▮▮▮ ◠ ▭</span></div>
+   <div class="hd"><b>御朱印帳</b><div class="segA"><div class="thumb"></div><div class="opt on" data-m="flip">${book()}</div><div class="opt" data-m="grid">${grid4()}</div></div></div>
+   <div class="stage"><div class="flipv"><div class="page">${art(CUR)}</div><div class="pcap">${NAMES[CUR]}<span>1月3日</span></div></div>
+    <div class="gridv" style="display:none"><div class="sort">日付順 ▼</div>${NAMES.map((_,i)=>{const p=tilePos(i);return `<div class="tile" data-i="${i}" style="left:${p.x}px;top:${p.y}px">${art(i)}</div>`}).join('')}</div></div></div>
+  <p>${x.d}</p></div>`).join('');
+
+/* ── 動きの道具 ── */
+const ease=t=>1-Math.pow(1-t,3);
+const spring=t=>1-Math.exp(-6*t)*Math.cos(9*t);           // 少し行き過ぎて戻る（Framer Motion の spring 相当）
+const soft=t=>1-Math.exp(-7*t)*Math.cos(6*t);
+const lerp=(a,b,p)=>a+(b-a)*p;
+function anim(ms, fn, e=ease, delay=0){ return new Promise(res=>{ if(state.rm){ fn(1); res(); return; } ms*=state.speed; delay*=state.speed;
+  setTimeout(()=>{ const t0=performance.now(); const step=now=>{ const p=Math.min(1,(now-t0)/ms); fn(e(p)); if(p<1) requestAnimationFrame(step); else res(); }; requestAnimationFrame(step); }, delay); }); }
+const css=(el,o)=>Object.assign(el.style,o);
+function place(el,r){ css(el,{left:r.x+'px',top:r.y+'px',width:r.w+'px',height:r.h+'px'}); }
+const mixR=(a,b,p)=>({x:lerp(a.x,b.x,p),y:lerp(a.y,b.y,p),w:lerp(a.w,b.w,p),h:lerp(a.h,b.h,p)});
+
+/* 切り替えボタン A（台がばねで移り、選んだアイコンが動く） */
+function toggleButton(col, mode){ const seg=col.querySelector('.segA'), th=seg.querySelector('.thumb'); const from=+(th.dataset.x||0), to=mode==='flip'?0:44; th.dataset.x=to;
+  anim(520,p=>th.style.transform=`translateX(${lerp(from,to,p)}px)`,spring);
+  seg.querySelectorAll('.opt').forEach(o=>o.classList.toggle('on',o.dataset.m===mode));
+  const o=seg.querySelector(`.opt[data-m="${mode}"]`);
+  if(mode==='flip'){ const l=o.querySelector('.p.l'); anim(600,p=>l.style.transform=`rotateY(${lerp(180,0,p)}deg)`); }
+  else o.querySelectorAll('.t').forEach((t,i)=>{ t.style.transform='scale(0)'; anim(260,p=>t.style.transform=`scale(${p})`,spring,i*70); }); }
+
+function flyer(col, i, r, radius){ const f=document.createElement('div'); f.className='fly'; f.innerHTML=art(i); place(f,r); f.style.borderRadius=radius+'px'; col.querySelector('.stage').appendChild(f); return f; }
+const views=col=>({flip:col.querySelector('.flipv'), grid:col.querySelector('.gridv'), tiles:[...col.querySelectorAll('.tile')], page:col.querySelector('.page')});
+
+/* ── 1. その1枚がつながる ── */
+async function t1(col, to){ const v=views(col);
+  if(to==='grid'){ v.flip.style.display='none'; v.grid.style.display='block'; v.tiles.forEach(t=>css(t,{opacity:0,transform:'scale(.9)'}));
+    const f=flyer(col,CUR,PAGE,12); const target=tilePos(CUR);
+    v.tiles.forEach(t=>{ const i=+t.dataset.i; if(i===CUR) return; const d=Math.hypot((i%3)-(CUR%3),Math.floor(i/3)-Math.floor(CUR/3));
+      anim(360,p=>css(t,{opacity:p,transform:`scale(${lerp(.9,1,p)})`}),ease,120+d*70); });
+    await anim(520,p=>{ place(f,mixR(PAGE,target,p)); f.style.borderRadius=lerp(12,8,p)+'px'; },spring);
+    css(v.tiles[CUR],{opacity:1,transform:'none'}); f.remove(); }
+  else { const src=tilePos(CUR); const f=flyer(col,CUR,src,8); v.tiles[CUR].style.opacity=0;
+    v.tiles.forEach(t=>{ if(+t.dataset.i!==CUR) anim(180,p=>css(t,{opacity:1-p,transform:`scale(${lerp(1,.94,p)})`})); });
+    await anim(520,p=>{ place(f,mixR(src,PAGE,p)); f.style.borderRadius=lerp(8,12,p)+'px'; },spring);
+    v.grid.style.display='none'; v.flip.style.display='block'; css(v.page,{opacity:1,transform:'none'}); f.remove(); } }
+
+/* ── 2. 順に出てくる ── */
+async function t2(col, to){ const v=views(col);
+  if(to==='grid'){ await anim(150,p=>css(v.page,{opacity:1-p,transform:`scale(${lerp(1,.96,p)})`})); v.flip.style.display='none'; v.grid.style.display='block';
+    await Promise.all(v.tiles.map((t,i)=>{ css(t,{opacity:0}); return anim(420,p=>css(t,{opacity:Math.min(1,p*1.6),transform:`translateY(${lerp(16,0,p)}px) scale(${lerp(.94,1,p)})`}),soft,i*35); })); }
+  else { await Promise.all(v.tiles.map((t,i)=>anim(160,p=>css(t,{opacity:1-p,transform:`translateY(${lerp(0,8,p)}px)`}),ease,(v.tiles.length-1-i)*12)));
+    v.grid.style.display='none'; v.flip.style.display='block';
+    await anim(480,p=>css(v.page,{opacity:Math.min(1,p*1.8),transform:`translateY(${lerp(28,0,p)}px) scale(${lerp(.96,1,p)})`}),soft); } }
+
+/* ── 3. 束が広がる ── */
+const stackRect=i=>({x:PAGE.x+PAGE.w/2-41+((i*7)%9-4), y:PAGE.y+PAGE.h/2-41+((i*5)%9-4), w:82, h:82});
+async function t3(col, to){ const v=views(col); const rot=i=>((i*37)%21-10);
+  if(to==='grid'){ await anim(160,p=>css(v.page,{transform:`scale(${lerp(1,.45,p)})`,opacity:1-p*.6})); v.flip.style.display='none'; v.grid.style.display='block';
+    v.tiles.forEach(t=>{ const i=+t.dataset.i; place(t,stackRect(i)); css(t,{transform:`rotate(${rot(i)}deg)`,opacity:1,zIndex:i===CUR?3:1}); });
+    await Promise.all(v.tiles.map(t=>{ const i=+t.dataset.i; const a=stackRect(i), b=tilePos(i);
+      return anim(560,p=>{ place(t,mixR(a,b,p)); t.style.transform=`rotate(${lerp(rot(i),0,p)}deg)`; },spring,40+ (i===CUR?0:25*((i*5)%12))); }));
+    v.tiles.forEach(t=>t.style.zIndex=''); }
+  else { await Promise.all(v.tiles.map(t=>{ const i=+t.dataset.i; const a=tilePos(i), b=stackRect(i); t.style.zIndex=i===CUR?3:1;
+      return anim(420,p=>{ place(t,mixR(a,b,p)); t.style.transform=`rotate(${lerp(0,rot(i),p)}deg)`; },ease,15*((i*7)%12)); }));
+    const f=flyer(col,CUR,stackRect(CUR),8); v.grid.style.display='none'; v.flip.style.display='block'; v.page.style.opacity=0;
+    await anim(460,p=>{ place(f,mixR(stackRect(CUR),PAGE,p)); f.style.borderRadius=lerp(8,12,p)+'px'; },spring);
+    css(v.page,{opacity:1,transform:'none'}); f.remove(); v.tiles.forEach(t=>{ place(t,tilePos(+t.dataset.i)); css(t,{transform:'none',zIndex:''}); }); } }
+
+/* ── 4. めくれて並ぶ ── */
+async function t4(col, to){ const v=views(col); 
+  const diag=i=>(i%3)+Math.floor(i/3);
+  if(to==='grid'){ await anim(260,p=>css(v.page,{transform:`perspective(700px) rotateY(${lerp(0,-90,p)}deg)`,transformOrigin:'left center',opacity:1-p*.3})); v.flip.style.display='none'; v.grid.style.display='block';
+    await Promise.all(v.tiles.map(t=>{ const i=+t.dataset.i; t.style.transform='perspective(700px) rotateY(90deg)'; return anim(380,p=>t.style.transform=`perspective(700px) rotateY(${lerp(90,0,p)}deg)`,soft,diag(i)*60); })); }
+  else { await Promise.all(v.tiles.map(t=>{ const i=+t.dataset.i; return anim(240,p=>t.style.transform=`perspective(700px) rotateY(${lerp(0,-90,p)}deg)`,ease,(5-diag(i))*35); }));
+    v.grid.style.display='none'; v.flip.style.display='block';
+    await anim(420,p=>css(v.page,{transform:`perspective(700px) rotateY(${lerp(90,0,p)}deg)`,transformOrigin:'right center',opacity:1}),soft);
+    v.tiles.forEach(t=>t.style.transform='none'); } }
+
+const T={1:t1,2:t2,3:t3,4:t4}; const mode={1:'flip',2:'flip',3:'flip',4:'flip'}; const busy={};
+async function go(id){ if(busy[id]) return; busy[id]=true; const col=document.getElementById('c'+id); const to=mode[id]==='flip'?'grid':'flip'; mode[id]=to;
+  toggleButton(col,to); await T[id](col,to); busy[id]=false; }
+IDEAS.forEach(x=>document.querySelector(`#c${x.id} .segA`).addEventListener('click',()=>go(x.id)));
+let timer=null; document.getElementById('auto').onclick=()=>{ const b=document.getElementById('auto'); if(timer){ clearInterval(timer); timer=null; b.textContent='自動で切り替える'; return; }
+  b.textContent='止める'; const run=()=>IDEAS.forEach(x=>go(x.id)); run(); timer=setInterval(run,2200*state.speed); };
+document.querySelectorAll('#rm button').forEach(b=>b.onclick=()=>{ document.querySelectorAll('#rm button').forEach(x=>x.classList.toggle('on',x===b)); state.rm=b.dataset.v==='on'; });
+document.querySelectorAll('#spd button').forEach(b=>b.onclick=()=>{ document.querySelectorAll('#spd button').forEach(x=>x.classList.toggle('on',x===b)); state.speed=+b.dataset.v; });
+window.__go=go; window.__mode=mode;
+</script>
+</body>
+</html>

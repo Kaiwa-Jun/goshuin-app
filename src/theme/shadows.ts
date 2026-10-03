@@ -38,6 +38,18 @@ export const shadows = {
     shadowRadius: 6,
     elevation: 6,
   } as ViewStyle,
+
+  /**
+   * 御朱印帳の表示の切り替えの白い台（Issue #276）。試作 toggle-v1 の A の
+   * `box-shadow: 0 1px 4px rgba(0,0,0,.14)`。CSS のぼかし 4px を iOS の shadowRadius 2 に写す
+   */
+  toggleThumb: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.14,
+    shadowRadius: 2,
+    elevation: 2,
+  } as ViewStyle,
 } as const;
 
 export type Shadows = typeof shadows;

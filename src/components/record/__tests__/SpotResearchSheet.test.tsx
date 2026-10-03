@@ -1,0 +1,685 @@
+import { StyleSheet, TextInput } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
+import { fireEvent, render, within } from '@testing-library/react-native';
+
+import { SpotResearchSheet } from '@components/record/SpotResearchSheet';
+import type { SpotAddState } from '@hooks/useSpotAdd';
+import type { SpotResearchCandidate } from '@/types/supabase';
+import { colors } from '@theme/colors';
+import { typography } from '@theme/typography';
+import { borderRadius } from '@theme/spacing';
+
+/* 契約書: docs/issues/issue-248-spot-add-research.md（S4 / UI-4〜UI-8・UI-10）
+ *        docs/issues/issue-277-spot-research-region.md（S2・S3 / UI-1〜UI-12）
+ *        docs/issues/issue-282-manual-after-research.md（S1 / UI-1〜UI-8）
+ *        docs/issues/issue-278-same-name-research.md（S3 / UI-6〜UI-9） */
+const cand = (index: number, over: Partial<SpotResearchCandidate> = {}): SpotResearchCandidate => ({
+  index,
+  name: '鹿島台神社',
+  type: 'shrine',
+  address: '宮城県大崎市鹿島台平渡',
+  prefecture: '宮城県',
+  lat: 38.4803,
+  lng: 141.0894,
+  sourceCount: 3,
+  sourceLabels: ['公式サイト', '宮城県神社庁'],
+  ...over,
+});
+
+const state = (over: Partial<SpotAddState>): SpotAddState => ({
+  status: 'researching',
+  name: '鹿島台神社',
+  hint: { prefecture: '宮城県', city: '大崎市' },
+  researchId: null,
+  candidates: [],
+  saveFailed: false,
+  placing: false,
+  redo: false,
+  ...over,
+});
+
+const handlers = () => ({
+  onClose: jest.fn(),
+  onPick: jest.fn(),
+  onChangeRegion: jest.fn(),
+  onRetry: jest.fn(),
+  onChoose: jest.fn(),
+  onOpenManual: jest.fn(),
+});
+
+describe('SpotResearchSheet', () => {
+  it('探している間: 名前・「{地域} で探しています」。地域を変えるボタン・入力欄・地図のボタンは無い（#282 UI-4）', () => {
+    const h = handlers();
+    const ui = render(
+      <SpotResearchSheet state={state({})} userLocation={null} recentPrefectures={[]} {...h} />
+    );
+    expect(ui.getByText('「鹿島台神社」を探しています')).toBeTruthy();
+    expect(
+      within(ui.getByTestId('hint-line')).getByText('宮城県 大崎市 で探しています')
+    ).toBeTruthy();
+    expect(ui.queryByTestId('hint-change')).toBeNull();
+    expect(ui.queryByText('変える')).toBeNull();
+    expect(ui.queryByText('地域を絞る')).toBeNull();
+    expect(ui.UNSAFE_queryAllByType(TextInput)).toHaveLength(0);
+    expect(ui.queryByTestId('research-open-manual')).toBeNull();
+    expect(ui.queryAllByText(/地図で/)).toHaveLength(0);
+  });
+
+  it('手がかりが無ければ「全国から探しています」。「地域を絞る」は無い', () => {
+    const ui = render(
+      <SpotResearchSheet
+        state={state({ hint: null })}
+        userLocation={null}
+        recentPrefectures={[]}
+        {...handlers()}
+      />
+    );
+    expect(within(ui.getByTestId('hint-line')).getByText('全国から探しています')).toBeTruthy();
+    expect(ui.queryByText('地域を絞る')).toBeNull();
+    expect(ui.queryByTestId('hint-change')).toBeNull();
+    expect(ui.UNSAFE_queryAllByType(TextInput)).toHaveLength(0);
+  });
+
+  it.each([
+    ['notFound', '見つかりませんでした'],
+    ['error', '探せませんでした。通信を確かめてください'],
+    ['limit', '今日探せる回数（10回）を使い切りました'],
+  ] as const)('%s: 文言と、地図で決める', (status, text) => {
+    const h = handlers();
+    const ui = render(
+      <SpotResearchSheet
+        state={state({ status })}
+        userLocation={null}
+        recentPrefectures={[]}
+        {...h}
+      />
+    );
+    expect(ui.getByText(text)).toBeTruthy();
+    fireEvent.press(ui.getByTestId('research-open-manual'));
+    expect(h.onOpenManual).toHaveBeenCalled();
+    if (status === 'error') {
+      fireEvent.press(ui.getByText('もう一度探す'));
+      expect(h.onRetry).toHaveBeenCalled();
+    }
+  });
+
+  it('候補: これですか？・住所・情報源・ここです・どれでもない。「みんなの地図」の注記は無い（#278 D-13）。「ここです」で選んだ番号を渡す', () => {
+    const h = handlers();
+    const ui = render(
+      <SpotResearchSheet
+        state={state({
+          status: 'candidates',
+          researchId: 'r1',
+          candidates: [cand(0), cand(1, { name: '鹿島神社' })],
+        })}
+        userLocation={null}
+        recentPrefectures={[]}
+        {...h}
+      />
+    );
+    expect(ui.getByText('これですか？')).toBeTruthy();
+    const card = within(ui.getByTestId('candidate-0'));
+    expect(card.getByText('鹿島台神社')).toBeTruthy();
+    expect(card.getByText('宮城県大崎市鹿島台平渡')).toBeTruthy();
+    expect(card.getByText('住所の情報源 3件（公式サイト・宮城県神社庁 ほか）')).toBeTruthy();
+    expect(ui.getByText('どれでもない（地図で決める）')).toBeTruthy();
+    expect(ui.queryByText(/みんなの地図/)).toBeNull();
+    // ほかの候補は畳んである
+    expect(ui.queryByTestId('candidate-1')).toBeNull();
+    fireEvent.press(ui.getByText('ほかの候補を見る（1件）'));
+    fireEvent.press(ui.getByTestId('candidate-1'));
+    fireEvent.press(ui.getByText('ここです'));
+    expect(h.onChoose).toHaveBeenCalledWith(1);
+  });
+
+  it('距離は端末の位置を渡されたときだけ、端末上で計算して出す', () => {
+    const s = state({ status: 'candidates', researchId: 'r1', candidates: [cand(0)] });
+    const without = render(
+      <SpotResearchSheet state={s} userLocation={null} recentPrefectures={[]} {...handlers()} />
+    );
+    expect(without.queryByTestId('candidate-0-km')).toBeNull();
+    const withLoc = render(
+      <SpotResearchSheet
+        state={s}
+        userLocation={{ latitude: 38.4803, longitude: 141.0924 }}
+        recentPrefectures={[]}
+        {...handlers()}
+      />
+    );
+    expect(withLoc.getByTestId('candidate-0-km').props.children).toBe('0.3km');
+  });
+
+  it('「追加」「確認待ち」「公開」とは言わない', () => {
+    const ui = render(
+      <SpotResearchSheet
+        state={state({ status: 'candidates', researchId: 'r1', candidates: [cand(0)] })}
+        userLocation={null}
+        recentPrefectures={[]}
+        {...handlers()}
+      />
+    );
+    for (const w of [/確認待ち/, /公開/]) expect(ui.queryByText(w)).toBeNull();
+  });
+});
+
+/* 契約書: docs/issues/issue-277-spot-research-region.md（S2） */
+describe('SpotResearchSheet — 探す前に地域を聞く（⓪）', () => {
+  const asking = (over: Partial<SpotAddState> = {}) =>
+    state({ status: 'asking', name: '八幡神社', hint: null, ...over });
+  const RECENT = ['宮城県', '京都府', '東京都'];
+
+  it('見出し・説明・あなたの記録から・ほかの地域を入れる。県（新しい順）→「全国から」の順。地図のボタンは無い（#282 UI-1）', () => {
+    const ui = render(
+      <SpotResearchSheet
+        state={asking()}
+        userLocation={null}
+        recentPrefectures={RECENT}
+        {...handlers()}
+      />
+    );
+    for (const t of [
+      '「八幡神社」を探します',
+      'どのあたりの寺社ですか？ 選ぶとすぐ探し始めます。',
+      'あなたの記録から',
+      'ほかの地域を入れる',
+    ]) {
+      expect(ui.getByText(t)).toBeTruthy();
+    }
+    expect(ui.queryByTestId('research-open-manual')).toBeNull();
+    expect(ui.queryByTestId('research-none')).toBeNull();
+    expect(ui.queryAllByText(/地図で/)).toHaveLength(0);
+    const chips = ui.getAllByTestId(/^region-(recent-\d|all)$/);
+    expect(chips.map(c => c.props.testID)).toEqual([
+      'region-recent-0',
+      'region-recent-1',
+      'region-recent-2',
+      'region-all',
+    ]);
+    expect(within(chips[0]).getByText('宮城県')).toBeTruthy();
+    expect(within(chips[1]).getByText('京都府')).toBeTruthy();
+    expect(within(chips[2]).getByText('東京都')).toBeTruthy();
+    expect(within(chips[3]).getByText('全国から')).toBeTruthy();
+    expect(ui.queryByTestId('region-quota')).toBeNull();
+    expect(ui.queryByText('探し直すと、今日の回数（10回）を1回使います')).toBeNull();
+    expect(ui.UNSAFE_queryAllByType(TextInput)).toHaveLength(0);
+  });
+
+  it('県のチップは place、「全国から」は public のアイコン。「全国から」だけ灰色の地', () => {
+    const ui = render(
+      <SpotResearchSheet
+        state={asking()}
+        userLocation={null}
+        recentPrefectures={RECENT}
+        {...handlers()}
+      />
+    );
+    const pref = ui.getByTestId('region-recent-0');
+    const all = ui.getByTestId('region-all');
+    expect(within(pref).UNSAFE_getByType(MaterialIcons).props).toMatchObject({
+      name: 'place',
+      size: 16,
+      color: colors.gray[500],
+    });
+    expect(within(all).UNSAFE_getByType(MaterialIcons).props).toMatchObject({
+      name: 'public',
+      size: 16,
+      color: colors.gray[500],
+    });
+    expect(StyleSheet.flatten(pref.props.style)).toMatchObject({
+      backgroundColor: colors.white,
+      borderColor: colors.gray[200],
+      borderRadius: borderRadius.full,
+    });
+    expect(StyleSheet.flatten(all.props.style)).toMatchObject({
+      backgroundColor: colors.gray[100],
+      borderColor: colors.gray[100],
+      borderRadius: borderRadius.full,
+    });
+  });
+
+  it('県のチップを押すとその県で、「全国から」を押すと null で onPick', () => {
+    const h = handlers();
+    const ui = render(
+      <SpotResearchSheet state={asking()} userLocation={null} recentPrefectures={RECENT} {...h} />
+    );
+    fireEvent.press(ui.getByTestId('region-recent-0'));
+    expect(h.onPick).toHaveBeenCalledTimes(1);
+    expect(h.onPick).toHaveBeenLastCalledWith({ prefecture: '宮城県', city: null });
+    fireEvent.press(ui.getByTestId('region-all'));
+    expect(h.onPick).toHaveBeenCalledTimes(2);
+    expect(h.onPick).toHaveBeenLastCalledWith(null);
+  });
+
+  it('記録の県が無ければ「全国から」と「ほかの地域を入れる」だけ', () => {
+    const ui = render(
+      <SpotResearchSheet
+        state={asking()}
+        userLocation={null}
+        recentPrefectures={[]}
+        {...handlers()}
+      />
+    );
+    expect(ui.queryByText('あなたの記録から')).toBeNull();
+    expect(ui.queryByTestId('region-recent-0')).toBeNull();
+    expect(within(ui.getByTestId('region-all')).getByText('全国から')).toBeTruthy();
+    expect(within(ui.getByTestId('region-other')).getByText('ほかの地域を入れる')).toBeTruthy();
+  });
+
+  it('「ほかの地域を入れる」で入力欄と「この地域で探す」。入れた地域で onPick、空なら null、確定キーでも探す', () => {
+    const h = handlers();
+    const ui = render(
+      <SpotResearchSheet state={asking()} userLocation={null} recentPrefectures={[]} {...h} />
+    );
+    fireEvent.press(ui.getByTestId('region-other'));
+    expect(ui.getByTestId('region-input').props.placeholder).toBe('例: 宮城県 仙台市');
+    expect(within(ui.getByTestId('region-submit')).getByText('この地域で探す')).toBeTruthy();
+    expect(ui.queryByTestId('region-other')).toBeNull();
+
+    fireEvent.changeText(ui.getByTestId('region-input'), '宮城県 仙台市');
+    fireEvent.press(ui.getByTestId('region-submit'));
+    expect(h.onPick).toHaveBeenLastCalledWith({ prefecture: '宮城県', city: '仙台市' });
+
+    fireEvent.changeText(ui.getByTestId('region-input'), '');
+    fireEvent.press(ui.getByTestId('region-submit'));
+    expect(h.onPick).toHaveBeenLastCalledWith(null);
+
+    fireEvent.changeText(ui.getByTestId('region-input'), '宮城県');
+    fireEvent(ui.getByTestId('region-input'), 'submitEditing');
+    expect(h.onPick).toHaveBeenLastCalledWith({ prefecture: '宮城県', city: null });
+    expect(h.onPick).toHaveBeenCalledTimes(3);
+  });
+
+  it('「ほかの地域を入れる」で入力欄を開いたあとも、地図のボタンは無い（#282 UI-2）', () => {
+    const ui = render(
+      <SpotResearchSheet
+        state={asking()}
+        userLocation={null}
+        recentPrefectures={[]}
+        {...handlers()}
+      />
+    );
+    fireEvent.press(ui.getByTestId('region-other'));
+    expect(ui.getByTestId('region-input')).toBeTruthy();
+    expect(ui.getByTestId('region-submit')).toBeTruthy();
+    expect(ui.queryByTestId('research-open-manual')).toBeNull();
+    expect(ui.queryAllByText(/地図で/)).toHaveLength(0);
+  });
+
+  it('開いている間に県が届いたら、「全国から」の前に加わる（探さない）', () => {
+    const h = handlers();
+    const ui = render(
+      <SpotResearchSheet state={asking()} userLocation={null} recentPrefectures={[]} {...h} />
+    );
+    expect(ui.queryByText('あなたの記録から')).toBeNull();
+    ui.rerender(
+      <SpotResearchSheet
+        state={asking()}
+        userLocation={null}
+        recentPrefectures={['宮城県']}
+        {...h}
+      />
+    );
+    expect(ui.getByText('あなたの記録から')).toBeTruthy();
+    expect(ui.getAllByTestId(/^region-(recent-\d|all)$/).map(c => c.props.testID)).toEqual([
+      'region-recent-0',
+      'region-all',
+    ]);
+    expect(within(ui.getByTestId('region-recent-0')).getByText('宮城県')).toBeTruthy();
+    expect(h.onPick).not.toHaveBeenCalled();
+  });
+});
+
+describe('SpotResearchSheet — 探したあとの地域の行', () => {
+  it('候補: 説明文と候補カードの間に「{地域} で探しました」', () => {
+    const ui = render(
+      <SpotResearchSheet
+        state={state({
+          status: 'candidates',
+          hint: { prefecture: '宮城県', city: null },
+          researchId: 'r1',
+          candidates: [cand(0), cand(1)],
+        })}
+        userLocation={null}
+        recentPrefectures={[]}
+        {...handlers()}
+      />
+    );
+    expect(within(ui.getByTestId('hint-line')).getByText('宮城県 で探しました')).toBeTruthy();
+    const tree = JSON.stringify(ui.toJSON());
+    const why = tree.indexOf('見つかった寺社です。');
+    const line = tree.indexOf('"testID":"hint-line"');
+    const first = tree.indexOf('"testID":"candidate-0"');
+    expect(why).toBeGreaterThan(-1);
+    expect(why).toBeLessThan(line);
+    expect(line).toBeLessThan(first);
+  });
+
+  it('見つからない: 見出しの下に「全国から探しました」', () => {
+    const ui = render(
+      <SpotResearchSheet
+        state={state({ status: 'notFound', hint: null })}
+        userLocation={null}
+        recentPrefectures={[]}
+        {...handlers()}
+      />
+    );
+    expect(ui.getByText('見つかりませんでした')).toBeTruthy();
+    expect(within(ui.getByTestId('hint-line')).getByText('全国から探しました')).toBeTruthy();
+  });
+
+  it.each(['error', 'limit'] as const)('%s: 「変える」は無い', status => {
+    const ui = render(
+      <SpotResearchSheet
+        state={state({ status })}
+        userLocation={null}
+        recentPrefectures={[]}
+        {...handlers()}
+      />
+    );
+    expect(ui.queryByTestId('hint-change')).toBeNull();
+    expect(ui.queryByText('変える')).toBeNull();
+    expect(ui.getAllByText(/地図で場所を決める/).length).toBeGreaterThan(0);
+  });
+});
+
+/* 契約書: docs/issues/issue-277-spot-research-region.md（S3） */
+describe('SpotResearchSheet — 「変える」で地域を選び直す', () => {
+  const found = (over: Partial<SpotAddState> = {}) =>
+    state({
+      status: 'candidates',
+      hint: { prefecture: '宮城県', city: null },
+      researchId: 'r1',
+      candidates: [cand(0), cand(1)],
+      ...over,
+    });
+
+  it('候補: 「宮城県 で探しました」と「変える」。押すと onChangeRegion', () => {
+    const h = handlers();
+    const ui = render(
+      <SpotResearchSheet state={found()} userLocation={null} recentPrefectures={[]} {...h} />
+    );
+    const line = within(ui.getByTestId('hint-line'));
+    expect(line.getByText('宮城県 で探しました')).toBeTruthy();
+    expect(within(ui.getByTestId('hint-change')).getByText('変える')).toBeTruthy();
+    fireEvent.press(ui.getByTestId('hint-change'));
+    expect(h.onChangeRegion).toHaveBeenCalledTimes(1);
+  });
+
+  it('保存中は「変える」を押せない', () => {
+    const h = handlers();
+    const ui = render(
+      <SpotResearchSheet
+        state={found({ status: 'saving' })}
+        userLocation={null}
+        recentPrefectures={[]}
+        {...h}
+      />
+    );
+    fireEvent.press(ui.getByTestId('hint-change'));
+    expect(h.onChangeRegion).not.toHaveBeenCalled();
+  });
+
+  it('見つからない: 「全国から探しました」「変える」「地図で場所を決める」。「変える」で onChangeRegion', () => {
+    const h = handlers();
+    const ui = render(
+      <SpotResearchSheet
+        state={state({ status: 'notFound', hint: null })}
+        userLocation={null}
+        recentPrefectures={[]}
+        {...h}
+      />
+    );
+    expect(ui.getByText('見つかりませんでした')).toBeTruthy();
+    expect(ui.getByText('全国から探しました')).toBeTruthy();
+    expect(ui.getByText('地図で場所を決める')).toBeTruthy();
+    fireEvent.press(ui.getByText('変える'));
+    expect(h.onChangeRegion).toHaveBeenCalledTimes(1);
+  });
+
+  it('探し直し（redo）: 見出し・説明が変わり、回数の知らせが「ほかの地域を入れる」の下に出る。地図のボタンは無い（#282 UI-3）', () => {
+    const ui = render(
+      <SpotResearchSheet
+        state={state({ status: 'asking', redo: true, name: '八幡神社', hint: null })}
+        userLocation={null}
+        recentPrefectures={['宮城県']}
+        {...handlers()}
+      />
+    );
+    expect(ui.getByText('地域を決めて探し直す')).toBeTruthy();
+    expect(ui.getByText('選ぶとすぐ探し直します。')).toBeTruthy();
+    expect(ui.queryByText('「八幡神社」を探します')).toBeNull();
+    const quota = ui.getByTestId('region-quota');
+    expect(quota.props.children).toBe('探し直すと、今日の回数（10回）を1回使います');
+    expect(StyleSheet.flatten(quota.props.style)).toMatchObject({
+      color: colors.gray[500],
+      fontSize: typography.caption.fontSize,
+    });
+    for (const id of ['region-recent-0', 'region-all', 'region-other']) {
+      expect(ui.getByTestId(id)).toBeTruthy();
+    }
+    expect(ui.queryByTestId('research-open-manual')).toBeNull();
+    expect(ui.queryAllByText(/地図で/)).toHaveLength(0);
+    const tree = JSON.stringify(ui.toJSON());
+    expect(tree.indexOf('"testID":"region-other"')).toBeLessThan(
+      tree.indexOf('"testID":"region-quota"')
+    );
+  });
+});
+
+describe('地図で決めるのは探したあとだけ（Issue #282）', () => {
+  const styleOf = (el: { props: { style: unknown } }) =>
+    StyleSheet.flatten(el.props.style as never) as Record<string, unknown>;
+
+  it('UI-4: 全国から探している間も、地図のボタンは無い', () => {
+    const ui = render(
+      <SpotResearchSheet
+        state={state({ hint: null })}
+        userLocation={null}
+        recentPrefectures={[]}
+        {...handlers()}
+      />
+    );
+    expect(ui.getByText('「鹿島台神社」を探しています')).toBeTruthy();
+    expect(ui.getByTestId('hint-line')).toBeTruthy();
+    expect(ui.queryByTestId('research-open-manual')).toBeNull();
+    expect(ui.queryAllByText(/地図で/)).toHaveLength(0);
+  });
+
+  it('UI-5: 見つからないときは地域の行の下に「地図で場所を決める」（主ボタン）。押すと onOpenManual だけ', () => {
+    const h = handlers();
+    const ui = render(
+      <SpotResearchSheet
+        state={state({ status: 'notFound', hint: null })}
+        userLocation={null}
+        recentPrefectures={[]}
+        {...h}
+      />
+    );
+    const button = ui.getByTestId('research-open-manual');
+    expect(within(button).getByText('地図で場所を決める')).toBeTruthy();
+    expect(styleOf(button).backgroundColor).toBe(colors.primary[500]);
+    const tree = JSON.stringify(ui.toJSON());
+    expect(tree.indexOf('"testID":"hint-line"')).toBeLessThan(
+      tree.indexOf('"testID":"research-open-manual"')
+    );
+    fireEvent.press(button);
+    expect(h.onOpenManual).toHaveBeenCalledTimes(1);
+    expect(h.onChangeRegion).not.toHaveBeenCalled();
+    expect(ui.queryByText('調べずに、地図で場所を決める')).toBeNull();
+  });
+
+  it('UI-6: 探せなかったときは「もう一度探す」の下に「地図で場所を決める」（枠のボタン）', () => {
+    const h = handlers();
+    const ui = render(
+      <SpotResearchSheet
+        state={state({ status: 'error' })}
+        userLocation={null}
+        recentPrefectures={[]}
+        {...h}
+      />
+    );
+    expect(within(ui.getByTestId('research-retry')).getByText('もう一度探す')).toBeTruthy();
+    const button = ui.getByTestId('research-open-manual');
+    expect(within(button).getByText('地図で場所を決める')).toBeTruthy();
+    const tree = JSON.stringify(ui.toJSON());
+    expect(tree.indexOf('"testID":"research-retry"')).toBeLessThan(
+      tree.indexOf('"testID":"research-open-manual"')
+    );
+    expect(styleOf(button)).toMatchObject({
+      borderWidth: 1,
+      borderColor: colors.primary[500],
+      backgroundColor: colors.transparent,
+    });
+    fireEvent.press(button);
+    expect(h.onOpenManual).toHaveBeenCalledTimes(1);
+  });
+
+  it('UI-7: 回数の上限のときは「地図で場所を決める」（主ボタン）', () => {
+    const h = handlers();
+    const ui = render(
+      <SpotResearchSheet
+        state={state({ status: 'limit' })}
+        userLocation={null}
+        recentPrefectures={[]}
+        {...h}
+      />
+    );
+    expect(ui.getByText('今日探せる回数（10回）を使い切りました')).toBeTruthy();
+    const button = ui.getByTestId('research-open-manual');
+    expect(within(button).getByText('地図で場所を決める')).toBeTruthy();
+    expect(styleOf(button).backgroundColor).toBe(colors.primary[500]);
+    fireEvent.press(button);
+    expect(h.onOpenManual).toHaveBeenCalledTimes(1);
+  });
+
+  it('UI-8: 候補では「どれでもない（地図で決める）」だけ。保存中は押しても開かない', () => {
+    const h = handlers();
+    const candidates = [cand(0), cand(1, { name: '鹿島神社' })];
+    const ui = render(
+      <SpotResearchSheet
+        state={state({ status: 'candidates', researchId: 'r1', candidates })}
+        userLocation={null}
+        recentPrefectures={[]}
+        {...h}
+      />
+    );
+    expect(
+      within(ui.getByTestId('research-none')).getByText('どれでもない（地図で決める）')
+    ).toBeTruthy();
+    expect(ui.queryByTestId('research-open-manual')).toBeNull();
+    fireEvent.press(ui.getByTestId('research-none'));
+    expect(h.onOpenManual).toHaveBeenCalledTimes(1);
+
+    ui.rerender(
+      <SpotResearchSheet
+        state={state({ status: 'saving', researchId: 'r1', candidates })}
+        userLocation={null}
+        recentPrefectures={[]}
+        {...h}
+      />
+    );
+    fireEvent.press(ui.getByTestId('research-none'));
+    expect(h.onOpenManual).toHaveBeenCalledTimes(1);
+  });
+});
+
+/* 候補カードと言葉（Issue #278 / UI-6〜UI-9。D-13: 言葉を「探す」にそろえ、中の仕組みが見える表示を出さない）。
+   登録済みの寺社を「ここです」で選んだときの判定は RecordScreen の AC-9・AC-11 で確かめる */
+describe('SpotResearchSheet — 探す言葉と、登録済みかを見せないカード（D-13）', () => {
+  const candidates = [
+    cand(0, {
+      name: '八坂神社',
+      address: '京都府京都市東山区祇園町北側625',
+      prefecture: '京都府',
+      lat: 35.0036,
+      lng: 135.7785,
+    }),
+    cand(1, {
+      name: '八坂神社',
+      address: '京都府福知山市',
+      prefecture: '京都府',
+      lat: 35.2966,
+      lng: 135.1264,
+    }),
+  ];
+  const SOURCE = '住所の情報源 3件（公式サイト・宮城県神社庁 ほか）';
+  const renderWith = (st: SpotAddState, h = handlers()) =>
+    render(<SpotResearchSheet state={st} userLocation={null} recentPrefectures={[]} {...h} />);
+  const withCandidates = (over: Partial<SpotAddState> = {}) =>
+    state({ status: 'candidates', researchId: 'r1', candidates, ...over });
+
+  it('候補カードはどれも同じ形。種別の札と住所の情報源の行があり、「登録済み」は無い（UI-6）', () => {
+    const ui = renderWith(withCandidates());
+
+    const first = within(ui.getByTestId('candidate-0'));
+    expect(within(first.getByTestId('badge-shrine')).getByText('神社')).toBeTruthy();
+    expect(first.getByText(SOURCE)).toBeTruthy();
+    fireEvent.press(ui.getByText('ほかの候補を見る（1件）'));
+    expect(within(ui.getByTestId('candidate-1')).getByText(SOURCE)).toBeTruthy();
+    expect(ui.queryByTestId('badge-registered')).toBeNull();
+    expect(ui.queryByText(/登録済み/)).toBeNull();
+    expect(ui.queryByText(/新しく追加しません/)).toBeNull();
+  });
+
+  it('「みんなの地図」の注記は、どの候補を選んでも保存中も出さない。「ここです」は選んだ番号を渡す（UI-7）', () => {
+    const h = handlers();
+    const ui = renderWith(withCandidates(), h);
+    expect(ui.queryByText(/みんなの地図/)).toBeNull();
+
+    fireEvent.press(ui.getByText('ほかの候補を見る（1件）'));
+    fireEvent.press(ui.getByTestId('candidate-1'));
+    expect(ui.queryByText(/みんなの地図/)).toBeNull();
+    fireEvent.press(ui.getByText('ここです'));
+    expect(h.onChoose).toHaveBeenLastCalledWith(1);
+    fireEvent.press(ui.getByTestId('candidate-0'));
+    fireEvent.press(ui.getByText('ここです'));
+    expect(h.onChoose).toHaveBeenLastCalledWith(0);
+
+    const saving = renderWith(withCandidates({ status: 'saving' }));
+    expect(saving.queryByText(/みんなの地図/)).toBeNull();
+  });
+
+  it("⓪・⓪'・②・error・limit の言葉は「探す」（UI-8）", () => {
+    const ask = renderWith(state({ status: 'asking', name: '八幡神社', hint: null }));
+    expect(ask.getByText('「八幡神社」を探します')).toBeTruthy();
+    expect(ask.getByText('どのあたりの寺社ですか？ 選ぶとすぐ探し始めます。')).toBeTruthy();
+    fireEvent.press(ask.getByTestId('region-other'));
+    expect(within(ask.getByTestId('region-submit')).getByText('この地域で探す')).toBeTruthy();
+
+    const redo = renderWith(state({ status: 'asking', name: '八幡神社', hint: null, redo: true }));
+    expect(redo.getByText('地域を決めて探し直す')).toBeTruthy();
+    expect(redo.getByText('選ぶとすぐ探し直します。')).toBeTruthy();
+    expect(redo.getByTestId('region-quota').props.children).toBe(
+      '探し直すと、今日の回数（10回）を1回使います'
+    );
+
+    expect(renderWith(state({})).getByText('「鹿島台神社」を探しています')).toBeTruthy();
+
+    const error = renderWith(state({ status: 'error' }));
+    expect(error.getByText('探せませんでした。通信を確かめてください')).toBeTruthy();
+    expect(within(error.getByTestId('research-retry')).getByText('もう一度探す')).toBeTruthy();
+
+    expect(
+      renderWith(state({ status: 'limit' })).getByText('今日探せる回数（10回）を使い切りました')
+    ).toBeTruthy();
+  });
+
+  it.each([
+    ['asking', state({ status: 'asking', hint: null })],
+    ['asking（redo）', state({ status: 'asking', hint: null, redo: true })],
+    ['researching', state({})],
+    ['notFound', state({ status: 'notFound' })],
+    ['error', state({ status: 'error' })],
+    ['limit', state({ status: 'limit' })],
+    ['candidates', withCandidates()],
+    ['saving', withCandidates({ status: 'saving' })],
+  ] as const)('%s: 画面の文字に「調べ」が無い（UI-9）', (status, st) => {
+    const ui = renderWith(st);
+    expect(ui.queryAllByText(/調べ/)).toHaveLength(0);
+
+    // 開いたあとに出る文字も見る
+    if (status.startsWith('asking')) fireEvent.press(ui.getByTestId('region-other'));
+    if (status === 'candidates') fireEvent.press(ui.getByText('ほかの候補を見る（1件）'));
+    expect(ui.queryAllByText(/調べ/)).toHaveLength(0);
+  });
+});

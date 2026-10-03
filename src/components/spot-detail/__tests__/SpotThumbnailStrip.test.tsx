@@ -1,7 +1,9 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
+import '@testing-library/react-native/extend-expect';
 import {
   SpotThumbnailStrip,
+  buildSpotGalleryImages,
   selectSheetThumbnails,
   SHEET_THUMBNAIL_LIMIT,
 } from '../SpotThumbnailStrip';
@@ -61,7 +63,7 @@ describe('selectSheetThumbnails', () => {
 describe('SpotThumbnailStrip', () => {
   it('画像が1件も無いとき何も描画しない（空枠を置かない）', () => {
     const { queryByTestId } = render(
-      <SpotThumbnailStrip stamps={[]} publicStamps={[]} onPress={() => {}} />
+      <SpotThumbnailStrip stamps={[]} publicStamps={[]} onPressThumbnail={() => {}} />
     );
     expect(queryByTestId('spot-thumbnails')).toBeNull();
   });
@@ -71,7 +73,7 @@ describe('SpotThumbnailStrip', () => {
       <SpotThumbnailStrip
         stamps={[makeStamp('a'), makeStamp('b')]}
         publicStamps={[]}
-        onPress={() => {}}
+        onPressThumbnail={() => {}}
       />
     );
     expect(getByTestId('spot-thumbnail-0')).toBeTruthy();
@@ -82,18 +84,56 @@ describe('SpotThumbnailStrip', () => {
   it('最大3件までしか描画しない', () => {
     const stamps = [makeStamp('a'), makeStamp('b'), makeStamp('c'), makeStamp('d')];
     const { queryByTestId } = render(
-      <SpotThumbnailStrip stamps={stamps} publicStamps={[]} onPress={() => {}} />
+      <SpotThumbnailStrip stamps={stamps} publicStamps={[]} onPressThumbnail={() => {}} />
     );
     expect(queryByTestId('spot-thumbnail-2')).toBeTruthy();
     expect(queryByTestId('spot-thumbnail-3')).toBeNull();
   });
 
-  it('サムネイルのタップで onPress を呼ぶ', () => {
-    const onPress = jest.fn();
+  it('押した写真の番号で onPressThumbnail を呼ぶ（Issue #253）', () => {
+    const onPressThumbnail = jest.fn();
     const { getByTestId } = render(
-      <SpotThumbnailStrip stamps={[makeStamp('a')]} publicStamps={[]} onPress={onPress} />
+      <SpotThumbnailStrip
+        stamps={[makeStamp('a'), makeStamp('b')]}
+        publicStamps={[]}
+        onPressThumbnail={onPressThumbnail}
+      />
     );
-    fireEvent.press(getByTestId('spot-thumbnail-0'));
-    expect(onPress).toHaveBeenCalledTimes(1);
+    fireEvent.press(getByTestId('spot-thumbnail-1'));
+    expect(onPressThumbnail).toHaveBeenCalledWith(1);
+  });
+
+  it('4枚以上なら3枚目に「+N」を重ねる。3枚以下なら出さない', () => {
+    const four = [makeStamp('a'), makeStamp('b')];
+    const theirs = [makePublicStamp('c'), makePublicStamp('d'), { ...makePublicStamp('a') }];
+    const ui = render(
+      <SpotThumbnailStrip stamps={four} publicStamps={theirs} onPressThumbnail={() => {}} />
+    );
+    expect(ui.getByTestId('spot-thumbnail-more')).toHaveTextContent('+1');
+    const three = render(
+      <SpotThumbnailStrip
+        stamps={[makeStamp('a'), makeStamp('b'), makeStamp('c')]}
+        publicStamps={[]}
+        onPressThumbnail={() => {}}
+      />
+    );
+    expect(three.queryByTestId('spot-thumbnail-more')).toBeNull();
+  });
+});
+
+describe('buildSpotGalleryImages', () => {
+  it('自分の記録 → 公開の順。id が重複したら後から来た方を除く', () => {
+    const shared = makeStamp('s1');
+    const images = buildSpotGalleryImages(
+      [shared, makeStamp('s2')],
+      [
+        { ...shared, profiles: { display_name: 'x' } } as unknown as PublicStampWithUser,
+        { ...makePublicStamp('p1'), profiles: { display_name: 'ユーザー' } } as never,
+        { ...makePublicStamp('p2'), profiles: { display_name: null } } as never,
+      ]
+    );
+    expect(images.map(i => i.id)).toEqual(['s1', 's2', 'p1', 'p2']);
+    expect(images[2].userName).toBe('ユーザー');
+    expect(images[0].userName).toBeUndefined();
   });
 });

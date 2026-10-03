@@ -1,4 +1,9 @@
-import { fetchSpotAggregatedInfo, fetchSpotSnsLinks, triggerExtraction } from '@services/spotInfo';
+import {
+  fetchReceptionHours,
+  fetchSpotAggregatedInfo,
+  fetchSpotSnsLinks,
+  triggerExtraction,
+} from '@services/spotInfo';
 
 const mockSelect = jest.fn();
 const mockEq = jest.fn();
@@ -148,5 +153,40 @@ describe('spotInfo service', () => {
       expect(warnSpy).toHaveBeenCalledWith('Failed to trigger extraction:', 'invoke error');
       warnSpy.mockRestore();
     });
+  });
+});
+
+/* Issue #258 AC-22: 予定の寺社の受付時間をまとめて */
+describe('fetchReceptionHours', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('reception_hours を spot_id in (…) で1回だけ取り、close のある寺社だけの Map にする', async () => {
+    const mockIn = jest.fn().mockResolvedValue({
+      data: [
+        { spot_id: 'a', info_data: { open: '9:00', close: '17:00' } },
+        { spot_id: 'b', info_data: { open: '9:00' } },
+      ],
+      error: null,
+    });
+    const mockEqRh = jest.fn().mockReturnValue({ in: mockIn });
+    mockFrom.mockReturnValue({ select: jest.fn().mockReturnValue({ eq: mockEqRh }) });
+
+    const map = await fetchReceptionHours(['a', 'b']);
+
+    expect(mockFrom).toHaveBeenCalledTimes(1);
+    expect(mockFrom).toHaveBeenCalledWith('spot_aggregated_info');
+    expect(mockEqRh).toHaveBeenCalledWith('info_type', 'reception_hours');
+    expect(mockIn).toHaveBeenCalledWith('spot_id', ['a', 'b']);
+    expect(map).toEqual(new Map([['a', '17:00']]));
+  });
+
+  it('寺社が無ければ問い合わせない。失敗は空（受付の行を出さないだけ）', async () => {
+    expect(await fetchReceptionHours([])).toEqual(new Map());
+    expect(mockFrom).not.toHaveBeenCalled();
+    const mockIn = jest.fn().mockResolvedValue({ data: null, error: { message: 'x' } });
+    mockFrom.mockReturnValue({
+      select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ in: mockIn }) }),
+    });
+    expect(await fetchReceptionHours(['a'])).toEqual(new Map());
   });
 });

@@ -19,6 +19,8 @@ interface ModalProps {
   title?: string;
   children: React.ReactNode;
   closeOnBackdrop?: boolean;
+  /** 閉じる動きが終わったとき（iOS のみ。閉じてから次の画面へ進むときに使う） */
+  onDismiss?: () => void;
 }
 
 export function Modal({
@@ -28,6 +30,7 @@ export function Modal({
   title,
   children,
   closeOnBackdrop = true,
+  onDismiss,
 }: ModalProps) {
   const handleBackdropPress = () => {
     if (closeOnBackdrop) {
@@ -41,6 +44,7 @@ export function Modal({
       transparent
       animationType={variant === 'center' ? 'fade' : 'slide'}
       onRequestClose={onClose}
+      onDismiss={onDismiss}
     >
       <KeyboardAvoidingView
         style={styles.keyboardAvoiding}

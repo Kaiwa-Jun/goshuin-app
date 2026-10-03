@@ -50,7 +50,7 @@ e2e/              # Maestro フロー
 
 - **Expo Go では動かない**。ネイティブモジュール（Google Sign-In 等）があるため EAS Development Build 必須
   - 実機: `eas build --profile development --platform ios` / シミュレータ: `--profile development-simulator`
-- **Expo Web**（`npx expo start --web --port 8081`）は UI 検証専用。地図背景・カメラ・スワイプは Web 非対応（`metro.config.js` で react-native-maps をスタブに解決）
+- **Expo Web**（`npx expo start --web --port 8081`）は UI 検証専用。地図背景・カメラ・スワイプは Web 非対応（`metro.config.js` で `@maplibre/maplibre-react-native` をスタブに解決）
 - Supabase は無操作が続くと pause される。開発再開時に dashboard での resume が必要なことがある
 
 ## コード規約
