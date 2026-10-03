@@ -1,0 +1,335 @@
+{
+  "entities": {
+    "Q11447234": {
+      "type": "item",
+      "id": "Q11447234",
+      "labels": {
+        "ja": {
+          "language": "ja",
+          "value": "姉倉比売神社"
+        }
+      },
+      "aliases": {
+        "ja": [
+          {
+            "language": "ja",
+            "value": "姉倉姫神社"
+          },
+          {
+            "language": "ja",
+            "value": "姉倉比賣神社"
+          },
+          {
+            "language": "ja",
+            "value": "姉倉比賣神社（富山市呉羽町）"
+          }
+        ]
+      },
+      "claims": {
+        "P625": [
+          {
+            "mainsnak": {
+              "snaktype": "value",
+              "property": "P625",
+              "datavalue": {
+                "value": {
+                  "latitude": 36.71808333333333,
+                  "longitude": 137.16672222222223,
+                  "altitude": null,
+                  "precision": 2.777777777777778e-5,
+                  "globe": "http://www.wikidata.org/entity/Q2"
+                },
+                "type": "globecoordinate"
+              }
+            },
+            "type": "statement",
+            "rank": "normal"
+          },
+          {
+            "mainsnak": {
+              "snaktype": "value",
+              "property": "P625",
+              "datavalue": {
+                "value": {
+                  "latitude": 36.718004,
+                  "longitude": 137.166837,
+                  "altitude": null,
+                  "precision": 0.0001,
+                  "globe": "http://www.wikidata.org/entity/Q2"
+                },
+                "type": "globecoordinate"
+              }
+            },
+            "type": "statement",
+            "rank": "normal"
+          }
+        ],
+        "P18": [
+          {
+            "mainsnak": {
+              "snaktype": "value",
+              "property": "P18",
+              "datavalue": {
+                "value": "Kureha-Anekurahime-jinja haiden.jpeg",
+                "type": "string"
+              }
+            },
+            "type": "statement",
+            "rank": "normal"
+          }
+        ],
+        "P373": [
+          {
+            "mainsnak": {
+              "snaktype": "value",
+              "property": "P373",
+              "datavalue": {
+                "value": "Kureha-Anekurahime-jinja",
+                "type": "string"
+              }
+            },
+            "type": "statement",
+            "rank": "normal"
+          }
+        ],
+        "P131": [
+          {
+            "mainsnak": {
+              "snaktype": "value",
+              "property": "P131",
+              "datavalue": {
+                "value": {
+                  "entity-type": "item",
+                  "numeric-id": 204266,
+                  "id": "Q204266"
+                },
+                "type": "wikibase-entityid"
+              }
+            },
+            "type": "statement",
+            "rank": "normal"
+          },
+          {
+            "mainsnak": {
+              "snaktype": "value",
+              "property": "P131",
+              "datavalue": {
+                "value": {
+                  "entity-type": "item",
+                  "numeric-id": 906899,
+                  "id": "Q906899"
+                },
+                "type": "wikibase-entityid"
+              }
+            },
+            "type": "statement",
+            "rank": "normal"
+          },
+          {
+            "mainsnak": {
+              "snaktype": "value",
+              "property": "P131",
+              "datavalue": {
+                "value": {
+                  "entity-type": "item",
+                  "numeric-id": 6987940,
+                  "id": "Q6987940"
+                },
+                "type": "wikibase-entityid"
+              }
+            },
+            "type": "statement",
+            "rank": "normal"
+          }
+        ],
+        "P31": [
+          {
+            "mainsnak": {
+              "snaktype": "value",
+              "property": "P31",
+              "datavalue": {
+                "value": {
+                  "entity-type": "item",
+                  "numeric-id": 845945,
+                  "id": "Q845945"
+                },
+                "type": "wikibase-entityid"
+              }
+            },
+            "type": "statement",
+            "rank": "normal"
+          },
+          {
+            "mainsnak": {
+              "snaktype": "value",
+              "property": "P31",
+              "datavalue": {
+                "value": {
+                  "entity-type": "item",
+                  "numeric-id": 135022904,
+                  "id": "Q135022904"
+                },
+                "type": "wikibase-entityid"
+              }
+            },
+            "type": "statement",
+            "rank": "normal"
+          },
+          {
+            "mainsnak": {
+              "snaktype": "value",
+              "property": "P31",
+              "datavalue": {
+                "value": {
+                  "entity-type": "item",
+                  "numeric-id": 135160342,
+                  "id": "Q135160342"
+                },
+                "type": "wikibase-entityid"
+              }
+            },
+            "type": "statement",
+            "rank": "normal"
+          }
+        ],
+        "P17": [
+          {
+            "mainsnak": {
+              "snaktype": "value",
+              "property": "P17",
+              "datavalue": {
+                "value": {
+                  "entity-type": "item",
+                  "numeric-id": 17,
+                  "id": "Q17"
+                },
+                "type": "wikibase-entityid"
+              }
+            },
+            "type": "statement",
+            "rank": "normal"
+          }
+        ]
+      }
+    },
+    "Q135194979": {
+      "type": "item",
+      "id": "Q135194979",
+      "labels": {
+        "ja": {
+          "language": "ja",
+          "value": "姉倉比賣神社（富山市舟倉）"
+        }
+      },
+      "aliases": {},
+      "claims": {
+        "P625": [
+          {
+            "mainsnak": {
+              "snaktype": "value",
+              "property": "P625",
+              "datavalue": {
+                "value": {
+                  "latitude": 36.564233,
+                  "longitude": 137.231602,
+                  "altitude": null,
+                  "precision": 0.0001,
+                  "globe": "http://www.wikidata.org/entity/Q2"
+                },
+                "type": "globecoordinate"
+              }
+            },
+            "type": "statement",
+            "rank": "normal"
+          }
+        ],
+        "P131": [
+          {
+            "mainsnak": {
+              "snaktype": "value",
+              "property": "P131",
+              "datavalue": {
+                "value": {
+                  "entity-type": "item",
+                  "numeric-id": 906899,
+                  "id": "Q906899"
+                },
+                "type": "wikibase-entityid"
+              }
+            },
+            "type": "statement",
+            "rank": "normal"
+          },
+          {
+            "mainsnak": {
+              "snaktype": "value",
+              "property": "P131",
+              "datavalue": {
+                "value": {
+                  "entity-type": "item",
+                  "numeric-id": 6987940,
+                  "id": "Q6987940"
+                },
+                "type": "wikibase-entityid"
+              }
+            },
+            "type": "statement",
+            "rank": "normal"
+          }
+        ],
+        "P31": [
+          {
+            "mainsnak": {
+              "snaktype": "value",
+              "property": "P31",
+              "datavalue": {
+                "value": {
+                  "entity-type": "item",
+                  "numeric-id": 135022904,
+                  "id": "Q135022904"
+                },
+                "type": "wikibase-entityid"
+              }
+            },
+            "type": "statement",
+            "rank": "normal"
+          },
+          {
+            "mainsnak": {
+              "snaktype": "value",
+              "property": "P31",
+              "datavalue": {
+                "value": {
+                  "entity-type": "item",
+                  "numeric-id": 845945,
+                  "id": "Q845945"
+                },
+                "type": "wikibase-entityid"
+              }
+            },
+            "type": "statement",
+            "rank": "normal"
+          }
+        ],
+        "P17": [
+          {
+            "mainsnak": {
+              "snaktype": "value",
+              "property": "P17",
+              "datavalue": {
+                "value": {
+                  "entity-type": "item",
+                  "numeric-id": 17,
+                  "id": "Q17"
+                },
+                "type": "wikibase-entityid"
+              }
+            },
+            "type": "statement",
+            "rank": "normal"
+          }
+        ]
+      }
+    }
+  }
+}

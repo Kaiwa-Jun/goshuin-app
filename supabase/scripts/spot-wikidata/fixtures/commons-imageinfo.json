@@ -1,0 +1,152 @@
+{
+  "batchcomplete": true,
+  "query": {
+    "normalized": [
+      {
+        "fromencoded": false,
+        "from": "File:Example_temple_gate.png",
+        "to": "File:Example temple gate.png"
+      }
+    ],
+    "pages": [
+      {
+        "ns": 6,
+        "title": "File:Example missing photo.jpg",
+        "missing": true,
+        "imagerepository": ""
+      },
+      {
+        "pageid": 3178944,
+        "ns": 6,
+        "title": "File:Kureha-Anekurahime-jinja haiden.jpeg",
+        "imagerepository": "local",
+        "imageinfo": [
+          {
+            "size": 3519795,
+            "width": 3072,
+            "height": 2304,
+            "url": "https://upload.wikimedia.org/wikipedia/commons/2/2c/Kureha-Anekurahime-jinja_haiden.jpeg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+            "descriptionurl": "https://commons.wikimedia.org/wiki/File:Kureha-Anekurahime-jinja_haiden.jpeg",
+            "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=3178944",
+            "sha1": "e90c82512185bb1d3888351f4df074cd5e82410c",
+            "extmetadata": {
+              "Credit": {
+                "value": "photo by <a href=\"//commons.wikimedia.org/wiki/User:Nnh\" title=\"User:Nnh\">nnh</a>",
+                "source": "commons-desc-page"
+              },
+              "Artist": {
+                "value": "<a href=\"//commons.wikimedia.org/wiki/User:Nnh\" title=\"User:Nnh\">nnh</a>",
+                "source": "commons-desc-page"
+              },
+              "LicenseShortName": {
+                "value": "Public domain",
+                "source": "commons-desc-page",
+                "hidden": ""
+              },
+              "UsageTerms": {
+                "value": "Public domain",
+                "source": "commons-desc-page"
+              },
+              "AttributionRequired": {
+                "value": "false",
+                "source": "commons-desc-page",
+                "hidden": ""
+              },
+              "Copyrighted": {
+                "value": "False",
+                "source": "commons-desc-page",
+                "hidden": ""
+              },
+              "Restrictions": {
+                "value": "",
+                "source": "commons-desc-page",
+                "hidden": ""
+              }
+            },
+            "mime": "image/jpeg"
+          }
+        ]
+      },
+      {
+        "pageid": 1,
+        "ns": 6,
+        "title": "File:Example shrine haiden.jpg",
+        "imagerepository": "local",
+        "imageinfo": [
+          {
+            "size": 1000,
+            "width": 4000,
+            "height": 3000,
+            "url": "https://upload.wikimedia.org/wikipedia/commons/a/a1/Example_shrine_haiden.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+            "descriptionurl": "https://commons.wikimedia.org/wiki/File:Example_shrine_haiden.jpg",
+            "sha1": "0123456789abcdef0123456789abcdef01234567",
+            "extmetadata": {
+              "Credit": {
+                "value": "<span class=\"int-own-work\" lang=\"en\">Own work</span>",
+                "source": "commons-desc-page"
+              },
+              "Artist": {
+                "value": "<a href=\"//commons.wikimedia.org/wiki/User:Foo\" title=\"User:Foo\">Foo</a>",
+                "source": "commons-desc-page"
+              },
+              "LicenseShortName": {
+                "value": "CC BY-SA 4.0",
+                "source": "commons-desc-page",
+                "hidden": ""
+              },
+              "LicenseUrl": {
+                "value": "https://creativecommons.org/licenses/by-sa/4.0",
+                "source": "commons-desc-page",
+                "hidden": ""
+              },
+              "UsageTerms": {
+                "value": "Creative Commons Attribution-Share Alike 4.0",
+                "source": "commons-desc-page"
+              },
+              "AttributionRequired": {
+                "value": "true",
+                "source": "commons-desc-page",
+                "hidden": ""
+              },
+              "Copyrighted": {
+                "value": "True",
+                "source": "commons-desc-page",
+                "hidden": ""
+              },
+              "Restrictions": {
+                "value": "personality",
+                "source": "commons-desc-page",
+                "hidden": ""
+              }
+            },
+            "mime": "image/jpeg"
+          }
+        ]
+      },
+      {
+        "pageid": 2,
+        "ns": 6,
+        "title": "File:Example temple gate.png",
+        "imagerepository": "local",
+        "imageinfo": [
+          {
+            "size": 500,
+            "width": 800,
+            "height": 600,
+            "url": "https://upload.wikimedia.org/wikipedia/commons/b/b2/Example_temple_gate.png",
+            "descriptionurl": "https://commons.wikimedia.org/wiki/File:Example_temple_gate.png",
+            "sha1": "89abcdef0123456789abcdef0123456789abcdef",
+            "extmetadata": {
+              "LicenseShortName": {
+                "value": "Public domain",
+                "source": "commons-desc-page",
+                "hidden": ""
+              }
+            },
+            "mime": "image/png"
+          }
+        ]
+      }
+    ]
+  }
+}
