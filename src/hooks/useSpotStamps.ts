@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '@hooks/useAuth';
 import { fetchStampsBySpotId } from '@services/stamps';
 import type { Stamp, PublicStampWithUser } from '@/types/supabase';
@@ -29,36 +30,40 @@ export function useSpotStamps(spotId: string): UseSpotStampsReturn {
   const [stamps, setStamps] = useState<Stamp[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    if (!spotId) {
-      setStamps([]);
-      setIsLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-
-    (async () => {
-      // 自分のスタンプ取得（ログイン時のみ）
-      if (isAuthenticated) {
-        await fetchStampsBySpotId(spotId)
-          .then(data => {
-            if (!cancelled) setStamps(data);
-          })
-          .catch(() => {
-            if (!cancelled) setStamps([]);
-          });
-      } else {
+  // 記録して地図に戻ったとき、シートの写真と帯のページを新しくする。取り直しの間は
+  // 今の記録を出したまま（Issue #293 D-11。useWishlist と同じ形）
+  useFocusEffect(
+    useCallback(() => {
+      if (!spotId) {
         setStamps([]);
+        setIsLoading(false);
+        return;
       }
 
-      if (!cancelled) setIsLoading(false);
-    })();
+      let cancelled = false;
 
-    return () => {
-      cancelled = true;
-    };
-  }, [isAuthenticated, spotId]);
+      (async () => {
+        // 自分のスタンプ取得（ログイン時のみ）
+        if (isAuthenticated) {
+          await fetchStampsBySpotId(spotId)
+            .then(data => {
+              if (!cancelled) setStamps(data);
+            })
+            .catch(() => {
+              if (!cancelled) setStamps([]);
+            });
+        } else {
+          setStamps([]);
+        }
+
+        if (!cancelled) setIsLoading(false);
+      })();
+
+      return () => {
+        cancelled = true;
+      };
+    }, [isAuthenticated, spotId])
+  );
 
   return {
     stamps,

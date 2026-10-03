@@ -157,6 +157,22 @@ export const colors = {
     /** 内側の薄い朱の枠 */
     frame: 'rgba(194, 52, 43, 0.18)',
   },
+  /**
+   * 地図のシートの上の帯（Issue #293）。値は試作 docs/design/mockups/2026-09-spot-sheet-hero-v2.html のまま。
+   * 和紙の地は washi、空押しの型は washiSub・white・washiShade、朱は seal を使い回す
+   */
+  spotHero: {
+    /** 和紙の筋（GoshuinArt の中の筋と同じ色） */
+    grain: '#6B5B4A',
+    /** 自分の御朱印のページの縁（試作の --paperEdge）。tileBack.edge と同じ値だが意味が違う */
+    pageEdge: '#E6DFD0',
+    /**
+     * 帯の下の端の白いぼかし（試作の .fadeBg）。透明の側は透明な黒ではなく透明な白にする
+     * （iOS のグラデーションは透明な黒へ向かうと途中が灰色に濁る。#275 D-8）
+     */
+    fadeClear: 'rgba(255, 255, 255, 0)',
+    fadeMid: 'rgba(255, 255, 255, 0.92)',
+  },
   /** 和紙の上の控えめな字（年報）。gray[500] は青みで和紙に合わない。和紙との対比 約4.9:1 */
   washiSub: '#6B6356',
   /** 和紙の上の「まだ」の面（年報の写真の枠・0枚の月・帯の地） */

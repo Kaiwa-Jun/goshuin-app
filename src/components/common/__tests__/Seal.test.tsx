@@ -1,8 +1,8 @@
 import { render } from '@testing-library/react-native';
 import { Text } from 'react-native';
-import { Circle, G, Path, Rect, Svg, Text as SvgText } from 'react-native-svg';
+import { Circle, G, Path, Polygon, Rect, Svg, Text as SvgText } from 'react-native-svg';
 
-import { SEAL_MARKS, Seal, type SealMark } from '@components/common/Seal';
+import { SEAL_FRAMES, SEAL_MARKS, Seal, SealGlyph, type SealMark } from '@components/common/Seal';
 import { colors } from '@theme/colors';
 
 /*
@@ -17,8 +17,9 @@ const setup = (mark: SealMark, earned = true) =>
   render(<Seal mark={mark} earned={earned} size={58} />);
 
 describe('Seal', () => {
-  it('印の種類は9つ', () => {
-    expect(SEAL_MARKS).toHaveLength(9);
+  it('印の種類は11（寺社の鳥居・お堂を含む。Issue #293）', () => {
+    expect(SEAL_MARKS).toHaveLength(11);
+    expect(SEAL_MARKS).toEqual(expect.arrayContaining(['torii', 'dou']));
   });
 
   /*
@@ -116,8 +117,8 @@ describe('Seal', () => {
     expect([...groups.values()].map(g => g.sort()).sort()).toEqual(
       [
         ['gojuu', 'juu', 'mangan'],
-        ['go', 'mitsu', 'sanjuu'],
-        ['hyaku', 'ichi', 'shiki'],
+        ['dou', 'go', 'mitsu', 'sanjuu'],
+        ['hyaku', 'ichi', 'shiki', 'torii'],
       ]
         .map(g => g.sort())
         .sort()
@@ -129,5 +130,94 @@ describe('Seal', () => {
 
     const stamped = render(<Seal mark="mangan" earned size={120} opacity={0.9} />);
     expect(stamped.UNSAFE_getByType(Svg).props.opacity).toBe(0.9);
+  });
+});
+
+/* Issue #293: 地図のシートの帯に押す、寺社の印（鳥居・お堂）。図形は試作 2026-09-spot-sheet-hero-v2 の TORII・DOU */
+const TORII_ROOF = 'M17 22 Q50 30 83 22 L81.5 30 Q50 36.5 18.5 30 Z';
+const DOU_ROOF =
+  'M47.5 27.5 L52.5 27.5 Q60 42 84 45.5 L82.5 51 Q50 56 17.5 51 L16 45.5 Q40 42 47.5 27.5 Z';
+type Shape = { props: Record<string, unknown> };
+const rectsOf = (nodes: Shape[]) =>
+  nodes.map(r => [r.props.x, r.props.y, r.props.width, r.props.height]);
+
+describe('寺社の印（Issue #293）', () => {
+  it('鳥居は枠1、お堂は枠2（AC-4）', () => {
+    expect(setup('torii').getByTestId('seal-frame').props.d).toBe(SEAL_FRAMES[1]);
+    expect(setup('dou').getByTestId('seal-frame').props.d).toBe(SEAL_FRAMES[2]);
+  });
+
+  it('鳥居の図形: 笠木・島木・額束・貫・2本の柱（AC-5）', () => {
+    const { UNSAFE_queryAllByType } = setup('torii');
+    expect(UNSAFE_queryAllByType(Path).filter(p => p.props.d === TORII_ROOF)).toHaveLength(1);
+    expect(rectsOf(UNSAFE_queryAllByType(Rect))).toEqual([
+      [23, 33, 54, 5],
+      [46.5, 38, 7, 11],
+      [20, 48, 60, 6.5],
+    ]);
+    expect(UNSAFE_queryAllByType(Polygon).map(p => p.props.points)).toEqual([
+      '32,38 39,38 37,82 29,82',
+      '61,38 68,38 71,82 63,82',
+    ]);
+  });
+
+  it('お堂の図形: 宝珠・屋根・3本の柱と台（AC-5）', () => {
+    const { UNSAFE_queryAllByType } = setup('dou');
+    const circles = UNSAFE_queryAllByType(Circle);
+    expect(circles).toHaveLength(1);
+    expect([circles[0].props.cx, circles[0].props.cy, circles[0].props.r]).toEqual([50, 20.5, 4.2]);
+    expect(rectsOf(UNSAFE_queryAllByType(Rect))).toEqual([
+      [48.6, 23.5, 2.8, 4.5],
+      [24, 57, 52, 5],
+      [27, 57, 6, 21],
+      [47, 57, 6, 21],
+      [67, 57, 6, 21],
+      [20, 78, 60, 6],
+    ]);
+    expect(UNSAFE_queryAllByType(Path).filter(p => p.props.d === DOU_ROOF)).toHaveLength(1);
+  });
+});
+
+describe('SealGlyph（Issue #293）', () => {
+  it('外の G に色・不透明度・ずらしを付け、中に枠と図形を描く（AC-6）', () => {
+    const { UNSAFE_getByType, UNSAFE_queryAllByType } = render(
+      <Svg viewBox="0 0 100 100">
+        <SealGlyph mark="dou" fill={colors.seal} opacity={0.9} offset={-1} />
+      </Svg>
+    );
+    const glyph = UNSAFE_getByType(SealGlyph);
+    const outer = glyph.findAllByType(G)[0];
+    expect(outer.props).toEqual(
+      expect.objectContaining({ fill: colors.seal, opacity: 0.9, x: -1, y: -1 })
+    );
+
+    const frame = outer.findAllByType(Path).filter((p: Shape) => p.props.d === SEAL_FRAMES[2]);
+    expect(frame).toHaveLength(1);
+    expect(frame[0].props.fillRule).toBe('evenodd');
+    expect(outer.findAllByType(Path).filter((p: Shape) => p.props.d === DOU_ROOF)).toHaveLength(1);
+    expect(outer.findAllByType(Circle)).toHaveLength(1);
+    expect(rectsOf(outer.findAllByType(Rect))).toHaveLength(6);
+
+    expect(UNSAFE_queryAllByType(Text)).toHaveLength(0);
+    expect(UNSAFE_queryAllByType(SvgText)).toHaveLength(0);
+  });
+
+  it('渡されていない不透明度とずらしは付けない（AC-6）', () => {
+    const { UNSAFE_getByType, UNSAFE_queryAllByType } = render(
+      <Svg viewBox="0 0 100 100">
+        <SealGlyph mark="torii" fill={colors.washiShade} />
+      </Svg>
+    );
+    const outer = UNSAFE_getByType(SealGlyph).findAllByType(G)[0];
+    expect(outer.props.fill).toBe(colors.washiShade);
+    expect(outer.props.x).toBeUndefined();
+    expect(outer.props.y).toBeUndefined();
+    expect(outer.props.opacity).toBeUndefined();
+    expect(
+      outer.findAllByType(Path).filter((p: Shape) => p.props.d === SEAL_FRAMES[1])
+    ).toHaveLength(1);
+
+    expect(UNSAFE_queryAllByType(Text)).toHaveLength(0);
+    expect(UNSAFE_queryAllByType(SvgText)).toHaveLength(0);
   });
 });
