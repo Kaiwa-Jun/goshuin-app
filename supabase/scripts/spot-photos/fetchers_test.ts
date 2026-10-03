@@ -42,6 +42,8 @@ interface CommonsFile {
   height: number;
   /** 縮小版の幅（既定 1280） */
   thumbwidth?: number;
+  /** 縮小版の URL（既定は upload.wikimedia.org） */
+  thumburl?: string;
   /** 縮小版の中身（既定は mime の頭） */
   body?: Uint8Array<ArrayBuffer>;
 }
@@ -80,7 +82,9 @@ function fakeCommons(files: Record<string, CommonsFile>, clock = fakeClock()) {
               height: f.height,
               sha1: f.sha1,
               mime: f.mime,
-              thumburl: `https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/${key}/1280px-${key}`,
+              thumburl:
+                f.thumburl ??
+                `https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/${key}/1280px-${key}`,
               thumbwidth: f.thumbwidth ?? 1280,
               thumbheight: Math.round(((f.thumbwidth ?? 1280) * f.height) / f.width),
             },
@@ -620,3 +624,27 @@ Deno.test('AC-22: CLI の verify は台帳から読む（鍵は要らない）',
     await Deno.remove(root, { recursive: true });
   }
 });
+
+Deno.test(
+  'AC-20: 縮小版の URL が upload.wikimedia.org でなければ、取りに行かずに名前を出す',
+  async () => {
+    const work = await Deno.makeTempDir({ prefix: 'spot-photos-fetch-' });
+    try {
+      const entries = manyEntries(2);
+      const files = commonsFilesOf(entries);
+      files['Test 2.jpg'] = { ...files['Test 2.jpg'], thumburl: 'https://example.com/x.jpg' };
+      const c = fakeCommons(files);
+      const { io, err } = captured({ fetch: c.fetch, now: c.clock.now, sleep: c.clock.sleep });
+      const result = await fetchPhotos(entries, { io, work, contact: CONTACT });
+      assertEquals(result.saved, 1);
+      assertEquals(result.failed, ['テスト寺2（静岡県）']);
+      assertStringIncludes(err(), 'upload.wikimedia.org');
+      assertEquals(
+        c.calls.filter(x => x.url.startsWith('https://example.com/')),
+        []
+      );
+    } finally {
+      await Deno.remove(work, { recursive: true });
+    }
+  }
+);

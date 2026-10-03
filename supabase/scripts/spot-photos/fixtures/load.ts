@@ -79,3 +79,10 @@ export async function snapshot(dir: string): Promise<Record<string, string>> {
   await walk(dir);
   return out;
 }
+
+/** ドル引用を閉じて、その後ろに SQL を足そうとする撮影者の文字 */
+export const EVIL_AUTHORS = [
+  'x$spot_photos_302$; DROP TABLE public.spots; DO $spot_photos_302$',
+  'a $photos$ b',
+  'c $$ d $spot_photos_302_check$; DROP TABLE public.spots; DO $spot_photos_302_check$',
+];

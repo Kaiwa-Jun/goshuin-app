@@ -17,6 +17,8 @@ export const R2_PUBLIC_ORIGIN = 'https://img.goshuinsanpo.com';
 /** imageinfo を1回で聞く数 */
 export const COMMONS_BATCH = 50;
 export const COMMONS_API = 'https://commons.wikimedia.org/w/api.php';
+/** 縮小版の置き場所（imageinfo の thumburl はここだけを読む） */
+export const COMMONS_UPLOAD = 'https://upload.wikimedia.org/';
 /** R2 に置くときの Cache-Control（キーが中身の sha1 で決まるので変わらない） */
 export const CACHE_CONTROL = 'public, max-age=31536000, immutable';
 export const R2_ENV_NAMES = ['R2_ACCOUNT_ID', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY'] as const;
@@ -201,7 +203,12 @@ export async function fetchPhotos(
         );
         continue;
       }
-      if (info.thumbwidth !== PHOTO_STORE_WIDTH || !info.thumburl) {
+      // 応答の URL へ取りに行くので、Commons の置き場所のほかへは行かない
+      if (!info.thumburl?.startsWith(COMMONS_UPLOAD)) {
+        fail(e, `縮小版の URL が ${COMMONS_UPLOAD} でない: ${info.thumburl}`);
+        continue;
+      }
+      if (info.thumbwidth !== PHOTO_STORE_WIDTH) {
         fail(e, `縮小版の幅が ${PHOTO_STORE_WIDTH} でない（${info.thumbwidth}）`);
         continue;
       }

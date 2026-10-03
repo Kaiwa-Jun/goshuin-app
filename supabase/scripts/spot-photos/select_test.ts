@@ -11,6 +11,7 @@ import {
   serializeJson,
 } from '../spot-wikidata/match.ts';
 import {
+  EVIL_AUTHORS,
   fixtureLedgerJson,
   fixturePhotos,
   readFixture,
@@ -20,6 +21,8 @@ import {
 } from './fixtures/load.ts';
 import {
   buildCandidates,
+  buildCheckSql,
+  buildMigrationSql,
   CHECK_SQL_PATH,
   COMMONS_INTERVAL_MS,
   commonsThumbUrl,
@@ -359,3 +362,46 @@ Deno.test('AC-10: 台帳の上のキーが違う・entries が無いと止める
 const fixtures: { photos?: Photos; rows?: SeedRow[] } = {};
 fixtures.photos = await fixturePhotos();
 fixtures.rows = await realSeedRows();
+
+// --- 外のデータを SQL に埋めるとき（撮影者・ライセンス・URL は Commons の誰でも直せる値） ---
+
+Deno.test(
+  '本番の SQL: 撮影者に $ があっても、$photos$[ と ]$photos$ の間に $ を残さない',
+  async () => {
+    const ledger = parseLedger302(await fixtureLedger(), fixtures.photos!, fixtures.rows!);
+    const evil = {
+      ...ledger,
+      entries: ledger.entries.map((e, i) => ({ ...e, author: EVIL_AUTHORS[i] })),
+    };
+    for (const sql of [buildMigrationSql(evil.entries), buildCheckSql(evil, 1109)]) {
+      const start = sql.indexOf('$photos$[');
+      const end = sql.indexOf(']$photos$');
+      assert(start > 0 && end > start);
+      const body = sql.slice(start + '$photos$['.length, end);
+      assertEquals(body.includes('$'), false, body);
+      // jsonb として読むと元の文字に戻る（JSON の \u0024）
+      const rows = JSON.parse(`[${body}]`) as { author: string }[];
+      assertEquals(
+        rows.map(r => r.author),
+        EVIL_AUTHORS
+      );
+      // 外側のドル引用の印は、始めと終わりの2回だけ
+      const tag = sql.includes('$spot_photos_302_check$')
+        ? '$spot_photos_302_check$'
+        : '$spot_photos_302$';
+      assertEquals(sql.split(tag).length - 1, 2, tag);
+    }
+  }
+);
+
+Deno.test(
+  '台帳: licenseUrl が http(s) でない（javascript: など）なら、寺社の名前で止める',
+  async () => {
+    const photos = structuredClone(fixtures.photos!);
+    const k = photos.entries.find(e => e.name === '金蛇水神社')!;
+    k.files[0].licenseUrl = 'javascript:alert(1)';
+    const l = await fixtureLedger();
+    l.entries[2].licenseUrl = 'javascript:alert(1)';
+    assertThrows(() => parseLedger302(l, photos, fixtures.rows!), Error, '金蛇水神社');
+  }
+);

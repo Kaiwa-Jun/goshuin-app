@@ -11,7 +11,7 @@ import { assert, assertEquals, assertStringIncludes } from 'jsr:@std/assert@1';
 import { PGlite } from 'npm:@electric-sql/pglite@0.3.16';
 
 import { SEED_FILES } from '../spot-coords/coords.ts';
-import { fixtureLedgerJson, fixturePhotos, realSeedRows } from './fixtures/load.ts';
+import { EVIL_AUTHORS, fixtureLedgerJson, fixturePhotos, realSeedRows } from './fixtures/load.ts';
 import {
   buildCheckSql,
   buildMigrationSql,
@@ -686,5 +686,35 @@ Deno.test(
       check,
       'RESULT table=present rls=on total=1109 listed=3 not_one=0 present=3 differ=0 missing=0 extra=0 anon_select=3 anon_insert=denied'
     );
+  }
+);
+
+// --- 外のデータの $ でドル引用を閉じられない ---
+
+Deno.test(
+  '撮影者にドル引用を閉じる文字があっても、spots は消えず、撮影者はそのまま入る',
+  async () => {
+    const ledger = await fixtureLedger();
+    const evil = {
+      ...ledger,
+      entries: ledger.entries.map((e, i) => ({ ...e, author: EVIL_AUTHORS[i] })),
+    };
+    await withDb(async db => {
+      await seedAll(db);
+      assertEquals(await raised(db, buildMigrationSql(evil.entries)), null);
+      assertEquals(await masterCount(db), 1109);
+      const authors = await db.query<{ author: string }>(
+        'SELECT author FROM public.spot_photos ORDER BY author'
+      );
+      assertEquals(
+        authors.rows.map(r => r.author),
+        [...EVIL_AUTHORS].sort()
+      );
+      assertStringIncludes(
+        (await raised(db, buildCheckSql(evil, 1109))) ?? '',
+        'present=3 differ=0 missing=0'
+      );
+      assertEquals(await masterCount(db), 1109);
+    });
   }
 );

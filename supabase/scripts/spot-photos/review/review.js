@@ -26,6 +26,7 @@ const state = {
 
 const byTestId = (id, root = document) => root.querySelector(`[data-testid="${id}"]`);
 
+/** 要素を作る。文字はいつも textContent（HTML として読まない）、ほかは setAttribute */
 function el(tag, attrs = {}, children = []) {
   const node = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs)) {
@@ -117,8 +118,13 @@ function preview(kind, file, focusY) {
   return box;
 }
 
+/** Commons の値の URL は http(s) のときだけリンクにする（javascript: などを href に入れない） */
+function isWebUrl(url) {
+  return typeof url === 'string' && /^https?:\/\//.test(url);
+}
+
 function credit(file) {
-  const license = file.licenseUrl
+  const license = isWebUrl(file.licenseUrl)
     ? el('a', { href: file.licenseUrl, target: '_blank', rel: 'noopener', text: file.license })
     : el('span', { text: file.license });
   return el('dl', { class: 'credit' }, [
@@ -128,12 +134,14 @@ function credit(file) {
     el('dd', {}, [license]),
     el('dt', { text: '元の写真' }),
     el('dd', {}, [
-      el('a', {
-        href: file.sourceUrl,
-        target: '_blank',
-        rel: 'noopener',
-        text: 'Wikimedia Commons',
-      }),
+      isWebUrl(file.sourceUrl)
+        ? el('a', {
+            href: file.sourceUrl,
+            target: '_blank',
+            rel: 'noopener',
+            text: 'Wikimedia Commons',
+          })
+        : el('span', { text: 'Wikimedia Commons' }),
     ]),
   ]);
 }

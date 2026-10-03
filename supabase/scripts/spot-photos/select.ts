@@ -285,6 +285,10 @@ function parseEntry(raw: unknown, i: number): LedgerEntry302 {
   if (!nullableString(e.author)) throw new Error(`${who}: author が文字か null でない`);
   if (typeof e.license !== 'string' || e.license === '') throw new Error(`${who}: license が無い`);
   if (!nullableString(e.licenseUrl)) throw new Error(`${who}: licenseUrl が文字か null でない`);
+  // アプリが Linking.openURL で開く。http(s) のほか（javascript: など）は入れない
+  if (e.licenseUrl !== null && !/^https?:\/\//.test(e.licenseUrl)) {
+    throw new Error(`${who}: licenseUrl が http(s) の URL でない: ${e.licenseUrl}`);
+  }
   if (typeof e.sourceUrl !== 'string') throw new Error(`${who}: sourceUrl が文字でない`);
   if (typeof e.isCropped !== 'boolean') throw new Error(`${who}: isCropped が真偽でない`);
   if (e.status !== 'approved' && e.status !== 'withdrawn') {
@@ -523,10 +527,14 @@ function photoRow(e: LedgerEntry302): string {
   });
 }
 
+/**
+ * SQL のドル引用（$photos$ と、外側の $spot_photos_302$ など）の中に埋める jsonb の行。
+ * 撮影者・ライセンス・URL は Commons の誰でも直せる値なので、$ を1つも残さない:
+ * JSON の文字の中の $ を \u0024 にする（jsonb が読むときに $ に戻るので、中身は変わらない）
+ */
 function photoRows(entries: LedgerEntry302[]): string {
-  const text = entries.map(photoRow).join(',\n');
-  if (text.includes('$photos$'))
-    throw new Error('台帳の文字に $photos$ が入っている（SQL に埋められない）');
+  const text = entries.map(photoRow).join(',\n').replaceAll('$', '\\u0024');
+  if (text.includes('$')) throw new Error('台帳の行の $ を消せない（SQL に埋められない）');
   return text;
 }
 
