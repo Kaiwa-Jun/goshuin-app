@@ -166,7 +166,8 @@ export function GalleryScreen({ navigation }: Props) {
   /**
    * 一覧のタイルが小さい方を出せなかった。元の写真に落として表示を続ける。
    * R2 の変換は URL で頼むので焼かせる必要は無く、落ちるのは R2 に原本が無いとき
-   * （旧バージョンのアプリが Supabase にだけ上げた写真）だけ（Issue #227 S4a）
+   * （旧バージョンのアプリが Supabase にだけ上げた写真と、二重書き込みで R2 の側だけ
+   * 失敗した写真）（Issue #227 S4a）
    */
   const handleThumbMissing = (stamp: StampWithSpot) => {
     setThumbMissing(prev => (prev.has(stamp.id) ? prev : new Set(prev).add(stamp.id)));
@@ -429,8 +430,8 @@ export function GalleryScreen({ navigation }: Props) {
     () =>
       displayStamps.map(s => ({
         id: s.id,
-        // 詳細は JPEG の方を見る。元は HEIC で Safari 以外では表示できない。
-        // まだ焼かれていなければ元に落ちる（Issue #196）
+        // 詳細は変換した方を見る。元は HEIC で Safari 以外では表示できない。
+        // R2 に原本が無ければ元に落ちる（Issue #196 / #227 S4a）
         imageUrl: isPreview ? previewImageUrl(s) : getStampViewUrl(s.image_path),
         fallbackUrl: isPreview ? undefined : getStampImageUrl(s.image_path),
         spotName: s.spots.name,

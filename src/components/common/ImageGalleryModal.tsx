@@ -18,7 +18,7 @@ import { TYPICAL_STAMP_ASPECT } from '@/constants/stampImage';
 export interface GalleryImage {
   id: string;
   imageUrl: string;
-  /** imageUrl が出せなかったときに使う。縮小版がまだ焼かれていない場合の逃げ道 */
+  /** imageUrl が出せなかったときに使う。R2 に原本が無い写真（旧バージョン由来）の逃げ道（Issue #227 S4a） */
   fallbackUrl?: string;
   userName?: string | null;
   /** 寺社の名前。一覧から飛んでくる文字の行き先になる（Issue #192） */
@@ -51,8 +51,8 @@ interface ImageGalleryModalProps {
    */
   onImageReady?: (index: number) => void;
   /**
-   * 縮小版が無くて元に落ちたとき。焼かせる合図に使う（Issue #196）。
-   * 一覧のタイルは小さい方を見ているので、詳細用が無いことに気づけるのはここだけ
+   * 縮小版が出せず元に落ちたとき（Issue #196）。焼かせる合図に使っていたが、
+   * #227 S4a で焼かせる仕組みを外したので今は呼び出し元が無い（S5 の後片付けで消す）
    */
   onImageFallback?: (id: string) => void;
   /**
@@ -115,7 +115,7 @@ function GalleryImageSlot({
   const fade = useRef(new Animated.Value(0)).current;
   const [loaded, setLoaded] = useState(false);
   const [slow, setSlow] = useState(false);
-  /** 縮小版がまだ無いときに元へ落ちる（Issue #196） */
+  /** 縮小版が出せないときに元へ落ちる（Issue #196 / #227 S4a） */
   const [fellBack, setFellBack] = useState(false);
   const uri = fellBack && image.fallbackUrl ? image.fallbackUrl : image.imageUrl;
 
