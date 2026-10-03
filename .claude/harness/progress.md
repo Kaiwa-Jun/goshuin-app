@@ -177,3 +177,8 @@
   - **第2弾（オーナーが選ぶ）**: 確かさ中 60・国土地理院由来 12（出典の扱いが未決）・姉倉比賣神社 1・地図で選ぶ 17・寺社があるか要調査 27。材料と `review-owner.html` はリポジトリの外の作業フォルダ
 - 2026-10-03: **#292 第1弾を本番に反映**（オーナーが H-1〜H-5）。本番の寺社 458 件の座標が直った（`at_new=458 at_old=0`）。H-6（実機で尊永寺のピンを見る）は未。第2弾の材料（scratchpad）は macOS の定期処理で消えたので、#301 で作り直す
 - 2026-10-03: **#305 予定タブのアイコンを「空押しから色が差す」動きにする**（ブランチ feature/issue-305-plan-tab-emboss）。契約書 docs/issues/issue-305-plan-tab-emboss.md・試作 docs/design/mockups/2026-10-plan-tab-icon-v1.html / v2.html（オーナーが v2 の D を選んだ）。`TabIconMotion` に `emboss`（600ms・朱あり・`EMBOSS_SEAL` で切り替え）。goshuin-evaluator **PASS**（AC 15/15・UI 4/4・Q 10/10）。証跡 .claude/harness/evidence/issue-305/。未確認: H-1（iPhone）
+- 2026-10-03: **#292 第1弾の H-6** をオーナーが実機で確認（静岡の尊永寺のピンの位置が直っている）
+- 2026-10-03: **#301 寺社と Wikidata の対応表**（ブランチ feature/issue-301-spot-wikidata）。契約書 docs/issues/issue-301-spot-wikidata.md。1,109 件が high 869（台帳 403・規則 466）・medium 48・low 7・none 185。写真の候補 868 寺社・898 ファイル（Commons に無いファイル 0）。第2弾は suggest 46・owner 85・investigate 31・keep 489（画面に出るのは 162 件）。取得は約 53 分・約 9,100 回。goshuin-evaluator **PASS**（AC 30/30・UI 9/9・Q 7/7）。AC-27 の抜き取り: high 30/30・medium 10/10
+  - S4 で、同名の別の寺社の注記（その項目の P625 から 9〜17m）を取って別の寺社が high になる誤りを見つけ、D-11 を「seed・住所の 300m 以内の注記を先に」に直した（`4fabbc2`。湯殿山神社（鶴岡）・黄金山神社（金華山）が直った）
+  - 📌 画面で採ってはいけない提案: 龍泉寺（埼玉）→ 川口市 26km・八坂神社（長崎）→ 新上五島町 71km。medium の誤り: 尾張猿田彦神社 → 一宮市 21km・円福寺 → 川崎町 17km（D-5 ⑤・⑧ の見直しの材料）
+  - 未調査: none の「括弧・距離・県で外れた」44 件のうち括弧の規則（D-5 ②）の副作用の数、「名前の合う項目が無い」110 件のうち P17 の無い項目の数
