@@ -1,0 +1,7 @@
+HTTP 400 https://tvnozkpxncmnehyomoff.supabase.co/rest/v1/stamps?select=*%2Cspots%21inner%28name%2Ctype%29&id=eq.
+error: Failed to load resource: the server responded with a status of 400 ()
+--- states ---
+plan1 after2000 {"ring":"0","seal":"0","sq":"1"}
+rapid after2000 {"ring":"0","seal":"0","sq":"1"}
+final after2000 {"ring":"0","seal":"0","sq":"1"}
+repress 100ms {"ring":"0","seal":"0","sq":"1"}

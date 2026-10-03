@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>予定タブの捺し方</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<style>
+  :root {
+    --tint: #f27f0d;      /* colors.primary[500] = tabBarActiveTintColor */
+    --idle: #8e8e93;      /* React Navigation の非アクティブの既定 */
+    --seal: #C2342B;      /* colors.seal */
+    --bg: #f5f5f4;
+    --card: #ffffff;
+    --ink: #1f2937;
+    --sub: #6b7280;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  p.lead { color: var(--sub); font-size: 14px; margin: 0 0 20px; line-height: 1.7; }
+  .variants { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-bottom: 16px; }
+  .variant { border: 1px solid #e5e7eb; background: var(--card); border-radius: 12px; padding: 10px 12px;
+    text-align: left; cursor: pointer; font: inherit; color: inherit; }
+  .variant b { display: block; font-size: 14px; }
+  .variant span { display: block; font-size: 12px; color: var(--sub); margin-top: 2px; line-height: 1.5; }
+  .variant[aria-pressed="true"] { border-color: var(--tint); box-shadow: 0 0 0 2px #fde4cc inset; }
+  .variant.old b { color: var(--sub); }
+  .stage { display: grid; grid-template-columns: 1fr; gap: 16px; }
+  .card { background: var(--card); border-radius: 16px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+  .preview { display: flex; align-items: center; justify-content: center; gap: 28px; min-height: 180px; flex-wrap: wrap; color: var(--tint); }
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
+  .controls button { font: inherit; font-size: 13px; border: 1px solid #e5e7eb; background: #fff; border-radius: 999px;
+    padding: 6px 12px; cursor: pointer; }
+  .controls button[aria-pressed="true"] { border-color: var(--tint); color: var(--tint); }
+  .controls .sep { width: 1px; background: #e5e7eb; margin: 2px 4px; }
+  .desc { font-size: 13px; color: var(--sub); line-height: 1.7; margin: 8px 0 0; }
+  /* 下タブ（iPhone の幅） */
+  .phone { width: 100%; max-width: 393px; margin: 0 auto; border-radius: 22px; overflow: hidden; background: #fff;
+    border: 1px solid #e5e7eb; }
+  .screen { height: 120px; background: linear-gradient(#fafaf9, #f5f5f4); display: flex; align-items: center;
+    justify-content: center; color: var(--sub); font-size: 13px; }
+  .tabbar { display: grid; grid-template-columns: repeat(5, 1fr); border-top: 1px solid #e5e7eb; padding: 6px 0 22px; }
+  .tab { display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; border: 0;
+    background: none; font: inherit; color: var(--idle); padding: 0; }
+  .tab .label { font-size: 10px; font-weight: 500; }
+  .tab[aria-selected="true"] { color: var(--tint); }
+  .tab .ic { font-size: 24px; width: 1em; height: 1em; position: relative; }
+  .tab .material-icons { font-size: 24px; display: block; }
+  /* 予定のアイコン（1em 四方。中は 24 の格子で置く） */
+  .plan { position: relative; width: 1em; height: 1em; color: inherit; }
+  .plan > * { position: absolute; }
+  .plan svg { inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .sq { left: calc(12em/24); top: calc(12em/24); width: calc(5em/24); height: calc(5em/24); background: currentColor; }
+  .ring { left: calc(12em/24); top: calc(12em/24); width: calc(5em/24); height: calc(5em/24);
+    border: calc(1em/24) solid currentColor; opacity: 0; }
+  footer { margin-top: 24px; font-size: 12px; color: var(--sub); line-height: 1.7; }
+</style>
+</head>
+<body>
+<main>
+  <h1>予定タブの捺し方（試作 v2）</h1>
+  <p class="lead">
+    案1「予定に印を捺す」を、おしとやかにした4つ。どれも大きく回したり、跳ね返したりしない。0.6 秒以内で、見えるのは日付の四角だけ。
+    比べる用に、前の版（v1 の案1）も残した。
+  </p>
+
+  <div class="variants" role="group" aria-label="案">
+    <button class="variant old" data-v="v1" aria-pressed="false"><b>前の版（v1 の案1）</b><span>2.6 倍から回りながら落ちて、着地で弾む</span></button>
+    <button class="variant" data-v="place" aria-pressed="true"><b>A そっと置く</b><span>少し大きいところから、薄く降りて置かれる</span></button>
+    <button class="variant" data-v="press" aria-pressed="false"><b>B 押し当てる</b><span>うっすら見えた印を、軽く押して離す</span></button>
+    <button class="variant" data-v="bleed" aria-pressed="false"><b>C にじむ</b><span>紙に墨がしみるように、中から広がる</span></button>
+    <button class="variant" data-v="emboss" aria-pressed="false"><b>D 空押しから色が差す</b><span>先に輪郭が押され、あとから色が入る</span></button>
+  </div>
+
+  <div class="stage">
+    <section class="card">
+      <div class="preview" id="preview">
+        <div style="font-size:112px"><div class="plan" id="bigIcon"></div></div>
+        <div style="font-size:48px"><div class="plan" id="midIcon"></div></div>
+        <div style="font-size:24px"><div class="plan" id="smallIcon"></div></div>
+      </div>
+      <div class="controls">
+        <button id="play">▶ 動かす</button>
+        <span class="sep"></span>
+        <button data-speed="1" aria-pressed="true">ふつう</button>
+        <button data-speed="4" aria-pressed="false">1/4 の速さ</button>
+        <span class="sep"></span>
+        <button data-seal="1" aria-pressed="true">朱が差す</button>
+        <button data-seal="0" aria-pressed="false">朱なし</button>
+      </div>
+      <p class="desc" id="desc"></p>
+    </section>
+
+    <section class="card">
+      <div class="phone">
+        <div class="screen" id="screenLabel">地図</div>
+        <div class="tabbar" role="tablist">
+          <button class="tab" role="tab" data-tab="map" aria-selected="true"><span class="ic"><span class="material-icons" data-glyph>explore</span></span><span class="label">地図</span></button>
+          <button class="tab" role="tab" data-tab="plan" aria-selected="false"><span class="ic"><div class="plan" id="tabIcon"></div></span><span class="label">予定</span></button>
+          <button class="tab" role="tab" data-tab="book" aria-selected="false"><span class="ic"><span class="material-icons" data-glyph>menu_book</span></span><span class="label">御朱印帳</span></button>
+          <button class="tab" role="tab" data-tab="ayumi" aria-selected="false"><span class="ic"><span class="material-icons" data-glyph>timeline</span></span><span class="label">あゆみ</span></button>
+          <button class="tab" role="tab" data-tab="settings" aria-selected="false"><span class="ic"><span class="material-icons" data-glyph>settings</span></span><span class="label">設定</span></button>
+        </div>
+      </div>
+      <p class="desc">別のタブを押してから「予定」を押すと、選ばれた瞬間に1回だけ動きます（いまのアプリと同じ）。</p>
+    </section>
+  </div>
+
+  <footer>
+    素材: アイコンの形は Material Icons の <code>event</code>（アプリの MaterialIcons と同じ）を、枠と日付の四角に分けた SVG。
+    動かしているのは大きさ・位置・透明度だけ（色は動かさず、朱の四角を上に重ねて薄くする）。
+    なので react-native-svg と Animated（native driver）で同じ組み方ができる。D の輪郭は枠線つきの View 1枚。
+    どの案も1回だけ動いて止まり、「視差効果を減らす」では動かさない。
+  </footer>
+</main>
+
+<script>
+  // Material Icons "event" の枠（日付の四角を除いたもの）。24 の格子
+  const FRAME = 'M16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z';
+  const SEAL = '#C2342B';
+  const DESC = {
+    v1: '前の版。2.6 倍・−10° から加速して落ち、0.9 倍で着地して 1.04 倍に弾む（700ms）。枠も一瞬沈む。勢いがあり「熱盛」っぽい。',
+    place: '1.2 倍・透明から、ゆるく減速して等倍に置かれる（560ms）。回らない・弾まない・枠も動かない。置いた瞬間から、朱がタブの色に静かに戻る。',
+    press: '等倍より少しだけ大きい印がうっすら現れ、軽く押されて 0.96 倍まで沈み、等倍に戻る（560ms）。手で印を押し当てる重さだけを残した形。',
+    bleed: '中心の小さな点から、紙に墨がしみるように広がる（600ms）。終わりに向けてゆっくりになる。動く距離が最も小さく、いちばん静か。',
+    emboss: '先に日付の四角の輪郭だけがうっすら押され（空押し）、あとから中に色が入る（600ms）。#293 の帯で選んだ「空押し」と同じ比喩。'
+  };
+  let variant = 'place';
+  let slow = 1;
+  let useSeal = true;
+
+  function el(tag, cls) { const e = document.createElement(tag); if (cls) e.className = cls; return e; }
+  function frameSvg() { return `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="${FRAME}"/></svg>`; }
+
+  // アイコンを組み直す（止まっている姿は、どの案も event と同じ）
+  function build(host) {
+    host.innerHTML = '';
+    host.getAnimations({ subtree: true }).forEach(a => a.cancel());
+    const wrap = el('div', 'wrap'); wrap.style.position = 'absolute'; wrap.style.inset = '0';
+    wrap.innerHTML = frameSvg();
+    host.appendChild(wrap);
+    host.appendChild(el('div', 'sq'));
+    return host;
+  }
+
+  const ms = n => n * slow;
+  const opts = d => ({ duration: ms(d), easing: 'linear', fill: 'both' });
+
+  // 上に重ねる朱の四角。「朱なし」ではタブの色のまま（重ねても見た目は変わらない）
+  function sealOver(host) {
+    const s = el('div', 'sq'); s.style.background = useSeal ? SEAL : 'currentColor'; host.appendChild(s); return s;
+  }
+
+  function animate(host) {
+    build(host);
+    const sq = host.querySelector(':scope > .sq');
+    const wrap = host.querySelector('.wrap');
+
+    if (variant === 'v1') {
+      const seal = sealOver(host);
+      const k = [
+        { transform: 'scale(2.6) rotate(-10deg)', easing: 'cubic-bezier(0.55,0,1,0.45)' },
+        { offset: 0.42, transform: 'scale(0.9) rotate(0deg)', easing: 'cubic-bezier(0.33,1,0.68,1)' },
+        { offset: 0.62, transform: 'scale(1.04)', easing: 'ease-out' },
+        { offset: 0.78, transform: 'scale(1)' },
+        { transform: 'scale(1)' }
+      ];
+      seal.animate(k.map((f, i) => ({ ...f, opacity: [0, 1, 1, 1, 0][i] })), opts(700));
+      sq.animate([ // 朱の下に隠れたまま着地する
+        { transform: 'scale(2.6) rotate(-10deg)', opacity: 0 }, { offset: 0.41, transform: 'scale(0.9) rotate(0deg)', opacity: 0 },
+        { offset: 0.42, transform: 'scale(0.9) rotate(0deg)', opacity: 1, easing: 'cubic-bezier(0.33,1,0.68,1)' },
+        { offset: 0.62, transform: 'scale(1.04)', opacity: 1, easing: 'ease-out' },
+        { offset: 0.78, transform: 'scale(1)', opacity: 1 }, { transform: 'scale(1)', opacity: 1 }
+      ], opts(700));
+      wrap.animate([
+        { transform: 'translateY(0)' }, { offset: 0.42, transform: 'translateY(0)' },
+        { offset: 0.5, transform: 'translateY(calc(0.7em/24))' }, { offset: 0.7, transform: 'translateY(0)' }, { transform: 'translateY(0)' }
+      ], opts(700));
+    }
+
+    if (variant === 'place') {
+      // そっと置く: 1.2 倍・透明 → 等倍・不透明。ゆるく減速するだけで、行き過ぎない。置いた瞬間から朱が引く
+      const seal = sealOver(host);
+      const settle = 'cubic-bezier(0.61,1,0.88,1)';
+      seal.animate([
+        { transform: 'scale(1.2)', opacity: 0, easing: settle },
+        { offset: 0.6, transform: 'scale(1)', opacity: 1, easing: 'ease-in-out' },
+        { transform: 'scale(1)', opacity: 0 }
+      ], opts(560));
+      sq.animate([
+        { transform: 'scale(1.2)', opacity: 0, easing: settle },
+        { offset: 0.6, transform: 'scale(1)', opacity: 1 },
+        { transform: 'scale(1)', opacity: 1 }
+      ], opts(560));
+    }
+
+    if (variant === 'press') {
+      // 押し当てる: 1.06 倍でうっすら → 0.96 倍まで押される → 等倍に戻る（戻りは行き過ぎない）
+      const seal = sealOver(host);
+      const k = [
+        { transform: 'scale(1.06)', easing: 'ease-out' },
+        { offset: 0.3, transform: 'scale(1.06)', easing: 'cubic-bezier(0.4,0,0.2,1)' },
+        { offset: 0.55, transform: 'scale(0.96)', easing: 'cubic-bezier(0.22,1,0.36,1)' },
+        { offset: 0.8, transform: 'scale(1)' },
+        { transform: 'scale(1)' }
+      ];
+      seal.animate(k.map((f, i) => ({ ...f, opacity: [0, 0.35, 1, 0.5, 0][i] })), opts(560));
+      sq.animate(k.map((f, i) => ({ ...f, opacity: [0, 0.35, 1, 1, 1][i] })), opts(560));
+    }
+
+    if (variant === 'bleed') {
+      // にじむ: 中心の小さな点から広がる。終わりに向けてゆっくりになる
+      const seal = sealOver(host);
+      const soak = 'cubic-bezier(0.33,1,0.68,1)';
+      seal.animate([
+        { transform: 'scale(0.3)', opacity: 0, easing: soak },
+        { offset: 0.7, transform: 'scale(1)', opacity: 1, easing: 'ease-in-out' },
+        { transform: 'scale(1)', opacity: 0 }
+      ], opts(600));
+      sq.animate([
+        { transform: 'scale(0.3)', opacity: 0, easing: soak },
+        { offset: 0.7, transform: 'scale(1)', opacity: 1 },
+        { transform: 'scale(1)', opacity: 1 }
+      ], opts(600));
+    }
+
+    if (variant === 'emboss') {
+      // 空押しから色が差す: 輪郭がうっすら押される → 中に色が入る → 輪郭は色に溶ける
+      const ring = el('div', 'ring'); host.insertBefore(ring, sq);
+      const seal = sealOver(host);
+      ring.animate([
+        { transform: 'scale(1.12)', opacity: 0, easing: 'cubic-bezier(0.22,1,0.36,1)' },
+        { offset: 0.35, transform: 'scale(1)', opacity: 0.55 },
+        { offset: 0.75, transform: 'scale(1)', opacity: 0.55 },
+        { transform: 'scale(1)', opacity: 0 }
+      ], opts(600));
+      seal.animate([
+        { opacity: 0 }, { offset: 0.3, opacity: 0, easing: 'ease-in-out' },
+        { offset: 0.65, opacity: 1, easing: 'ease-in-out' }, { opacity: 0 }
+      ], opts(600));
+      sq.animate([{ opacity: 0 }, { offset: 0.64, opacity: 0 }, { offset: 0.65, opacity: 1 }, { opacity: 1 }], opts(600));
+    }
+  }
+
+  const bigIcon = document.getElementById('bigIcon');
+  const midIcon = document.getElementById('midIcon');
+  const smallIcon = document.getElementById('smallIcon');
+  const tabIcon = document.getElementById('tabIcon');
+  function playPreview() { [bigIcon, midIcon, smallIcon].forEach(animate); }
+  function refresh() {
+    [bigIcon, midIcon, smallIcon, tabIcon].forEach(build);
+    document.getElementById('desc').textContent = DESC[variant];
+  }
+  function press(sel, b) { document.querySelectorAll(sel).forEach(x => x.setAttribute('aria-pressed', String(x === b))); }
+
+  document.querySelectorAll('.variant').forEach(b => b.addEventListener('click', () => {
+    variant = b.dataset.v; press('.variant', b); refresh(); playPreview();
+  }));
+  document.getElementById('play').addEventListener('click', playPreview);
+  document.querySelectorAll('[data-speed]').forEach(b => b.addEventListener('click', () => {
+    slow = Number(b.dataset.speed); press('[data-speed]', b); playPreview();
+  }));
+  document.querySelectorAll('[data-seal]').forEach(b => b.addEventListener('click', () => {
+    useSeal = b.dataset.seal === '1'; press('[data-seal]', b); playPreview();
+  }));
+  document.getElementById('preview').addEventListener('click', playPreview);
+
+  // 下タブ: 選ばれた瞬間に1回だけ動く。ほかのタブは今の動きを大まかに写したもの
+  const LABEL = { map: '地図', plan: '予定', book: '御朱印帳', ayumi: 'あゆみ', settings: '設定' };
+  let gear = 0;
+  document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+    if (t.getAttribute('aria-selected') === 'true') return;
+    document.querySelectorAll('.tab').forEach(x => x.setAttribute('aria-selected', String(x === t)));
+    document.getElementById('screenLabel').textContent = LABEL[t.dataset.tab];
+    const g = t.querySelector('[data-glyph]');
+    if (t.dataset.tab === 'plan') animate(tabIcon);
+    if (t.dataset.tab === 'map') g.animate([{ transform: 'rotate(0)' }, { transform: 'rotate(360deg)' }], { duration: ms(700), easing: 'cubic-bezier(0.34,1.8,0.64,1)' });
+    if (t.dataset.tab === 'settings') { const from = gear; gear += 60; g.animate([{ transform: `rotate(${from}deg)` }, { transform: `rotate(${gear}deg)` }], { duration: ms(320), easing: 'cubic-bezier(0.34,2.1,0.64,1)', fill: 'forwards' }); }
+    if (t.dataset.tab === 'book') g.animate([{ transform: 'perspective(240px) rotateY(70deg) scale(.88)', opacity: .6 }, { transform: 'perspective(240px) rotateY(0) scale(1)', opacity: 1 }], { duration: ms(900), easing: 'cubic-bezier(0.65,0,0.35,1)' });
+    if (t.dataset.tab === 'ayumi') { const ic = t.querySelector('.ic'); ic.style.overflow = 'hidden'; const c = document.createElement('span'); c.style.cssText = 'position:absolute;inset:0;background:#fff;width:26px'; ic.appendChild(c); c.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(26px)' }], { duration: ms(620), easing: 'cubic-bezier(0.33,1,0.68,1)', fill: 'forwards' }).onfinish = () => c.remove(); }
+  }));
+
+  refresh();
+  setTimeout(playPreview, 300);
+</script>
+</body>
+</html>

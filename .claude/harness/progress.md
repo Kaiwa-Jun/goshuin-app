@@ -176,3 +176,4 @@
   - **本番への反映はオーナー（H-1〜H-6）**。migration は約 61KB の1文で、`db query` で送れるかは未確認（途中で切れても DO ブロックなので本番は変わらない）
   - **第2弾（オーナーが選ぶ）**: 確かさ中 60・国土地理院由来 12（出典の扱いが未決）・姉倉比賣神社 1・地図で選ぶ 17・寺社があるか要調査 27。材料と `review-owner.html` はリポジトリの外の作業フォルダ
 - 2026-10-03: **#292 第1弾を本番に反映**（オーナーが H-1〜H-5）。本番の寺社 458 件の座標が直った（`at_new=458 at_old=0`）。H-6（実機で尊永寺のピンを見る）は未。第2弾の材料（scratchpad）は macOS の定期処理で消えたので、#301 で作り直す
+- 2026-10-03: **#305 予定タブのアイコンを「空押しから色が差す」動きにする**（ブランチ feature/issue-305-plan-tab-emboss）。契約書 docs/issues/issue-305-plan-tab-emboss.md・試作 docs/design/mockups/2026-10-plan-tab-icon-v1.html / v2.html（オーナーが v2 の D を選んだ）。`TabIconMotion` に `emboss`（600ms・朱あり・`EMBOSS_SEAL` で切り替え）。goshuin-evaluator **PASS**（AC 15/15・UI 4/4・Q 10/10）。証跡 .claude/harness/evidence/issue-305/。未確認: H-1（iPhone）

@@ -60,7 +60,7 @@ export function TabNavigator({ autoPlayReady = true }: Props) {
             <TabBarIcon
               name="event"
               routeName="PlanTab"
-              motion="draw"
+              motion="emboss"
               color={color}
               focused={focused}
             />

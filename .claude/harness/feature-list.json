@@ -190,6 +190,12 @@
       "title": "寺社のマスタの座標のずれを直す（第1弾 458 件）",
       "note": "契約書 docs/issues/issue-292-spot-coords.md。全 1,109 件を Wikidata・国土地理院・OSM と突き合わせ、ずれていた寺社のうち確かなもの 458 件（Wikidata 403・OSM 55）を直す。台帳 supabase/data/spot-coords-292.json から migration・確かめる SQL・seed の書き換えを生成（Deno）。1行ずつちょうど1行を確かめ、合わなければ全体を戻す・2回流しても壊れない。goshuin-evaluator PASS。**本番への反映（H-1〜H-6）はオーナー**。第2弾（確かさ中 60・国土地理院由来 12・姉倉比賣神社 1・オーナーが見る 17・要調査 27）は review-owner.html でオーナーが選んでから。",
       "passes": true
+    },
+    {
+      "id": "ISSUE-305",
+      "title": "予定タブのアイコンを「空押しから色が差す」動きにする",
+      "note": "契約書 docs/issues/issue-305-plan-tab-emboss.md・承認試作 docs/design/mockups/2026-10-plan-tab-icon-v2.html（D・朱あり。v1 の案1「予定に印を捺す」は「熱盛っぽい」と言われ、おしとやかにした4つから選んだ）。TabIconMotion に emboss を足し（#258 D-20 を上書き）、予定タブだけ替える。あゆみは draw のまま。event の枠を SVG で描き、日付の四角に輪郭・四角・朱の3枚を重ねる。progress 1本を一定の速さで 600ms、形は interpolate の節に焼く（native driver は interpolate の easing を受け取れない）。朱の有無は EMBOSS_SEAL の1つ。goshuin-evaluator PASS（AC 15/15・UI 4/4・Q 10/10）。未確認: H-1（iPhone で native driver で落ちないか・線の太さ・往復）。",
+      "passes": true
     }
   ]
 }
