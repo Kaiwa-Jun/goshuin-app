@@ -8,6 +8,7 @@ import { type CliIo, denoIo, runCli } from './main.ts';
 
 const CHUBU = 'supabase/seeds/03_chubu.sql';
 const VERSION = '20260928000000';
+const VERSION_2 = '20261003000000';
 const MIGRATION = migrationPath(VERSION, 1);
 
 /** 寺社の行を1つ持つ seed（ファイルごとに名前を変える） */
@@ -399,28 +400,33 @@ Deno.test('知らないサブコマンド・引数は 1 で止まる', async () 
 });
 
 Deno.test(
-  'AC-14: リポジトリの migration・確かめる SQL・seed 8 本は、台帳からの生成物と同じ',
+  'AC-14: リポジトリの migration（第1弾・第2弾）・確かめる SQL・seed 9 本は、台帳からの生成物と同じ',
   async () => {
     const repo = new URL('../../../', import.meta.url).pathname;
-    const r = { out: '', err: '', writes: [] as string[] };
-    const base = denoIo();
-    const code = await runCli(
-      ['generate', '--batch', '1', '--version', VERSION, '--check', '--root', repo],
-      {
-        readTextFile: p => base.readTextFile(p),
-        writeTextFile: async p => {
-          r.writes.push(p);
-        },
-        stdout: t => {
-          r.out += t;
-        },
-        stderr: t => {
-          r.err += t;
-        },
-      }
-    );
-    assertEquals(code, 0, r.err);
-    assertEquals(r.writes, []);
-    assertStringIncludes(r.out, '10 ファイル');
+    for (const [batch, version] of [
+      ['1', VERSION],
+      ['2', VERSION_2],
+    ]) {
+      const r = { out: '', err: '', writes: [] as string[] };
+      const base = denoIo();
+      const code = await runCli(
+        ['generate', '--batch', batch, '--version', version, '--check', '--root', repo],
+        {
+          readTextFile: p => base.readTextFile(p),
+          writeTextFile: async p => {
+            r.writes.push(p);
+          },
+          stdout: t => {
+            r.out += t;
+          },
+          stderr: t => {
+            r.err += t;
+          },
+        }
+      );
+      assertEquals(code, 0, r.err);
+      assertEquals(r.writes, []);
+      assertStringIncludes(r.out, '11 ファイル');
+    }
   }
 );

@@ -15,8 +15,8 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 -- 住所確認: ホトカミ ✓, Wikipedia ✓（伯耆国一宮） | 座標: Wikidata Q245734（#292 で直した）
 ('金持神社', 35.2200, 133.3483, 'shrine', '鳥取県日野郡日野町金持74', '鳥取県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
-('大神山神社奥宮', 35.3700, 133.5361, 'shrine', '鳥取県西伯郡大山町大山', '鳥取県', 5, 'active'),
--- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
+('大神山神社奥宮', 35.388734, 133.538519, 'shrine', '鳥取県西伯郡大山町大山', '鳥取県', 5, 'active'),
+-- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q135195597（#292 で直した）
 ('妖怪神社', 35.545833, 133.225778, 'shrine', '鳥取県境港市大正町62-1', '鳥取県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q17209257（#292 で直した）
 ('大山寺', 35.390992, 133.534886, 'temple', '鳥取県西伯郡大山町大山9', '鳥取県', 5, 'active'),
@@ -74,8 +74,8 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q11664502（#292 で直した）
 ('出雲大社北島国造館', 35.4025, 132.6858, 'shrine', '島根県出雲市大社町杵築東194', '島根県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
-('松江護國神社', 35.4750, 133.0489, 'shrine', '島根県松江市殿町1-15', '島根県', 5, 'active')
--- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
+('松江護國神社', 35.476703, 133.049619, 'shrine', '島根県松江市殿町1-15', '島根県', 5, 'active')
+-- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q11239221（#292 で直した）
 ;
 
 -- rank 4（11〜20位）
@@ -119,12 +119,12 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 -- 住所確認: ホトカミ ✓, Wikipedia ✓（美作国一宮） | 座標: Wikidata Q11364246（#292 で直した）
 ('岡山縣護國神社', 34.657342, 133.955287, 'shrine', '岡山県岡山市中区奥市3-21', '岡山県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q11472363（#292 で直した）
-('由加神社本宮', 34.5444, 133.8756, 'shrine', '岡山県倉敷市児島由加山2852', '岡山県', 5, 'active'),
--- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
+('由加神社本宮', 34.505917, 133.851056, 'shrine', '岡山県倉敷市児島由加山2852', '岡山県', 5, 'active'),
+-- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q11577571（#292 で直した）
 ('石上布都魂神社', 34.851874, 133.969715, 'shrine', '岡山県赤磐市石上1448', '岡山県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q11584766（#292 で直した）
-('縣主神社', 34.6142, 133.5211, 'shrine', '岡山県井原市木之子町3909', '岡山県', 5, 'active')
--- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
+('縣主神社', 34.584848, 133.495611, 'shrine', '岡山県井原市木之子町3909', '岡山県', 5, 'active')
+-- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: OpenStreetMap way/286377579（© OpenStreetMap contributors, ODbL・#292 で直した）
 ;
 
 -- rank 4（11〜20位）
@@ -156,8 +156,8 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALUES
 ('厳島神社', 34.2961, 132.3198, 'shrine', '広島県廿日市市宮島町1-1', '広島県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓（世界遺産） | 座標: Wikipedia ✓
-('廣島護國神社', 34.4031, 132.4597, 'shrine', '広島県広島市中区基町21-2', '広島県', 5, 'active'),
--- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
+('廣島護國神社', 34.401167, 132.458750, 'shrine', '広島県広島市中区基町21-2', '広島県', 5, 'active'),
+-- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q84008（#292 で直した）
 ('大願寺', 34.2953, 132.3181, 'temple', '広島県廿日市市宮島町3', '広島県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
 ('千光寺', 34.410925, 133.198783, 'temple', '広島県尾道市東土堂町15-1', '広島県', 5, 'active'),
@@ -203,16 +203,16 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 -- === 山口県 ===
 -- rank 5（TOP10）
 INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALUES
-('赤間神宮', 33.9581, 130.9472, 'shrine', '山口県下関市阿弥陀寺町4-1', '山口県', 5, 'active'),
--- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
+('赤間神宮', 33.959722, 130.948472, 'shrine', '山口県下関市阿弥陀寺町4-1', '山口県', 5, 'active'),
+-- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q712617（#292 で直した）
 ('防府天満宮', 34.063278, 131.574056, 'shrine', '山口県防府市松崎町14-1', '山口県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓（日本三大天神） | 座標: Wikidata Q704898（#292 で直した）
 ('亀山八幡宮', 33.9578, 130.9444, 'shrine', '山口県下関市中之町1-1', '山口県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
 ('元乃隅神社', 34.419889, 131.062778, 'shrine', '山口県長門市油谷津黄498', '山口県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q22120637（#292 で直した）
-('松陰神社', 34.4117, 131.4206, 'shrine', '山口県萩市椿東1537', '山口県', 5, 'active'),
--- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
+('松陰神社', 34.412139, 131.418222, 'shrine', '山口県萩市椿東1537', '山口県', 5, 'active'),
+-- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q111525635（#292 で直した）
 ('住吉神社', 33.999783, 130.956539, 'shrine', '山口県下関市一の宮住吉1-11-1', '山口県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓（長門国一宮） | 座標: Wikidata Q11381858（#292 で直した）
 ('瑠璃光寺', 34.189833, 131.471778, 'temple', '山口県山口市香山町7-1', '山口県', 5, 'active'),
@@ -260,8 +260,8 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
 ('極楽寺', 34.155556, 134.490278, 'temple', '徳島県鳴門市大麻町檜段の上12', '徳島県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓（四国八十八ヶ所第2番） | 座標: Wikidata Q1088485（#292 で直した）
-('金泉寺', 34.1428, 134.4758, 'temple', '徳島県板野郡板野町大寺亀山下66', '徳島県', 5, 'active'),
--- 住所確認: ホトカミ ✓, Wikipedia ✓（四国八十八ヶ所第3番） | 座標: Wikipedia ✓
+('金泉寺', 34.147436, 134.468544, 'temple', '徳島県板野郡板野町大寺亀山下66', '徳島県', 5, 'active'),
+-- 住所確認: ホトカミ ✓, Wikipedia ✓（四国八十八ヶ所第3番） | 座標: Wikidata Q3198759（#292 で直した）
 ('大日寺（板野）', 34.151306, 134.430889, 'temple', '徳島県板野郡板野町黒谷5', '徳島県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓（四国八十八ヶ所第4番） | 座標: Wikidata Q3012126（#292 で直した）
 ('安楽寺', 34.118056, 134.388389, 'temple', '徳島県板野郡上板町引野寺の西北8', '徳島県', 5, 'active'),
@@ -407,8 +407,8 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 -- 住所確認: ホトカミ ✓, Wikipedia ✓（四国八十八ヶ所第31番） | 座標: Wikidata Q426742（#292 で直した）
 ('海津見神社（桂浜龍王宮）', 33.4972, 133.5750, 'shrine', '高知県高知市浦戸城山831', '高知県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
-('最御崎寺', 33.2489, 134.1786, 'temple', '高知県室戸市室戸岬町4058-1', '高知県', 5, 'active'),
--- 住所確認: ホトカミ ✓, Wikipedia ✓（四国八十八ヶ所第24番） | 座標: Wikipedia ✓
+('最御崎寺', 33.249008, 134.175739, 'temple', '高知県室戸市室戸岬町4058-1', '高知県', 5, 'active'),
+-- 住所確認: ホトカミ ✓, Wikipedia ✓（四国八十八ヶ所第24番） | 座標: Wikidata Q11515607（#292 で直した）
 ('金剛福寺', 32.726028, 133.018556, 'temple', '高知県土佐清水市足摺岬214-1', '高知県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓（四国八十八ヶ所第38番） | 座標: Wikidata Q11646540（#292 で直した）
 ('雪蹊寺', 33.500833, 133.543083, 'temple', '高知県高知市長浜857-3', '高知県', 5, 'active'),

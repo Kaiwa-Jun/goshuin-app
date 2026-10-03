@@ -9,8 +9,8 @@
 INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALUES
 ('彌彦神社', 37.7067, 138.8260, 'shrine', '新潟県西蒲原郡弥彦村弥彦2887-2', '新潟県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓, 公式サイト ✓ | 座標: Wikipedia ✓
-('白山神社', 37.9183, 139.0349, 'shrine', '新潟県新潟市中央区一番堀通町1-1', '新潟県', 5, 'active'),
--- 住所確認: ホトカミ ✓, 公式サイト(niigatahakusanjinja.or.jp) ✓ | 座標: NAVITIME推定 ✓
+('白山神社', 37.915611, 139.037333, 'shrine', '新潟県新潟市中央区一番堀通町1-1', '新潟県', 5, 'active'),
+-- 住所確認: ホトカミ ✓, 公式サイト(niigatahakusanjinja.or.jp) ✓ | 座標: Wikidata Q11579595（#292 で直した）
 ('新潟縣護國神社', 37.922044, 139.029075, 'shrine', '新潟県新潟市中央区西船見町5932-300', '新潟県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, 公式サイト ✓ | 座標: Wikidata Q11503581（#292 で直した）
 ('居多神社', 37.166457, 138.223343, 'shrine', '新潟県上越市五智6-1-11', '新潟県', 5, 'active'),
@@ -30,8 +30,8 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 ;
 -- rank 4
 INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALUES
-('八海山尊神社', 37.0308, 138.9419, 'shrine', '新潟県南魚沼市大崎3746', '新潟県', 4, 'active'),
--- 住所確認: ホトカミ ✓, 公式サイト ✓ | 座標: NAVITIME推定 ✓
+('八海山尊神社', 37.120533, 138.950394, 'shrine', '新潟県南魚沼市大崎3746', '新潟県', 4, 'active'),
+-- 住所確認: ホトカミ ✓, 公式サイト ✓ | 座標: Wikidata Q135463438（#292 で直した）
 ('国上寺', 37.665889, 138.812722, 'temple', '新潟県燕市国上1407', '新潟県', 4, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q112995680（#292 で直した）
 ('藤基神社', 38.220893, 139.478991, 'shrine', '新潟県村上市三之町11-12', '新潟県', 4, 'active'),
@@ -105,8 +105,8 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALUES
 ('尾山神社', 36.5663, 136.6558, 'shrine', '石川県金沢市尾山町11-1', '石川県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓, 公式サイト ✓ | 座標: Wikipedia ✓
-('石浦神社', 36.5600, 136.6571, 'shrine', '石川県金沢市本多町3-1-30', '石川県', 5, 'active'),
--- 住所確認: ホトカミ ✓, Wikipedia ✓, 公式サイト ✓ | 座標: Wikipedia推定 ✓
+('石浦神社', 36.561194, 136.659833, 'shrine', '石川県金沢市本多町3-1-30', '石川県', 5, 'active'),
+-- 住所確認: ホトカミ ✓, Wikipedia ✓, 公式サイト ✓ | 座標: Wikidata Q11586806（#292 で直した）
 ('金澤神社', 36.5620, 136.6627, 'shrine', '石川県金沢市兼六町1-3', '石川県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, 公式サイト ✓ | 座標: NAVITIME推定 ✓
 ('白山比咩神社', 36.4349, 136.6362, 'shrine', '石川県白山市三宮町ニ105-1', '石川県', 5, 'active'),
@@ -134,16 +134,16 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 -- 住所確認: ホトカミ ✓, 公式サイト ✓ | 座標: Wikidata Q11644849（#292 で直した）
 ('妙立寺（忍者寺）', 36.555361, 136.649028, 'temple', '石川県金沢市野町1-2-12', '石川県', 4, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q3342007（#292 で直した）
-('神明宮', 36.5597, 136.6470, 'shrine', '石川県金沢市野町2-1-8', '石川県', 4, 'active'),
--- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia推定 ✓
-('菟橋神社', 36.3040, 136.4507, 'shrine', '石川県小松市浜田町イ233', '石川県', 4, 'active'),
--- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia推定 ✓
+('神明宮', 36.558040, 136.648889, 'shrine', '石川県金沢市野町2-1-8', '石川県', 4, 'active'),
+-- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: OpenStreetMap way/315409718（© OpenStreetMap contributors, ODbL・#292 で直した）
+('菟橋神社', 36.406501, 136.445567, 'shrine', '石川県小松市浜田町イ233', '石川県', 4, 'active'),
+-- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q109665899（#292 で直した）
 ('妙成寺', 36.954494, 136.776014, 'temple', '石川県羽咋市滝谷町ヨ1', '石川県', 4, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q11446902（#292 で直した）
 ('長谷山観音院', 36.2877, 136.4467, 'temple', '石川県加賀市大聖寺下屋敷町29', '石川県', 4, 'active'),
 -- 住所確認: ホトカミ ✓ | 座標: NAVITIME推定 ✓
-('總持寺祖院', 37.2120, 136.7893, 'temple', '石川県輪島市門前町門前1-18-1', '石川県', 4, 'active'),
--- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia推定 ✓
+('總持寺祖院', 37.286400, 136.771000, 'temple', '石川県輪島市門前町門前1-18-1', '石川県', 4, 'active'),
+-- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q3511690（#292 で直した）
 ('廣坂稲荷神社', 36.5599, 136.6601, 'shrine', '石川県金沢市広坂1-1-61', '石川県', 4, 'active')
 -- 住所確認: ホトカミ ✓ | 座標: NAVITIME推定 ✓
 ;
@@ -165,8 +165,8 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: OpenStreetMap way/799099092（© OpenStreetMap contributors, ODbL・#292 で直した）
 ('福井神社', 36.0653, 136.2186, 'shrine', '福井県福井市大手3-16-1', '福井県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia推定 ✓
-('平泉寺白山神社', 36.0440, 136.5389, 'shrine', '福井県勝山市平泉寺町平泉寺56-63', '福井県', 5, 'active'),
--- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia推定 ✓
+('平泉寺白山神社', 36.043917, 136.542131, 'shrine', '福井県勝山市平泉寺町平泉寺56-63', '福井県', 5, 'active'),
+-- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q11483206（#292 で直した）
 ('佐佳枝廼社', 36.064411, 136.218303, 'shrine', '福井県福井市大手3-12-3', '福井県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, 公式サイト ✓ | 座標: Wikidata Q11382929（#292 で直した）
 ('柴田神社', 36.060275, 136.219525, 'shrine', '福井県福井市中央1-21-17', '福井県', 5, 'active')
@@ -205,8 +205,8 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 -- 住所確認: ホトカミ ✓, Wikipedia ✓, 公式サイト ✓ | 座標: Wikipedia ✓
 ('甲斐國一宮浅間神社', 35.647804, 138.696996, 'shrine', '山梨県笛吹市一宮町一ノ宮1684', '山梨県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓, 公式サイト ✓ | 座標: Wikidata Q11557476（#292 で直した）
-('新倉富士浅間神社', 35.5018, 138.7985, 'shrine', '山梨県富士吉田市浅間2-4-1', '山梨県', 5, 'active'),
--- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia推定 ✓
+('新倉富士浅間神社', 35.500389, 138.800139, 'shrine', '山梨県富士吉田市浅間2-4-1', '山梨県', 5, 'active'),
+-- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q105949368（#292 で直した）
 ('甲斐善光寺', 35.6660, 138.5929, 'temple', '山梨県甲府市善光寺3-36-1', '山梨県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓, 公式サイト ✓ | 座標: Wikipedia ✓
 ('久遠寺', 35.3819, 138.4249, 'temple', '山梨県南巨摩郡身延町身延3567', '山梨県', 5, 'active'),
@@ -308,12 +308,12 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 -- 住所確認: ホトカミ ✓ | 座標: Wikidata Q11564497（#292 で直した）
 ('華厳寺', 35.537372, 136.607897, 'temple', '岐阜県揖斐郡揖斐川町谷汲徳積23', '岐阜県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q11620047（#292 で直した）
-('橿森神社', 35.4213, 136.7623, 'shrine', '岐阜県岐阜市若宮町1-8', '岐阜県', 5, 'active'),
--- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia推定 ✓
+('橿森神社', 35.419675, 136.764303, 'shrine', '岐阜県岐阜市若宮町1-8', '岐阜県', 5, 'active'),
+-- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q3193694（#292 で直した）
 ('岐阜善光寺', 35.428139, 136.768361, 'temple', '岐阜県岐阜市伊奈波通1-8', '岐阜県', 5, 'active'),
 -- 住所確認: ホトカミ ✓ | 座標: Wikidata Q3575218（#292 で直した）
-('岐阜護國神社', 35.4361, 136.7654, 'shrine', '岐阜県岐阜市御手洗393', '岐阜県', 5, 'active'),
--- 住所確認: ホトカミ ✓ | 座標: NAVITIME推定 ✓
+('岐阜護國神社', 35.437002, 136.776352, 'shrine', '岐阜県岐阜市御手洗393', '岐阜県', 5, 'active'),
+-- 住所確認: ホトカミ ✓ | 座標: OpenStreetMap node/6346112385（© OpenStreetMap contributors, ODbL・#292 で直した）
 ('加納天満宮', 35.4071, 136.7602, 'shrine', '岐阜県岐阜市加納天神町4-1', '岐阜県', 5, 'active')
 -- 住所確認: ホトカミ ✓ | 座標: NAVITIME推定 ✓
 ;
@@ -335,8 +335,8 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 -- 住所確認: ホトカミ ✓ | 座標: NAVITIME推定 ✓
 ('御嶽神社（茅萱宮）', 35.4179, 136.7569, 'shrine', '岐阜県岐阜市茅萱宮3', '岐阜県', 4, 'active'),
 -- 住所確認: ホトカミ ✓ | 座標: NAVITIME推定 ✓
-('岐阜信長神社', 35.4209, 136.7621, 'shrine', '岐阜県岐阜市若宮町1-8', '岐阜県', 4, 'active'),
--- 住所確認: ホトカミ ✓ | 座標: NAVITIME推定(橿森神社境内)
+('岐阜信長神社', 35.419774, 136.764084, 'shrine', '岐阜県岐阜市若宮町1-8', '岐阜県', 4, 'active'),
+-- 住所確認: ホトカミ ✓ | 座標: OpenStreetMap node/7281829594（© OpenStreetMap contributors, ODbL・#292 で直した）
 -- 注: 橿森神社の境内摂社
 ('黒龍社', 35.4272, 136.7559, 'shrine', '岐阜県岐阜市伊奈波通1-1', '岐阜県', 4, 'active')
 -- 住所確認: ホトカミ ✓ | 座標: NAVITIME推定(伊奈波神社境内)
@@ -436,7 +436,7 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 ('上知我麻神社', 35.1270, 136.9083, 'shrine', '愛知県名古屋市熱田区神宮1-1-1', '愛知県', 4, 'active'),
 -- 住所確認: ホトカミ ✓ | 座標: Wikipedia推定(熱田神宮境内) ✓
 -- 注: 熱田神宮の摂社
-('八剣宮', 35.1268, 136.9079, 'shrine', '愛知県名古屋市熱田区神宮1-1-1', '愛知県', 4, 'active')
--- 住所確認: ホトカミ ✓ | 座標: Wikipedia推定(熱田神宮境内) ✓
+('八剣宮', 35.123498, 136.908269, 'shrine', '愛知県名古屋市熱田区神宮1-1-1', '愛知県', 4, 'active')
+-- 住所確認: ホトカミ ✓ | 座標: Wikidata Q55533377（#292 で直した）
 -- 注: 熱田神宮の別宮
 ;

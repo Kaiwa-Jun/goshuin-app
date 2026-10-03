@@ -94,10 +94,10 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q11628291（#292 で直した）
 ('阿賀神社', 35.0072, 136.1957, 'shrine', '滋賀県東近江市小脇町2247', '滋賀県', 4, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓（太郎坊宮） | 座標: Wikipedia ✓
-('三尾神社', 35.0138, 135.8508, 'shrine', '滋賀県大津市園城寺町251', '滋賀県', 4, 'active'),
--- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
-('百済寺', 35.0556, 136.3289, 'temple', '滋賀県東近江市百済寺町323', '滋賀県', 4, 'active'),
--- 住所確認: ホトカミ ✓, Wikipedia ✓（湖東三山） | 座標: Wikipedia ✓
+('三尾神社', 35.008823, 135.854172, 'shrine', '滋賀県大津市園城寺町251', '滋賀県', 4, 'active'),
+-- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q65247874（#292 で直した）
+('百済寺', 35.126827, 136.291512, 'temple', '滋賀県東近江市百済寺町323', '滋賀県', 4, 'active'),
+-- 住所確認: ホトカミ ✓, Wikipedia ✓（湖東三山） | 座標: OpenStreetMap way/183562887（© OpenStreetMap contributors, ODbL・#292 で直した）
 ('金剛輪寺', 35.161250, 136.283056, 'temple', '滋賀県愛知郡愛荘町松尾寺873', '滋賀県', 4, 'active')
 -- 住所確認: ホトカミ ✓, Wikipedia ✓（湖東三山） | 座標: Wikidata Q11646547（#292 で直した）
 ;
@@ -107,8 +107,8 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALUES
 ('住吉大社', 34.6128, 135.4929, 'shrine', '大阪府大阪市住吉区住吉2-9-89', '大阪府', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
-('大阪天満宮', 34.6930, 135.5130, 'shrine', '大阪府大阪市北区天神橋2-1-8', '大阪府', 5, 'active'),
--- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
+('大阪天満宮', 34.696025, 135.512619, 'shrine', '大阪府大阪市北区天神橋2-1-8', '大阪府', 5, 'active'),
+-- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q385793（#292 で直した）
 ('四天王寺', 34.6533, 135.5164, 'temple', '大阪府大阪市天王寺区四天王寺1-11-18', '大阪府', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
 ('露天神社（お初天神）', 34.6996, 135.5011, 'shrine', '大阪府大阪市北区曾根崎2-5-4', '大阪府', 5, 'active'),
@@ -219,8 +219,8 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 -- 住所確認: ホトカミ ✓, Wikipedia ✓（世界遺産） | 座標: Wikipedia ✓
 ('薬師寺', 34.6685, 135.7846, 'temple', '奈良県奈良市西ノ京町457', '奈良県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
-('石上神宮', 34.5954, 135.8511, 'shrine', '奈良県天理市布留町384', '奈良県', 5, 'active'),
--- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
+('石上神宮', 34.597875, 135.851673, 'shrine', '奈良県天理市布留町384', '奈良県', 5, 'active'),
+-- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q708859（#292 で直した）
 ('岡寺（龍蓋寺）', 34.471789, 135.828372, 'temple', '奈良県高市郡明日香村岡806', '奈良県', 5, 'active')
 -- 住所確認: ホトカミ ✓, Wikipedia ✓（西国三十三所） | 座標: Wikidata Q3349998（#292 で直した）
 ;
@@ -233,8 +233,8 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 -- 住所確認: ホトカミ ✓, Wikipedia ✓（西国三十三所） | 座標: Wikipedia ✓
 ('南法華寺（壷阪寺）', 34.426417, 135.809861, 'temple', '奈良県高市郡高取町壷阪3', '奈良県', 4, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓（西国三十三所） | 座標: Wikidata Q11408073（#292 で直した）
-('元興寺', 34.6768, 135.8331, 'temple', '奈良県奈良市中院町11', '奈良県', 4, 'active'),
--- 住所確認: ホトカミ ✓, Wikipedia ✓（世界遺産） | 座標: Wikipedia ✓
+('元興寺', 34.678056, 135.831111, 'temple', '奈良県奈良市中院町11', '奈良県', 4, 'active'),
+-- 住所確認: ホトカミ ✓, Wikipedia ✓（世界遺産） | 座標: Wikidata Q1203099（#292 で直した）
 ('朝護孫子寺', 34.609178, 135.670264, 'temple', '奈良県生駒郡平群町信貴山2280-1', '奈良県', 4, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: OpenStreetMap way/105041025（© OpenStreetMap contributors, ODbL・#292 で直した）
 ('大和神社', 34.571248, 135.837938, 'shrine', '奈良県天理市新泉町306', '奈良県', 4, 'active'),
@@ -258,8 +258,8 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 -- 住所確認: ホトカミ ✓, Wikipedia ✓（世界遺産） | 座標: Wikipedia ✓
 ('熊野速玉大社', 33.732086, 135.983605, 'shrine', '和歌山県新宮市新宮1', '和歌山県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓（世界遺産） | 座標: Wikidata Q335618（#292 で直した）
-('青岸渡寺', 33.6672, 135.8903, 'temple', '和歌山県東牟婁郡那智勝浦町那智山8', '和歌山県', 5, 'active'),
--- 住所確認: ホトカミ ✓, Wikipedia ✓（西国三十三所） | 座標: Wikipedia ✓
+('青岸渡寺', 33.669640, 135.889893, 'temple', '和歌山県東牟婁郡那智勝浦町那智山8', '和歌山県', 5, 'active'),
+-- 住所確認: ホトカミ ✓, Wikipedia ✓（西国三十三所） | 座標: Wikidata Q1476235（#292 で直した）
 ('高野山金剛峯寺', 34.2131, 135.5862, 'temple', '和歌山県伊都郡高野町高野山132', '和歌山県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓（世界遺産） | 座標: Wikipedia ✓
 ('飛瀧神社', 33.674278, 135.887444, 'shrine', '和歌山県東牟婁郡那智勝浦町那智山2', '和歌山県', 5, 'active'),

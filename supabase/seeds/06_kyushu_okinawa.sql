@@ -11,8 +11,8 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
 ('櫛田神社', 33.593111, 130.410694, 'shrine', '福岡県福岡市博多区上川端町1-41', '福岡県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q865839（#292 で直した）
-('住吉神社（福岡）', 33.5833, 130.4125, 'shrine', '福岡県福岡市博多区住吉3-1-51', '福岡県', 5, 'active'),
--- 住所確認: ホトカミ ✓, Wikipedia ✓（筑前国一宮） | 座標: Wikipedia ✓
+('住吉神社（福岡）', 33.585750, 130.413750, 'shrine', '福岡県福岡市博多区住吉3-1-51', '福岡県', 5, 'active'),
+-- 住所確認: ホトカミ ✓, Wikipedia ✓（筑前国一宮） | 座標: Wikidata Q29682（#292 で直した）
 ('筥崎宮', 33.614749, 130.422887, 'shrine', '福岡県福岡市東区箱崎1-22-1', '福岡県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q714742（#292 で直した）
 ('宗像大社', 33.8297, 130.5142, 'shrine', '福岡県宗像市田島2331', '福岡県', 5, 'active'),
@@ -74,8 +74,8 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q251156（#292 で直した）
 ('牛嶋天満宮', 33.256639, 130.310917, 'shrine', '佐賀県佐賀市東佐賀町15-30', '佐賀県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q11570133（#292 で直した）
-('龍造寺八幡宮', 33.2536, 130.3011, 'shrine', '佐賀県佐賀市白山1-3-2', '佐賀県', 5, 'active')
--- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
+('龍造寺八幡宮', 33.255425, 130.298531, 'shrine', '佐賀県佐賀市白山1-3-2', '佐賀県', 5, 'active')
+-- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q28684427（#292 で直した）
 ;
 
 -- rank 4（11〜20位）
@@ -188,8 +188,8 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
 ('白川吉見神社', 32.8772, 131.0511, 'shrine', '熊本県阿蘇郡南阿蘇村白川2040', '熊本県', 4, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓（白川水源） | 座標: Wikipedia ✓
-('高橋稲荷神社', 32.7853, 130.6658, 'shrine', '熊本県熊本市西区上代9丁目6-20', '熊本県', 4, 'active'),
--- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
+('高橋稲荷神社', 32.782900, 130.659000, 'shrine', '熊本県熊本市西区上代9丁目6-20', '熊本県', 4, 'active'),
+-- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q11671498（#292 で直した）
 ('彦嶽宮', 33.0164, 130.6883, 'shrine', '熊本県山鹿市津留2248', '熊本県', 4, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
 ('草部吉見神社', 32.782639, 131.217972, 'shrine', '熊本県阿蘇郡高森町草部2175', '熊本県', 4, 'active'),
@@ -233,8 +233,8 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: OpenStreetMap way/726587735（© OpenStreetMap contributors, ODbL・#292 で直した）
 ('春日神社（大分）', 33.245139, 131.598194, 'shrine', '大分県大分市勢家町4丁目6-87', '大分県', 4, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q11513662（#292 で直した）
-('臼杵石仏', 33.1167, 131.7886, 'temple', '大分県臼杵市深田804-1', '大分県', 4, 'active'),
--- 住所確認: ホトカミ ✓, Wikipedia ✓（国宝） | 座標: Wikipedia ✓
+('臼杵石仏', 33.090110, 131.762480, 'temple', '大分県臼杵市深田804-1', '大分県', 4, 'active'),
+-- 住所確認: ホトカミ ✓, Wikipedia ✓（国宝） | 座標: Wikidata Q2921458（#292 で直した）
 ('八幡竃門神社', 33.332389, 131.483250, 'shrine', '大分県別府市内竃1900', '大分県', 4, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q104093828（#292 で直した）
 ('奥平神社', 33.5956, 131.1864, 'shrine', '大分県中津市二ノ丁1278-1', '大分県', 4, 'active'),
@@ -358,16 +358,16 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 -- 住所確認: ホトカミ ✓, Wikipedia ✓（琉球八社） | 座標: Wikidata Q11514556（#292 で直した）
 ('沖縄県護国神社', 26.203139, 127.676083, 'shrine', '沖縄県那覇市奥武山町44', '沖縄県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q11552847（#292 で直した）
-('護国寺（那覇）', 26.2192, 127.6689, 'temple', '沖縄県那覇市若狭1-25-5', '沖縄県', 5, 'active'),
--- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
+('護国寺（那覇）', 26.220068, 127.671579, 'temple', '沖縄県那覇市若狭1-25-5', '沖縄県', 5, 'active'),
+-- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: OpenStreetMap way/169954331（© OpenStreetMap contributors, ODbL・#292 で直した）
 ('宮古神社', 24.807778, 125.280444, 'shrine', '沖縄県宮古島市平良西里5-1', '沖縄県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓（日本最南端の神社） | 座標: Wikidata Q11453485（#292 で直した）
 ('天久宮', 26.228331, 127.682628, 'shrine', '沖縄県那覇市泊3丁目19-3', '沖縄県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓（琉球八社） | 座標: Wikidata Q11442211（#292 で直した）
 ('末吉宮', 26.230167, 127.714056, 'shrine', '沖縄県那覇市首里末吉町1-8', '沖縄県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓（琉球八社） | 座標: Wikidata Q11519653（#292 で直した）
-('安里八幡宮', 26.2233, 127.6944, 'shrine', '沖縄県那覇市安里3丁目19-14', '沖縄県', 5, 'active'),
--- 住所確認: ホトカミ ✓, Wikipedia ✓（琉球八社） | 座標: Wikipedia ✓
+('安里八幡宮', 26.221111, 127.694944, 'shrine', '沖縄県那覇市安里3丁目19-14', '沖縄県', 5, 'active'),
+-- 住所確認: ホトカミ ✓, Wikipedia ✓（琉球八社） | 座標: Wikidata Q11451643（#292 で直した）
 ('識名宮', 26.210211, 127.713442, 'shrine', '沖縄県那覇市繁多川4-1-43', '沖縄県', 5, 'active')
 -- 住所確認: ホトカミ ✓, Wikipedia ✓（琉球八社） | 座標: Wikidata Q11632260（#292 で直した）
 ;
@@ -376,8 +376,8 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALUES
 ('桃林寺', 24.343611, 124.155556, 'temple', '沖縄県石垣市字石垣285', '沖縄県', 4, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓（八重山最古の仏教寺院） | 座標: Wikidata Q11537060（#292 で直した）
-('金武観音寺', 26.4556, 127.9244, 'temple', '沖縄県国頭郡金武町金武222', '沖縄県', 4, 'active'),
--- 住所確認: ホトカミ ✓, Wikipedia ✓（琉球八社） | 座標: Wikipedia ✓
+('金武観音寺', 26.455319, 127.921450, 'temple', '沖縄県国頭郡金武町金武222', '沖縄県', 4, 'active'),
+-- 住所確認: ホトカミ ✓, Wikipedia ✓（琉球八社） | 座標: Wikidata Q11647330（#292 で直した）
 ('金武宮', 26.4553, 127.9242, 'shrine', '沖縄県国頭郡金武町金武222', '沖縄県', 4, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓（琉球八社） | 座標: Wikipedia ✓
 ('普天満山神宮寺', 26.3383, 127.7719, 'temple', '沖縄県宜野湾市普天間1-27-11', '沖縄県', 4, 'active'),
@@ -388,8 +388,8 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
 ('尖閣神社', 24.3631, 124.2467, 'shrine', '沖縄県石垣市桴海大田273-170', '沖縄県', 4, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
-('安国寺', 26.2194, 127.7156, 'temple', '沖縄県那覇市首里寒川町1-2', '沖縄県', 4, 'active'),
--- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
+('安国寺', 26.218528, 127.713417, 'temple', '沖縄県那覇市首里寒川町1-2', '沖縄県', 4, 'active'),
+-- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q21652389（#292 で直した）
 ('西来院', 26.217722, 127.722528, 'temple', '沖縄県那覇市首里赤田町1-5-1', '沖縄県', 4, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q116796317（#292 で直した）
 ('八幡神徳寺', 26.220583, 127.694500, 'temple', '沖縄県那覇市安里38', '沖縄県', 4, 'active')
