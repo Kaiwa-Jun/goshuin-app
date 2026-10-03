@@ -97,7 +97,7 @@ export interface FocusRegion {
 }
 
 export type MapStackParamList = {
-  Map: { focusSpotId?: string; focusPrefecture?: string } | undefined;
+  Map: { focusSpotId?: string; focusPrefecture?: string; focusRegion?: FocusRegion } | undefined;
   SpotDetail: { spotId: string };
   Search: undefined;
 };

@@ -33,7 +33,7 @@ import { useMountTransition } from '@hooks/useMountTransition';
 import { useSpots } from '@hooks/useSpots';
 import { useUserStamps } from '@hooks/useUserStamps';
 import { useWishlist } from '@hooks/useWishlist';
-import type { MapStackScreenProps } from '@/navigation/types';
+import type { FocusRegion, MapStackScreenProps } from '@/navigation/types';
 import type { Spot } from '@/types/supabase';
 import { buildSpotSources, spotFilterIds } from '@utils/spotGeoJson';
 import { colors } from '@theme/colors';
@@ -48,6 +48,10 @@ type FilterMode = 'all' | 'visited' | 'wishlist';
 const INITIAL_ZOOM = 14.5;
 /** スポットを選んだとき／検索から飛んだときの寄り */
 const FOCUS_ZOOM = 15.5;
+/** 地域（検索の場所の行）に寄せるときの余白。絞り込みで寄せるときと同じ */
+const REGION_PADDING = { top: 140, right: 60, bottom: 200, left: 60 };
+/** 地域を出していないとき。参照を固定して、ソースを作り直さない */
+const NO_FOCUS_IDS = new Set<string>();
 /** 位置情報が取れないときの初期表示（東京駅） */
 const FALLBACK_CENTER: [number, number] = [139.7671, 35.6812];
 const FALLBACK_ZOOM = 9;
@@ -94,14 +98,16 @@ export function MapScreen({ navigation, route }: Props) {
   // 検索バーに出す名前。検索・履歴から飛んできたときとピンをタップしたときに入る。
   // selectedSpotId とは別に持つ。シートを閉じても消さず、× で消す
   const [searchLabel, setSearchLabel] = useState<string | null>(null);
+  // 検索で寄せた地域の寺社（Issue #311）。団子にせず・間引かずに出す。× と寺社の検索で消える
+  const [focusIds, setFocusIds] = useState<Set<string>>(NO_FOCUS_IDS);
 
   const cameraRef = useRef<CameraRef>(null);
   const insets = useSafeAreaInsets();
 
   // 地図に渡す GeoJSON。件数の上限もビューポート絞り込みも掛けない
   const { clustered, pinned } = useMemo(
-    () => buildSpotSources({ spots: displaySpots, visitedSpotIds, wishlistSpotIds }),
-    [displaySpots, visitedSpotIds, wishlistSpotIds]
+    () => buildSpotSources({ spots: displaySpots, visitedSpotIds, wishlistSpotIds, focusIds }),
+    [displaySpots, visitedSpotIds, wishlistSpotIds, focusIds]
   );
 
   const searchRowTop = insets.top + spacing.xs;
@@ -172,7 +178,45 @@ export function MapScreen({ navigation, route }: Props) {
 
     setSelectedSpotId(focusSpotId);
     setSearchLabel(spot.name);
+    setFocusIds(NO_FOCUS_IDS);
   }, [route.params?.focusSpotId, displaySpots]);
+
+  // 検索の場所の行・エンターから来た地域（Issue #311）。参照が変わるたびに1回だけ寄せる。
+  // 範囲は検索画面で計算済みなので、focusSpotId と違って寺社の読み込みを待たない。
+  // 読み込み直しで寄せ直すと、利用者が動かした地図が戻される
+  const handledFocusRegionRef = useRef<FocusRegion | null>(null);
+
+  useEffect(() => {
+    const focusRegion = route.params?.focusRegion;
+    if (focusRegion) {
+      if (handledFocusRegionRef.current === focusRegion) return;
+      handledFocusRegionRef.current = focusRegion;
+
+      setSelectedSpotId(null);
+      setSearchLabel(focusRegion.label);
+      setFocusIds(new Set(focusRegion.spotIds));
+
+      const [west, south, east, north] = focusRegion.bounds;
+      // 1件だけだと矩形が潰れるので、fitBounds ではなく寄せる
+      if (west === east && south === north) {
+        cameraRef.current?.flyTo({ center: [west, south], zoom: FOCUS_ZOOM, duration: 600 });
+      } else {
+        cameraRef.current?.fitBounds(focusRegion.bounds, {
+          padding: REGION_PADDING,
+          duration: 600,
+        });
+      }
+      return;
+    }
+
+    if (!handledFocusRegionRef.current) return;
+    handledFocusRegionRef.current = null;
+    // 寺社の focusSpotId があれば、その処理が地域を消して名前を入れる。
+    // ここで文字を消すと、同じ描画で入った寺社の名前が消える
+    if (route.params?.focusSpotId) return;
+    setFocusIds(NO_FOCUS_IDS);
+    setSearchLabel(null);
+  }, [route.params?.focusRegion, route.params?.focusSpotId]);
 
   // フィルタを掛けたら、残ったピンが見える位置までカメラを寄せる。
   // 寄せないと、保存したスポットが今いる場所から遠いときに
@@ -287,6 +331,7 @@ export function MapScreen({ navigation, route }: Props) {
   const handleSearchClear = useCallback(() => {
     setSearchLabel(null);
     setSelectedSpotId(null);
+    setFocusIds(NO_FOCUS_IDS);
   }, []);
 
   const handleBottomSheetRecord = useCallback(
