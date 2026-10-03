@@ -69,12 +69,16 @@ jest.mock('@hooks/useStampDetail', () => ({
  * 削除後の後始末（飛ばした1枚を手放すか）を見るため、end だけ観測できる形にする
  */
 const mockHeroEnd = jest.fn();
+const mockHeroStart = jest.fn();
 jest.mock('@hooks/useHeroTransition', () => ({
   useHeroTransition: () => ({
     flight: null,
     registerTile: jest.fn(),
     rememberAspect: jest.fn(),
-    start: (_params: unknown, onReady: (started: boolean) => void) => onReady(false),
+    start: (params: unknown, onReady: (started: boolean) => void) => {
+      mockHeroStart(params);
+      onReady(false);
+    },
     turnBack: jest.fn(),
     end: (...args: unknown[]) => mockHeroEnd(...args),
   }),
@@ -427,6 +431,44 @@ describe('GalleryScreen', () => {
       await waitFor(() => {
         expect(getByTestId('gallery-image')).toBeTruthy();
       });
+    });
+
+    /*
+     * 飛ぶ1枚は、押したページに出ているのと同じ URL（R2 の 1200）。元の写真に落ちた
+     * ページなら原本。違うものを使うと出発の瞬間に写真が替わって見える（#227 S4a-2 AC-25）
+     */
+    it('めくり表示から飛ぶ1枚は、ページに出ている大きい方の URL', async () => {
+      withStamps([makeStamp({ id: 'stamp-abc', image_path: 'user-1/a.jpg' })]);
+      const { getByTestId } = renderGalleryScreen();
+
+      expect(getByTestId('flip-page-image-stamp-abc').props.source.uri).toBe(
+        'https://example.com/cdn-cgi/image/width=1200/user-1/a.jpg'
+      );
+      fireEvent.press(getByTestId('flip-page-stamp-abc'));
+
+      await waitFor(() => expect(mockHeroStart).toHaveBeenCalled());
+      expect(mockHeroStart.mock.calls[0][0]).toEqual(
+        expect.objectContaining({
+          imageUrl: 'https://example.com/cdn-cgi/image/width=1200/user-1/a.jpg',
+          fit: 'contain',
+        })
+      );
+    });
+
+    it('元の写真に落ちたページから飛ぶ1枚は、元の写真の URL', async () => {
+      withStamps([makeStamp({ id: 'stamp-abc', image_path: 'user-1/a.jpg' })]);
+      const { getByTestId } = renderGalleryScreen();
+
+      fireEvent(getByTestId('flip-page-image-stamp-abc'), 'error');
+      expect(getByTestId('flip-page-image-stamp-abc').props.source.uri).toBe(
+        'https://example.com/user-1/a.jpg'
+      );
+      fireEvent.press(getByTestId('flip-page-stamp-abc'));
+
+      await waitFor(() => expect(mockHeroStart).toHaveBeenCalled());
+      expect(mockHeroStart.mock.calls[0][0]).toEqual(
+        expect.objectContaining({ imageUrl: 'https://example.com/user-1/a.jpg' })
+      );
     });
 
     it('めくり表示のフッターに和暦の訪問日を出す', () => {

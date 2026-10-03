@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Animated, View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import { Animated, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { spacing, borderRadius } from '@theme/spacing';
 import { formatJapaneseEraDate } from '@utils/japaneseEra';
+import { FallbackImage } from '@components/common/FallbackImage';
 import { ImageLoadingCover, type LoadingBookMode } from '@components/gallery/ImageLoadingCover';
 
 /**
@@ -52,6 +53,13 @@ type GoshuinchoPageProps = {
       variant: 'stamp';
       stampId: string;
       imageUrl: string;
+      /**
+       * imageUrl が出せなかったときに1回だけ替える元の写真（Issue #227 S4a-2）。
+       * 替えている間も読み込み中の下地は出したまま
+       */
+      fallbackUrl?: string;
+      /** 元の写真に替えたとき */
+      onImageFallback?: () => void;
       spotName: string;
       visitedAt: string;
     }
@@ -109,9 +117,13 @@ export function GoshuinchoPage(props: GoshuinchoPageProps) {
           </View>
         ) : (
           <>
-            <Image
+            <FallbackImage
               testID={`flip-page-image-${props.stampId}`}
-              source={{ uri: props.imageUrl }}
+              uri={props.imageUrl}
+              // 変換が出せなければ元の写真へ。落ち着いたかは imageUrl で控えるので、
+              // 元を読みにいく間も下地は出したまま（Issue #227 S4a-2）
+              fallbackUri={props.fallbackUrl}
+              onFallback={props.onImageFallback}
               resizeMode="contain"
               onLoad={e => {
                 // 先に落ち着かせる。Web の nativeEvent には source が無く、後ろで例外になる
@@ -119,7 +131,7 @@ export function GoshuinchoPage(props: GoshuinchoPageProps) {
                 onImageLoad?.(e.nativeEvent.source.width, e.nativeEvent.source.height);
               }}
               // 届かなかったら下地を消して、今までどおりの白い紙に戻す
-              onError={() => setSettledUri(props.imageUrl)}
+              onFinalError={() => setSettledUri(props.imageUrl)}
               style={styles.image}
             />
             {/* contain の写真は周りが透けるので、下に敷かず上に重ねる */}
