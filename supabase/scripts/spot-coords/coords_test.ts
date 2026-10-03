@@ -239,6 +239,25 @@ Deno.test(
   }
 );
 
+Deno.test('第2弾: 書き出しに ref（Q-ID・OSM の要素）があれば台帳に残す（#301 の画面の書き出し）', () => {
+  const wd = ownerItemToEntry(owner({ choice: 'wd', ref: 'Q135194979' }), 2)!;
+  assertEquals(wd.ref, 'Q135194979');
+  const osm = ownerItemToEntry(owner({ choice: 'osm', ref: 'way/123456' }), 2)!;
+  assertEquals(osm.ref, 'way/123456');
+  // ref が無い書き出し（review-owner.html の形）は今までどおり null
+  assertEquals(ownerItemToEntry(owner({ choice: 'wd', ref: null }), 2)!.ref, null);
+  assertEquals(ownerItemToEntry(owner({ choice: 'wd' }), 2)!.ref, null);
+  // 地図で置いた点は出どころの ID を持たない
+  assertEquals(ownerItemToEntry(owner({ choice: 'custom', ref: null }), 2)!.ref, null);
+});
+
+Deno.test('第2弾: ref の形が出どころに合わなければ止める', () => {
+  const bad = assertThrows(() => ownerItemToEntry(owner({ choice: 'wd', ref: 'node/1' }), 2));
+  assertMatch((bad as Error).message, /姉倉比賣神社.*ref/);
+  assertThrows(() => ownerItemToEntry(owner({ choice: 'osm', ref: 'Q1' }), 2));
+  assertThrows(() => ownerItemToEntry(owner({ choice: 'custom', ref: 'Q1' }), 2));
+});
+
 Deno.test('AC-3: resolveSeedPath はファイル名を seed のパスに直し、知らない名前は止める', () => {
   assertEquals(resolveSeedPath('03_chubu.sql'), CHUBU);
   assertEquals(resolveSeedPath('seed_miyagi_spots_and_pilgrimages.sql'), MIYAGI);

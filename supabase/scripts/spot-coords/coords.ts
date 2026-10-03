@@ -99,6 +99,8 @@ export interface OwnerItem {
   choice: string;
   lat: number | null;
   lng: number | null;
+  /** 出どころの ID（wd は Q-ID・osm は node/way/relation）。#301 の画面の書き出しにだけある */
+  ref?: string | null;
   note?: string | null;
   chosen_at?: string;
 }
@@ -212,6 +214,12 @@ export function ownerItemToEntry(item: OwnerItem, batch: number): LedgerEntry | 
   if (!source) throw new Error(`${who}: 知らない choice: ${item.choice}`);
   const next = latLng({ lat: item.lat, lng: item.lng }, who);
   const note = (item.note ?? '').trim();
+  // #301 の画面の書き出しは Q-ID・OSM の要素を持つ（review-owner.html の書き出しは持たない）
+  const ref = item.ref ?? null;
+  const pattern = REF_PATTERN[source];
+  if (ref !== null && (!pattern || !pattern.test(ref))) {
+    throw new Error(`${who}: ${source} の ref の形が違う: ${ref}`);
+  }
   return {
     batch,
     idx: item.idx,
@@ -222,7 +230,7 @@ export function ownerItemToEntry(item: OwnerItem, batch: number): LedgerEntry | 
     old: latLng(item.seed, `${who}: seed`),
     new: { lat: round6(next.lat), lng: round6(next.lng) },
     source,
-    ref: null,
+    ref,
     confidence: 'high',
     basis: `オーナーが選んだ（${item.choice}）${note ? `。${note}` : ''}`,
   };
