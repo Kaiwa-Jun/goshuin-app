@@ -90,6 +90,41 @@ export interface SpotSnsLink {
   url: string;
 }
 
+/** 寺社の写真（Wikimedia Commons の写真を R2 に置いたもの）の表 spot_photos の1行（Issue #302） */
+export interface SpotPhotoRow {
+  id: string;
+  spot_id: string;
+  /** `spot-photos/<sha1>.<jpg|png>` */
+  r2_key: string;
+  /** Commons の元の写真の縦横（縦横比にだけ使う） */
+  width: number;
+  height: number;
+  /** 見せたい所の縦の位置（0〜1） */
+  focus_y: number;
+  author: string | null;
+  license: string;
+  license_url: string | null;
+  source_url: string;
+  is_cropped: boolean;
+  status: 'approved' | 'withdrawn';
+  created_at: string;
+  updated_at: string;
+}
+
+/** 帯に出す寺社の写真（spot_photos の1行を、読む URL と表示の値にしたもの） */
+export interface SpotPhoto {
+  uri: string;
+  width: number;
+  height: number;
+  focusY: number;
+  /** null は Public domain・CC0 だけ（吹き出しでは「不明」） */
+  author: string | null;
+  license: string;
+  licenseUrl: string | null;
+  sourceUrl: string;
+  isCropped: boolean;
+}
+
 export interface LimitedGoshuinItem {
   name: string;
   period: string | null;
