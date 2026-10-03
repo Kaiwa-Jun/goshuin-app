@@ -2,6 +2,8 @@ import {
   fetchVisitedSpotIds,
   fetchStampsBySpotId,
   getStampImageUrl,
+  getStampThumbUrl,
+  getStampViewUrl,
   fetchAllStamps,
   fetchStampsByPrefecture,
   fetchStampById,
@@ -216,6 +218,21 @@ describe('stamps service', () => {
       const result = getStampImageUrl('img/1.jpg');
       expect(mockGetPublicUrl).toHaveBeenCalledWith('img/1.jpg');
       expect(result).toBe('https://example.com/stamps/img/1.jpg');
+    });
+  });
+
+  // 一覧は 400、詳細は 1200。今の thumb-400 / view-1200 と同じ幅・品質（Issue #227 S4a）
+  describe('getStampThumbUrl / getStampViewUrl', () => {
+    it('一覧は R2 の変換 URL（幅 400・品質 70）', () => {
+      expect(getStampThumbUrl('u/1-a.jpg')).toBe(
+        'https://img.goshuinsanpo.com/cdn-cgi/image/width=400,quality=70,format=webp/u/1-a.jpg'
+      );
+    });
+
+    it('詳細は R2 の変換 URL（幅 1200・品質 78）', () => {
+      expect(getStampViewUrl('u/1-a.jpg')).toBe(
+        'https://img.goshuinsanpo.com/cdn-cgi/image/width=1200,quality=78,format=webp/u/1-a.jpg'
+      );
     });
   });
 

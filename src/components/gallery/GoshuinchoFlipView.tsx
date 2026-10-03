@@ -13,7 +13,7 @@ import {
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { spacing } from '@theme/spacing';
-import { getStampImageUrl } from '@services/stamps';
+import { getStampImageUrl, getStampViewUrl } from '@services/stamps';
 import { GoshuinchoPage } from '@components/gallery/GoshuinchoPage';
 import type { StampWithSpot } from '@/types/supabase';
 
@@ -73,8 +73,18 @@ interface GoshuinchoFlipViewProps {
   /** 押されたページの、元の stamps 配列でのインデックスを渡す */
   onPressStamp: (sourceIndex: number) => void;
   onPressBlank: () => void;
-  /** 省略時は getStampImageUrl。web プレビューが data URI を差し込むために使う */
+  /**
+   * 省略時は getStampViewUrl（R2 の 1200 の変換）で、出せなければ getStampImageUrl（元の写真）に
+   * 落とす（Issue #227 S4a-2）。web プレビューが data URI を差し込むために使う（落とす先は無い）
+   */
   resolveImageUrl?: (stamp: StampWithSpot) => string;
+  /** ページの写真が元の写真に落ちたとき。飛ぶ1枚を出ている URL に合わせるために使う */
+  onImageFallback?: (stampId: string) => void;
+  /**
+   * ページの写真が元の写真ではない方で読めたとき。一時の失敗で落ちたページが、外れて
+   * 付け直されたら読めた、を画面に返す（落ちた控えを消す）
+   */
+  onPrimaryImageLoad?: (stampId: string) => void;
   /** 詳細へ連続的に繋ぐために、ページの位置を測れるようにする（Issue #202） */
   registerNode?: (stampId: string, part: 'image' | 'text', node: View | null) => void;
   /** 読み込んだ写真の実寸 */
@@ -132,6 +142,10 @@ interface FlipPageItemProps {
   onImageLoad?: (stampId: string, width: number, height: number) => void;
   /** 御朱印のページの写真の URL */
   imageUrl?: string;
+  /** imageUrl が出せなかったときの元の写真（Issue #227 S4a-2） */
+  fallbackUrl?: string;
+  onImageFallback?: (stampId: string) => void;
+  onPrimaryImageLoad?: (stampId: string) => void;
   hidden: boolean;
   reduceMotion: boolean;
   surfaceScale?: Animated.AnimatedInterpolation<number>;
@@ -155,6 +169,9 @@ const FlipPageItem = memo(function FlipPageItem({
   registerNode,
   onImageLoad,
   imageUrl,
+  fallbackUrl,
+  onImageFallback,
+  onPrimaryImageLoad,
   hidden,
   reduceMotion,
   surfaceScale,
@@ -235,6 +252,9 @@ const FlipPageItem = memo(function FlipPageItem({
           loadingBook={loadingBook}
           reduceMotion={reduceMotion}
           imageUrl={imageUrl ?? ''}
+          fallbackUrl={fallbackUrl}
+          onImageFallback={() => onImageFallback?.(page.stamp.id)}
+          onPrimaryImageLoad={() => onPrimaryImageLoad?.(page.stamp.id)}
           spotName={page.stamp.spots.name}
           visitedAt={page.stamp.visited_at}
           surfaceScale={surfaceScale}
@@ -260,6 +280,8 @@ export const GoshuinchoFlipView = memo(function GoshuinchoFlipView({
   onPressStamp,
   onPressBlank,
   resolveImageUrl,
+  onImageFallback,
+  onPrimaryImageLoad,
   registerNode,
   onImageLoad,
   hiddenStampId,
@@ -406,8 +428,15 @@ export const GoshuinchoFlipView = memo(function GoshuinchoFlipView({
               ? undefined
               : resolveImageUrl
                 ? resolveImageUrl(item.stamp)
-                : getStampImageUrl(item.stamp.image_path)
+                : getStampViewUrl(item.stamp.image_path)
           }
+          fallbackUrl={
+            item.kind === 'blank' || resolveImageUrl
+              ? undefined
+              : getStampImageUrl(item.stamp.image_path)
+          }
+          onImageFallback={onImageFallback}
+          onPrimaryImageLoad={onPrimaryImageLoad}
           hidden={item.kind === 'stamp' && hiddenStampId === item.stamp.id}
           reduceMotion={reduceMotion}
           surfaceScale={motion && isCurrent ? motion.pageScale : undefined}
@@ -427,7 +456,9 @@ export const GoshuinchoFlipView = memo(function GoshuinchoFlipView({
       layout.pageWidth,
       layout.snapInterval,
       motion,
+      onImageFallback,
       onImageLoad,
+      onPrimaryImageLoad,
       pages.length,
       reduceMotion,
       registerNode,

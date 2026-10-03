@@ -56,7 +56,7 @@ Phase 1 のあいだも Supabase バケットは最低1リリース残るので�
 ```
 
 - 見る大きさは **2つだけ**（一覧 = 400 / 詳細・全画面 = 1200）。今の `thumb-400` / `view-1200` と同じ幅・品質
-- **原本をそのまま表示に使うのをやめる**。書き込み切替（S4b）で、原本の URL を直接表示している4箇所（`RecordScreen:206` / `GoshuinchoFlipView:242` / `SpotDetailContent` / `SpotThumbnailStrip`）を `getStampViewUrl`（1200 の変換）に替える。原本は HEIC の可能性があり（Android・Web で出ない）、変換を通せば必ず表示できる形式になる。表示用の変換も2種類のままで済む（無料枠の計算が変わらない）
+- **原本をそのまま表示に使うのをやめる**。~~書き込み切替（S4b）で~~ → **S4a-2（2026-10-03 追加）で**、原本の URL を直接表示している4箇所（`RecordScreen:206` / `GoshuinchoFlipView:242` / `SpotDetailContent` / `SpotThumbnailStrip`）と、見つけた5箇所目（写真の編集）を変換 URL（1200 か 400。D-6）に替える。原本は HEIC の可能性があり（Android・Web で出ない）、変換を通せば必ず表示できる形式になる。表示用の変換も2種類のままで済む（無料枠の計算が変わらない）
 - **`getStampImageUrl` は S5 まで Supabase の原本を返し続ける**。これは一覧・全画面のフォールバック先で、旧アプリが Supabase にだけ上げた画像を新アプリで出すための唯一の経路になる
 
 ### スライス
@@ -64,15 +64,16 @@ Phase 1 のあいだも Supabase バケットは最低1リリース残るので�
 **原則: Supabase Storage は S4 まで「完全な正」であり続ける**。読み取りを先に切り替え、書き込みは二重化してから切り替える。
 **戻れなくなるのは S4 だけ**で、そこは明示的なゲートにする。
 
-| #   | スライス                          | 変更                                                                                                                                                                                                                                                                                               | 戻し方                                                                                                                                       |
-| --- | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| S1  | **土台**（アプリ無変更）          | R2 バケット（CORS 設定込み）、独自ドメイン（取得はユーザー）と変換の有効化、署名付き URL を出す Edge Function（D-1）。HEIC の原本1枚を手で変換 URL に通して確認                                                                                                                                    | アプリに影響なし                                                                                                                             |
-| S2  | **プライバシーポリシー更新**      | `docs/legal/privacy.html` と `PrivacyPolicyScreen` の保存先・第三者に Cloudflare を追加。**ユーザーデータを Cloudflare に置く最初のスライス（S3）より前にリリース・公開する**                                                                                                                      | 文言を戻す                                                                                                                                   |
-| S3  | **二重書き込み + 既存分のコピー** | `uploadStampImage`: Supabase に上げた後（**失敗したら今までどおりエラー**）、同じキーで R2 にも上げる（R2 の失敗は警告だけで記録は続行）。`deleteStampImage` / `delete-account`: **両方**から消す。既存の原本を Supabase → R2 にコピーするスクリプト（縮小版はコピーしない、何度流しても同じ結果） | `src/services/stamps.ts` と `delete-account` を戻す。Supabase は完全なまま                                                                   |
-| S4a | **読み取り切替（縮小版だけ）**    | `getStampThumbUrl` / `getStampViewUrl` を変換 URL に。**`getStampImageUrl`（フォールバック先）は Supabase の原本のまま**。`ensureStampVariants` の呼び出しを削除（新しいアプリはもう縮小版を読まない）                                                                                             | **S4a のコミットを revert するだけ**。書き込みは二重なので失うものがない                                                                     |
-| S4b | **書き込み切替** ⚠️ ゲート        | `uploadStampImage` を R2 のみに。原本を直接表示している4箇所を `getStampViewUrl` に。**`getStampImageUrl`（フォールバック先）は Supabase のまま**。削除は引き続き**両方**（旧アプリが Supabase に上げた分があるため）                                                                              | **ここから先は戻すと新しい画像が Supabase に無い**。戻すなら R2 → Supabase の逆コピーが要る。S4a を実機・本番で1リリース以上運用してから入る |
-| S5  | **後片付け**（別 Issue でもよい） | `make-stamp-thumbnail/` 一式、`config.toml` の該当節、`scripts/bake-stamp-variants.sh` を削除。Supabase バケットを**読み取り専用にする（削除しない）**。`getStampImageUrl` と一覧・全画面のフォールバックは旧アプリ由来の画像のために**残す**                                                      | 読み取り専用を解けば戻る。バケット削除は 1GB を超えたときに再検討（D-4）                                                                     |
-| S6  | **`format=auto` に切り替え**      | 変換 URL の `format=webp` を `format=auto` に                                                                                                                                                                                                                                                      | S4a が本番で安定してから（D-5）。`format=webp` に戻すだけ                                                                                    |
+| #     | スライス                                          | 変更                                                                                                                                                                                                                                                                                               | 戻し方                                                                                                                                       |
+| ----- | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| S1    | **土台**（アプリ無変更）                          | R2 バケット（CORS 設定込み）、独自ドメイン（取得はユーザー）と変換の有効化、署名付き URL を出す Edge Function（D-1）。HEIC の原本1枚を手で変換 URL に通して確認                                                                                                                                    | アプリに影響なし                                                                                                                             |
+| S2    | **プライバシーポリシー更新**                      | `docs/legal/privacy.html` と `PrivacyPolicyScreen` の保存先・第三者に Cloudflare を追加。**ユーザーデータを Cloudflare に置く最初のスライス（S3）より前にリリース・公開する**                                                                                                                      | 文言を戻す                                                                                                                                   |
+| S3    | **二重書き込み + 既存分のコピー**                 | `uploadStampImage`: Supabase に上げた後（**失敗したら今までどおりエラー**）、同じキーで R2 にも上げる（R2 の失敗は警告だけで記録は続行）。`deleteStampImage` / `delete-account`: **両方**から消す。既存の原本を Supabase → R2 にコピーするスクリプト（縮小版はコピーしない、何度流しても同じ結果） | `src/services/stamps.ts` と `delete-account` を戻す。Supabase は完全なまま                                                                   |
+| S4a   | **読み取り切替（縮小版だけ）**                    | `getStampThumbUrl` / `getStampViewUrl` を変換 URL に。**`getStampImageUrl`（フォールバック先）は Supabase の原本のまま**。`ensureStampVariants` の呼び出しを削除（新しいアプリはもう縮小版を読まない）                                                                                             | **S4a のコミットを revert するだけ**。書き込みは二重なので失うものがない                                                                     |
+| S4a-2 | **原本を出している所も変換に**（2026-10-03 追加） | めくる表示・記録の完了画面・スポット詳細・写真の帯・写真の編集を変換 URL に。R2 に無ければ Supabase の原本に1回だけ落ちる。詳しくは「S4a-2」の節                                                                                                                                                   | **S4a-2 の PR を revert するだけ**。読み取りだけなので失うものがない                                                                         |
+| S4b   | **書き込み切替** ⚠️ ゲート                        | `uploadStampImage` を R2 のみに。~~原本を直接表示している4箇所を `getStampViewUrl` に~~（S4a-2 に移した）。**`getStampImageUrl`（フォールバック先）は Supabase のまま**。削除は引き続き**両方**（旧アプリが Supabase に上げた分があるため）                                                        | **ここから先は戻すと新しい画像が Supabase に無い**。戻すなら R2 → Supabase の逆コピーが要る。S4a を実機・本番で1リリース以上運用してから入る |
+| S5    | **後片付け**（別 Issue でもよい）                 | `make-stamp-thumbnail/` 一式、`config.toml` の該当節、`scripts/bake-stamp-variants.sh` を削除。Supabase バケットを**読み取り専用にする（削除しない）**。`getStampImageUrl` と一覧・全画面のフォールバックは旧アプリ由来の画像のために**残す**                                                      | 読み取り専用を解けば戻る。バケット削除は 1GB を超えたときに再検討（D-4）                                                                     |
+| S6    | **`format=auto` に切り替え**                      | 変換 URL の `format=webp` を `format=auto` に                                                                                                                                                                                                                                                      | S4a が本番で安定してから（D-5）。`format=webp` に戻すだけ                                                                                    |
 
 - **S3 → S4a の間**: コピー後に旧アプリが Supabase にだけ上げた画像は R2 に無い。新アプリは変換 URL が 404 → `thumbMissing` / `fallbackUrl` で Supabase の原本に落ちるので表示は続く。**フォールバックを S5 まで Supabase に向けておくのはこのため**（S4b 以降も、旧アプリは Supabase にだけ上げ続ける）。コピーのスクリプトは S4b の直前にもう一度流す
 - **`delete-account` は S3 で両方対応にする**（メモでは書き込み切替の後だった）。R2 に上がった画像があるのに `delete-account` が Supabase しか見ていない期間を作らない
@@ -88,7 +89,7 @@ Phase 1 のあいだも Supabase バケットは最低1リリース残るので�
 | `src/screens/GalleryScreen.tsx`                                                                                | S4a / S5       | `:102` の `ensureStampVariants` を削除（S4a）、`thumbMissing` を削除（S5）                                                                                                                                                                                                              |
 | `src/screens/PrefectureDetailScreen.tsx`                                                                       | S5             | `thumbMissing` を削除。**`ensureStampVariants` は呼んでいない**（メモの記述は誤り）                                                                                                                                                                                                     |
 | `src/components/common/ImageGalleryModal.tsx`                                                                  | S5             | **メモの一覧に無い**。`fallbackUrl` の仕組みを持っている本体                                                                                                                                                                                                                            |
-| `src/screens/RecordScreen.tsx` / `GoshuinchoFlipView.tsx` / `SpotDetailContent.tsx` / `SpotThumbnailStrip.tsx` | S4b            | `getStampImageUrl` → `getStampViewUrl` に差し替え（`RecordScreen:206`、`GoshuinchoFlipView:242`、`SpotDetailContent:97,103,144,155`、`SpotThumbnailStrip:66`）。`ensureStampVariants` はどれも呼んでいない                                                                              |
+| `src/screens/RecordScreen.tsx` / `GoshuinchoFlipView.tsx` / `SpotDetailContent.tsx` / `SpotThumbnailStrip.tsx` | S4a-2（← S4b） | `getStampImageUrl` → 変換 URL に差し替え、原本はフォールバック先に（「S4a-2」の節）（`RecordScreen:206`、`GoshuinchoFlipView:242`、`SpotDetailContent:97,103,144,155`、`SpotThumbnailStrip:66`）。`ensureStampVariants` はどれも呼んでいない                                            |
 | `supabase/functions/delete-account/index.ts` / `deleteAccount.ts`                                              | S3             | R2 の `<user_id>/` 配下も消す。R2 には「プレフィックスごと消す」API は無いので、**区切り文字なしで列挙（配下すべて）→ 最大1000件ずつ削除**。R2 へは S3 互換 API で直接アクセスする（D-1）。順序は今と同じく「画像 → spots → auth ユーザー」（ユーザーのトークンが生きているうちに消す） |
 | `supabase/functions/make-stamp-thumbnail/`（`index.ts` / `thumbnail.ts` / テスト）                             | S5             | 削除                                                                                                                                                                                                                                                                                    |
 | `supabase/config.toml` `:14-19`                                                                                | S5             | **メモの一覧に無い**。`[functions.make-stamp-thumbnail]` の節を削除                                                                                                                                                                                                                     |
@@ -152,17 +153,17 @@ Phase 1 のあいだも Supabase バケットは最低1リリース残るので�
 
 **S4a 読み取り切替**
 
-- [ ] AC-12（S4a）: AC-6 でコピー済みの御朱印について、御朱印帳タブの一覧で表示されるタイルの画像 URL が独自ドメインの `width=400` 変換 URL（`format=webp`）であり、`thumbMissing` によるフォールバックが発生しない（native-only）
-- [ ] AC-13（S4a）: 御朱印帳タブでタイルをタップして開く全画面表示の URL が `width=1200` の変換 URL である（native-only）
-- [ ] AC-14（S4a）: R2 に無い画像（旧アプリから Supabase にだけ上がったもの）でも、一覧・全画面の両方で Supabase の原本にフォールバックして画像が表示される
-- [ ] AC-15（S4a）: `src/` に `ensureStampVariants` の呼び出しが無い（`git grep ensureStampVariants -- src ':!**/__tests__/**'` が0件）
-- [ ] AC-16（S4a）: S4a のコミットだけを revert した状態で `npm test` が通り、一覧の URL が Supabase の `thumb-400` に戻る（ロールバックが `src/services/stamps.ts` 周辺だけで完結することの確認）
+- [x] AC-12（S4a）: AC-6 でコピー済みの御朱印について、御朱印帳タブの一覧で表示されるタイルの画像 URL が独自ドメインの `width=400` 変換 URL（`format=webp`）であり、`thumbMissing` によるフォールバックが発生しない（native-only）（2026-10-03 iOS シミュレータ: 80 枚すべて `img.goshuinsanpo.com` の width=400 が 200、フォールバック 0。下の「S4a の作り直しと確認」）
+- [x] AC-13（S4a）: 御朱印帳タブでタイルをタップして開く全画面表示の URL が `width=1200` の変換 URL である（native-only）（2026-10-03 iOS シミュレータ: 1枚開いて width=1200 が 200）
+- [x] AC-14（S4a）: R2 に無い画像（旧アプリから Supabase にだけ上がったもの）でも、一覧・全画面の両方で Supabase の原本にフォールバックして画像が表示される（2026-10-03 Jest: 一覧は `GalleryScreen` の AC-25（#275）、全画面は `GalleryScreen`「全画面は大きい方を開き…」と `ImageGalleryModal`「fallbackUrl に一度だけ落ちる」。画面では R2 に無い写真が無かったので出ていない）
+- [x] AC-15（S4a）: `src/` に `ensureStampVariants` の呼び出しが無い（`git grep ensureStampVariants -- src ':!**/__tests__/**'` が0件）（2026-10-03: 0 件）
+- [x] AC-16（S4a）: S4a のコミットだけを revert した状態で `npm test` が通り、一覧の URL が Supabase の `thumb-400` に戻る（ロールバックが `src/services/stamps.ts` 周辺だけで完結することの確認）（2026-10-03: develop を merge で取り込んだので、戻すのは「PR のマージコミットを `git revert -m 1`」。develop に PR をマージして戻すと develop と差分 0、`getStampThumbUrl` は thumb-400 に戻り、関係する 5 スイート 174 件が通る）
 
 **S4b 書き込み切替**
 
 - [ ] AC-17（S4b）: 新規に1枚記録すると、R2 にだけオブジェクトができ、Supabase Storage には増えない
 - [ ] AC-18（S4b）: 記録を保存して御朱印帳タブに戻ると、いま保存した御朱印のタイルが最初の表示で画像つきで出る（フォールバックも焼き待ちも発生しない）（native-only）
-- [ ] AC-19（S4b）: 記録完了画面・蛇腹表示・スポット詳細の御朱印画像の URL が `width=1200` の変換 URL である（原本そのものの URL を表示に使っていない）
+- ~~AC-19（S4b）: 記録完了画面・蛇腹表示・スポット詳細の御朱印画像の URL が `width=1200` の変換 URL である（原本そのものの URL を表示に使っていない）~~ → S4a-2 の AC-24〜AC-29 に移した（スポット詳細の小さい写真は 400）
 - [ ] AC-20（S4b）: HEIC の中身を持つ既存の原本が、iOS 実機・Android 実機の両方で御朱印帳の一覧と全画面に表示される（native-only）
 
 **S5 後片付け**
@@ -223,6 +224,114 @@ S1 の残り（オーナーの作業が要る）:
 - **実行順（守ること）**: ① `delete-account` を再デプロイ → ② コピー。逆だと、コピー後に退会した人の写しが R2 に残る。アプリの二重書き込みは次のビルド（1.2 以降）で効く
 - アプリの `tsconfig.json` / ESLint の対象から `supabase/scripts/` を外した（Deno のスクリプトのため）
 
+## S3 のサーバー側の本番確認（2026-09-23・アプリのビルド前）
+
+テスト用アカウント（`+r2s3` のメール・確認後に削除済み）で、アプリと同じ手順を curl で再現した:
+
+- AC-5 相当: 署名 → Supabase に同じキーで上げる → R2 に PUT。両方 200、両方から配信される
+- AC-9 相当: Supabase の remove + `sign-stamp-upload` の delete。`storage.objects` から消え、R2 も 404
+- AC-11 相当: `delete-account` → `auth.users` 0 / `storage.objects` 0 / R2 404、warnings なし
+- ⚠ 削除直後は Supabase・R2 とも**数秒〜CDN のキャッシュが切れるまで 200 が返ることがある**（実体は消えている）。
+  S4a 以降、削除した写真の変換結果も Cloudflare のキャッシュに残りうる。気になるなら削除時にキャッシュの purge を足す（別 Issue）
+
+アプリの画面からの通し（AC-5/9/10/11 の本来の確認）は、S3 を含むビルドの実機で行う。
+
+## S4a の実装メモ（2026-09-23）
+
+- `getStampThumbUrl` / `getStampViewUrl` → `stampTransformUrl`（`https://img.goshuinsanpo.com/cdn-cgi/image/width=…,quality=…,format=webp/<キー>`）。幅・品質は今の thumb-400（400/70）・view-1200（1200/78）と同じ
+- `getStampImageUrl` は変えない（Supabase の原本 = フォールバック先）
+- `ensureStampVariants` を削除し、呼び出し2箇所（`useRecordForm` / `GalleryScreen`）も外した。`GalleryScreen` の「溜めてから焼かせる」仕組み（`requestVariants` / `onImageFallback`）も不要になったので削除。`thumbMissing` のフォールバックは残す
+- ~~S3 を含むビルドを実機で確認するまで、S4a はマージしない~~ → **1.2.0 の審査が通ってから、リーダーがマージする**（2026-10-03）
+
+## S4a の作り直しと確認（2026-10-03）
+
+**背景**: 2026-10-03、確認作業で写真を何度も読んだせいで Supabase の Cached Egress（無料 5GB/月）を使い切り、本番が止まった（いまは Pro）。オーナーの方針は「写真は Supabase の Storage ではなく R2 から配る」。
+
+**取り込み**: PR のブランチは develop から約 200 コミット遅れていた（#245〜#300）。**merge で取り込んだ**（force push を避けるため。ぶつかった所の解き方はマージコミットに書いた）。
+
+- `GalleryScreen.tsx`: 一覧のタイルは develop の `GalleryGridTile`（#275 / #276）を取り、S4a の「焼かせる仕組みを外す」は残した。`thumbMissing` → Supabase の原本へのフォールバックは develop のまま
+- `GalleryScreen.test.tsx`（#275 AC-25）: 「裏で焼かせる」の確かめだけ外した
+- develop で増えた、縮小版の URL を使う所: **年報**（`ReportPhoto` / `useAnnualReport` の先読み、#274）。同じ 400 / 1200 なので R2 の変換に切り替わり、ユニーク変換の数は増えない。縮小版 → 元の写真 → 枠 のフォールバックを持っている
+
+**画面での確認**（iOS シミュレータ goshuin-repro・Debug ビルド・本アカウント・御朱印帳を1回開いて1枚だけ全画面）:
+
+- Metro の inspector に debugger としてつなぎ、dev client が送る `Network.*` を記録した（写真の読み込みも URLSession を通るので載る）
+- **確認の間だけ、コミットしない書き換えで `getStampImageUrl` を存在しないホストに向けた**（Supabase の原本を読まないため。終わって戻し、`git status` が空なのを確かめた）。結果としてフォールバックは1件も起きず、書き換えは使われなかった
+- 一覧: `img.goshuinsanpo.com` の `width=400,quality=70,format=webp` が **80 件・すべて 200**（80 枚。9/23 のコピー後に上がった 19 枚も R2 にあった。S3 の二重書き込みを含むビルドから上げたものとみられる）。合計 約 2.2MB。**Supabase の Storage へのリクエストは 0 件**
+- 全画面: `width=1200,quality=78,format=webp` が 1 件 200（約 378KB）。同じ写真の 400 が2回（押した瞬間の先読みと飛ぶ1枚。2回目は Cloudflare の HIT）
+- Supabase へは REST だけ（記録の一覧 約 38KB と、1枚の取得 464B）。ほかに `stamps?id=eq.`（id が空）が 400 で1件。これは develop の `useStampDetail('')` から出ているもので S4a とは別
+- **返った Content-Type はすべて `image/jpeg`**。RN の `Image`（iOS）は `Accept` を送らないので、`format=webp` でも JPEG になる（「S1 の記録」のとおり。`Vary: accept`）。表示に問題は無い
+- UI-1: 移行前のスクリーンショットは撮っていない（撮ると Supabase の縮小版を読む）。#275 の証跡（`sim-ui13-tab-return-cached.png`）と見比べて、3列・正方形の切り抜き・角丸は同じ
+
+**S4a だけでは Supabase の読み取りは止まらない**: 原本をそのまま出している4箇所（**めくる表示＝御朱印帳の既定の表示**・記録完了画面・スポット詳細・サムネイル帯）は S4b まで `getStampImageUrl`（Supabase の原本・縮小なし）を読む。今回の確認は一覧の表示で開いたので、めくる表示は読んでいない。→ **S4a-2 で対応**（リーダー判断 2026-10-03）
+
+## S4a-2: めくる表示・完了画面・スポット詳細・写真の帯を R2 に（2026-10-03 追加）
+
+**なぜ**: S4a だけでは、原本をそのまま出している所が Supabase の原本（縮小なし）を読み続ける。御朱印帳の既定はめくる表示なので、開くたびに 1 枚あたり数百 KB〜数 MB を Supabase から読む。オーナーの方針（写真は Supabase の Storage ではなく R2 から配る）に合わせ、書き込みの切り替え（S4b）を待たずに**表示だけ**先に変換 URL に替える（リーダー判断 2026-10-03）。
+
+**範囲外・残る課題**: 書き込みを R2 だけにする S4b はこの節に入らない（新しい写真は今も Supabase と R2 の両方に書き、Supabase の Storage の容量は増え続ける）。
+
+### D-6. 使う幅 → 今の 400 / 1200 のどちらか。新しい幅は足さない
+
+| 所                                                 | 出る大きさ（iPhone 16 Pro Max の 3x） | 使う                      | 理由                                                                                                                                                                                                                        |
+| -------------------------------------------------- | ------------------------------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| めくる表示のページ                                 | 画面幅 × 0.68 ≒ 292pt ≒ 877px         | 1200（`getStampViewUrl`） | 400 では粗い。全画面と同じ URL なので、ページを押して開く全画面と飛ぶ1枚がキャッシュから出る                                                                                                                                |
+| 記録の完了画面                                     | 最大 150pt ≒ 450px                    | 1200                      | 400 だと 3x で少し足りない。感情のピークの画面なので粗さを避ける。1回の記録で1枚だけ                                                                                                                                        |
+| スポット詳細の御朱印の並び・地図のシートの写真の帯 | 画面幅の約 1/3 ≒ 125pt ≒ 375px        | 400（`getStampThumbUrl`） | 御朱印帳の一覧のタイルと同じ大きさ（当初の AC-19 は「スポット詳細 = 1200」だったが、小さい写真は 400 に分ける）                                                                                                             |
+| スポット詳細・写真の帯から開く全画面               | 全画面                                | 1200 + `fallbackUrl`      | 御朱印帳の全画面と同じ                                                                                                                                                                                                      |
+| 写真の編集（御朱印帳 → 全画面 → 編集）の今の写真   | 80×100pt                              | 1200                      | **契約書の4箇所に無かった5箇所目**（`GalleryScreen` の `EditStampModal.initialImageUrl`）。小さいが、編集は全画面から開くので 1200 はもう読み込んである（400 だとめくる表示から来たときに新しく読む）。外すならこの行を消す |
+
+- **幅を足さない理由**: 無料枠（月 5,000 ユニーク変換）は「その月に表示された画像 × 幅の種類」で数える。3つ目の幅は変換の数を 1.5 倍にする
+- **完了画面に手元のファイル（いま上げた写真）を使わない理由**: 一部だけ失敗したとき、保存できた分はフォームから外れるので、保存した1枚目と手元のファイルの対応が崩れうる。`image_path` なら保存したものそのもの。R2 には `uploadStampImage` が PUT を待ってから返すので、完了画面の時点で置かれている（R2 だけ失敗したときはフォールバック）
+- 形式は今と同じ `format=webp`（iOS の RN は `Accept` を送らないので JPEG が返る。「S4a の作り直しと確認」）
+
+### D-7. 元の写真に戻る仕組み（D-4 を改める）
+
+- 1枚ずつ **変換 → 元の写真（`getStampImageUrl`＝Supabase の原本）→ 今の失敗の見た目** の順に落とす。元に落ちるのは1回だけ（元も出なければ取り直さない）。年報の `ReportPhoto` と同じ形
+- 落とし方は小さな部品 `FallbackImage`（`src/components/common/`）に集める。`.map()` の中で使うので hook にはできない。渡す URL が変わったら最初からやり直す
+- **めくる表示**: #275 の読み込み中の下地（本）は、元の写真を読みにいく間も出したまま。元も届かなければ今と同じく下地を消して白い紙（一覧の #275 AC-25 と同じ）。#276 の切り替わりの値（`surfaceScale` / `footerOpacity` / `foldOpacity`）には触らない
+- **めくる表示から飛ぶ1枚**: 「押した画面に出ているものと同じ URL」を守る。ページが元に落ちたことは画面へ知らせ、画面は **ref に控える**（state にするとめくる表示の全ページが描き直しになる。#276 S6）。押したときに、元に落ちたページなら原本、そうでなければ 1200
+- Expo Web の見本（`resolveImageUrl`）は data URI なので、フォールバックを付けない
+- 御朱印帳の一覧（`GalleryGridTile`）・全画面（`ImageGalleryModal`）・都道府県詳細・年報は今の仕組みのまま
+
+### スライス（1スライス = 1コミット）
+
+| #       | 所                     | 変えるファイル                                                                              |
+| ------- | ---------------------- | ------------------------------------------------------------------------------------------- |
+| S4a-2-1 | めくる表示             | `FallbackImage`（新規）・`GoshuinchoPage`・`GoshuinchoFlipView`・`GalleryScreen`（飛ぶ1枚） |
+| S4a-2-2 | 記録の完了画面         | `navigation/types.ts`・`RecordScreen`・`RecordCompleteScreen`                               |
+| S4a-2-3 | スポット詳細・写真の帯 | `SpotDetailContent`・`SpotThumbnailStrip`（`buildSpotGalleryImages`）                       |
+| S4a-2-4 | 写真の編集             | `EditStampModal`・`GalleryScreen`                                                           |
+
+戻し方: S4a-2 の PR のマージコミットを revert する。読み取りだけなので失うものは無い。
+
+### 受入基準（S4a-2）
+
+- [x] AC-24（S4a-2）: めくる表示のページの写真の URL が `width=1200` の変換 URL。読み込みに失敗すると Supabase の原本に1回だけ替わり、その間も読み込み中の下地が出たまま。元も失敗すると下地が消える（Jest: `GoshuinchoPage` / `GoshuinchoFlipView`）（2026-10-03: Jest。画面では めくる表示で 1200 が 19 件すべて 200）
+- [x] AC-25（S4a-2）: めくる表示でページを押すと、飛ぶ1枚の URL はそのページに出ている URL（ふつうは 1200 の変換、元に落ちたページは原本）（Jest: `GalleryScreen`）（2026-10-03: Jest）
+- [x] AC-25b（S4a-2・#304 の指摘）: 一時の失敗で元の写真に落ちたページが、外れて付け直されて変換が読めたら、落ちた控えを消し、飛ぶ1枚も 1200 の変換 URL に戻る（変換が読めたことを `FallbackImage` の `onPrimaryLoad` → `GoshuinchoPage` → `GoshuinchoFlipView` → `GalleryScreen` に返す）（2026-10-03: Jest `GalleryScreen`「元の写真に落ちたあと、付け直したページで変換が読めたら…」・`FallbackImage`）
+- [x] AC-26（S4a-2）: 記録の完了画面の写真が 1200 の変換 URL。失敗すると原本、原本も失敗するとプレースホルダ（Jest: `RecordScreen` / `RecordCompleteScreen`）（2026-10-03: Jest。画面では一時の入口から開いて 1200 が 1 件 200）
+- [x] AC-27（S4a-2）: スポット詳細の御朱印の並びと地図のシートの写真の帯が 400 の変換 URL で、失敗すると原本に替わる。そこから開く全画面は 1200 の変換 URL で、`fallbackUrl` が原本（Jest: `SpotDetailContent` / `SpotThumbnailStrip`）（2026-10-03: Jest。画面では地図のシートの帯で 400、そこから開く全画面で 1200 がすべて 200。`SpotDetailScreen`（`SpotDetailContent`）は登録はあるが開く入口がアプリに無く、Jest だけ）
+- [x] AC-28（S4a-2）: 写真の編集を開いたときの今の写真が 1200 の変換 URL で、失敗すると原本（Jest: `EditStampModal` / `GalleryScreen`）（2026-10-03: Jest。画面では開いていない）
+- [x] AC-29（S4a-2）: `git grep -n "getStampImageUrl(" -- src ':!**/__tests__/**'` に出る行が、定義（`stamps.ts`）と、フォールバック先として渡している所だけ（行の一覧を確認の記録に残す）（2026-10-03: 定義 1 行とフォールバック先 16 行。`ReportPhoto:35`・`GoshuinchoFlipView:427`・`SpotDetailContent:78,85,120,134`・`SpotThumbnailStrip:60,71,117`・`GalleryScreen:436,494,646,835`・`PrefectureDetailScreen:125,158`・`RecordScreen:245`）
+- [x] AC-30（S4a-2）: iOS シミュレータで、めくる表示・スポット詳細・記録の完了画面をそれぞれ1回開いたとき、写真のリクエストのうち Supabase の Storage に行くのは R2 に無い写真の分だけ（native-only。数を記録に残す）（2026-10-03: Supabase の Storage 0 件。下の「S4a-2 の確認」）
+- Q-1〜Q-3 は全体と同じ
+
+### S4a-2 の確認（2026-10-03）
+
+- テスト 171 スイート・2375 件 OK・lint 0 errors（警告 16）・typecheck OK
+- iOS シミュレータ goshuin-repro（Debug ビルド・自分の Metro 8089・本アカウント 80 枚）で、1回の起動の中で 御朱印帳（一覧で開く → めくるへ切り替え1回）→ 一時の入口から記録の完了画面を1回 → 地図に戻って検索から 金蛇水神社 のシートを1回 → 帯の1枚目の全画面を1回。Metro の inspector で `Network.*` を記録した
+- 確認の間だけ、コミットしない書き換えを2つ入れた: `getStampImageUrl` を存在しないホストに向ける（Supabase の Storage を読まない）・御朱印帳の見出しを押すと、保存せずに完了画面を開く（一覧の先頭の1枚の `image_path` を渡す。`totalStampCount` を渡さないのでレビュー依頼の印も付かない）。終わって戻し、`git status` が空・`TEMP_S4A2_CHECK` の grep 0 件を確かめた
+
+| 行き先              | 件数  | 結果                                                                              |
+| ------------------- | ----- | --------------------------------------------------------------------------------- |
+| R2 `width=400`      | 81    | すべて 200（一覧 80・シートの帯 1。帯の残り2枚は一覧と同じ URL でキャッシュから） |
+| R2 `width=1200`     | 22    | すべて 200（めくる表示 19・完了画面 1・帯から開く全画面 2）                       |
+| Supabase の Storage | **0** | 存在しないホストへの落とし（R2 に無い写真）も 0 件                                |
+| Supabase REST       | 14    | 記録の一覧・検索・寺社など（約 880KB）                                            |
+
+- 返った Content-Type はすべて `image/jpeg`（S4a と同じ）。1200 は 1 枚あたり約 220〜390KB
+
 ## 決定事項（2026-09-23 確定）
 
 **着手条件: #225 → #226 が完了してから**（「先行 Issue」の節）。
@@ -255,7 +364,7 @@ r2.dev では変換が効かない見込みが高い（Cloudflare のリファ�
 ### D-4. 旧バージョンの扱い → **S5 は Supabase Storage を読み取り専用にするところまで。削除しない**
 
 - 旧アプリが Supabase に上げた画像を R2 にコピーし続ける仕組みは**作らない**。コピーは S3 と S4b 直前の2回だけ
-- そのため S4b 以降に旧アプリから上がった画像は R2 に無い。一覧と全画面はフォールバック（Supabase の原本）で出る。**蛇腹・スポット詳細・サムネイル帯（S4b で `getStampViewUrl` に替える3箇所）にはフォールバックが無く、そういう画像は出ない**。これは受け入れる
+- そのため S4b 以降に旧アプリから上がった画像は R2 に無い。一覧と全画面はフォールバック（Supabase の原本）で出る。~~蛇腹・スポット詳細・サムネイル帯（S4b で `getStampViewUrl` に替える3箇所）にはフォールバックが無く、そういう画像は出ない。これは受け入れる~~ → **S4a-2 で、この3箇所と完了画面・写真の編集にもフォールバック（Supabase の原本）を入れる**（D-7）。R2 に無い写真もどこでも出る
 - Supabase Storage の使用量が**無料枠（1GB）を超えたら再検討**する（バケット削除・旧アプリの切り捨て・最低バージョンの強制など）
 
 ### D-5. 配信形式 → **まず `format=webp` 固定**（⚠ `format=webp` も `Accept` を見る。「S1 の記録」参照）
@@ -270,19 +379,19 @@ r2.dev では変換が効かない見込みが高い（Cloudflare のリファ�
 
 ## メモからの変更点
 
-| メモ                                                                                                                                               | この契約書                                                                                                                                         | 理由                                                                                                     |
-| -------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| §2.7「今は RLS で `<user>/` 配下に制限」                                                                                                           | 制限されていない                                                                                                                                   | `"Allow authenticated uploads"` がフォルダを見ない。R2 の認可は「同等」ではなく「今より厳しくなる」      |
-| §2.7「消し残りは要確認」                                                                                                                           | コード上は消し残る。先行 Issue に切る（実データは照合クエリで確認）                                                                                | `list(id)` がフォルダ名しか返さない                                                                      |
-| §2.5 3「読み取り切替」で書き込みは Supabase のまま                                                                                                 | S3 で二重書き込みとコピーを先にやる                                                                                                                | コピー後に上がった画像が R2 に無くなる。読み取り切替を「`stamps.ts` を戻すだけ」で戻せる区切りにするため |
-| §2.5 5 `delete-account` は書き込み切替の後                                                                                                         | S3（二重書き込みと同時）                                                                                                                           | R2 に画像があるのに `delete-account` が見ていない期間ができる                                            |
-| §2.5 に無い                                                                                                                                        | S2 プライバシーポリシー更新（S3 より前）                                                                                                           | 保存先と第三者が変わる                                                                                   |
-| §2.4 `PrefectureDetailScreen` / `RecordScreen` / `GoshuinchoFlipView` / `SpotDetailContent` / `SpotThumbnailStrip` で `ensureStampVariants` を削除 | 呼び出しは **2箇所**（`useRecordForm.ts:237` / `GalleryScreen.tsx:102`）だけ                                                                       | 実装を確認                                                                                               |
-| §2.4 に無い                                                                                                                                        | `useStampDetail.ts` / `ImageGalleryModal.tsx` / `config.toml` / `bake-stamp-variants.sh` / `privacy.html` / テスト2本                              | 実装を確認                                                                                               |
-| §2.4「R2 のプレフィックス削除」                                                                                                                    | 列挙して 1000 件ずつ削除                                                                                                                           | R2 にプレフィックス一括削除の API は無い                                                                 |
-| §2.6 AC-1「初回表示で 404 フォールバックが発生しない」                                                                                             | コピー済みの画像に限定（AC-12）。旧アプリ由来はフォールバックで出ること（AC-14）                                                                   | 移行期間中は R2 に無い画像がありうる                                                                     |
-| §2.8「月 2,500 枚の新規画像まで無料」                                                                                                              | 「月に表示される画像が 2,500 枚まで」                                                                                                              | ユニーク変換は月ごとに数え直される                                                                       |
-| §2.3 原本はそのまま配信                                                                                                                            | 表示は必ず変換を通す（原本を直接出している4箇所を S4b で `getStampViewUrl` に）。`getStampImageUrl` は S5 までフォールバック専用で Supabase のまま | 原本に HEIC が混ざっている。フォールバックを R2 に向けると旧アプリ由来の画像が出なくなる                 |
+| メモ                                                                                                                                               | この契約書                                                                                                                                               | 理由                                                                                                     |
+| -------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| §2.7「今は RLS で `<user>/` 配下に制限」                                                                                                           | 制限されていない                                                                                                                                         | `"Allow authenticated uploads"` がフォルダを見ない。R2 の認可は「同等」ではなく「今より厳しくなる」      |
+| §2.7「消し残りは要確認」                                                                                                                           | コード上は消し残る。先行 Issue に切る（実データは照合クエリで確認）                                                                                      | `list(id)` がフォルダ名しか返さない                                                                      |
+| §2.5 3「読み取り切替」で書き込みは Supabase のまま                                                                                                 | S3 で二重書き込みとコピーを先にやる                                                                                                                      | コピー後に上がった画像が R2 に無くなる。読み取り切替を「`stamps.ts` を戻すだけ」で戻せる区切りにするため |
+| §2.5 5 `delete-account` は書き込み切替の後                                                                                                         | S3（二重書き込みと同時）                                                                                                                                 | R2 に画像があるのに `delete-account` が見ていない期間ができる                                            |
+| §2.5 に無い                                                                                                                                        | S2 プライバシーポリシー更新（S3 より前）                                                                                                                 | 保存先と第三者が変わる                                                                                   |
+| §2.4 `PrefectureDetailScreen` / `RecordScreen` / `GoshuinchoFlipView` / `SpotDetailContent` / `SpotThumbnailStrip` で `ensureStampVariants` を削除 | 呼び出しは **2箇所**（`useRecordForm.ts:237` / `GalleryScreen.tsx:102`）だけ                                                                             | 実装を確認                                                                                               |
+| §2.4 に無い                                                                                                                                        | `useStampDetail.ts` / `ImageGalleryModal.tsx` / `config.toml` / `bake-stamp-variants.sh` / `privacy.html` / テスト2本                                    | 実装を確認                                                                                               |
+| §2.4「R2 のプレフィックス削除」                                                                                                                    | 列挙して 1000 件ずつ削除                                                                                                                                 | R2 にプレフィックス一括削除の API は無い                                                                 |
+| §2.6 AC-1「初回表示で 404 フォールバックが発生しない」                                                                                             | コピー済みの画像に限定（AC-12）。旧アプリ由来はフォールバックで出ること（AC-14）                                                                         | 移行期間中は R2 に無い画像がありうる                                                                     |
+| §2.8「月 2,500 枚の新規画像まで無料」                                                                                                              | 「月に表示される画像が 2,500 枚まで」                                                                                                                    | ユニーク変換は月ごとに数え直される                                                                       |
+| §2.3 原本はそのまま配信                                                                                                                            | 表示は必ず変換を通す（原本を直接出している4箇所を S4a-2 で変換 URL に。← 当初は S4b）。`getStampImageUrl` は S5 までフォールバック専用で Supabase のまま | 原本に HEIC が混ざっている。フォールバックを R2 に向けると旧アプリ由来の画像が出なくなる                 |
 
 ## 注意事項
 

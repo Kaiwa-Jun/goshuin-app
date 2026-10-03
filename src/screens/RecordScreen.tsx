@@ -33,7 +33,7 @@ import { pickAutoSelectableSpot } from '@utils/autoSelectSpot';
 import { findRegisteredSpot } from '@utils/registeredSpot';
 import { MAX_PHOTOS_PER_RECORD } from '@/constants/record';
 import { scrollTargetToReveal, scrollTargetToShow } from '@utils/revealInScrollView';
-import { getStampImageUrl, fetchVisitedSpotIds } from '@services/stamps';
+import { getStampImageUrl, getStampViewUrl, fetchVisitedSpotIds } from '@services/stamps';
 import { fetchRegionStats, fetchVisitLog, type RegionStat } from '@services/collection';
 import { buildBadgeProgress } from '@utils/badgeProgress';
 import { buildMapParams } from '@utils/completeMapParams';
@@ -240,7 +240,9 @@ export function RecordScreen({ navigation, route }: Props) {
     }
 
     const completeParams = {
-      stampImageUrl: getStampImageUrl(result.stamps[0].image_path),
+      // R2 の 1200 の変換。R2 に無いとき（R2 への書き込みだけ失敗したなど）は元の写真に落とす（Issue #227 S4a-2）
+      stampImageUrl: getStampViewUrl(result.stamps[0].image_path),
+      stampFallbackUrl: getStampImageUrl(result.stamps[0].image_path),
       stampCount: result.stamps.length,
       spotName: form.selectedSpot?.name,
       spotType: form.selectedSpot?.type,

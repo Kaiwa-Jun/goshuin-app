@@ -24,12 +24,7 @@ import { useAuth } from '@hooks/useAuth';
 import { useGalleryStamps } from '@hooks/useGalleryStamps';
 import { useGalleryViewMode, type GalleryViewMode } from '@hooks/useGalleryViewMode';
 import { useStampDetail } from '@hooks/useStampDetail';
-import {
-  getStampImageUrl,
-  getStampThumbUrl,
-  getStampViewUrl,
-  ensureStampVariants,
-} from '@services/stamps';
+import { getStampImageUrl, getStampThumbUrl, getStampViewUrl } from '@services/stamps';
 import { Button } from '@components/common/Button';
 import { ImageGalleryModal, GalleryImage } from '@components/common/ImageGalleryModal';
 import { GoshuinchoFlipView, computePageLayout } from '@components/gallery/GoshuinchoFlipView';
@@ -59,8 +54,6 @@ const ITEM_SIZE = (SCREEN_WIDTH - spacing.lg * 2 - ITEM_MARGIN * (NUM_COLUMNS - 
 
 /** 詳細から「写真が出せる」合図が来なかったときに、飛ぶ1枚を諦めて引っ込めるまで */
 const HANDOVER_FALLBACK_MS = 800;
-/** サムネが無いものをまとめて焼かせるまでの待ち。1枚ごとに叩かないため */
-const THUMB_REQUEST_DEBOUNCE_MS = 400;
 
 /** タイルの下の名前と日付の1行の高さ（文字の大きさの設定で倍になる） */
 const CAPTION_LINE_HEIGHT = typography.caption.lineHeight as number;
@@ -167,35 +160,17 @@ export function GalleryScreen({ navigation }: Props) {
   const [flyingStampId, setFlyingStampId] = useState<string | null>(null);
   /** 詳細を開いたまま、飛ぶ1枚を持ったままにしているか（Issue #192） */
   const [resting, setResting] = useState(false);
-  /** サムネがまだ無い御朱印。元の写真に落として表示を続ける（Issue #194） */
+  /** R2 に原本が無い御朱印。元の写真に落として表示を続ける（Issue #194 / #227） */
   const [thumbMissing, setThumbMissing] = useState<ReadonlySet<string>>(() => new Set());
-  const pendingThumbs = useRef<Set<string>>(new Set());
-  const thumbTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (thumbTimer.current) clearTimeout(thumbTimer.current);
-    };
-  }, []);
 
   /**
-   * サムネが無かった。表示は元の写真で続けつつ、裏で焼かせる。
-   * 1枚ごとに叩くと一覧を開くたび数十回になるので、少し溜めてから1回で送る
+   * 一覧のタイルが小さい方を出せなかった。元の写真に落として表示を続ける。
+   * R2 の変換は URL で頼むので焼かせる必要は無く、落ちるのは R2 に原本が無いとき
+   * （旧バージョンのアプリが Supabase にだけ上げた写真と、二重書き込みで R2 の側だけ
+   * 失敗した写真）（Issue #227 S4a）
    */
-  const requestVariants = (imagePath: string) => {
-    pendingThumbs.current.add(imagePath);
-    if (thumbTimer.current) clearTimeout(thumbTimer.current);
-    thumbTimer.current = setTimeout(() => {
-      const paths = [...pendingThumbs.current];
-      pendingThumbs.current.clear();
-      ensureStampVariants(paths).catch(() => {});
-    }, THUMB_REQUEST_DEBOUNCE_MS);
-  };
-
-  /** 一覧のタイルが小さい方を出せなかった。元に落として表示を続けつつ焼かせる */
   const handleThumbMissing = (stamp: StampWithSpot) => {
     setThumbMissing(prev => (prev.has(stamp.id) ? prev : new Set(prev).add(stamp.id)));
-    requestVariants(stamp.image_path);
   };
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
@@ -455,8 +430,8 @@ export function GalleryScreen({ navigation }: Props) {
     () =>
       displayStamps.map(s => ({
         id: s.id,
-        // 詳細は JPEG の方を見る。元は HEIC で Safari 以外では表示できない。
-        // まだ焼かれていなければ元に落ちる（Issue #196）
+        // 詳細は変換した方を見る。元は HEIC で Safari 以外では表示できない。
+        // R2 に原本が無ければ元に落ちる（Issue #196 / #227 S4a）
         imageUrl: isPreview ? previewImageUrl(s) : getStampViewUrl(s.image_path),
         fallbackUrl: isPreview ? undefined : getStampImageUrl(s.image_path),
         spotName: s.spots.name,
@@ -654,12 +629,30 @@ export function GalleryScreen({ navigation }: Props) {
    */
   const displayStampsRef = useRef(displayStamps);
   displayStampsRef.current = displayStamps;
+  /*
+   * めくる表示で元の写真に落ちたページ（Issue #227 S4a-2）。飛ぶ1枚を出ている URL に
+   * 合わせるためだけに使う。state にするとめくる表示の全ページが描き直しになるので ref に控える。
+   * 落ちたのが一時の失敗で、ページが外れて付け直されたら変換が読めた、もあるので、
+   * 変換が読めたら控えを消す（#304 の指摘）
+   */
+  const flipFellBack = useRef<Set<string>>(new Set());
+  const handleFlipImageFallback = useCallback((stampId: string) => {
+    flipFellBack.current.add(stampId);
+  }, []);
+  const handleFlipPrimaryImageLoad = useCallback((stampId: string) => {
+    flipFellBack.current.delete(stampId);
+  }, []);
   const handlePressFlipStamp = useCallback((index: number) => {
     gridDetailStampId.current = null;
     const stamp = displayStampsRef.current[index];
+    if (!stamp) return;
+    // 飛ぶ1枚は、ページに出ているもの（R2 の 1200、落ちたページは元の写真）と同じ URL
+    const imageUrl = flipFellBack.current.has(stamp.id)
+      ? getStampImageUrl(stamp.image_path)
+      : getStampViewUrl(stamp.image_path);
     // 蛇腹は contain。枠（1:1.5）と写真（3:4）がずれるので、
     // 写真が実際に占めているところから飛ばす（Issue #202）
-    if (stamp) openStampRef.current(index, stamp, 'contain', getStampImageUrl(stamp.image_path));
+    openStampRef.current(index, stamp, 'contain', imageUrl);
   }, []);
   const { registerTile: registerHeroNode } = hero;
   const { registerPageSurface } = transition;
@@ -749,6 +742,8 @@ export function GalleryScreen({ navigation }: Props) {
                 <GoshuinchoFlipView
                   stamps={displayStamps}
                   resolveImageUrl={isPreview ? previewImageUrl : undefined}
+                  onImageFallback={handleFlipImageFallback}
+                  onPrimaryImageLoad={handleFlipPrimaryImageLoad}
                   onPressStamp={handlePressFlipStamp}
                   registerNode={registerFlipNode}
                   onImageLoad={hero.rememberAspect}
@@ -841,7 +836,9 @@ export function GalleryScreen({ navigation }: Props) {
               isUpdating={isUpdating}
               initialVisitedAt={currentStamp.visited_at}
               initialMemo={currentStamp.memo}
-              initialImageUrl={getStampImageUrl(currentStamp.image_path)}
+              // 全画面と同じ R2 の 1200（読み込み済み）。R2 に無ければ元の写真（Issue #227 S4a-2）
+              initialImageUrl={getStampViewUrl(currentStamp.image_path)}
+              initialImageFallbackUrl={getStampImageUrl(currentStamp.image_path)}
             />
             <DeleteConfirmModal
               visible={deleteModalVisible}
@@ -861,11 +858,6 @@ export function GalleryScreen({ navigation }: Props) {
         onEdit={handleEdit}
         onDelete={handleDeletePress}
         onImageReady={handleDetailImageReady}
-        // 詳細用がまだ無い。一覧は小さい方を見ているので、ここでしか気づけない
-        onImageFallback={id => {
-          const stamp = displayStamps.find(s => s.id === id);
-          if (stamp) requestVariants(stamp.image_path);
-        }}
         // 一覧のタイルと詳細を1対1で繋いでいる。途中で別の1枚に移ると
         // その結びつきが切れて元のタイルへ戻れない。順に見る動線は
         // 蛇腹めくりが持っている（Issue #192）
