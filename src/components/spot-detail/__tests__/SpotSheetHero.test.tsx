@@ -4,10 +4,13 @@ import { Animated, Dimensions, Easing, StyleSheet, Text } from 'react-native';
 import { G, Rect, Svg } from 'react-native-svg';
 
 import { SpotSheetHero } from '@components/spot-detail/SpotSheetHero';
+import { photoGeometry } from '@components/spot-detail/spotPhotoGeometry';
+import { PAGE_RECT, TUCK_RECT, heroRectLayout } from '@components/spot-detail/spotHeroMotion';
 import { SealGlyph } from '@components/common/Seal';
 import { colors } from '@theme/colors';
 import { borderRadius } from '@theme/spacing';
 import { shadows } from '@theme/shadows';
+import type { SpotPhoto } from '@/types/supabase';
 
 type Props = React.ComponentProps<typeof SpotSheetHero>;
 type Node = { props: Record<string, unknown>; children: (Node | string)[] };
@@ -472,5 +475,107 @@ describe('SpotSheetHero の記録した瞬間（Issue #293）', () => {
       ui.unmount();
       expect(sequenceStubs[0].stop).toHaveBeenCalledTimes(1);
     });
+  });
+});
+
+describe('SpotSheetHero の写真の地（Issue #302）', () => {
+  const PHOTO: SpotPhoto = {
+    uri: 'https://example.com/p.jpg',
+    width: 1280,
+    height: 960,
+    focusY: 0.5,
+    author: 'Bachstelze',
+    license: 'CC BY-SA 3.0',
+    licenseUrl: 'https://creativecommons.org/licenses/by-sa/3.0',
+    sourceUrl: 'https://commons.wikimedia.org/wiki/File:A.jpg',
+    isCropped: true,
+  };
+  const geometry = photoGeometry(PHOTO, W, { compact: 80, expanded: 208 });
+
+  it('写真が無ければ写真の地を描かない。あれば印より後・ページより前に置く（AC-27）', () => {
+    expect(renderHero().queryByTestId('spot-hero-photo')).toBeNull();
+
+    const ui = renderHero({ photo: PHOTO });
+    const hero = ui.getByTestId('spot-hero') as unknown as Node;
+    expect(idsIn(hero, id => id.startsWith('spot-hero-'))).toEqual([
+      'spot-hero-grain',
+      'spot-hero-crest',
+      'spot-hero-crest-box',
+      'spot-hero-crest-mada',
+      'spot-hero-crest-ink',
+      'spot-hero-photo',
+      'spot-hero-photo-image',
+      'spot-hero-pages',
+      'spot-hero-pages-reveal',
+      'spot-hero-page-top',
+      'spot-hero-page-top-clip',
+    ]);
+    const photo = ui.getByTestId('spot-hero-photo');
+    expect(photo.props.pointerEvents).toBe('none');
+    expect(photo.props.accessibilityElementsHidden).toBe(true);
+    expect(photo.props.importantForAccessibility).toBe('no-hide-descendants');
+    const style = flatten(photo);
+    expect(style).toEqual(expect.objectContaining({ position: 'absolute', top: 0 }));
+    close3(style.left as number, geometry.left);
+    close3(style.width as number, geometry.width);
+    close3(style.height as number, geometry.height);
+    const image = ui.getByTestId('spot-hero-photo-image');
+    expect(image.props.source).toEqual({ uri: 'https://example.com/p.jpg' });
+    expect(image.props.resizeMode).toBe('cover');
+    expect(ui.UNSAFE_queryAllByType(Text)).toHaveLength(0);
+  });
+
+  it('読めるまでは透明。開きに合わせて縦にずらし、読めた・読めなかったを知らせる（AC-28）', () => {
+    const open = new Animated.Value(0);
+    const onPhotoLoad = jest.fn();
+    const onPhotoError = jest.fn();
+    const ui = renderHero({ photo: PHOTO, open, onPhotoLoad, onPhotoError });
+    const photo = () => ui.getByTestId('spot-hero-photo');
+    close6(opacityOf(photo()), 0);
+    close3(transformValue(photo(), 'translateY'), geometry.compactY);
+    act(() => open.setValue(1));
+    close3(transformValue(photo(), 'translateY'), geometry.expandedY);
+    act(() => open.setValue(0.5));
+    close3(transformValue(photo(), 'translateY'), (geometry.compactY + geometry.expandedY) / 2);
+
+    ui.rerender({ photoReady: true });
+    close6(opacityOf(photo()), 1);
+
+    fireEvent(ui.getByTestId('spot-hero-photo-image'), 'load');
+    expect(onPhotoLoad).toHaveBeenCalledTimes(1);
+    fireEvent(ui.getByTestId('spot-hero-photo-image'), 'error');
+    expect(onPhotoError).toHaveBeenCalledTimes(1);
+  });
+
+  it('行った寺社で写真が読めたら、ページは写真に挟まる（白い縁・濃い影）。読めるまでは第1段のまま（AC-29）', () => {
+    const PAPERS = ['spot-hero-page-leaf-0', 'spot-hero-page-top'];
+    const ui = renderHero({ visited: true, pageCount: 2, photo: PHOTO, photoReady: true });
+    const pages = ui.getByTestId('spot-hero-pages');
+    expect(flatten(pages)).toEqual(expect.objectContaining(heroRectLayout(TUCK_RECT, W)));
+    close3(transformValue(pages, 'translateX'), 23);
+    close3(transformValue(pages, 'translateY'), -106.667);
+    close3(transformValue(pages, 'scale'), 0.425);
+    for (const id of PAPERS) {
+      expect(flatten(ui.getByTestId(id))).toEqual(
+        expect.objectContaining({
+          borderWidth: 2,
+          borderColor: colors.white,
+          shadowColor: colors.black,
+          shadowOffset: { width: 0, height: 3 },
+          shadowOpacity: 0.22,
+          shadowRadius: 6,
+        })
+      );
+    }
+
+    const loading = renderHero({ visited: true, pageCount: 2, photo: PHOTO });
+    expect(flatten(loading.getByTestId('spot-hero-pages'))).toEqual(
+      expect.objectContaining(heroRectLayout(PAGE_RECT, W))
+    );
+    for (const id of PAPERS) {
+      expect(flatten(loading.getByTestId(id))).toEqual(
+        expect.objectContaining({ borderWidth: 1, borderColor: colors.spotHero.pageEdge })
+      );
+    }
   });
 });

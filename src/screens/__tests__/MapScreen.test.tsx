@@ -12,6 +12,9 @@ jest.mock('@services/spots', () => ({
   fetchSpotsByPrefecture: (...args: unknown[]) => mockFetchSpotsByPrefecture(...args),
 }));
 
+// 帯の写真（Issue #302）は出さない（第1段の帯のまま）
+jest.mock('@hooks/useSpotPhoto', () => ({ useSpotPhoto: () => ({ photo: null }) }));
+
 jest.mock('@hooks/useSpotInfo', () => ({
   useSpotInfo: () => ({ spotInfo: null, isLoading: false, error: null }),
 }));

@@ -315,6 +315,22 @@ describe('Theme', () => {
         elevation: 3,
       });
     });
+
+    // Issue #302: 帯の写真の上のつまみと ⓘ の丸（試作の .hdl・.credit・.credit.on）
+    it('帯の写真の上の色を持ち、帯の色とつまみの灰色は今の値のまま（Issue #302 AC-26）', () => {
+      expect(colors.spotHeroPhoto).toEqual({
+        handle: 'rgba(255, 255, 255, 0.92)',
+        credit: 'rgba(17, 24, 39, 0.42)',
+        creditOn: 'rgba(17, 24, 39, 0.62)',
+      });
+      expect(colors.spotHero).toEqual({
+        grain: '#6B5B4A',
+        pageEdge: '#E6DFD0',
+        fadeClear: 'rgba(255, 255, 255, 0)',
+        fadeMid: 'rgba(255, 255, 255, 0.92)',
+      });
+      expect(colors.gray[300]).toBe('#D1D5DB');
+    });
   });
 
   describe('typography', () => {
