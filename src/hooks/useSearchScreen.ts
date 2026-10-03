@@ -28,6 +28,8 @@ export interface UseSearchScreenReturn {
   rows: SearchRow[];
   /** 一覧に第2段（外の地名検索）の場所の行があるか。出典を出す */
   showPlaceCredit: boolean;
+  /** 一覧の言葉で第2段の答えを待っている（「見つかりませんでした」の代わりに「探しています」） */
+  isSearchingPlace: boolean;
   /** いま入っている言葉で、一覧のいちばん上の行。何もしないなら null */
   resolveSubmit: () => Promise<SearchRow | null>;
   filterType: SpotTypeFilter;
@@ -106,15 +108,20 @@ export function useSearchScreen(): UseSearchScreenReturn {
     [spotsReady, spotsWithDistance]
   );
 
-  // 一覧の言葉（300ms 待った言葉）の第2段の答え
-  const [gsiAnswer, setGsiAnswer] = useState<{ key: string; features: GsiFeature[] } | null>(null);
+  // 一覧の言葉（300ms 待った言葉）の第2段の答え。失敗は features: null（答えは出たが何も無い扱い）
+  const [gsiResult, setGsiResult] = useState<{
+    key: string;
+    features: GsiFeature[] | null;
+  } | null>(null);
   useEffect(() => {
     if (!needsGsi(debouncedQuery)) return;
     const key = normalizeQuery(debouncedQuery);
+    // 失敗のあとの問い合わせ直しの間は、また「探しています」にする
+    setGsiResult(prev => (prev?.key === key && prev.features === null ? null : prev));
     // 答えが返った時に一覧の言葉が変わっていたら（このあと effect が片付けられていたら）使わない
     let stale = false;
     lookupGsi(debouncedQuery).then(features => {
-      if (!stale && features) setGsiAnswer({ key, features });
+      if (!stale) setGsiResult({ key, features });
     });
     return () => {
       stale = true;
@@ -122,7 +129,10 @@ export function useSearchScreen(): UseSearchScreenReturn {
   }, [debouncedQuery, needsGsi, lookupGsi]);
 
   const debouncedKey = normalizeQuery(debouncedQuery);
-  const gsiFeatures = gsiAnswer?.key === debouncedKey ? gsiAnswer.features : null;
+  const gsiSettled = gsiResult?.key === debouncedKey;
+  const gsiFeatures = gsiSettled ? gsiResult.features : null;
+  // effect を待たずに決める（待つと、問い合わせの前の1回だけ「見つかりませんでした」が出る）
+  const isSearchingPlace = !gsiSettled && needsGsi(debouncedQuery);
 
   const rows = useMemo(
     () =>
@@ -188,6 +198,7 @@ export function useSearchScreen(): UseSearchScreenReturn {
     setQuery,
     rows,
     showPlaceCredit,
+    isSearchingPlace,
     resolveSubmit,
     filterType,
     setFilterType,

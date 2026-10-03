@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet } from 'react-native';
+import { ActivityIndicator, StyleSheet } from 'react-native';
 import { render, fireEvent, act, within } from '@testing-library/react-native';
 import { SearchScreen } from '@screens/SearchScreen';
 import type { Spot } from '@/types/supabase';
@@ -66,6 +66,7 @@ let mockUseSearchScreenReturn = {
   setQuery: mockSetQuery,
   rows: [] as SearchRow[],
   showPlaceCredit: false,
+  isSearchingPlace: false,
   resolveSubmit: mockResolveSubmit,
   filterType: 'all' as 'all' | 'shrine' | 'temple',
   setFilterType: mockSetFilterType,
@@ -131,6 +132,7 @@ describe('SearchScreen', () => {
       setQuery: mockSetQuery,
       rows: [],
       showPlaceCredit: false,
+      isSearchingPlace: false,
       resolveSubmit: mockResolveSubmit,
       filterType: 'all',
       setFilterType: mockSetFilterType,
@@ -567,6 +569,33 @@ describe('SearchScreen', () => {
     it('UI-3: 端末の中で当たった場所だけなら、出典は出さない', () => {
       show('横浜', rowsFor('横浜'));
       expect(renderScreen().queryByTestId('search-place-credit')).toBeNull();
+    });
+
+    it('第2段の答えを待つ間は「探しています」。「見つかりませんでした」は出さない', () => {
+      mockUseSearchScreenReturn = {
+        ...mockUseSearchScreenReturn,
+        query: '渋谷駅',
+        rows: [],
+        isSearchingPlace: true,
+      };
+      const r = renderScreen();
+
+      const searching = r.getByTestId('search-place-searching');
+      expect(within(searching).getByText('探しています')).toBeTruthy();
+      expect(r.UNSAFE_getByType(ActivityIndicator).props.color).toBe(colors.gray[400]);
+      expect(r.queryByText('見つかりませんでした')).toBeNull();
+      // 字の大きさは「見つかりませんでした」と同じ
+      expect(
+        StyleSheet.flatten(within(searching).getByText('探しています').props.style)
+      ).toMatchObject({ fontSize: typography.body.fontSize, color: colors.gray[400] });
+    });
+
+    it('答えが来て 0 件なら「見つかりませんでした」（探していますは出さない）', () => {
+      show('渋谷駅', []);
+      const r = renderScreen();
+
+      expect(r.getByText('見つかりませんでした')).toBeTruthy();
+      expect(r.queryByTestId('search-place-searching')).toBeNull();
     });
 
     it('AC-24: エンターで何も返らなければ、何もしない', async () => {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 
@@ -31,6 +31,7 @@ export function SearchScreen({ navigation }: Props) {
     setQuery,
     rows,
     showPlaceCredit,
+    isSearchingPlace,
     resolveSubmit,
     filterType,
     setFilterType,
@@ -103,10 +104,20 @@ export function SearchScreen({ navigation }: Props) {
                     selectedKey={filterType}
                     onSelect={key => setFilterType(key as SpotTypeFilter)}
                   />
-                  <View style={styles.emptyContainer}>
-                    <MaterialIcons name="search-off" size={48} color={colors.gray[300]} />
-                    <Text style={styles.emptyText}>見つかりませんでした</Text>
-                  </View>
+                  {isSearchingPlace ? (
+                    // 国土地理院の答えを待つ間（最長 5 秒）。見つかるのに一瞬「見つかりませんでした」と出さない
+                    <View style={styles.emptyContainer}>
+                      <View style={styles.searching} testID="search-place-searching">
+                        <ActivityIndicator size="small" color={colors.gray[400]} />
+                        <Text style={styles.emptyText}>探しています</Text>
+                      </View>
+                    </View>
+                  ) : (
+                    <View style={styles.emptyContainer}>
+                      <MaterialIcons name="search-off" size={48} color={colors.gray[300]} />
+                      <Text style={styles.emptyText}>見つかりませんでした</Text>
+                    </View>
+                  )}
                 </>
               }
             />
@@ -225,6 +236,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingTop: 100,
     gap: spacing.md,
+  },
+  searching: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   emptyText: {
     ...typography.body,

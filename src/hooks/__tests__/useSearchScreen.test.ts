@@ -548,6 +548,81 @@ describe('useSearchScreen', () => {
       expect(answer).toBeNull();
     });
 
+    describe('探しています（第2段の答えを待つ間）', () => {
+      it('問い合わせ中は isSearchingPlace。答えが来たら外れて結果になる', async () => {
+        const shibuya = deferred();
+        mockFetchGsiPlaces.mockReturnValue(shibuya.promise);
+        const { result } = renderHook(() => useSearchScreen());
+
+        typeAndWait(result, '渋谷駅');
+        await act(async () => {});
+
+        expect(result.current.isSearchingPlace).toBe(true);
+        expect(result.current.rows).toEqual([]);
+
+        await act(async () => {
+          shibuya.resolve(SHIBUYA_STATION);
+        });
+
+        expect(result.current.isSearchingPlace).toBe(false);
+        expect(placeLabel(result.current.rows[0])).toBe('渋谷駅');
+      });
+
+      it('答えが 0 件・失敗なら外れる（「見つかりませんでした」に戻る）', async () => {
+        mockFetchGsiPlaces.mockResolvedValueOnce([]).mockResolvedValueOnce(null);
+        const { result } = renderHook(() => useSearchScreen());
+
+        typeAndWait(result, '渋谷駅');
+        await act(async () => {});
+        expect(result.current.isSearchingPlace).toBe(false);
+        expect(result.current.rows).toEqual([]);
+
+        typeAndWait(result, 'あいうえおかきくけこ');
+        await act(async () => {});
+        expect(result.current.isSearchingPlace).toBe(false);
+        expect(result.current.rows).toEqual([]);
+      });
+
+      it('失敗のあとに同じ言葉で問い合わせ直す間も、探しています', async () => {
+        const retry = deferred();
+        mockFetchGsiPlaces.mockResolvedValueOnce(null).mockReturnValueOnce(retry.promise);
+        const { result } = renderHook(() => useSearchScreen());
+
+        typeAndWait(result, '渋谷駅');
+        await act(async () => {});
+        expect(result.current.isSearchingPlace).toBe(false);
+
+        typeAndWait(result, '');
+        typeAndWait(result, '渋谷駅');
+        await act(async () => {});
+
+        expect(mockFetchGsiPlaces).toHaveBeenCalledTimes(2);
+        expect(result.current.isSearchingPlace).toBe(true);
+      });
+
+      it('第1段で当たる言葉・1 文字の言葉・空では出さない', async () => {
+        const { result } = renderHook(() => useSearchScreen());
+
+        for (const text of ['横浜', '渋', '']) {
+          typeAndWait(result, text);
+          await act(async () => {});
+          expect(result.current.isSearchingPlace).toBe(false);
+        }
+      });
+
+      it('一覧の言葉が変わったら、前の言葉の問い合わせ中は出さない', async () => {
+        mockFetchGsiPlaces.mockReturnValue(deferred().promise);
+        const { result } = renderHook(() => useSearchScreen());
+
+        typeAndWait(result, '渋谷駅');
+        await act(async () => {});
+        expect(result.current.isSearchingPlace).toBe(true);
+
+        typeAndWait(result, '横浜');
+        expect(result.current.isSearchingPlace).toBe(false);
+      });
+    });
+
     it('AC-40: 寺社の読み込み中は呼ばない・エンターは null。読み終わったら第1段から数え直す', async () => {
       mockUseSpots.mockReturnValue({ spots: [], allSpots: [], isLoading: true, error: null });
       const { result, rerender } = renderHook(() => useSearchScreen());
