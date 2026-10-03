@@ -86,6 +86,16 @@ export type PlanStackParamList = {
   PlanEditor: { planId?: string; date?: string; purchased?: boolean };
 };
 
+/** 地図を寄せる地域（Issue #311）。検索画面が作って渡す */
+export interface FocusRegion {
+  /** 地図の検索バーに出す言葉（例「横浜」「渋谷駅」） */
+  label: string;
+  /** 寄せる範囲 [西の経度, 南の緯度, 東の経度, 北の緯度] */
+  bounds: [number, number, number, number];
+  /** 団子にせず・間引かずに出す寺社 */
+  spotIds: string[];
+}
+
 export type MapStackParamList = {
   Map: { focusSpotId?: string; focusPrefecture?: string } | undefined;
   SpotDetail: { spotId: string };
