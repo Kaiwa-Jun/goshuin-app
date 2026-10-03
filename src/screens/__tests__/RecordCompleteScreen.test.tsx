@@ -300,6 +300,46 @@ describe('RecordCompleteScreen', () => {
       expect(getByTestId('stamp-image')).toBeTruthy();
     });
 
+    /*
+     * 写真は R2 の変換で出す。R2 に無いとき（R2 への書き込みだけ失敗したなど）は元の写真に
+     * 1回だけ落とし、元も出なければ今までどおり写真の枠（#227 S4a-2 AC-26）
+     */
+    it('写真が出せなければ元の写真に落とし、元も出せなければ写真の枠にする', () => {
+      const route = {
+        ...mockRouteWithParams,
+        params: {
+          ...mockRouteWithParams.params,
+          stampImageUrl: 'https://img.example/cdn-cgi/image/width=1200/user-1/12345.jpg',
+          stampFallbackUrl: 'https://example.com/stamps/user-1/12345.jpg',
+        },
+      };
+      const { getByTestId, queryByTestId } = render(
+        <RecordCompleteScreen navigation={mockNavigation} route={route} />
+      );
+
+      expect(getByTestId('stamp-image').props.source.uri).toBe(
+        'https://img.example/cdn-cgi/image/width=1200/user-1/12345.jpg'
+      );
+      fireEvent(getByTestId('stamp-image'), 'error');
+      expect(getByTestId('stamp-image').props.source.uri).toBe(
+        'https://example.com/stamps/user-1/12345.jpg'
+      );
+      fireEvent(getByTestId('stamp-image'), 'error');
+      expect(queryByTestId('stamp-image')).toBeNull();
+      expect(getByTestId('stamp-image-placeholder')).toBeTruthy();
+    });
+
+    it('落とす先が無ければ、最初の失敗で写真の枠にする', () => {
+      const { getByTestId, queryByTestId } = render(
+        <RecordCompleteScreen navigation={mockNavigation} route={mockRouteWithParams} />
+      );
+
+      fireEvent(getByTestId('stamp-image'), 'error');
+
+      expect(queryByTestId('stamp-image')).toBeNull();
+      expect(getByTestId('stamp-image-placeholder')).toBeTruthy();
+    });
+
     it('renders spot name when provided', () => {
       const { getByText } = render(
         <RecordCompleteScreen navigation={mockNavigation} route={mockRouteWithParams} />
