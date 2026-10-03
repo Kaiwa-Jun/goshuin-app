@@ -15,7 +15,8 @@ CREATE TABLE public.spot_photos (
   -- 撮影者・ライセンスは Commons の表示のまま。author が null は Public domain・CC0 だけ
   author TEXT,
   license TEXT NOT NULL,
-  license_url TEXT,
+  -- アプリが Linking.openURL で開くので、http(s) のほか（javascript: など）は入れない
+  license_url TEXT CHECK (license_url IS NULL OR license_url ~ '^https?://'),
   source_url TEXT NOT NULL CHECK (source_url LIKE 'https://commons.wikimedia.org/wiki/File:%'),
   is_cropped BOOLEAN NOT NULL DEFAULT true,
   status TEXT NOT NULL DEFAULT 'approved' CHECK (status IN ('approved', 'withdrawn')),

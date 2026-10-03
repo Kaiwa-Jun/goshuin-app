@@ -305,6 +305,54 @@ Deno.test('AC-1: 正しい行は入り、決まりに合わない行は入らな
   });
 });
 
+Deno.test(
+  'AC-1: license_url は null か http(s) の URL だけ（javascript: などは入らない）',
+  async () => {
+    await withDb(async db => {
+      const ids = [
+        await insertSpot(db, '金蛇水神社', '宮城県'),
+        await insertSpot(db, '輪王寺', '栃木県'),
+        await insertSpot(db, '靖國神社', '東京都'),
+        await insertSpot(db, '戸越八幡神社', '東京都'),
+      ];
+      for (const bad of [
+        'javascript:alert(1)',
+        'ftp://example.com/x',
+        'creativecommons.org/licenses/by/4.0',
+        '',
+      ]) {
+        const msg = await insertPhoto(
+          db,
+          photoValues(ids[0], { r2_key: `spot-photos/${sha('a')}.jpg`, license_url: bad })
+        );
+        assertStringIncludes(msg ?? '', 'check constraint', bad);
+      }
+      assertEquals(await photoCount(db), 0);
+      const ok: [number, string | null][] = [
+        [0, 'https://creativecommons.org/licenses/by-sa/3.0'],
+        [1, 'http://creativecommons.org/licenses/by-sa/3.0/'],
+        [2, null],
+      ];
+      for (const [i, url] of ok) {
+        assertEquals(
+          await insertPhoto(
+            db,
+            photoValues(ids[i], { r2_key: `spot-photos/${sha(String(i))}.jpg`, license_url: url })
+          ),
+          null,
+          String(url)
+        );
+      }
+      assertEquals(await photoCount(db), 3);
+      // UPDATE でも入れられない
+      assert(
+        (await raised(db, `UPDATE public.spot_photos SET license_url = 'javascript:alert(1)'`)) !==
+          null
+      );
+    });
+  }
+);
+
 Deno.test('AC-1: spots の行を消すと写真の行も消え、UPDATE すると updated_at が進む', async () => {
   await withDb(async db => {
     const a = await insertSpot(db, '金蛇水神社', '宮城県');
