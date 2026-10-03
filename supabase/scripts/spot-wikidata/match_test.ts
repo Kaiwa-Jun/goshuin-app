@@ -112,7 +112,7 @@ function input(over: Partial<LinkInput> & { row: SeedRow }): LinkInput {
 // --- AC-1: readSeedRows ---
 
 Deno.test(
-  'AC-1: 本物の seed は 1,109 行・idx は 1〜1109・台帳の 458 件と名前とファイルと行が合う',
+  'AC-1: 本物の seed は 1,109 行・idx は 1〜1109・台帳（第1弾 458 件と以降の弾）と名前とファイルと行が合う',
   async () => {
     const rows = await realSeedRows();
     assertEquals(rows.length, 1109);
@@ -121,7 +121,7 @@ Deno.test(
       Array.from({ length: 1109 }, (_, i) => i + 1)
     );
     const ledger = await realLedger();
-    assertEquals(ledger.entries.length, 458);
+    assertEquals(ledger.entries.filter(e => e.batch === 1).length, 458);
     for (const e of ledger.entries) {
       const r = rows[e.idx - 1];
       assertEquals(
@@ -1231,7 +1231,7 @@ Deno.test(
     const entries = json.items
       .map(i => ownerItemToEntry(i, 2))
       .filter((e): e is NonNullable<typeof e> => e !== null);
-    assertEquals(mergeEntries(ledger, entries).entries.length, 461);
+    assertEquals(mergeEntries(ledger, entries).entries.length, ledger.entries.length + 3);
     // JSON の文字でもよい
     assertEquals(validateExport(JSON.stringify(json), rows, ledger).items.length, 4);
   }
@@ -1295,17 +1295,23 @@ Deno.test('AC-10: 書き出しの検査は、その寺社の名前を含む文�
   );
 });
 
-Deno.test('AC-10: 台帳の OSM 由来 55 件に osm を 45 件足すと止まり、44 件なら通る', async () => {
-  const { rows, ledger, free } = await exportFixtures();
-  const osm = (n: number) =>
-    exportOf(
-      rows,
-      free
-        .slice(0, n)
-        .map((r, i) => ({ idx: r.idx, choice: 'osm', to: north(r, 500), ref: `node/${i + 1}` }))
-    );
-  assertEquals(validateExport(osm(44), rows, ledger).entries.length, 44);
-  const e = assertThrows(() => validateExport(osm(45), rows, ledger), Error);
-  assertStringIncludes(e.message, '99');
-  assertStringIncludes(e.message, free[44].name);
-});
+Deno.test(
+  'AC-10: 台帳の OSM 由来に osm を足して 99 件を超えると止まり、99 件までなら通る',
+  async () => {
+    const { rows, ledger, free } = await exportFixtures();
+    // 第1弾のときは 55 件で、あと 44 件。弾が進むと台帳の OSM 由来が増えるので、残りを数える
+    const room = 99 - ledger.entries.filter(e => e.source === 'osm').length;
+    assert(room > 0);
+    const osm = (n: number) =>
+      exportOf(
+        rows,
+        free
+          .slice(0, n)
+          .map((r, i) => ({ idx: r.idx, choice: 'osm', to: north(r, 500), ref: `node/${i + 1}` }))
+      );
+    assertEquals(validateExport(osm(room), rows, ledger).entries.length, room);
+    const e = assertThrows(() => validateExport(osm(room + 1), rows, ledger), Error);
+    assertStringIncludes(e.message, '99');
+    assertStringIncludes(e.message, free[room].name);
+  }
+);
