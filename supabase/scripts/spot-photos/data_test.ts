@@ -9,9 +9,9 @@ import { type CliIo, denoIo, runCli } from './main.ts';
 import { LEDGER_PATH, parseLedger302 } from './select.ts';
 
 /** S6 で採った数（main.ts status の「採る」。progress.md に書いた値） */
-export const APPROVED = 692;
+export const APPROVED = 688;
 /** そのうち結びつきが medium の数 */
-export const APPROVED_MEDIUM = 22;
+export const APPROVED_MEDIUM = 19;
 
 async function realLedger() {
   const photos = parsePhotos(
