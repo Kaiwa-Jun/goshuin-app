@@ -492,6 +492,17 @@ H-2 をうっかり2回流しても、2回目は何もしない（D-3）。
 | R-3 | ターミナル | H-1 と同じコマンド                                                                                    | H-1 と同じ `RESULT … at_new=0 at_old=458 …`                             | 1つでも値が違う                        |
 | R-4 | ターミナル | `supabase migration repair --status reverted 20260928000000`                                          | エラーが出ずに終わる。そのあと、seed と台帳を戻す PR を作る（リーダー） | `error` / `failed` が出る              |
 
+## 本番の記録（第1弾・2026-10-03、オーナーが実行）
+
+| 手順 | 結果                                                                                          |
+| ---- | --------------------------------------------------------------------------------------------- |
+| H-1  | ✅ `RESULT total=1109 listed=458 rest=651 at_new=0 at_old=458 neither=0 not_one=0 inactive=0` |
+| H-2  | ✅ `ERROR` なしで終わった（約 61KB の1文も `db query --linked` で送れた）                     |
+| H-3  | ✅ `RESULT total=1109 listed=458 rest=651 at_new=458 at_old=0 neither=0 not_one=0 inactive=0` |
+| H-4  | ✅ `Repaired migration history: [20260928000000] => applied`                                  |
+| H-5  | ✅ `20260928000000` が Local と Remote の両方にある（2026-03〜08 の食い違いは前からのもの）   |
+| H-6  | 未（実機で尊永寺のピンを見る）                                                                |
+
 ## やらないこと（スコープ外）
 
 - 第2弾の 117 件（確かさ 中 60・国土地理院由来 12・`fix_corrected` 1・オーナーが見る 17・要調査 27）。この PR では座標も台帳も変えない
