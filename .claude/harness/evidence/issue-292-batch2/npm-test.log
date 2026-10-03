@@ -1,0 +1,8 @@
+FAIL src/components/gallery/__tests__/HeroFlyer.test.tsx (5.18 s)
+FAIL src/hooks/__tests__/useSpotAdd.test.ts
+FAIL src/components/gallery/__tests__/HeroFlyer.test.tsx (5.18 s)
+FAIL src/hooks/__tests__/useSpotAdd.test.ts
+Test Suites: 2 failed, 168 passed, 170 total
+Tests:       2 failed, 2358 passed, 2360 total
+Snapshots:   0 total
+Time:        60.31 s

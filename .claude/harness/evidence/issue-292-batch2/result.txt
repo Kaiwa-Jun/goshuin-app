@@ -1,0 +1,7 @@
+import-owner 再取り込み(dry-run, 一時フォルダ): 台帳全体が repo と同一(46行)
+入力 JSON は md5 不変
+develop の第1弾 migration との diff: 0 バイト / 第1弾458行: 同一
+generate batch1/batch2 --check: 0 / 0
+deno test: 375 passed 0 failed / deno check x2: 0
+npm test: 1回目は HeroFlyer と useSpotAdd が負荷時に落ちた(単体は PASS)、再実行 170/170 PASS / lint 0 / typecheck 0
+抜き取り8件: Wikidata/OSM の座標が台帳 new と一致、地名・所在地が seed の住所と整合
