@@ -5,6 +5,8 @@
 //   deno run -A --node-modules-dir=none supabase/scripts/spot-wikidata/main.ts status [--work <dir>]
 //   deno run -A --node-modules-dir=none supabase/scripts/spot-wikidata/main.ts build [--check] [--root <dir>] [--work <dir>]
 //   deno run -A --node-modules-dir=none supabase/scripts/spot-wikidata/main.ts review-data [--root <dir>] [--work <dir>]
+//   deno run -A --node-modules-dir=none supabase/scripts/spot-wikidata/main.ts serve [--port 8301] [--root <dir>] [--work <dir>]
+//   deno run -A --node-modules-dir=none supabase/scripts/spot-wikidata/main.ts check-export <coords-292-review.json> [--root <dir>]
 //
 // --root の既定はカレントディレクトリ（リポジトリの直下で打つ）、--work の既定は $HOME/goshuin-work/spot-wikidata。
 // エラーは標準エラーに出し、終了コード 1。契約書: docs/issues/issue-301-spot-wikidata.md（D-12・D-15・D-16）
@@ -29,7 +31,9 @@ import {
   readSeedRows,
   type SeedRow,
   serializeJson,
+  validateExport,
 } from './match.ts';
+import { DEFAULT_PORT, startServer } from './server.ts';
 
 export interface CliIo {
   /** 無いときは null */
@@ -305,6 +309,31 @@ async function reviewData(io: CliIo, a: Args): Promise<number> {
   return 0;
 }
 
+// --- serve・check-export ---
+
+async function serve(io: CliIo, a: Args): Promise<number> {
+  const server = await startServer({
+    root: a.root,
+    work: workDir(io, a),
+    now: io.now,
+    port: a.port ?? DEFAULT_PORT,
+    onListen: (port, count) => io.stdout(`http://127.0.0.1:${port}/ で開けます（${count} 件）\n`),
+  });
+  await server.finished;
+  return 0;
+}
+
+async function checkExport(io: CliIo, a: Args): Promise<number> {
+  const file = a.positional[0];
+  if (!file) throw new Error('書き出しの JSON のパスが要る');
+  const { rows, ledger } = await loadSeedAndLedger(io, a.root);
+  const { items, entries } = validateExport(await readRequired(io, file), rows, ledger);
+  io.stdout(
+    `書き出しは通った（${items.length} 件。import-owner で台帳に足すのは ${entries.length} 件）\n`
+  );
+  return 0;
+}
+
 // --- 入口 ---
 
 export type Command = (io: CliIo, a: Args) => Promise<number>;
@@ -314,6 +343,8 @@ const COMMANDS: Record<string, Command> = {
   status,
   build,
   'review-data': reviewData,
+  serve,
+  'check-export': checkExport,
 };
 
 export async function runCli(argv: string[], io: CliIo): Promise<number> {
