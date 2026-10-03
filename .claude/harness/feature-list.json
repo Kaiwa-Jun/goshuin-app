@@ -188,19 +188,25 @@
     {
       "id": "ISSUE-292",
       "title": "寺社のマスタの座標のずれを直す（第1弾 458 件）",
-      "note": "契約書 docs/issues/issue-292-spot-coords.md。全 1,109 件を Wikidata・国土地理院・OSM と突き合わせ、ずれていた寺社のうち確かなもの 458 件（Wikidata 403・OSM 55）を直す。台帳 supabase/data/spot-coords-292.json から migration・確かめる SQL・seed の書き換えを生成（Deno）。1行ずつちょうど1行を確かめ、合わなければ全体を戻す・2回流しても壊れない。goshuin-evaluator PASS。**本番への反映（H-1〜H-6）はオーナー**。第2弾（確かさ中 60・国土地理院由来 12・姉倉比賣神社 1・オーナーが見る 17・要調査 27）は review-owner.html でオーナーが選んでから。**第2弾（2026-10-03）**: #301 の選ぶ画面で 46 件（wikidata 38・osm 8。オーナーの依頼でリーダーが 45 件を選んだ）。import-owner が ref を台帳に残すように。migration 20261003000000_spot_coords_292_batch2。本番への反映は B-1〜B-6（オーナー）。",
+      "note": "契約書 docs/issues/issue-292-spot-coords.md。全 1,109 件を Wikidata・国土地理院・OSM と突き合わせ、ずれていた寺社のうち確かなもの 458 件（Wikidata 403・OSM 55）を直す。台帳 supabase/data/spot-coords-292.json から migration・確かめる SQL・seed の書き換えを生成（Deno）。1行ずつちょうど1行を確かめ、合わなければ全体を戻す・2回流しても壊れない。goshuin-evaluator PASS。**本番への反映（H-1〜H-6）はオーナー**。第2弾（確かさ中 60・国土地理院由来 12・姉倉比賣神社 1・オーナーが見る 17・要調査 27）は review-owner.html でオーナーが選んでから。**第2弾（2026-10-03）**: #301 の選ぶ画面で 46 件（wikidata 38・osm 8。オーナーの依頼でリーダーが 45 件を選んだ）。import-owner が ref を台帳に残すように。migration 20261003000000_spot_coords_292_batch2。本番への反映は B-1〜B-6（オーナー）。第2弾は 2026-10-03 に本番へ反映（B-1〜B-5）、B-6 は 2026-10-04 にオーナーが実機で確認。",
       "passes": true
     },
     {
       "id": "ISSUE-305",
       "title": "予定タブのアイコンを「空押しから色が差す」動きにする",
-      "note": "契約書 docs/issues/issue-305-plan-tab-emboss.md・承認試作 docs/design/mockups/2026-10-plan-tab-icon-v2.html（D・朱あり。v1 の案1「予定に印を捺す」は「熱盛っぽい」と言われ、おしとやかにした4つから選んだ）。TabIconMotion に emboss を足し（#258 D-20 を上書き）、予定タブだけ替える。あゆみは draw のまま。event の枠を SVG で描き、日付の四角に輪郭・四角・朱の3枚を重ねる。progress 1本を一定の速さで 600ms、形は interpolate の節に焼く（native driver は interpolate の easing を受け取れない）。朱の有無は EMBOSS_SEAL の1つ。goshuin-evaluator PASS（AC 15/15・UI 4/4・Q 10/10）。未確認: H-1（iPhone で native driver で落ちないか・線の太さ・往復）。",
+      "note": "契約書 docs/issues/issue-305-plan-tab-emboss.md・承認試作 docs/design/mockups/2026-10-plan-tab-icon-v2.html（D・朱あり。v1 の案1「予定に印を捺す」は「熱盛っぽい」と言われ、おしとやかにした4つから選んだ）。TabIconMotion に emboss を足し（#258 D-20 を上書き）、予定タブだけ替える。あゆみは draw のまま。event の枠を SVG で描き、日付の四角に輪郭・四角・朱の3枚を重ねる。progress 1本を一定の速さで 600ms、形は interpolate の節に焼く（native driver は interpolate の easing を受け取れない）。朱の有無は EMBOSS_SEAL の1つ。goshuin-evaluator PASS（AC 15/15・UI 4/4・Q 10/10）。H-1 はオーナーが 2026-10-04 に実機（開発用アプリ）で確認。",
       "passes": true
     },
     {
       "id": "ISSUE-301",
       "title": "寺社と Wikidata の対応表をつくる（#292 第2弾の座標と、帯の写真の土台）",
       "note": "契約書 docs/issues/issue-301-spot-wikidata.md。寺社 1,109 件を Wikidata に結びつける規則（純関数）と、Wikidata・Commons・地理院・OSM をキャッシュつきで取る CLI、#292 第2弾の座標をオーナーが地図で選ぶローカルの画面（serve・8301）。公開の2ファイル supabase/data/spot-wikidata-301.json（high 869・medium 48・low 7・none 185）と spot-photos-301.json（868 寺社・898 ファイル）。S4 で同名の別の寺社の注記を取る誤りを見つけて D-11 を直した（湯殿山神社・黄金山神社）。goshuin-evaluator PASS（AC 30/30・UI 9/9・Q 7/7。AC-27 の抜き取りは high 30/30・medium 10/10）。画面で採ってはいけない提案: 龍泉寺（埼玉）・八坂神社（長崎）ほか（契約書の末尾）。オーナーが選ぶのは O-1〜O-6（第2弾の PR の前）。",
+      "passes": true
+    },
+    {
+      "id": "ISSUE-310",
+      "title": "設定: ログアウトとアカウント削除を画面の一番下へ移す",
+      "note": "契約書 docs/issues/issue-310-settings-account-bottom.md。一番上の「アカウント」は名前とメール（未ログインならログイン）だけ、ログアウト → アカウントを削除 を「アプリ情報」の下の独立した枠に。審査メモの削除の道順に「一番下までスクロール」。goshuin-evaluator PASS（AC 7/7・UI 1/1・Q 2/2）。H-1・H-2 はオーナーが 2026-10-04 に実機で確認。",
       "passes": true
     }
   ]

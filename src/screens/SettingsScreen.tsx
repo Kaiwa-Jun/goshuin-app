@@ -157,35 +157,19 @@ export function SettingsScreen({ navigation, route }: Props) {
               <MaterialIcons name="email" size={24} color={colors.gray[500]} />
               <Text style={styles.rowLabel}>{displayEmail}</Text>
             </View>
-            <View style={styles.divider} />
-            {isAuthenticated ? (
+            {/* ログアウトと削除は画面の一番下（取り消せない操作は最後に置く / Issue #310） */}
+            {!isAuthenticated && (
               <>
+                <View style={styles.divider} />
                 <TouchableOpacity
                   style={styles.row}
                   accessibilityRole="button"
-                  onPress={handleLogout}
+                  onPress={handleLogin}
                 >
-                  <MaterialIcons name="logout" size={24} color={colors.error} />
-                  <Text style={styles.logoutText}>ログアウト</Text>
-                </TouchableOpacity>
-                {/* App Store Guideline 5.1.1(v): アカウント作成があるアプリは
-                  アプリ内から削除を開始できなければならない（Issue #134） */}
-                <TouchableOpacity
-                  style={styles.row}
-                  accessibilityRole="button"
-                  onPress={handleDeleteAccount}
-                  testID="delete-account-row"
-                >
-                  <MaterialIcons name="delete-forever" size={24} color={colors.error} />
-                  <Text style={styles.logoutText}>アカウントを削除</Text>
-                  <MaterialIcons name="chevron-right" size={24} color={colors.gray[400]} />
+                  <MaterialIcons name="login" size={24} color={colors.primary[500]} />
+                  <Text style={styles.loginText}>ログイン</Text>
                 </TouchableOpacity>
               </>
-            ) : (
-              <TouchableOpacity style={styles.row} accessibilityRole="button" onPress={handleLogin}>
-                <MaterialIcons name="login" size={24} color={colors.primary[500]} />
-                <Text style={styles.loginText}>ログイン</Text>
-              </TouchableOpacity>
             )}
           </Card>
         </View>
@@ -332,6 +316,34 @@ export function SettingsScreen({ navigation, route }: Props) {
             )}
           </Card>
         </View>
+
+        {/* 取り消せない操作は画面の一番下に置き、削除を最後にする（Issue #310） */}
+        {isAuthenticated && (
+          <View style={styles.section} testID="settings-section-account-actions">
+            <Card>
+              <TouchableOpacity
+                style={styles.row}
+                accessibilityRole="button"
+                onPress={handleLogout}
+              >
+                <MaterialIcons name="logout" size={24} color={colors.error} />
+                <Text style={styles.logoutText}>ログアウト</Text>
+              </TouchableOpacity>
+              {/* App Store Guideline 5.1.1(v): アカウント作成があるアプリは
+                アプリ内から削除を開始できなければならない（Issue #134） */}
+              <TouchableOpacity
+                style={styles.row}
+                accessibilityRole="button"
+                onPress={handleDeleteAccount}
+                testID="delete-account-row"
+              >
+                <MaterialIcons name="delete-forever" size={24} color={colors.error} />
+                <Text style={styles.logoutText}>アカウントを削除</Text>
+                <MaterialIcons name="chevron-right" size={24} color={colors.gray[400]} />
+              </TouchableOpacity>
+            </Card>
+          </View>
+        )}
       </ScrollView>
       {thanks && <PlusThanksToast onDone={() => setThanks(false)} />}
     </SafeAreaView>
