@@ -207,8 +207,8 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
 ('出羽神社（出羽三山神社）', 38.7026, 139.9819, 'shrine', '山形県鶴岡市羽黒町手向字手向7', '山形県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
-('宝珠山立石寺', 38.3126, 140.4374, 'temple', '山形県山形市大字山寺4456-1', '山形県', 5, 'active'),
--- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
+('宝珠山立石寺', 38.311863, 140.434791, 'temple', '山形県山形市大字山寺4456-1', '山形県', 5, 'active'),
+-- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: OpenStreetMap node/4849389041（© OpenStreetMap contributors, ODbL・#292 で直した）
 ('熊野大社', 38.0780, 140.1369, 'shrine', '山形県南陽市宮内3707-1', '山形県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
 ('荘内神社', 38.7283, 139.8243, 'shrine', '山形県鶴岡市馬場町4番1号', '山形県', 5, 'active'),

@@ -5,8 +5,10 @@
 --
 -- ⚠ 必ずエラーで終わる。それで正しい。最後に RAISE EXCEPTION して、何も残さない（読むだけ）。
 --   期待値（弾ごとに、直す前と後）:
---   第1弾の前（H-1）: RESULT total=1109 listed=458 rest=651 at_new=0 at_old=458 neither=0 not_one=0 inactive=0
---   第1弾の後（H-3）: RESULT total=1109 listed=458 rest=651 at_new=458 at_old=0 neither=0 not_one=0 inactive=0
+--   第1弾の前（H-1）: RESULT total=1109 listed=504 rest=605 at_new=0 at_old=504 neither=0 not_one=0 inactive=0
+--   第1弾の後（H-3）: RESULT total=1109 listed=504 rest=605 at_new=458 at_old=46 neither=0 not_one=0 inactive=0
+--   第2弾の前（H-1）: RESULT total=1109 listed=504 rest=605 at_new=458 at_old=46 neither=0 not_one=0 inactive=0
+--   第2弾の後（H-3）: RESULT total=1109 listed=504 rest=605 at_new=504 at_old=0 neither=0 not_one=0 inactive=0
 --
 -- total    = 作成者なし（created_by_user_id IS NULL）の行の数（期待値は seed の寺社の行の数）
 -- listed   = 台帳の件数（全部の弾）
@@ -481,7 +483,53 @@ DECLARE
 {"name":"出雲大社沖縄分社","prefecture":"沖縄県","old_lat":26.2408,"old_lng":127.7069,"new_lat":26.230111,"new_lng":127.703528},
 {"name":"西来院","prefecture":"沖縄県","old_lat":26.2203,"old_lng":127.7147,"new_lat":26.217722,"new_lng":127.722528},
 {"name":"八幡神徳寺","prefecture":"沖縄県","old_lat":26.2233,"old_lng":127.6947,"new_lat":26.220583,"new_lng":127.694500},
-{"name":"宇治上神社","prefecture":"京都府","old_lat":34.8882,"old_lng":135.812,"new_lat":34.892091,"new_lng":135.811456}
+{"name":"宇治上神社","prefecture":"京都府","old_lat":34.8882,"old_lng":135.812,"new_lat":34.892091,"new_lng":135.811456},
+{"name":"宮城縣護國神社","prefecture":"宮城県","old_lat":38.2543,"old_lng":140.8561,"new_lat":38.252500,"new_lng":140.855556},
+{"name":"宝珠山立石寺","prefecture":"山形県","old_lat":38.3126,"old_lng":140.4374,"new_lat":38.311863,"new_lng":140.434791},
+{"name":"秩父今宮神社","prefecture":"埼玉県","old_lat":35.9939,"old_lng":139.0831,"new_lat":35.994917,"new_lng":139.080194},
+{"name":"菊田神社","prefecture":"千葉県","old_lat":35.6816,"old_lng":140.0255,"new_lat":35.684167,"new_lng":140.026944},
+{"name":"柏神社","prefecture":"千葉県","old_lat":35.8619,"old_lng":139.9748,"new_lat":35.859806,"new_lng":139.973750},
+{"name":"意富比神社（船橋大神宮）","prefecture":"千葉県","old_lat":35.6893,"old_lng":139.9838,"new_lat":35.696365,"new_lng":139.992880},
+{"name":"銭洗弁財天宇賀福神社","prefecture":"神奈川県","old_lat":35.3247,"old_lng":139.5401,"new_lat":35.325800,"new_lng":139.542000},
+{"name":"旗上弁財天社","prefecture":"神奈川県","old_lat":35.3258,"old_lng":139.5574,"new_lat":35.323902,"new_lng":139.555971},
+{"name":"白山神社","prefecture":"新潟県","old_lat":37.9183,"old_lng":139.0349,"new_lat":37.915611,"new_lng":139.037333},
+{"name":"八海山尊神社","prefecture":"新潟県","old_lat":37.0308,"old_lng":138.9419,"new_lat":37.120533,"new_lng":138.950394},
+{"name":"石浦神社","prefecture":"石川県","old_lat":36.56,"old_lng":136.6571,"new_lat":36.561194,"new_lng":136.659833},
+{"name":"神明宮","prefecture":"石川県","old_lat":36.5597,"old_lng":136.647,"new_lat":36.558040,"new_lng":136.648889},
+{"name":"菟橋神社","prefecture":"石川県","old_lat":36.304,"old_lng":136.4507,"new_lat":36.406501,"new_lng":136.445567},
+{"name":"總持寺祖院","prefecture":"石川県","old_lat":37.212,"old_lng":136.7893,"new_lat":37.286400,"new_lng":136.771000},
+{"name":"平泉寺白山神社","prefecture":"福井県","old_lat":36.044,"old_lng":136.5389,"new_lat":36.043917,"new_lng":136.542131},
+{"name":"新倉富士浅間神社","prefecture":"山梨県","old_lat":35.5018,"old_lng":138.7985,"new_lat":35.500389,"new_lng":138.800139},
+{"name":"橿森神社","prefecture":"岐阜県","old_lat":35.4213,"old_lng":136.7623,"new_lat":35.419675,"new_lng":136.764303},
+{"name":"岐阜護國神社","prefecture":"岐阜県","old_lat":35.4361,"old_lng":136.7654,"new_lat":35.437002,"new_lng":136.776352},
+{"name":"岐阜信長神社","prefecture":"岐阜県","old_lat":35.4209,"old_lng":136.7621,"new_lat":35.419774,"new_lng":136.764084},
+{"name":"八剣宮","prefecture":"愛知県","old_lat":35.1268,"old_lng":136.9079,"new_lat":35.123498,"new_lng":136.908269},
+{"name":"三尾神社","prefecture":"滋賀県","old_lat":35.0138,"old_lng":135.8508,"new_lat":35.008823,"new_lng":135.854172},
+{"name":"百済寺","prefecture":"滋賀県","old_lat":35.0556,"old_lng":136.3289,"new_lat":35.126827,"new_lng":136.291512},
+{"name":"大阪天満宮","prefecture":"大阪府","old_lat":34.693,"old_lng":135.513,"new_lat":34.696025,"new_lng":135.512619},
+{"name":"石上神宮","prefecture":"奈良県","old_lat":34.5954,"old_lng":135.8511,"new_lat":34.597875,"new_lng":135.851673},
+{"name":"元興寺","prefecture":"奈良県","old_lat":34.6768,"old_lng":135.8331,"new_lat":34.678056,"new_lng":135.831111},
+{"name":"青岸渡寺","prefecture":"和歌山県","old_lat":33.6672,"old_lng":135.8903,"new_lat":33.669640,"new_lng":135.889893},
+{"name":"大神山神社奥宮","prefecture":"鳥取県","old_lat":35.37,"old_lng":133.5361,"new_lat":35.388734,"new_lng":133.538519},
+{"name":"松江護國神社","prefecture":"島根県","old_lat":35.475,"old_lng":133.0489,"new_lat":35.476703,"new_lng":133.049619},
+{"name":"由加神社本宮","prefecture":"岡山県","old_lat":34.5444,"old_lng":133.8756,"new_lat":34.505917,"new_lng":133.851056},
+{"name":"縣主神社","prefecture":"岡山県","old_lat":34.6142,"old_lng":133.5211,"new_lat":34.584848,"new_lng":133.495611},
+{"name":"廣島護國神社","prefecture":"広島県","old_lat":34.4031,"old_lng":132.4597,"new_lat":34.401167,"new_lng":132.458750},
+{"name":"赤間神宮","prefecture":"山口県","old_lat":33.9581,"old_lng":130.9472,"new_lat":33.959722,"new_lng":130.948472},
+{"name":"松陰神社","prefecture":"山口県","old_lat":34.4117,"old_lng":131.4206,"new_lat":34.412139,"new_lng":131.418222},
+{"name":"金泉寺","prefecture":"徳島県","old_lat":34.1428,"old_lng":134.4758,"new_lat":34.147436,"new_lng":134.468544},
+{"name":"最御崎寺","prefecture":"高知県","old_lat":33.2489,"old_lng":134.1786,"new_lat":33.249008,"new_lng":134.175739},
+{"name":"住吉神社（福岡）","prefecture":"福岡県","old_lat":33.5833,"old_lng":130.4125,"new_lat":33.585750,"new_lng":130.413750},
+{"name":"龍造寺八幡宮","prefecture":"佐賀県","old_lat":33.2536,"old_lng":130.3011,"new_lat":33.255425,"new_lng":130.298531},
+{"name":"高橋稲荷神社","prefecture":"熊本県","old_lat":32.7853,"old_lng":130.6658,"new_lat":32.782900,"new_lng":130.659000},
+{"name":"臼杵石仏","prefecture":"大分県","old_lat":33.1167,"old_lng":131.7886,"new_lat":33.090110,"new_lng":131.762480},
+{"name":"護国寺（那覇）","prefecture":"沖縄県","old_lat":26.2192,"old_lng":127.6689,"new_lat":26.220068,"new_lng":127.671579},
+{"name":"安里八幡宮","prefecture":"沖縄県","old_lat":26.2233,"old_lng":127.6944,"new_lat":26.221111,"new_lng":127.694944},
+{"name":"金武観音寺","prefecture":"沖縄県","old_lat":26.4556,"old_lng":127.9244,"new_lat":26.455319,"new_lng":127.921450},
+{"name":"安国寺","prefecture":"沖縄県","old_lat":26.2194,"old_lng":127.7156,"new_lat":26.218528,"new_lng":127.713417},
+{"name":"平安神宮","prefecture":"京都府","old_lat":35.0153,"old_lng":135.7837,"new_lat":35.016667,"new_lng":135.782222},
+{"name":"蓮華王院（三十三間堂）","prefecture":"京都府","old_lat":34.9897,"old_lng":135.7727,"new_lat":34.987885,"new_lng":135.771713},
+{"name":"明治神宮","prefecture":"東京都","old_lat":35.6741,"old_lng":139.703,"new_lat":35.676111,"new_lng":139.699167}
 ]$entries$;
   eps CONSTANT float8 := 1e-6;
   f record;

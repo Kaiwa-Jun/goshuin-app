@@ -170,8 +170,8 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 -- 住所確認: ホトカミ ✓, 公式サイト ✓ | 座標: NAVITIME推定 ✓
 ('喜多院', 35.9175, 139.4890, 'temple', '埼玉県川越市小仙波町1-20-1', '埼玉県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓, 公式サイト ✓ | 座標: Wikipedia ✓
-('秩父今宮神社', 35.9939, 139.0831, 'shrine', '埼玉県秩父市中町16-10', '埼玉県', 5, 'active')
--- 住所確認: ホトカミ ✓, 公式サイト ✓ | 座標: NAVITIME推定 ✓
+('秩父今宮神社', 35.994917, 139.080194, 'shrine', '埼玉県秩父市中町16-10', '埼玉県', 5, 'active')
+-- 住所確認: ホトカミ ✓, 公式サイト ✓ | 座標: Wikidata Q11596110（#292 で直した）
 ;
 -- rank 4
 INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALUES
@@ -206,10 +206,10 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 -- 住所確認: ホトカミ ✓, Wikipedia ✓, 公式サイト ✓ | 座標: Wikipedia ✓
 ('成田山新勝寺', 35.7861, 140.3183, 'temple', '千葉県成田市成田1', '千葉県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓, 公式サイト ✓ | 座標: Wikipedia ✓
-('菊田神社', 35.6816, 140.0255, 'shrine', '千葉県習志野市津田沼3-2-5', '千葉県', 5, 'active'),
--- 住所確認: ホトカミ ✓, 公式サイト ✓ | 座標: NAVITIME推定 ✓
-('柏神社', 35.8619, 139.9748, 'shrine', '千葉県柏市柏3-2-2', '千葉県', 5, 'active'),
--- 住所確認: ホトカミ ✓, 公式サイト ✓ | 座標: NAVITIME推定 ✓
+('菊田神社', 35.684167, 140.026944, 'shrine', '千葉県習志野市津田沼3-2-5', '千葉県', 5, 'active'),
+-- 住所確認: ホトカミ ✓, 公式サイト ✓ | 座標: Wikidata Q11619900（#292 で直した）
+('柏神社', 35.859806, 139.973750, 'shrine', '千葉県柏市柏3-2-2', '千葉県', 5, 'active'),
+-- 住所確認: ホトカミ ✓, 公式サイト ✓ | 座標: Wikidata Q11533858（#292 で直した）
 ('大原神社', 35.687003, 140.064133, 'shrine', '千葉県習志野市実籾1-30-1', '千葉県', 5, 'active'),
 -- 住所確認: ホトカミ ✓, 公式サイト ✓ | 座標: Wikidata Q11433137（#292 で直した）
 ('千葉神社', 35.6118, 140.1238, 'shrine', '千葉県千葉市中央区院内1-16-1', '千葉県', 5, 'active'),
@@ -231,8 +231,8 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q11371511（#292 で直した）
 ('葛飾八幡宮', 35.724108, 139.930797, 'shrine', '千葉県市川市八幡4-2-1', '千葉県', 4, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q11621034（#292 で直した）
-('意富比神社（船橋大神宮）', 35.6893, 139.9838, 'shrine', '千葉県船橋市宮本5-2-1', '千葉県', 4, 'active'),
--- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia推定 ✓
+('意富比神社（船橋大神宮）', 35.696365, 139.992880, 'shrine', '千葉県船橋市宮本5-2-1', '千葉県', 4, 'active'),
+-- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q3090870（#292 で直した）
 ('松戸神社', 35.780644, 139.897789, 'shrine', '千葉県松戸市松戸1457', '千葉県', 4, 'active'),
 -- 住所確認: ホトカミ ✓, 公式サイト ✓ | 座標: Wikidata Q11530716（#292 で直した）
 ('豊受稲荷本宮', 35.8571, 139.9746, 'shrine', '千葉県柏市柏4-9-21', '千葉県', 4, 'active'),
@@ -275,8 +275,8 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia ✓
 ('成田山横浜別院延命院', 35.449167, 139.627500, 'temple', '神奈川県横浜市西区宮崎町30', '神奈川県', 4, 'active'),
 -- 住所確認: ホトカミ ✓ | 座標: Wikidata Q11495652（#292 で直した）
-('銭洗弁財天宇賀福神社', 35.3247, 139.5401, 'shrine', '神奈川県鎌倉市佐助2-25-16', '神奈川県', 4, 'active'),
--- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikipedia推定 ✓
+('銭洗弁財天宇賀福神社', 35.325800, 139.542000, 'shrine', '神奈川県鎌倉市佐助2-25-16', '神奈川県', 4, 'active'),
+-- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q642681（#292 で直した）
 ('報徳二宮神社', 35.249852, 139.152965, 'shrine', '神奈川県小田原市城内8-10', '神奈川県', 4, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: OpenStreetMap way/558481071（© OpenStreetMap contributors, ODbL・#292 で直した）
 ('菊名神社', 35.511972, 139.632611, 'shrine', '神奈川県横浜市港北区菊名6-5-14', '神奈川県', 4, 'active'),
@@ -289,7 +289,7 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q710351（#292 で直した）
 ('大山阿夫利神社', 35.4306, 139.2379, 'shrine', '神奈川県伊勢原市大山355', '神奈川県', 4, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓, 公式サイト ✓ | 座標: Wikipedia(下社) ✓
-('旗上弁財天社', 35.3258, 139.5574, 'shrine', '神奈川県鎌倉市雪ノ下2-1-31', '神奈川県', 4, 'active')
--- 住所確認: ホトカミ ✓ | 座標: 鶴岡八幡宮境内 ✓
+('旗上弁財天社', 35.323902, 139.555971, 'shrine', '神奈川県鎌倉市雪ノ下2-1-31', '神奈川県', 4, 'active')
+-- 住所確認: ホトカミ ✓ | 座標: OpenStreetMap way/455185161（© OpenStreetMap contributors, ODbL・#292 で直した）
 -- 注: 鶴岡八幡宮の境内社。住所は鶴岡八幡宮と同一
 ;

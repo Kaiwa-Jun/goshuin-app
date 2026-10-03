@@ -45,7 +45,8 @@ Deno.test(
   'AC-21: 台帳の第1弾の wikidata 403 件すべてで、qid が台帳の ref・high・ledger',
   async () => {
     const { mapping, ledger } = await load();
-    const wd = ledger.entries.filter(e => e.source === 'wikidata');
+    // 対応表は第1弾の台帳から作った（第2弾以降の行は見ない）
+    const wd = ledger.entries.filter(e => e.batch === 1 && e.source === 'wikidata');
     assertEquals(wd.length, 403);
     let ok = 0;
     for (const e of wd) {

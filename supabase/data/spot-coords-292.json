@@ -9166,6 +9166,926 @@
       "ref": "Q583589",
       "confidence": "high",
       "basis": "Wikidata の点が、名前の合う地理院の注記（宇治上神社）の 1m（seed はその 436m 先）"
+    },
+    {
+      "batch": 2,
+      "idx": 1022,
+      "name": "宮城縣護國神社",
+      "prefecture": "宮城県",
+      "seedFile": "supabase/seed_miyagi_spots_and_pilgrimages.sql",
+      "seedLine": 15,
+      "old": {
+        "lat": 38.2543,
+        "lng": 140.8561
+      },
+      "new": {
+        "lat": 38.2525,
+        "lng": 140.855556
+      },
+      "source": "wikidata",
+      "ref": "Q11453994",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（wd）。オーナーの依頼でリーダーが選んだ。Wikidataの点に地理院の住所（124m）が一致。今の位置から206m"
+    },
+    {
+      "batch": 2,
+      "idx": 83,
+      "name": "宝珠山立石寺",
+      "prefecture": "山形県",
+      "seedFile": "supabase/seeds/01_hokkaido_tohoku.sql",
+      "seedLine": 210,
+      "old": {
+        "lat": 38.3126,
+        "lng": 140.4374
+      },
+      "new": {
+        "lat": 38.311863,
+        "lng": 140.434791
+      },
+      "source": "osm",
+      "ref": "node/4849389041",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（osm）"
+    },
+    {
+      "batch": 2,
+      "idx": 190,
+      "name": "秩父今宮神社",
+      "prefecture": "埼玉県",
+      "seedFile": "supabase/seeds/02_kanto.sql",
+      "seedLine": 173,
+      "old": {
+        "lat": 35.9939,
+        "lng": 139.0831
+      },
+      "new": {
+        "lat": 35.994917,
+        "lng": 139.080194
+      },
+      "source": "wikidata",
+      "ref": "Q11596110",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（wd）。オーナーの依頼でリーダーが選んだ。Wikidataの点に地理院の住所（57m）が一致。今の位置から285m"
+    },
+    {
+      "batch": 2,
+      "idx": 204,
+      "name": "菊田神社",
+      "prefecture": "千葉県",
+      "seedFile": "supabase/seeds/02_kanto.sql",
+      "seedLine": 209,
+      "old": {
+        "lat": 35.6816,
+        "lng": 140.0255
+      },
+      "new": {
+        "lat": 35.684167,
+        "lng": 140.026944
+      },
+      "source": "wikidata",
+      "ref": "Q11619900",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（wd）。オーナーの依頼でリーダーが選んだ。Wikidataの点に地理院の住所（88m）が一致。今の位置から314m"
+    },
+    {
+      "batch": 2,
+      "idx": 205,
+      "name": "柏神社",
+      "prefecture": "千葉県",
+      "seedFile": "supabase/seeds/02_kanto.sql",
+      "seedLine": 211,
+      "old": {
+        "lat": 35.8619,
+        "lng": 139.9748
+      },
+      "new": {
+        "lat": 35.859806,
+        "lng": 139.97375
+      },
+      "source": "wikidata",
+      "ref": "Q11533858",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（wd）。オーナーの依頼でリーダーが選んだ。Wikidataの点に地理院の住所（35m）が一致。今の位置から251m"
+    },
+    {
+      "batch": 2,
+      "idx": 215,
+      "name": "意富比神社（船橋大神宮）",
+      "prefecture": "千葉県",
+      "seedFile": "supabase/seeds/02_kanto.sql",
+      "seedLine": 234,
+      "old": {
+        "lat": 35.6893,
+        "lng": 139.9838
+      },
+      "new": {
+        "lat": 35.696365,
+        "lng": 139.99288
+      },
+      "source": "wikidata",
+      "ref": "Q3090870",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（wd）。オーナーの依頼でリーダーが選んだ。Wikidataの点に地理院の注記（23m）が一致。今の位置から1136m"
+    },
+    {
+      "batch": 2,
+      "idx": 233,
+      "name": "銭洗弁財天宇賀福神社",
+      "prefecture": "神奈川県",
+      "seedFile": "supabase/seeds/02_kanto.sql",
+      "seedLine": 278,
+      "old": {
+        "lat": 35.3247,
+        "lng": 139.5401
+      },
+      "new": {
+        "lat": 35.3258,
+        "lng": 139.542
+      },
+      "source": "wikidata",
+      "ref": "Q642681",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（wd）。オーナーの依頼でリーダーが選んだ（区分 owner を上書き）。Wikidataの点に地理院の注記（22m）・地理院の住所（40m）・OSM（75m）が一致。今の位置から211m"
+    },
+    {
+      "batch": 2,
+      "idx": 240,
+      "name": "旗上弁財天社",
+      "prefecture": "神奈川県",
+      "seedFile": "supabase/seeds/02_kanto.sql",
+      "seedLine": 292,
+      "old": {
+        "lat": 35.3258,
+        "lng": 139.5574
+      },
+      "new": {
+        "lat": 35.323902,
+        "lng": 139.555971
+      },
+      "source": "osm",
+      "ref": "way/455185161",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（osm）。オーナーの依頼でリーダーが選んだ。OSMの点に地理院の住所（132m）が一致。今の位置から248m"
+    },
+    {
+      "batch": 2,
+      "idx": 242,
+      "name": "白山神社",
+      "prefecture": "新潟県",
+      "seedFile": "supabase/seeds/03_chubu.sql",
+      "seedLine": 12,
+      "old": {
+        "lat": 37.9183,
+        "lng": 139.0349
+      },
+      "new": {
+        "lat": 37.915611,
+        "lng": 139.037333
+      },
+      "source": "wikidata",
+      "ref": "Q11579595",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（wd）。オーナーの依頼でリーダーが選んだ。Wikidataの点に地理院の住所（35m）が一致。今の位置から367m"
+    },
+    {
+      "batch": 2,
+      "idx": 251,
+      "name": "八海山尊神社",
+      "prefecture": "新潟県",
+      "seedFile": "supabase/seeds/03_chubu.sql",
+      "seedLine": 33,
+      "old": {
+        "lat": 37.0308,
+        "lng": 138.9419
+      },
+      "new": {
+        "lat": 37.120533,
+        "lng": 138.950394
+      },
+      "source": "wikidata",
+      "ref": "Q135463438",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（wd）。オーナーの依頼でリーダーが選んだ。Wikidataの点に地理院の住所（0m）が一致。今の位置から10km"
+    },
+    {
+      "batch": 2,
+      "idx": 282,
+      "name": "石浦神社",
+      "prefecture": "石川県",
+      "seedFile": "supabase/seeds/03_chubu.sql",
+      "seedLine": 108,
+      "old": {
+        "lat": 36.56,
+        "lng": 136.6571
+      },
+      "new": {
+        "lat": 36.561194,
+        "lng": 136.659833
+      },
+      "source": "wikidata",
+      "ref": "Q11586806",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（wd）。オーナーの依頼でリーダーが選んだ。Wikidataの点に地理院の住所（34m）が一致。今の位置から278m"
+    },
+    {
+      "batch": 2,
+      "idx": 295,
+      "name": "神明宮",
+      "prefecture": "石川県",
+      "seedFile": "supabase/seeds/03_chubu.sql",
+      "seedLine": 137,
+      "old": {
+        "lat": 36.5597,
+        "lng": 136.647
+      },
+      "new": {
+        "lat": 36.55804,
+        "lng": 136.648889
+      },
+      "source": "osm",
+      "ref": "way/315409718",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（osm）。オーナーの依頼でリーダーが選んだ。OSMの点に地理院の住所（58m）が一致。今の位置から250m"
+    },
+    {
+      "batch": 2,
+      "idx": 296,
+      "name": "菟橋神社",
+      "prefecture": "石川県",
+      "seedFile": "supabase/seeds/03_chubu.sql",
+      "seedLine": 139,
+      "old": {
+        "lat": 36.304,
+        "lng": 136.4507
+      },
+      "new": {
+        "lat": 36.406501,
+        "lng": 136.445567
+      },
+      "source": "wikidata",
+      "ref": "Q109665899",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（wd）。オーナーの依頼でリーダーが選んだ。Wikidataの点に地理院の住所（38m）が一致。今の位置から11km"
+    },
+    {
+      "batch": 2,
+      "idx": 299,
+      "name": "總持寺祖院",
+      "prefecture": "石川県",
+      "seedFile": "supabase/seeds/03_chubu.sql",
+      "seedLine": 145,
+      "old": {
+        "lat": 37.212,
+        "lng": 136.7893
+      },
+      "new": {
+        "lat": 37.2864,
+        "lng": 136.771
+      },
+      "source": "wikidata",
+      "ref": "Q3511690",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（wd）。オーナーの依頼でリーダーが選んだ。Wikidataの点に地理院の注記（46m）が一致。今の位置から8km"
+    },
+    {
+      "batch": 2,
+      "idx": 308,
+      "name": "平泉寺白山神社",
+      "prefecture": "福井県",
+      "seedFile": "supabase/seeds/03_chubu.sql",
+      "seedLine": 168,
+      "old": {
+        "lat": 36.044,
+        "lng": 136.5389
+      },
+      "new": {
+        "lat": 36.043917,
+        "lng": 136.542131
+      },
+      "source": "wikidata",
+      "ref": "Q11483206",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（wd）。オーナーの依頼でリーダーが選んだ。Wikidataの点に地理院の注記（4m）が一致。今の位置から291m"
+    },
+    {
+      "batch": 2,
+      "idx": 324,
+      "name": "新倉富士浅間神社",
+      "prefecture": "山梨県",
+      "seedFile": "supabase/seeds/03_chubu.sql",
+      "seedLine": 208,
+      "old": {
+        "lat": 35.5018,
+        "lng": 138.7985
+      },
+      "new": {
+        "lat": 35.500389,
+        "lng": 138.800139
+      },
+      "source": "wikidata",
+      "ref": "Q105949368",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（wd）。オーナーの依頼でリーダーが選んだ。Wikidataの点にOSM（9m）が一致。今の位置から216m"
+    },
+    {
+      "batch": 2,
+      "idx": 367,
+      "name": "橿森神社",
+      "prefecture": "岐阜県",
+      "seedFile": "supabase/seeds/03_chubu.sql",
+      "seedLine": 311,
+      "old": {
+        "lat": 35.4213,
+        "lng": 136.7623
+      },
+      "new": {
+        "lat": 35.419675,
+        "lng": 136.764303
+      },
+      "source": "wikidata",
+      "ref": "Q3193694",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（wd）。オーナーの依頼でリーダーが選んだ。Wikidataの点に地理院の住所（3m）が一致。今の位置から256m"
+    },
+    {
+      "batch": 2,
+      "idx": 369,
+      "name": "岐阜護國神社",
+      "prefecture": "岐阜県",
+      "seedFile": "supabase/seeds/03_chubu.sql",
+      "seedLine": 315,
+      "old": {
+        "lat": 35.4361,
+        "lng": 136.7654
+      },
+      "new": {
+        "lat": 35.437002,
+        "lng": 136.776352
+      },
+      "source": "osm",
+      "ref": "node/6346112385",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（osm）。オーナーの依頼でリーダーが選んだ。OSMの点に地理院の注記（3m）が一致。今の位置から997m"
+    },
+    {
+      "batch": 2,
+      "idx": 379,
+      "name": "岐阜信長神社",
+      "prefecture": "岐阜県",
+      "seedFile": "supabase/seeds/03_chubu.sql",
+      "seedLine": 338,
+      "old": {
+        "lat": 35.4209,
+        "lng": 136.7621
+      },
+      "new": {
+        "lat": 35.419774,
+        "lng": 136.764084
+      },
+      "source": "osm",
+      "ref": "node/7281829594",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（osm）。オーナーの依頼でリーダーが選んだ。OSMの点に地理院の住所（23m）が一致。今の位置から219m"
+    },
+    {
+      "batch": 2,
+      "idx": 420,
+      "name": "八剣宮",
+      "prefecture": "愛知県",
+      "seedFile": "supabase/seeds/03_chubu.sql",
+      "seedLine": 439,
+      "old": {
+        "lat": 35.1268,
+        "lng": 136.9079
+      },
+      "new": {
+        "lat": 35.123498,
+        "lng": 136.908269
+      },
+      "source": "wikidata",
+      "ref": "Q55533377",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（wd）。オーナーの依頼でリーダーが選んだ。Wikidataの点にOSM（34m）が一致。今の位置から369m"
+    },
+    {
+      "batch": 2,
+      "idx": 458,
+      "name": "三尾神社",
+      "prefecture": "滋賀県",
+      "seedFile": "supabase/seeds/04_kinki.sql",
+      "seedLine": 97,
+      "old": {
+        "lat": 35.0138,
+        "lng": 135.8508
+      },
+      "new": {
+        "lat": 35.008823,
+        "lng": 135.854172
+      },
+      "source": "wikidata",
+      "ref": "Q65247874",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（wd）。オーナーの依頼でリーダーが選んだ。Wikidataの点に地理院の住所（0m）が一致。今の位置から633m"
+    },
+    {
+      "batch": 2,
+      "idx": 459,
+      "name": "百済寺",
+      "prefecture": "滋賀県",
+      "seedFile": "supabase/seeds/04_kinki.sql",
+      "seedLine": 99,
+      "old": {
+        "lat": 35.0556,
+        "lng": 136.3289
+      },
+      "new": {
+        "lat": 35.126827,
+        "lng": 136.291512
+      },
+      "source": "osm",
+      "ref": "way/183562887",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（osm）。オーナーの依頼でリーダーが選んだ。OSMの点に地理院の注記（5m）が一致。今の位置から9km"
+    },
+    {
+      "batch": 2,
+      "idx": 462,
+      "name": "大阪天満宮",
+      "prefecture": "大阪府",
+      "seedFile": "supabase/seeds/04_kinki.sql",
+      "seedLine": 110,
+      "old": {
+        "lat": 34.693,
+        "lng": 135.513
+      },
+      "new": {
+        "lat": 34.696025,
+        "lng": 135.512619
+      },
+      "source": "wikidata",
+      "ref": "Q385793",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（wd）。オーナーの依頼でリーダーが選んだ。Wikidataの点に地理院の注記（3m）・地理院の住所（55m）が一致。今の位置から338m"
+    },
+    {
+      "batch": 2,
+      "idx": 509,
+      "name": "石上神宮",
+      "prefecture": "奈良県",
+      "seedFile": "supabase/seeds/04_kinki.sql",
+      "seedLine": 222,
+      "old": {
+        "lat": 34.5954,
+        "lng": 135.8511
+      },
+      "new": {
+        "lat": 34.597875,
+        "lng": 135.851673
+      },
+      "source": "wikidata",
+      "ref": "Q708859",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（wd）。オーナーの依頼でリーダーが選んだ。Wikidataの点に地理院の注記（31m）・地理院の住所（49m）が一致。今の位置から280m"
+    },
+    {
+      "batch": 2,
+      "idx": 514,
+      "name": "元興寺",
+      "prefecture": "奈良県",
+      "seedFile": "supabase/seeds/04_kinki.sql",
+      "seedLine": 236,
+      "old": {
+        "lat": 34.6768,
+        "lng": 135.8331
+      },
+      "new": {
+        "lat": 34.678056,
+        "lng": 135.831111
+      },
+      "source": "wikidata",
+      "ref": "Q1203099",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（wd）。オーナーの依頼でリーダーが選んだ。Wikidataの点に地理院の住所（11m）が一致。今の位置から229m"
+    },
+    {
+      "batch": 2,
+      "idx": 524,
+      "name": "青岸渡寺",
+      "prefecture": "和歌山県",
+      "seedFile": "supabase/seeds/04_kinki.sql",
+      "seedLine": 261,
+      "old": {
+        "lat": 33.6672,
+        "lng": 135.8903
+      },
+      "new": {
+        "lat": 33.66964,
+        "lng": 135.889893
+      },
+      "source": "wikidata",
+      "ref": "Q1476235",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（wd）。オーナーの依頼でリーダーが選んだ。Wikidataの点に地理院の注記（55m）が一致。今の位置から274m"
+    },
+    {
+      "batch": 2,
+      "idx": 545,
+      "name": "大神山神社奥宮",
+      "prefecture": "鳥取県",
+      "seedFile": "supabase/seeds/05_chugoku_shikoku.sql",
+      "seedLine": 18,
+      "old": {
+        "lat": 35.37,
+        "lng": 133.5361
+      },
+      "new": {
+        "lat": 35.388734,
+        "lng": 133.538519
+      },
+      "source": "wikidata",
+      "ref": "Q135195597",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（wd）。オーナーの依頼でリーダーが選んだ。Wikidataの点に地理院の注記（20m）が一致。今の位置から2km"
+    },
+    {
+      "batch": 2,
+      "idx": 570,
+      "name": "松江護國神社",
+      "prefecture": "島根県",
+      "seedFile": "supabase/seeds/05_chugoku_shikoku.sql",
+      "seedLine": 77,
+      "old": {
+        "lat": 35.475,
+        "lng": 133.0489
+      },
+      "new": {
+        "lat": 35.476703,
+        "lng": 133.049619
+      },
+      "source": "wikidata",
+      "ref": "Q11239221",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（wd）。オーナーの依頼でリーダーが選んだ（区分 owner を上書き）。Wikidataの点にOSM（3m）・地理院の住所（88m）が一致。今の位置から200m"
+    },
+    {
+      "batch": 2,
+      "idx": 588,
+      "name": "由加神社本宮",
+      "prefecture": "岡山県",
+      "seedFile": "supabase/seeds/05_chugoku_shikoku.sql",
+      "seedLine": 122,
+      "old": {
+        "lat": 34.5444,
+        "lng": 133.8756
+      },
+      "new": {
+        "lat": 34.505917,
+        "lng": 133.851056
+      },
+      "source": "wikidata",
+      "ref": "Q11577571",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（wd）。オーナーの依頼でリーダーが選んだ。Wikidataの点に地理院の注記（2m）が一致。今の位置から5km"
+    },
+    {
+      "batch": 2,
+      "idx": 590,
+      "name": "縣主神社",
+      "prefecture": "岡山県",
+      "seedFile": "supabase/seeds/05_chugoku_shikoku.sql",
+      "seedLine": 126,
+      "old": {
+        "lat": 34.6142,
+        "lng": 133.5211
+      },
+      "new": {
+        "lat": 34.584848,
+        "lng": 133.495611
+      },
+      "source": "osm",
+      "ref": "way/286377579",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（osm）。オーナーの依頼でリーダーが選んだ。OSMの点に地理院の注記（11m）が一致。今の位置から4km"
+    },
+    {
+      "batch": 2,
+      "idx": 602,
+      "name": "廣島護國神社",
+      "prefecture": "広島県",
+      "seedFile": "supabase/seeds/05_chugoku_shikoku.sql",
+      "seedLine": 159,
+      "old": {
+        "lat": 34.4031,
+        "lng": 132.4597
+      },
+      "new": {
+        "lat": 34.401167,
+        "lng": 132.45875
+      },
+      "source": "wikidata",
+      "ref": "Q84008",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（wd）。オーナーの依頼でリーダーが選んだ。Wikidataの点に地理院の住所（54m）が一致。今の位置から232m"
+    },
+    {
+      "batch": 2,
+      "idx": 621,
+      "name": "赤間神宮",
+      "prefecture": "山口県",
+      "seedFile": "supabase/seeds/05_chugoku_shikoku.sql",
+      "seedLine": 206,
+      "old": {
+        "lat": 33.9581,
+        "lng": 130.9472
+      },
+      "new": {
+        "lat": 33.959722,
+        "lng": 130.948472
+      },
+      "source": "wikidata",
+      "ref": "Q712617",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（wd）。オーナーの依頼でリーダーが選んだ。Wikidataの点に地理院の住所（7m）・地理院の注記（128m）が一致。今の位置から215m"
+    },
+    {
+      "batch": 2,
+      "idx": 625,
+      "name": "松陰神社",
+      "prefecture": "山口県",
+      "seedFile": "supabase/seeds/05_chugoku_shikoku.sql",
+      "seedLine": 214,
+      "old": {
+        "lat": 34.4117,
+        "lng": 131.4206
+      },
+      "new": {
+        "lat": 34.412139,
+        "lng": 131.418222
+      },
+      "source": "wikidata",
+      "ref": "Q111525635",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（wd）。オーナーの依頼でリーダーが選んだ。Wikidataの点に地理院の注記（13m）・地理院の住所（35m）が一致。今の位置から224m"
+    },
+    {
+      "batch": 2,
+      "idx": 645,
+      "name": "金泉寺",
+      "prefecture": "徳島県",
+      "seedFile": "supabase/seeds/05_chugoku_shikoku.sql",
+      "seedLine": 263,
+      "old": {
+        "lat": 34.1428,
+        "lng": 134.4758
+      },
+      "new": {
+        "lat": 34.147436,
+        "lng": 134.468544
+      },
+      "source": "wikidata",
+      "ref": "Q3198759",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（wd）。オーナーの依頼でリーダーが選んだ。Wikidataの点に地理院の注記（2m）が一致。今の位置から844m"
+    },
+    {
+      "batch": 2,
+      "idx": 705,
+      "name": "最御崎寺",
+      "prefecture": "高知県",
+      "seedFile": "supabase/seeds/05_chugoku_shikoku.sql",
+      "seedLine": 410,
+      "old": {
+        "lat": 33.2489,
+        "lng": 134.1786
+      },
+      "new": {
+        "lat": 33.249008,
+        "lng": 134.175739
+      },
+      "source": "wikidata",
+      "ref": "Q11515607",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（wd）。オーナーの依頼でリーダーが選んだ。Wikidataの点に地理院の注記（11m）・地理院の住所（37m）が一致。今の位置から266m"
+    },
+    {
+      "batch": 2,
+      "idx": 723,
+      "name": "住吉神社（福岡）",
+      "prefecture": "福岡県",
+      "seedFile": "supabase/seeds/06_kyushu_okinawa.sql",
+      "seedLine": 14,
+      "old": {
+        "lat": 33.5833,
+        "lng": 130.4125
+      },
+      "new": {
+        "lat": 33.58575,
+        "lng": 130.41375
+      },
+      "source": "wikidata",
+      "ref": "Q29682",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（wd）。オーナーの依頼でリーダーが選んだ。Wikidataの点に地理院の注記（18m）が一致。今の位置から296m"
+    },
+    {
+      "batch": 2,
+      "idx": 750,
+      "name": "龍造寺八幡宮",
+      "prefecture": "佐賀県",
+      "seedFile": "supabase/seeds/06_kyushu_okinawa.sql",
+      "seedLine": 77,
+      "old": {
+        "lat": 33.2536,
+        "lng": 130.3011
+      },
+      "new": {
+        "lat": 33.255425,
+        "lng": 130.298531
+      },
+      "source": "wikidata",
+      "ref": "Q28684427",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（wd）。オーナーの依頼でリーダーが選んだ。Wikidataの点に地理院の住所（59m）が一致。今の位置から313m"
+    },
+    {
+      "batch": 2,
+      "idx": 796,
+      "name": "高橋稲荷神社",
+      "prefecture": "熊本県",
+      "seedFile": "supabase/seeds/06_kyushu_okinawa.sql",
+      "seedLine": 191,
+      "old": {
+        "lat": 32.7853,
+        "lng": 130.6658
+      },
+      "new": {
+        "lat": 32.7829,
+        "lng": 130.659
+      },
+      "source": "wikidata",
+      "ref": "Q11671498",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（wd）。オーナーの依頼でリーダーが選んだ。Wikidataの点に地理院の住所（82m）が一致。今の位置から689m"
+    },
+    {
+      "batch": 2,
+      "idx": 814,
+      "name": "臼杵石仏",
+      "prefecture": "大分県",
+      "seedFile": "supabase/seeds/06_kyushu_okinawa.sql",
+      "seedLine": 236,
+      "old": {
+        "lat": 33.1167,
+        "lng": 131.7886
+      },
+      "new": {
+        "lat": 33.09011,
+        "lng": 131.76248
+      },
+      "source": "wikidata",
+      "ref": "Q2921458",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（wd）。オーナーの依頼でリーダーが選んだ。Wikidataの点に地理院の住所（90m）が一致。今の位置から4km"
+    },
+    {
+      "batch": 2,
+      "idx": 865,
+      "name": "護国寺（那覇）",
+      "prefecture": "沖縄県",
+      "seedFile": "supabase/seeds/06_kyushu_okinawa.sql",
+      "seedLine": 361,
+      "old": {
+        "lat": 26.2192,
+        "lng": 127.6689
+      },
+      "new": {
+        "lat": 26.220068,
+        "lng": 127.671579
+      },
+      "source": "osm",
+      "ref": "way/169954331",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（osm）。オーナーの依頼でリーダーが選んだ。OSMの点に地理院の住所（48m）が一致。今の位置から284m"
+    },
+    {
+      "batch": 2,
+      "idx": 869,
+      "name": "安里八幡宮",
+      "prefecture": "沖縄県",
+      "seedFile": "supabase/seeds/06_kyushu_okinawa.sql",
+      "seedLine": 369,
+      "old": {
+        "lat": 26.2233,
+        "lng": 127.6944
+      },
+      "new": {
+        "lat": 26.221111,
+        "lng": 127.694944
+      },
+      "source": "wikidata",
+      "ref": "Q11451643",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（wd）。オーナーの依頼でリーダーが選んだ。Wikidataの点に地理院の住所（28m）が一致。今の位置から249m"
+    },
+    {
+      "batch": 2,
+      "idx": 872,
+      "name": "金武観音寺",
+      "prefecture": "沖縄県",
+      "seedFile": "supabase/seeds/06_kyushu_okinawa.sql",
+      "seedLine": 379,
+      "old": {
+        "lat": 26.4556,
+        "lng": 127.9244
+      },
+      "new": {
+        "lat": 26.455319,
+        "lng": 127.92145
+      },
+      "source": "wikidata",
+      "ref": "Q11647330",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（wd）。オーナーの依頼でリーダーが選んだ。Wikidataの点にOSM（6m）が一致。今の位置から295m"
+    },
+    {
+      "batch": 2,
+      "idx": 878,
+      "name": "安国寺",
+      "prefecture": "沖縄県",
+      "seedFile": "supabase/seeds/06_kyushu_okinawa.sql",
+      "seedLine": 391,
+      "old": {
+        "lat": 26.2194,
+        "lng": 127.7156
+      },
+      "new": {
+        "lat": 26.218528,
+        "lng": 127.713417
+      },
+      "source": "wikidata",
+      "ref": "Q21652389",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（wd）。オーナーの依頼でリーダーが選んだ。Wikidataの点に地理院の住所（85m）が一致。今の位置から238m"
+    },
+    {
+      "batch": 2,
+      "idx": 1004,
+      "name": "平安神宮",
+      "prefecture": "京都府",
+      "seedFile": "supabase/seeds/seed_kyoto_rank_spots.sql",
+      "seedLine": 17,
+      "old": {
+        "lat": 35.0153,
+        "lng": 135.7837
+      },
+      "new": {
+        "lat": 35.016667,
+        "lng": 135.782222
+      },
+      "source": "wikidata",
+      "ref": "Q385141",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（wd）。オーナーの依頼でリーダーが選んだ（区分 owner を上書き）。Wikidataの点にOSM（91m）・地理院の住所（109m）・地理院の注記（137m）が一致。今の位置から203m"
+    },
+    {
+      "batch": 2,
+      "idx": 1013,
+      "name": "蓮華王院（三十三間堂）",
+      "prefecture": "京都府",
+      "seedFile": "supabase/seeds/seed_kyoto_rank_spots.sql",
+      "seedLine": 39,
+      "old": {
+        "lat": 34.9897,
+        "lng": 135.7727
+      },
+      "new": {
+        "lat": 34.987885,
+        "lng": 135.771713
+      },
+      "source": "wikidata",
+      "ref": "Q653319",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（wd）。オーナーの依頼でリーダーが選んだ。Wikidataの点に地理院の注記（96m）が一致。今の位置から221m"
+    },
+    {
+      "batch": 2,
+      "idx": 882,
+      "name": "明治神宮",
+      "prefecture": "東京都",
+      "seedFile": "supabase/seeds/seed_tokyo_spots.sql",
+      "seedLine": 11,
+      "old": {
+        "lat": 35.6741,
+        "lng": 139.703
+      },
+      "new": {
+        "lat": 35.676111,
+        "lng": 139.699167
+      },
+      "source": "wikidata",
+      "ref": "Q287165",
+      "confidence": "high",
+      "basis": "オーナーが選んだ（wd）。オーナーの依頼でリーダーが選んだ。Wikidataの点に地理院の注記（24m）が一致。今の位置から412m"
     }
   ]
 }

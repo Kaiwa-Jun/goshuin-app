@@ -8,8 +8,8 @@
 INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALUES
 ('浅草寺', 35.7134, 139.7967, 'temple', '東京都台東区浅草2-3-1', '東京都', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓, 公式サイト(senso-ji.jp) ✓ | 座標: geocoding.jp ✓
-('明治神宮', 35.6741, 139.7030, 'shrine', '東京都渋谷区代々木神園町1-1', '東京都', 5, 'active'),
--- 住所確認: ホトカミ ✓, Wikipedia ✓, 東京都神社庁 ✓ | 座標: geocoding.jp ✓
+('明治神宮', 35.676111, 139.699167, 'shrine', '東京都渋谷区代々木神園町1-1', '東京都', 5, 'active'),
+-- 住所確認: ホトカミ ✓, Wikipedia ✓, 東京都神社庁 ✓ | 座標: Wikidata Q287165（#292 で直した）
 ('神田神社', 35.7023, 139.7683, 'shrine', '東京都千代田区外神田2-16-2', '東京都', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓, 公式サイト(kandamyoujin.or.jp) ✓ | 座標: geocoding.jp ✓
 ('靖國神社', 35.6953, 139.7437, 'shrine', '東京都千代田区九段北3-1-1', '東京都', 5, 'active'),

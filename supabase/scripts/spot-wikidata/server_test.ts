@@ -425,14 +425,21 @@ Deno.test(
   'fixtures/work の画面のデータは、本物の seed と台帳に合う（作り物の点で選んで書き出せる）',
   async () => {
     const ROOT = new URL('../../../', import.meta.url);
+    const current = parseLedger(
+      await Deno.readTextFile(new URL('supabase/data/spot-coords-292.json', ROOT))
+    );
+    // 作り物の画面のデータは、第1弾だけが台帳にあったとき（#301）に作った。
+    // 第2弾以降の行は台帳から外し、その寺社の seed の座標も直す前（old）に戻して照らす
+    const later = new Map(current.entries.filter(e => e.batch > 1).map(e => [e.idx, e]));
+    const ledger = { ...current, entries: current.entries.filter(e => e.batch === 1) };
     const rows = readSeedRows(
       await Promise.all(
         SEED_FILES.map(async path => ({ path, text: await Deno.readTextFile(new URL(path, ROOT)) }))
       )
-    );
-    const ledger = parseLedger(
-      await Deno.readTextFile(new URL('supabase/data/spot-coords-292.json', ROOT))
-    );
+    ).map(r => {
+      const e = later.get(r.idx);
+      return e ? { ...r, lat: e.old.lat, lng: e.old.lng } : r;
+    });
     const data = JSON.parse(
       await Deno.readTextFile(new URL('./fixtures/work/review/review-data.json', import.meta.url))
     );
