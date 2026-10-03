@@ -622,7 +622,7 @@ type BaseKind = 'addr' | 'gsi' | 'seed';
 const BASE_TEXT: Record<BaseKind, string> = {
   addr: '地理院の住所（番地）',
   gsi: '地理院の注記・記号',
-  seed: 'seed',
+  seed: 'seed ',
 };
 
 interface Judged {
