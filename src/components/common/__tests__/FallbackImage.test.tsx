@@ -84,6 +84,28 @@ describe('FallbackImage', () => {
     expect(getByTestId('img').props.source).toEqual({ uri: R2_B });
   });
 
+  /*
+   * 渡された URL（変換）が読めたことは、落とす先が読めたときと分けて知らせる。
+   * 一時の失敗で落ちたあと、付け直しで変換が読めたら「落ちた」の控えを消すため（#227 S4a-2）
+   */
+  it('渡された URL が読めたときだけ、そのことを知らせる', () => {
+    const onPrimaryLoad = jest.fn();
+    const loaded = { nativeEvent: { source: { width: 1, height: 2 } } };
+    const first = render(
+      <FallbackImage testID="img" uri={R2} fallbackUri={ORIGINAL} onPrimaryLoad={onPrimaryLoad} />
+    );
+    fireEvent(first.getByTestId('img'), 'load', loaded);
+    expect(onPrimaryLoad).toHaveBeenCalledTimes(1);
+
+    onPrimaryLoad.mockClear();
+    const second = render(
+      <FallbackImage testID="img2" uri={R2} fallbackUri={ORIGINAL} onPrimaryLoad={onPrimaryLoad} />
+    );
+    fireEvent(second.getByTestId('img2'), 'error');
+    fireEvent(second.getByTestId('img2'), 'load', loaded);
+    expect(onPrimaryLoad).not.toHaveBeenCalled();
+  });
+
   it('読み込めた知らせと見た目の指定はそのまま渡す', () => {
     const onLoad = jest.fn();
     const { getByTestId } = render(

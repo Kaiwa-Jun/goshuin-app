@@ -483,6 +483,34 @@ describe('GalleryScreen', () => {
       );
     });
 
+    /*
+     * 一時の失敗で元の写真に落ちたページが、外れて付け直されたら変換が読めた。
+     * 画面に出ているのは 1200 なので、飛ぶ1枚も 1200 に戻す（#227 S4a-2 AC-25・#304 の指摘）
+     */
+    it('元の写真に落ちたあと、付け直したページで変換が読めたら、飛ぶ1枚は大きい方の URL', async () => {
+      withStamps([makeStamp({ id: 'stamp-abc', image_path: 'user-1/a.jpg' })]);
+      const { getByTestId } = renderGalleryScreen();
+
+      fireEvent(getByTestId('flip-page-image-stamp-abc'), 'error');
+      // めくる表示を外して付け直す（FlatList が外して付け直したときと同じく、ページの控えは消える）
+      fireEvent.press(getByTestId('view-mode-grid'));
+      fireEvent.press(getByTestId('view-mode-flip'));
+      expect(getByTestId('flip-page-image-stamp-abc').props.source.uri).toBe(
+        'https://example.com/cdn-cgi/image/width=1200/user-1/a.jpg'
+      );
+      fireEvent(getByTestId('flip-page-image-stamp-abc'), 'load', {
+        nativeEvent: { source: { width: 600, height: 800 } },
+      });
+      fireEvent.press(getByTestId('flip-page-stamp-abc'));
+
+      await waitFor(() => expect(mockHeroStart).toHaveBeenCalled());
+      expect(mockHeroStart.mock.calls[0][0]).toEqual(
+        expect.objectContaining({
+          imageUrl: 'https://example.com/cdn-cgi/image/width=1200/user-1/a.jpg',
+        })
+      );
+    });
+
     it('元の写真に落ちたページから飛ぶ1枚は、元の写真の URL', async () => {
       withStamps([makeStamp({ id: 'stamp-abc', image_path: 'user-1/a.jpg' })]);
       const { getByTestId } = renderGalleryScreen();

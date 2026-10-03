@@ -309,6 +309,7 @@ S1 の残り（オーナーの作業が要る）:
 
 - [x] AC-24（S4a-2）: めくる表示のページの写真の URL が `width=1200` の変換 URL。読み込みに失敗すると Supabase の原本に1回だけ替わり、その間も読み込み中の下地が出たまま。元も失敗すると下地が消える（Jest: `GoshuinchoPage` / `GoshuinchoFlipView`）（2026-10-03: Jest。画面では めくる表示で 1200 が 19 件すべて 200）
 - [x] AC-25（S4a-2）: めくる表示でページを押すと、飛ぶ1枚の URL はそのページに出ている URL（ふつうは 1200 の変換、元に落ちたページは原本）（Jest: `GalleryScreen`）（2026-10-03: Jest）
+- [x] AC-25b（S4a-2・#304 の指摘）: 一時の失敗で元の写真に落ちたページが、外れて付け直されて変換が読めたら、落ちた控えを消し、飛ぶ1枚も 1200 の変換 URL に戻る（変換が読めたことを `FallbackImage` の `onPrimaryLoad` → `GoshuinchoPage` → `GoshuinchoFlipView` → `GalleryScreen` に返す）（2026-10-03: Jest `GalleryScreen`「元の写真に落ちたあと、付け直したページで変換が読めたら…」・`FallbackImage`）
 - [x] AC-26（S4a-2）: 記録の完了画面の写真が 1200 の変換 URL。失敗すると原本、原本も失敗するとプレースホルダ（Jest: `RecordScreen` / `RecordCompleteScreen`）（2026-10-03: Jest。画面では一時の入口から開いて 1200 が 1 件 200）
 - [x] AC-27（S4a-2）: スポット詳細の御朱印の並びと地図のシートの写真の帯が 400 の変換 URL で、失敗すると原本に替わる。そこから開く全画面は 1200 の変換 URL で、`fallbackUrl` が原本（Jest: `SpotDetailContent` / `SpotThumbnailStrip`）（2026-10-03: Jest。画面では地図のシートの帯で 400、そこから開く全画面で 1200 がすべて 200。`SpotDetailScreen`（`SpotDetailContent`）は登録はあるが開く入口がアプリに無く、Jest だけ）
 - [x] AC-28（S4a-2）: 写真の編集を開いたときの今の写真が 1200 の変換 URL で、失敗すると原本（Jest: `EditStampModal` / `GalleryScreen`）（2026-10-03: Jest。画面では開いていない）

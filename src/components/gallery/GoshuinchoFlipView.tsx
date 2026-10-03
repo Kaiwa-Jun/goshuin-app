@@ -80,6 +80,11 @@ interface GoshuinchoFlipViewProps {
   resolveImageUrl?: (stamp: StampWithSpot) => string;
   /** ページの写真が元の写真に落ちたとき。飛ぶ1枚を出ている URL に合わせるために使う */
   onImageFallback?: (stampId: string) => void;
+  /**
+   * ページの写真が元の写真ではない方で読めたとき。一時の失敗で落ちたページが、外れて
+   * 付け直されたら読めた、を画面に返す（落ちた控えを消す）
+   */
+  onPrimaryImageLoad?: (stampId: string) => void;
   /** 詳細へ連続的に繋ぐために、ページの位置を測れるようにする（Issue #202） */
   registerNode?: (stampId: string, part: 'image' | 'text', node: View | null) => void;
   /** 読み込んだ写真の実寸 */
@@ -140,6 +145,7 @@ interface FlipPageItemProps {
   /** imageUrl が出せなかったときの元の写真（Issue #227 S4a-2） */
   fallbackUrl?: string;
   onImageFallback?: (stampId: string) => void;
+  onPrimaryImageLoad?: (stampId: string) => void;
   hidden: boolean;
   reduceMotion: boolean;
   surfaceScale?: Animated.AnimatedInterpolation<number>;
@@ -165,6 +171,7 @@ const FlipPageItem = memo(function FlipPageItem({
   imageUrl,
   fallbackUrl,
   onImageFallback,
+  onPrimaryImageLoad,
   hidden,
   reduceMotion,
   surfaceScale,
@@ -247,6 +254,7 @@ const FlipPageItem = memo(function FlipPageItem({
           imageUrl={imageUrl ?? ''}
           fallbackUrl={fallbackUrl}
           onImageFallback={() => onImageFallback?.(page.stamp.id)}
+          onPrimaryImageLoad={() => onPrimaryImageLoad?.(page.stamp.id)}
           spotName={page.stamp.spots.name}
           visitedAt={page.stamp.visited_at}
           surfaceScale={surfaceScale}
@@ -273,6 +281,7 @@ export const GoshuinchoFlipView = memo(function GoshuinchoFlipView({
   onPressBlank,
   resolveImageUrl,
   onImageFallback,
+  onPrimaryImageLoad,
   registerNode,
   onImageLoad,
   hiddenStampId,
@@ -427,6 +436,7 @@ export const GoshuinchoFlipView = memo(function GoshuinchoFlipView({
               : getStampImageUrl(item.stamp.image_path)
           }
           onImageFallback={onImageFallback}
+          onPrimaryImageLoad={onPrimaryImageLoad}
           hidden={item.kind === 'stamp' && hiddenStampId === item.stamp.id}
           reduceMotion={reduceMotion}
           surfaceScale={motion && isCurrent ? motion.pageScale : undefined}
@@ -448,6 +458,7 @@ export const GoshuinchoFlipView = memo(function GoshuinchoFlipView({
       motion,
       onImageFallback,
       onImageLoad,
+      onPrimaryImageLoad,
       pages.length,
       reduceMotion,
       registerNode,

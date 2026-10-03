@@ -631,11 +631,16 @@ export function GalleryScreen({ navigation }: Props) {
   displayStampsRef.current = displayStamps;
   /*
    * めくる表示で元の写真に落ちたページ（Issue #227 S4a-2）。飛ぶ1枚を出ている URL に
-   * 合わせるためだけに使う。state にするとめくる表示の全ページが描き直しになるので ref に控える
+   * 合わせるためだけに使う。state にするとめくる表示の全ページが描き直しになるので ref に控える。
+   * 落ちたのが一時の失敗で、ページが外れて付け直されたら変換が読めた、もあるので、
+   * 変換が読めたら控えを消す（#304 の指摘）
    */
   const flipFellBack = useRef<Set<string>>(new Set());
   const handleFlipImageFallback = useCallback((stampId: string) => {
     flipFellBack.current.add(stampId);
+  }, []);
+  const handleFlipPrimaryImageLoad = useCallback((stampId: string) => {
+    flipFellBack.current.delete(stampId);
   }, []);
   const handlePressFlipStamp = useCallback((index: number) => {
     gridDetailStampId.current = null;
@@ -738,6 +743,7 @@ export function GalleryScreen({ navigation }: Props) {
                   stamps={displayStamps}
                   resolveImageUrl={isPreview ? previewImageUrl : undefined}
                   onImageFallback={handleFlipImageFallback}
+                  onPrimaryImageLoad={handleFlipPrimaryImageLoad}
                   onPressStamp={handlePressFlipStamp}
                   registerNode={registerFlipNode}
                   onImageLoad={hero.rememberAspect}

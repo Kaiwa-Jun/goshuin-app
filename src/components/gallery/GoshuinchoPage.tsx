@@ -60,6 +60,8 @@ type GoshuinchoPageProps = {
       fallbackUrl?: string;
       /** 元の写真に替えたとき */
       onImageFallback?: () => void;
+      /** imageUrl（元の写真ではない方）が読めたとき。付け直して読めたら落ちた控えを消すため */
+      onPrimaryImageLoad?: () => void;
       spotName: string;
       visitedAt: string;
     }
@@ -124,6 +126,7 @@ export function GoshuinchoPage(props: GoshuinchoPageProps) {
               // 元を読みにいく間も下地は出したまま（Issue #227 S4a-2）
               fallbackUri={props.fallbackUrl}
               onFallback={props.onImageFallback}
+              onPrimaryLoad={props.onPrimaryImageLoad}
               resizeMode="contain"
               onLoad={e => {
                 // 先に落ち着かせる。Web の nativeEvent には source が無く、後ろで例外になる

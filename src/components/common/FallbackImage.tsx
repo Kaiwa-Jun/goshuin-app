@@ -9,6 +9,11 @@ type Props = Omit<ImageProps, 'source' | 'onError'> & {
   onFallback?: () => void;
   /** 落とす先も出せなかったとき。落とす先が無ければ最初の失敗で */
   onFinalError?: () => void;
+  /**
+   * 渡された URL（落とす前）が読めたとき。落とす先が読めたときは呼ばない。
+   * 一時の失敗で落ちたあと、付け直しで読めたことを呼び出し側の控えに返すために使う
+   */
+  onPrimaryLoad?: () => void;
 };
 
 /**
@@ -17,7 +22,15 @@ type Props = Omit<ImageProps, 'source' | 'onError'> & {
  * R2 に無い写真（旧バージョンのアプリが Supabase にだけ上げたもの・R2 の書き込みだけ
  * 失敗したもの）を出し続けるため。元も出せなければ取り直さず、呼び出し側の失敗の見た目に任せる
  */
-export function FallbackImage({ uri, fallbackUri, onFallback, onFinalError, ...rest }: Props) {
+export function FallbackImage({
+  uri,
+  fallbackUri,
+  onFallback,
+  onFinalError,
+  onPrimaryLoad,
+  onLoad,
+  ...rest
+}: Props) {
   /*
    * どの URL から落ちたかを控える。行が使い回されて URL が変わったら控えが合わなくなり、
    * 新しい URL から出し直す
@@ -29,6 +42,10 @@ export function FallbackImage({ uri, fallbackUri, onFallback, onFinalError, ...r
     <Image
       {...rest}
       source={{ uri: fellBack ? fallbackUri : uri }}
+      onLoad={e => {
+        if (!fellBack) onPrimaryLoad?.();
+        onLoad?.(e);
+      }}
       onError={() => {
         if (fallbackUri !== undefined && !fellBack) {
           setFellBackFrom(uri);
