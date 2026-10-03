@@ -184,9 +184,25 @@ describe('legal constants', () => {
       );
     });
 
-    it('更新日は 2026-09-24', () => {
+    it('利用規約の更新日は 2026-09-24', () => {
       expect(TERMS_OF_SERVICE.lastUpdated).toBe('2026-09-24');
-      expect(PRIVACY_POLICY.lastUpdated).toBe('2026-09-24');
+    });
+  });
+
+  describe('参拝の予定（Issue #258）', () => {
+    const body = (doc: typeof PRIVACY_POLICY, title: string) =>
+      doc.sections.find((s: LegalSection) => s.title === title)!.body;
+
+    it('ユーザー入力データに参拝の予定が入っている', () => {
+      expect(body(PRIVACY_POLICY, '収集する情報')).toContain('参拝の予定（行く日と寺社の順番）');
+    });
+
+    it('アカウントを削除すると参拝の予定も消える', () => {
+      expect(body(PRIVACY_POLICY, 'データの保持と削除')).toContain('・参拝の予定');
+    });
+
+    it('プライバシーポリシーの更新日は 2026-10-01', () => {
+      expect(PRIVACY_POLICY.lastUpdated).toBe('2026-10-01');
     });
   });
 });

@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>寺社の座標を選ぶ（#292 第2弾）</title>
+    <link rel="icon" href="data:," />
+    <!-- MapLibre GL JS は版を固定し、integrity を付けて読む（契約書の決めてもらうこと 4） -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.css"
+      integrity="sha384-uTttxo/aOKbdE5RlD/SPzSDoDmNvGlUYPjONi2MN/b7c9HPSvW07OIuyP7uL6jxK"
+      crossorigin="anonymous"
+    />
+    <script
+      src="https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.js"
+      integrity="sha384-5+cfbwT0iiub6VsQAdn6yz16nr6sDiQoHx6tm4O8OVYXHYOxcffFmCJBL0dgdvGp"
+      crossorigin="anonymous"
+    ></script>
+    <link rel="stylesheet" href="/review.css" />
+    <script src="/review.js" defer></script>
+  </head>
+  <body>
+    <header class="bar">
+      <h1>寺社の座標を選ぶ（#292 第2弾）</h1>
+      <span class="counter" data-testid="progress">選んだ 0 / 0</span>
+      <span class="counter" data-testid="osm-counter">OSM 由来 0 + 0 / 99</span>
+      <button type="button" class="export" data-testid="export-button">選んだ結果を書き出す</button>
+      <span class="result" data-testid="export-result" aria-live="polite"></span>
+    </header>
+    <main class="layout">
+      <aside class="side">
+        <div class="filters" role="group" aria-label="絞り込み">
+          <button type="button" data-filter="all" data-testid="filter-all" aria-pressed="true">
+            すべて
+          </button>
+          <button
+            type="button"
+            data-filter="suggest"
+            data-testid="filter-suggest"
+            aria-pressed="false"
+          >
+            提案あり
+          </button>
+          <button type="button" data-filter="owner" data-testid="filter-owner" aria-pressed="false">
+            食い違い
+          </button>
+          <button
+            type="button"
+            data-filter="investigate"
+            data-testid="filter-investigate"
+            aria-pressed="false"
+          >
+            手がかりなし
+          </button>
+          <button
+            type="button"
+            data-filter="pending"
+            data-testid="filter-pending"
+            aria-pressed="false"
+          >
+            まだ
+          </button>
+        </div>
+        <ul class="list" data-testid="review-list"></ul>
+      </aside>
+      <section class="main">
+        <div class="map-wrap">
+          <div id="map" class="map" data-testid="map"></div>
+          <div class="basemap" role="group" aria-label="背景">
+            <button type="button" data-basemap="std" data-testid="basemap-std" aria-pressed="true">
+              標準地図
+            </button>
+            <button
+              type="button"
+              data-basemap="photo"
+              data-testid="basemap-photo"
+              aria-pressed="false"
+            >
+              写真
+            </button>
+          </div>
+          <div class="legend">
+            <span><i data-kind="seed"></i>今の位置</span>
+            <span><i data-kind="wd"></i>Wikidata</span>
+            <span><i data-kind="osm"></i>OSM</span>
+            <span><i data-kind="gsi"></i>地理院の注記・記号</span>
+            <span><i data-kind="addr"></i>地理院の住所</span>
+            <span><i data-kind="custom"></i>地図で置いた点</span>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="detail" data-testid="detail"></div>
+          <div class="choices" data-testid="choices"></div>
+          <p class="placing" data-testid="placing" hidden>
+            地図を押すと、そこに点を置いて選びます（もう一度「地図で置く」でやめる）
+          </p>
+          <label class="note">
+            メモ
+            <input
+              type="text"
+              maxlength="200"
+              data-testid="note-input"
+              placeholder="選んだ理由（任意）"
+            />
+          </label>
+          <p class="warn">メモは公開の台帳（根拠）に入ります。人の名前・メールは書かない</p>
+          <p class="error" data-testid="error" role="alert"></p>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

@@ -14,8 +14,8 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: geocoding.jp ✓
 ('賀茂御祖神社（下鴨神社）', 35.0387, 135.7727, 'shrine', '京都府京都市左京区下鴨泉川町59', '京都府', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: geocoding.jp ✓
-('平安神宮', 35.0153, 135.7837, 'shrine', '京都府京都市左京区岡崎西天王町97', '京都府', 5, 'active'),
--- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: geocoding.jp ✓
+('平安神宮', 35.016667, 135.782222, 'shrine', '京都府京都市左京区岡崎西天王町97', '京都府', 5, 'active'),
+-- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q385141（#292 で直した）
 ('鹿苑寺（金閣寺）', 35.0401, 135.7298, 'temple', '京都府京都市北区金閣寺町1', '京都府', 5, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: geocoding.jp ✓
 ('北野天満宮', 35.0299, 135.7358, 'shrine', '京都府京都市上京区馬喰町', '京都府', 5, 'active'),
@@ -34,10 +34,10 @@ INSERT INTO spots (name, lat, lng, type, address, prefecture, rank, status) VALU
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: geocoding.jp ✓
 ('晴明神社', 35.0276, 135.7513, 'shrine', '京都府京都市上京区晴明町806', '京都府', 4, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: geocoding.jp ✓
-('宇治上神社', 34.8882, 135.8120, 'shrine', '京都府宇治市宇治山田59', '京都府', 4, 'active'),
--- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: geocoding.jp ✓
-('蓮華王院（三十三間堂）', 34.9897, 135.7727, 'temple', '京都府京都市東山区三十三間堂廻り657', '京都府', 4, 'active'),
--- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: geocoding.jp ✓（町名で再取得）
+('宇治上神社', 34.892091, 135.811456, 'shrine', '京都府宇治市宇治山田59', '京都府', 4, 'active'),
+-- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q583589（#292 で直した）
+('蓮華王院（三十三間堂）', 34.987885, 135.771713, 'temple', '京都府京都市東山区三十三間堂廻り657', '京都府', 4, 'active'),
+-- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: Wikidata Q653319（#292 で直した）
 ('宇治神社', 34.8908, 135.8105, 'shrine', '京都府宇治市宇治山田1', '京都府', 4, 'active'),
 -- 住所確認: ホトカミ ✓, Wikipedia ✓ | 座標: geocoding.jp ✓
 ('六波羅蜜寺', 34.9973, 135.7735, 'temple', '京都府京都市東山区ロクロ町81-1', '京都府', 4, 'active'),
