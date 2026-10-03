@@ -152,11 +152,11 @@ Phase 1 のあいだも Supabase バケットは最低1リリース残るので�
 
 **S4a 読み取り切替**
 
-- [ ] AC-12（S4a）: AC-6 でコピー済みの御朱印について、御朱印帳タブの一覧で表示されるタイルの画像 URL が独自ドメインの `width=400` 変換 URL（`format=webp`）であり、`thumbMissing` によるフォールバックが発生しない（native-only）
-- [ ] AC-13（S4a）: 御朱印帳タブでタイルをタップして開く全画面表示の URL が `width=1200` の変換 URL である（native-only）
-- [ ] AC-14（S4a）: R2 に無い画像（旧アプリから Supabase にだけ上がったもの）でも、一覧・全画面の両方で Supabase の原本にフォールバックして画像が表示される
-- [ ] AC-15（S4a）: `src/` に `ensureStampVariants` の呼び出しが無い（`git grep ensureStampVariants -- src ':!**/__tests__/**'` が0件）
-- [ ] AC-16（S4a）: S4a のコミットだけを revert した状態で `npm test` が通り、一覧の URL が Supabase の `thumb-400` に戻る（ロールバックが `src/services/stamps.ts` 周辺だけで完結することの確認）
+- [x] AC-12（S4a）: AC-6 でコピー済みの御朱印について、御朱印帳タブの一覧で表示されるタイルの画像 URL が独自ドメインの `width=400` 変換 URL（`format=webp`）であり、`thumbMissing` によるフォールバックが発生しない（native-only）（2026-10-03 iOS シミュレータ: 80 枚すべて `img.goshuinsanpo.com` の width=400 が 200、フォールバック 0。下の「S4a の作り直しと確認」）
+- [x] AC-13（S4a）: 御朱印帳タブでタイルをタップして開く全画面表示の URL が `width=1200` の変換 URL である（native-only）（2026-10-03 iOS シミュレータ: 1枚開いて width=1200 が 200）
+- [x] AC-14（S4a）: R2 に無い画像（旧アプリから Supabase にだけ上がったもの）でも、一覧・全画面の両方で Supabase の原本にフォールバックして画像が表示される（2026-10-03 Jest: 一覧は `GalleryScreen` の AC-25（#275）、全画面は `GalleryScreen`「全画面は大きい方を開き…」と `ImageGalleryModal`「fallbackUrl に一度だけ落ちる」。画面では R2 に無い写真が無かったので出ていない）
+- [x] AC-15（S4a）: `src/` に `ensureStampVariants` の呼び出しが無い（`git grep ensureStampVariants -- src ':!**/__tests__/**'` が0件）（2026-10-03: 0 件）
+- [x] AC-16（S4a）: S4a のコミットだけを revert した状態で `npm test` が通り、一覧の URL が Supabase の `thumb-400` に戻る（ロールバックが `src/services/stamps.ts` 周辺だけで完結することの確認）（2026-10-03: develop を merge で取り込んだので、戻すのは「PR のマージコミットを `git revert -m 1`」。develop に PR をマージして戻すと develop と差分 0、`getStampThumbUrl` は thumb-400 に戻り、関係する 5 スイート 174 件が通る）
 
 **S4b 書き込み切替**
 
@@ -240,7 +240,29 @@ S1 の残り（オーナーの作業が要る）:
 - `getStampThumbUrl` / `getStampViewUrl` → `stampTransformUrl`（`https://img.goshuinsanpo.com/cdn-cgi/image/width=…,quality=…,format=webp/<キー>`）。幅・品質は今の thumb-400（400/70）・view-1200（1200/78）と同じ
 - `getStampImageUrl` は変えない（Supabase の原本 = フォールバック先）
 - `ensureStampVariants` を削除し、呼び出し2箇所（`useRecordForm` / `GalleryScreen`）も外した。`GalleryScreen` の「溜めてから焼かせる」仕組み（`requestVariants` / `onImageFallback`）も不要になったので削除。`thumbMissing` のフォールバックは残す
-- **S3 を含むビルドを実機で確認するまで、S4a はマージしない**（契約書の順序）
+- ~~S3 を含むビルドを実機で確認するまで、S4a はマージしない~~ → **1.2.0 の審査が通ってから、リーダーがマージする**（2026-10-03）
+
+## S4a の作り直しと確認（2026-10-03）
+
+**背景**: 2026-10-03、確認作業で写真を何度も読んだせいで Supabase の Cached Egress（無料 5GB/月）を使い切り、本番が止まった（いまは Pro）。オーナーの方針は「写真は Supabase の Storage ではなく R2 から配る」。
+
+**取り込み**: PR のブランチは develop から約 200 コミット遅れていた（#245〜#300）。**merge で取り込んだ**（force push を避けるため。ぶつかった所の解き方はマージコミットに書いた）。
+
+- `GalleryScreen.tsx`: 一覧のタイルは develop の `GalleryGridTile`（#275 / #276）を取り、S4a の「焼かせる仕組みを外す」は残した。`thumbMissing` → Supabase の原本へのフォールバックは develop のまま
+- `GalleryScreen.test.tsx`（#275 AC-25）: 「裏で焼かせる」の確かめだけ外した
+- develop で増えた、縮小版の URL を使う所: **年報**（`ReportPhoto` / `useAnnualReport` の先読み、#274）。同じ 400 / 1200 なので R2 の変換に切り替わり、ユニーク変換の数は増えない。縮小版 → 元の写真 → 枠 のフォールバックを持っている
+
+**画面での確認**（iOS シミュレータ goshuin-repro・Debug ビルド・本アカウント・御朱印帳を1回開いて1枚だけ全画面）:
+
+- Metro の inspector に debugger としてつなぎ、dev client が送る `Network.*` を記録した（写真の読み込みも URLSession を通るので載る）
+- **確認の間だけ、コミットしない書き換えで `getStampImageUrl` を存在しないホストに向けた**（Supabase の原本を読まないため。終わって戻し、`git status` が空なのを確かめた）。結果としてフォールバックは1件も起きず、書き換えは使われなかった
+- 一覧: `img.goshuinsanpo.com` の `width=400,quality=70,format=webp` が **80 件・すべて 200**（80 枚。9/23 のコピー後に上がった 19 枚も R2 にあった。S3 の二重書き込みを含むビルドから上げたものとみられる）。合計 約 2.2MB。**Supabase の Storage へのリクエストは 0 件**
+- 全画面: `width=1200,quality=78,format=webp` が 1 件 200（約 378KB）。同じ写真の 400 が2回（押した瞬間の先読みと飛ぶ1枚。2回目は Cloudflare の HIT）
+- Supabase へは REST だけ（記録の一覧 約 38KB と、1枚の取得 464B）。ほかに `stamps?id=eq.`（id が空）が 400 で1件。これは develop の `useStampDetail('')` から出ているもので S4a とは別
+- **返った Content-Type はすべて `image/jpeg`**。RN の `Image`（iOS）は `Accept` を送らないので、`format=webp` でも JPEG になる（「S1 の記録」のとおり。`Vary: accept`）。表示に問題は無い
+- UI-1: 移行前のスクリーンショットは撮っていない（撮ると Supabase の縮小版を読む）。#275 の証跡（`sim-ui13-tab-return-cached.png`）と見比べて、3列・正方形の切り抜き・角丸は同じ
+
+**S4a だけでは Supabase の読み取りは止まらない**: 原本をそのまま出している4箇所（**めくる表示＝御朱印帳の既定の表示**・記録完了画面・スポット詳細・サムネイル帯）は S4b まで `getStampImageUrl`（Supabase の原本・縮小なし）を読む。今回の確認は一覧の表示で開いたので、めくる表示は読んでいない
 
 ## 決定事項（2026-09-23 確定）
 
