@@ -2,7 +2,7 @@
 // 実行: deno test -A --node-modules-dir=none supabase/scripts/spot-photos/
 //   ⚠ --node-modules-dir=none が要る（無いとルートの package.json 経由で npm: の解決に失敗する）
 //
-// 契約書: docs/issues/issue-302-spot-photo-band.md（S1 / AC-1・AC-2、S4 / AC-23・AC-24）
+// 契約書: docs/issues/issue-302-spot-photo-band.md（S1 / AC-1・AC-2、S4 / AC-23・AC-24、S6 / AC-40）
 //
 // PGlite は Postgres 17 の WASM。Supabase のロールと auth.role() は無いので、ここで作り物を足す:
 // ロール anon・authenticated・service_role、auth.role()（request.jwt.claim.role を返す）、
@@ -12,11 +12,16 @@ import { PGlite } from 'npm:@electric-sql/pglite@0.3.16';
 
 import { SEED_FILES } from '../spot-coords/coords.ts';
 import { EVIL_AUTHORS, fixtureLedgerJson, fixturePhotos, realSeedRows } from './fixtures/load.ts';
+import { parsePhotos } from '../spot-wikidata/match.ts';
+import { realMapping } from './fixtures/load.ts';
 import {
   buildCheckSql,
   buildMigrationSql,
+  CHECK_SQL_PATH,
+  LEDGER_PATH,
   type Ledger302,
   type LedgerEntry302,
+  MIGRATION_PATH,
   parseLedger302,
 } from './select.ts';
 
@@ -714,6 +719,47 @@ Deno.test(
         (await raised(db, buildCheckSql(evil, 1109))) ?? '',
         'present=3 differ=0 missing=0'
       );
+      assertEquals(await masterCount(db), 1109);
+    });
+  }
+);
+
+// --- AC-40: 本物の台帳から作ってコミットした migration と確かめる SQL（本物の seed 10 本） ---
+
+Deno.test(
+  'AC-40: 本物の seed に、コミットした migration を2回流すと、確かめる SQL が present=<件数> not_one=0 missing=0',
+  async () => {
+    const photos = parsePhotos(
+      await readRepo('supabase/data/spot-photos-301.json'),
+      await realMapping()
+    );
+    const ledger = parseLedger302(await readRepo(LEDGER_PATH), photos, await realSeedRows());
+    const n = ledger.entries.length;
+    const migration = await readRepo(MIGRATION_PATH);
+    const check = await readRepo(CHECK_SQL_PATH);
+    const base = {
+      table: 'present',
+      rls: 'on',
+      total: 1109,
+      listed: n,
+      not_one: 0,
+      extra: 0,
+      anon_insert: 'denied',
+    };
+    await withDb(async db => {
+      await seedAll(db);
+      assertEquals(
+        await raised(db, check),
+        resultLine({ ...base, present: 0, differ: 0, missing: n, anon_select: 0 })
+      );
+      assertEquals(await raised(db, migration), null);
+      const after = resultLine({ ...base, present: n, differ: 0, missing: 0, anon_select: n });
+      assertEquals(await raised(db, check), after);
+      assertEquals(await photoCount(db), n);
+      const once = await attached(db);
+      assertEquals(await raised(db, migration), null);
+      assertEquals(await raised(db, check), after);
+      assertEquals(await attached(db), once);
       assertEquals(await masterCount(db), 1109);
     });
   }
