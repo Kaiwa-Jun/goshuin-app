@@ -24,6 +24,8 @@ jest.mock('@react-navigation/bottom-tabs', () => {
 jest.mock('@services/stamps', () => ({
   fetchStampsBySpotId: jest.fn(() => Promise.resolve([])),
   getStampImageUrl: jest.fn((path: string) => `https://example.com/${path}`),
+  getStampThumbUrl: jest.fn((path: string) => `https://example.com/width=400/${path}`),
+  getStampViewUrl: jest.fn((path: string) => `https://example.com/width=1200/${path}`),
 }));
 
 const mockSpot: Spot = {

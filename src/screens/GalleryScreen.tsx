@@ -629,12 +629,30 @@ export function GalleryScreen({ navigation }: Props) {
    */
   const displayStampsRef = useRef(displayStamps);
   displayStampsRef.current = displayStamps;
+  /*
+   * めくる表示で元の写真に落ちたページ（Issue #227 S4a-2）。飛ぶ1枚を出ている URL に
+   * 合わせるためだけに使う。state にするとめくる表示の全ページが描き直しになるので ref に控える。
+   * 落ちたのが一時の失敗で、ページが外れて付け直されたら変換が読めた、もあるので、
+   * 変換が読めたら控えを消す（#304 の指摘）
+   */
+  const flipFellBack = useRef<Set<string>>(new Set());
+  const handleFlipImageFallback = useCallback((stampId: string) => {
+    flipFellBack.current.add(stampId);
+  }, []);
+  const handleFlipPrimaryImageLoad = useCallback((stampId: string) => {
+    flipFellBack.current.delete(stampId);
+  }, []);
   const handlePressFlipStamp = useCallback((index: number) => {
     gridDetailStampId.current = null;
     const stamp = displayStampsRef.current[index];
+    if (!stamp) return;
+    // 飛ぶ1枚は、ページに出ているもの（R2 の 1200、落ちたページは元の写真）と同じ URL
+    const imageUrl = flipFellBack.current.has(stamp.id)
+      ? getStampImageUrl(stamp.image_path)
+      : getStampViewUrl(stamp.image_path);
     // 蛇腹は contain。枠（1:1.5）と写真（3:4）がずれるので、
     // 写真が実際に占めているところから飛ばす（Issue #202）
-    if (stamp) openStampRef.current(index, stamp, 'contain', getStampImageUrl(stamp.image_path));
+    openStampRef.current(index, stamp, 'contain', imageUrl);
   }, []);
   const { registerTile: registerHeroNode } = hero;
   const { registerPageSurface } = transition;
@@ -724,6 +742,8 @@ export function GalleryScreen({ navigation }: Props) {
                 <GoshuinchoFlipView
                   stamps={displayStamps}
                   resolveImageUrl={isPreview ? previewImageUrl : undefined}
+                  onImageFallback={handleFlipImageFallback}
+                  onPrimaryImageLoad={handleFlipPrimaryImageLoad}
                   onPressStamp={handlePressFlipStamp}
                   registerNode={registerFlipNode}
                   onImageLoad={hero.rememberAspect}
@@ -816,7 +836,9 @@ export function GalleryScreen({ navigation }: Props) {
               isUpdating={isUpdating}
               initialVisitedAt={currentStamp.visited_at}
               initialMemo={currentStamp.memo}
-              initialImageUrl={getStampImageUrl(currentStamp.image_path)}
+              // 全画面と同じ R2 の 1200（読み込み済み）。R2 に無ければ元の写真（Issue #227 S4a-2）
+              initialImageUrl={getStampViewUrl(currentStamp.image_path)}
+              initialImageFallbackUrl={getStampImageUrl(currentStamp.image_path)}
             />
             <DeleteConfirmModal
               visible={deleteModalVisible}

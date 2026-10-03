@@ -315,6 +315,46 @@ describe('GoshuinchoPage 読み込み中（Issue #275）', () => {
     });
   });
 
+  /*
+   * R2 の変換が出せない写真（旧バージョンのアプリが Supabase にだけ上げたもの）は、
+   * 元の写真に落とす。一覧の #275 AC-25 と同じく、元を読みにいく間も下地のまま（#227 S4a-2 AC-24）
+   */
+  describe('変換が出せず元の写真に落ちたら（#227 AC-24）', () => {
+    const ORIGINAL = 'https://supabase.example/stamp-1.jpg';
+    const onImageFallback = jest.fn();
+    const withFallback = { ...flipProps, fallbackUrl: ORIGINAL, onImageFallback };
+
+    it('元の写真を読みにいく間も下地のまま。届いたらふわっと消える', () => {
+      const { getByTestId } = render(<GoshuinchoPage {...withFallback} />);
+
+      fireEvent(getByTestId('flip-page-image-stamp-1'), 'error');
+
+      expect(getByTestId('flip-page-image-stamp-1').props.source.uri).toBe(ORIGINAL);
+      expect(getByTestId('flip-page-loading-stamp-1', hidden)).toBeTruthy();
+      expect(fades).toEqual([]);
+      expect(isLoadingClockRunning()).toBe(true);
+      expect(onImageFallback).toHaveBeenCalledTimes(1);
+
+      fireEvent(getByTestId('flip-page-image-stamp-1'), 'load', loaded);
+      expect(fades).toHaveLength(1);
+      expect(fades[0].config).toEqual(expect.objectContaining({ toValue: 0, duration: 250 }));
+      expect(onImageLoad).toHaveBeenCalledWith(600, 800);
+    });
+
+    it('元も届かなければ消えて、今と同じ白い紙に戻る', () => {
+      const { getByTestId, queryByTestId } = render(<GoshuinchoPage {...withFallback} />);
+
+      fireEvent(getByTestId('flip-page-image-stamp-1'), 'error');
+      fireEvent(getByTestId('flip-page-image-stamp-1'), 'error');
+
+      expect(fades).toHaveLength(1);
+      finishFade();
+      expect(queryByTestId('flip-page-loading-stamp-1', hidden)).toBeNull();
+      expect(flatten(getByTestId('flip-page-surface-stamp-1')).backgroundColor).toBe(colors.white);
+      expect(onImageFallback).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('URL が変わったら（AC-17）', () => {
     it('下地を不透明のまま出し直す（ふわっと出さない）', () => {
       const { getByTestId, rerender } = render(<GoshuinchoPage {...flipProps} />);

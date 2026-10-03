@@ -21,6 +21,7 @@ import {
 import { computePageLayout } from '@components/gallery/GoshuinchoFlipView';
 import { ViewModeToggle } from '@components/gallery/ViewModeToggle';
 import { ImageGalleryModal } from '@components/common/ImageGalleryModal';
+import { EditStampModal } from '@components/stamp-detail/EditStampModal';
 import { colors } from '@theme/colors';
 import { spacing } from '@theme/spacing';
 import { typography } from '@theme/typography';
@@ -69,12 +70,16 @@ jest.mock('@hooks/useStampDetail', () => ({
  * 削除後の後始末（飛ばした1枚を手放すか）を見るため、end だけ観測できる形にする
  */
 const mockHeroEnd = jest.fn();
+const mockHeroStart = jest.fn();
 jest.mock('@hooks/useHeroTransition', () => ({
   useHeroTransition: () => ({
     flight: null,
     registerTile: jest.fn(),
     rememberAspect: jest.fn(),
-    start: (_params: unknown, onReady: (started: boolean) => void) => onReady(false),
+    start: (params: unknown, onReady: (started: boolean) => void) => {
+      mockHeroStart(params);
+      onReady(false);
+    },
     turnBack: jest.fn(),
     end: (...args: unknown[]) => mockHeroEnd(...args),
   }),
@@ -332,6 +337,33 @@ describe('GalleryScreen', () => {
     );
   });
 
+  /*
+   * 編集の今の写真は、全画面と同じ R2 の 1200（全画面で読み込み済みなので通信が増えない）。
+   * R2 に無ければ元の写真に落とす（#227 S4a-2 AC-28）
+   */
+  it('編集を開くと、今の写真は大きい方の URL で、落とす先は元の写真', async () => {
+    mockUseGalleryStamps.mockReturnValue({
+      stamps: [makeStamp({ id: 'stamp-abc', image_path: 'user-1/a.jpg' })],
+      totalCount: 1,
+      isLoading: false,
+      error: null,
+      removeStamp: jest.fn(),
+      updateStamp: jest.fn(),
+    });
+    const utils = renderGalleryScreenInGrid();
+    fireEvent.press(utils.getByTestId('gallery-item-stamp-abc'));
+    await waitFor(() => expect(utils.getByTestId('gallery-image')).toBeTruthy());
+
+    act(() => utils.UNSAFE_getByType(ImageGalleryModal).props.onEdit(0));
+
+    expect(utils.UNSAFE_getByType(EditStampModal).props).toEqual(
+      expect.objectContaining({
+        initialImageUrl: 'https://example.com/cdn-cgi/image/width=1200/user-1/a.jpg',
+        initialImageFallbackUrl: 'https://example.com/user-1/a.jpg',
+      })
+    );
+  });
+
   describe('表示モードの切り替え（Issue #116）', () => {
     const withStamps = (stamps: StampWithSpot[]) =>
       mockUseGalleryStamps.mockReturnValue({
@@ -427,6 +459,72 @@ describe('GalleryScreen', () => {
       await waitFor(() => {
         expect(getByTestId('gallery-image')).toBeTruthy();
       });
+    });
+
+    /*
+     * 飛ぶ1枚は、押したページに出ているのと同じ URL（R2 の 1200）。元の写真に落ちた
+     * ページなら原本。違うものを使うと出発の瞬間に写真が替わって見える（#227 S4a-2 AC-25）
+     */
+    it('めくり表示から飛ぶ1枚は、ページに出ている大きい方の URL', async () => {
+      withStamps([makeStamp({ id: 'stamp-abc', image_path: 'user-1/a.jpg' })]);
+      const { getByTestId } = renderGalleryScreen();
+
+      expect(getByTestId('flip-page-image-stamp-abc').props.source.uri).toBe(
+        'https://example.com/cdn-cgi/image/width=1200/user-1/a.jpg'
+      );
+      fireEvent.press(getByTestId('flip-page-stamp-abc'));
+
+      await waitFor(() => expect(mockHeroStart).toHaveBeenCalled());
+      expect(mockHeroStart.mock.calls[0][0]).toEqual(
+        expect.objectContaining({
+          imageUrl: 'https://example.com/cdn-cgi/image/width=1200/user-1/a.jpg',
+          fit: 'contain',
+        })
+      );
+    });
+
+    /*
+     * 一時の失敗で元の写真に落ちたページが、外れて付け直されたら変換が読めた。
+     * 画面に出ているのは 1200 なので、飛ぶ1枚も 1200 に戻す（#227 S4a-2 AC-25・#304 の指摘）
+     */
+    it('元の写真に落ちたあと、付け直したページで変換が読めたら、飛ぶ1枚は大きい方の URL', async () => {
+      withStamps([makeStamp({ id: 'stamp-abc', image_path: 'user-1/a.jpg' })]);
+      const { getByTestId } = renderGalleryScreen();
+
+      fireEvent(getByTestId('flip-page-image-stamp-abc'), 'error');
+      // めくる表示を外して付け直す（FlatList が外して付け直したときと同じく、ページの控えは消える）
+      fireEvent.press(getByTestId('view-mode-grid'));
+      fireEvent.press(getByTestId('view-mode-flip'));
+      expect(getByTestId('flip-page-image-stamp-abc').props.source.uri).toBe(
+        'https://example.com/cdn-cgi/image/width=1200/user-1/a.jpg'
+      );
+      fireEvent(getByTestId('flip-page-image-stamp-abc'), 'load', {
+        nativeEvent: { source: { width: 600, height: 800 } },
+      });
+      fireEvent.press(getByTestId('flip-page-stamp-abc'));
+
+      await waitFor(() => expect(mockHeroStart).toHaveBeenCalled());
+      expect(mockHeroStart.mock.calls[0][0]).toEqual(
+        expect.objectContaining({
+          imageUrl: 'https://example.com/cdn-cgi/image/width=1200/user-1/a.jpg',
+        })
+      );
+    });
+
+    it('元の写真に落ちたページから飛ぶ1枚は、元の写真の URL', async () => {
+      withStamps([makeStamp({ id: 'stamp-abc', image_path: 'user-1/a.jpg' })]);
+      const { getByTestId } = renderGalleryScreen();
+
+      fireEvent(getByTestId('flip-page-image-stamp-abc'), 'error');
+      expect(getByTestId('flip-page-image-stamp-abc').props.source.uri).toBe(
+        'https://example.com/user-1/a.jpg'
+      );
+      fireEvent.press(getByTestId('flip-page-stamp-abc'));
+
+      await waitFor(() => expect(mockHeroStart).toHaveBeenCalled());
+      expect(mockHeroStart.mock.calls[0][0]).toEqual(
+        expect.objectContaining({ imageUrl: 'https://example.com/user-1/a.jpg' })
+      );
     });
 
     it('めくり表示のフッターに和暦の訪問日を出す', () => {

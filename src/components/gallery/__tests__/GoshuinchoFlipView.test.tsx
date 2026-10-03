@@ -20,6 +20,7 @@ import type { StampWithSpot } from '@/types/supabase';
 
 jest.mock('@services/stamps', () => ({
   getStampImageUrl: jest.fn((path: string) => `https://supabase.example/${path}`),
+  getStampViewUrl: jest.fn((path: string) => `https://r2.example/width=1200/${path}`),
 }));
 
 const flatten = (node: { props: { style?: unknown } }) =>
@@ -278,10 +279,36 @@ describe('GoshuinchoFlipView', () => {
   });
 
   describe('画像 URL の解決', () => {
-    it('既定では getStampImageUrl を使う', () => {
+    // 既定は R2 の 1200 の変換。全画面と同じ URL なので、押して開く詳細がキャッシュから出る（#227 S4a-2）
+    it('既定では大きい方（getStampViewUrl）を使う', () => {
       const { getByTestId } = renderFlipView();
       expect(getByTestId('flip-page-image-oldest').props.source.uri).toBe(
+        'https://r2.example/width=1200/user-1/stamp-1.jpg'
+      );
+    });
+
+    it('出せなければ元の写真（getStampImageUrl）に落とし、どのページかを知らせる', () => {
+      const onImageFallback = jest.fn();
+      const { getByTestId } = renderFlipView({ onImageFallback });
+
+      fireEvent(getByTestId('flip-page-image-oldest'), 'error');
+
+      expect(getByTestId('flip-page-image-oldest').props.source.uri).toBe(
         'https://supabase.example/user-1/stamp-1.jpg'
+      );
+      expect(onImageFallback).toHaveBeenCalledWith('oldest');
+    });
+
+    // Web の見本は data URI。落とす先は無い
+    it('resolveImageUrl が渡されたときは元の写真に落とさない', () => {
+      const { getByTestId } = renderFlipView({
+        resolveImageUrl: stamp => `data:image/svg+xml;utf8,<svg id="${stamp.id}"/>`,
+      });
+
+      fireEvent(getByTestId('flip-page-image-oldest'), 'error');
+
+      expect(getByTestId('flip-page-image-oldest').props.source.uri).toBe(
+        'data:image/svg+xml;utf8,<svg id="oldest"/>'
       );
     });
 

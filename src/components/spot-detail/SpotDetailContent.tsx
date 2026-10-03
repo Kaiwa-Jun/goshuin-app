@@ -1,8 +1,9 @@
 import React, { useCallback, useState } from 'react';
-import { Dimensions, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Camera, Map } from '@maplibre/maplibre-react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 
+import { FallbackImage } from '@components/common/FallbackImage';
 import { ImageGalleryModal, GalleryImage } from '@components/common/ImageGalleryModal';
 import { SpotPinImages, SpotPinLayer } from '@components/map/spotPins';
 import { MAP_STYLE } from '@components/map/mapStyle';
@@ -11,7 +12,7 @@ import { SpotInfoSection } from '@components/spot-detail/SpotInfoSection';
 import { SpotSheetHeader } from '@components/spot-detail/SpotSheetHeader';
 import { SpotSheetActions } from '@components/spot-detail/SpotSheetActions';
 import { LimitedGoshuinSection } from '@components/spot-detail/LimitedGoshuinSection';
-import { getStampImageUrl } from '@services/stamps';
+import { getStampImageUrl, getStampThumbUrl, getStampViewUrl } from '@services/stamps';
 import { SpotTsukimairi } from '@components/spot-detail/SpotTsukimairi';
 import type { Spot, Stamp, PublicStampWithUser } from '@/types/supabase';
 import type { ParsedSpotInfo } from '@hooks/useSpotInfo';
@@ -69,16 +70,19 @@ export function SpotDetailContent({
     onGalleryVisibleChange?.(false);
   }, [onGalleryVisibleChange]);
 
+  // 全画面は R2 の 1200。R2 に無ければ元の写真に落ちる（Issue #227 S4a-2）
   const allGalleryImages: GalleryImage[] = [
     ...stamps.map(s => ({
       id: s.id,
-      imageUrl: getStampImageUrl(s.image_path),
+      imageUrl: getStampViewUrl(s.image_path),
+      fallbackUrl: getStampImageUrl(s.image_path),
       memo: s.memo,
       visitedAt: s.visited_at,
     })),
     ...publicStamps.map(ps => ({
       id: ps.id,
-      imageUrl: getStampImageUrl(ps.image_path),
+      imageUrl: getStampViewUrl(ps.image_path),
+      fallbackUrl: getStampImageUrl(ps.image_path),
       userName: ps.profiles.display_name,
       memo: ps.memo,
       visitedAt: ps.visited_at,
@@ -102,6 +106,7 @@ export function SpotDetailContent({
 
       <SpotTsukimairi stamps={stamps} />
 
+      {/* 並びは一覧のタイルと同じ大きさなので R2 の 400。R2 に無ければ元の写真（Issue #227 S4a-2） */}
       {(stamps.length > 0 || publicStamps.length > 0) && (
         <View style={styles.stampGrid} testID="stamp-grid">
           {stamps.map((stamp, index) => (
@@ -110,9 +115,11 @@ export function SpotDetailContent({
               onPress={() => openGallery(index)}
               testID={`stamp-image-${stamp.id}`}
             >
-              <Image
-                source={{ uri: getStampImageUrl(stamp.image_path) }}
+              <FallbackImage
+                uri={getStampThumbUrl(stamp.image_path)}
+                fallbackUri={getStampImageUrl(stamp.image_path)}
                 style={styles.stampImage}
+                testID={`stamp-photo-${stamp.id}`}
               />
             </TouchableOpacity>
           ))}
@@ -122,7 +129,12 @@ export function SpotDetailContent({
               onPress={() => openGallery(stamps.length + index)}
               testID={`public-stamp-image-${ps.id}`}
             >
-              <Image source={{ uri: getStampImageUrl(ps.image_path) }} style={styles.stampImage} />
+              <FallbackImage
+                uri={getStampThumbUrl(ps.image_path)}
+                fallbackUri={getStampImageUrl(ps.image_path)}
+                style={styles.stampImage}
+                testID={`public-stamp-photo-${ps.id}`}
+              />
             </TouchableOpacity>
           ))}
         </View>

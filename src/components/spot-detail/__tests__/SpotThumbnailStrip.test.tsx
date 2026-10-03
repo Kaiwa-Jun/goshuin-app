@@ -11,6 +11,8 @@ import type { Stamp, PublicStampWithUser } from '@/types/supabase';
 
 jest.mock('@services/stamps', () => ({
   getStampImageUrl: (path: string) => `https://example.com/${path}`,
+  getStampThumbUrl: (path: string) => `https://r2.example/width=400/${path}`,
+  getStampViewUrl: (path: string) => `https://r2.example/width=1200/${path}`,
 }));
 
 function makeStamp(id: string): Stamp {
@@ -121,7 +123,40 @@ describe('SpotThumbnailStrip', () => {
   });
 });
 
+// 帯は一覧のタイルと同じ大きさなので R2 の 400。R2 に無ければ元の写真（#227 S4a-2 AC-27）
+describe('SpotThumbnailStrip の写真の URL（#227 S4a-2）', () => {
+  it('小さい方を出し、出せなければ元の写真に落とす', () => {
+    const { getByTestId } = render(
+      <SpotThumbnailStrip
+        stamps={[makeStamp('s1')]}
+        publicStamps={[]}
+        onPressThumbnail={jest.fn()}
+      />
+    );
+
+    expect(getByTestId('spot-thumbnail-image-0').props.source.uri).toBe(
+      'https://r2.example/width=400/user-1/s1.jpg'
+    );
+    fireEvent(getByTestId('spot-thumbnail-image-0'), 'error');
+    expect(getByTestId('spot-thumbnail-image-0').props.source.uri).toBe(
+      'https://example.com/user-1/s1.jpg'
+    );
+  });
+});
+
 describe('buildSpotGalleryImages', () => {
+  // 帯から開く全画面は大きい方。落とす先は元の写真（#227 S4a-2 AC-27）
+  it('全画面は大きい方で、落とす先に元の写真を持つ', () => {
+    const images = buildSpotGalleryImages(
+      [makeStamp('s1')],
+      [{ ...makePublicStamp('p1'), profiles: { display_name: null } } as never]
+    );
+    expect(images.map(i => [i.imageUrl, i.fallbackUrl])).toEqual([
+      ['https://r2.example/width=1200/user-1/s1.jpg', 'https://example.com/user-1/s1.jpg'],
+      ['https://r2.example/width=1200/user-1/p1.jpg', 'https://example.com/user-1/p1.jpg'],
+    ]);
+  });
+
   it('自分の記録 → 公開の順。id が重複したら後から来た方を除く', () => {
     const shared = makeStamp('s1');
     const images = buildSpotGalleryImages(
