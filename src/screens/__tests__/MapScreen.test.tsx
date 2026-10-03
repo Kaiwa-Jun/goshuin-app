@@ -1,7 +1,7 @@
 import React from 'react';
-import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, act, within } from '@testing-library/react-native';
 import { MapScreen } from '@screens/MapScreen';
-import { AccessibilityInfo, StyleSheet } from 'react-native';
+import { AccessibilityInfo, Animated, StyleSheet } from 'react-native';
 import { colors } from '@theme/colors';
 import { shadows } from '@theme/shadows';
 
@@ -1024,6 +1024,126 @@ describe('MapScreen', () => {
 
       expect(spotIds(r, 'goshuin-pinned')).toEqual([]);
       expect(r.getByTestId('search-input').props.value).toBeUndefined();
+    });
+
+    describe('寄せた地図の下の一覧（S0 の 3）', () => {
+      const selectSpotOnMap = (r: Rendered, spotId: string) =>
+        fireEvent(r.getByTestId('goshuin-pinned'), 'onPress', {
+          nativeEvent: { lngLat: [140.87, 38.27], features: [{ properties: { spotId } }] },
+        });
+      const layoutSheet = (r: Rendered, height: number) =>
+        fireEvent(r.getByTestId('region-sheet'), 'layout', {
+          nativeEvent: { layout: { x: 0, y: 0, width: 390, height } },
+        });
+
+      it('AC-42: 一覧が出て、見出しに件数、行は rank の高い順', () => {
+        mockSpotsOverride = [mockSpots[0], { ...mockSpots[1], rank: 5 }];
+        const r = renderWith({ focusRegion: region });
+
+        const sheet = r.getByTestId('region-sheet');
+        expect(within(sheet).getByText('横浜のあたりの寺社（2）')).toBeTruthy();
+        expect(within(r.getByTestId('region-spot-0')).getByText('Test Temple')).toBeTruthy();
+        expect(within(r.getByTestId('region-spot-1')).getByText('Test Shrine')).toBeTruthy();
+        expect(r.queryByTestId('region-spot-2')).toBeNull();
+      });
+
+      it('AC-43: 一覧の寺社を押すと、その寺社のシートが開き、一覧は閉じる。地域のピンは残る', () => {
+        const r = renderWith({ focusRegion: region });
+
+        fireEvent.press(r.getByTestId('region-spot-0'));
+
+        expect(r.getByTestId('bottom-sheet')).toBeTruthy();
+        expect(r.queryByTestId('region-sheet')).toBeNull();
+        expect(r.getByTestId('search-input').props.value).toBe('Test Shrine');
+        expect(spotIds(r, 'goshuin-pinned')).toEqual(['spot-1', 'spot-2']);
+      });
+
+      it('地図のピンを押したときも一覧と同じ（一覧は閉じ、地域のピンは残る）', () => {
+        const r = renderWith({ focusRegion: region });
+        expect(r.getByTestId('region-sheet')).toBeTruthy();
+
+        selectSpotOnMap(r, 'spot-2');
+
+        expect(r.getByTestId('bottom-sheet')).toBeTruthy();
+        expect(r.queryByTestId('region-sheet')).toBeNull();
+        expect(spotIds(r, 'goshuin-pinned')).toEqual(['spot-1', 'spot-2']);
+      });
+
+      it('AC-44: 検索バーの × で一覧も消える', () => {
+        const r = renderWith({ focusRegion: region });
+        expect(r.getByTestId('region-sheet')).toBeTruthy();
+
+        fireEvent.press(r.getByTestId('search-clear-button'));
+
+        expect(r.queryByTestId('region-sheet')).toBeNull();
+      });
+
+      it('寺社の focusSpotId が来たら一覧も消える', () => {
+        const r = renderWith({ focusRegion: region });
+        expect(r.getByTestId('region-sheet')).toBeTruthy();
+
+        rerenderWith(r, { focusSpotId: 'spot-1' });
+
+        expect(r.queryByTestId('region-sheet')).toBeNull();
+      });
+
+      it('一覧が出ている間は、記録の FAB を引っ込める（引っ込む動きのあとで消える）', async () => {
+        const r = renderWith({ focusRegion: region });
+        await waitFor(() => expect(r.queryByTestId('fab-button')).toBeNull());
+
+        fireEvent.press(r.getByTestId('search-clear-button'));
+        await waitFor(() => expect(r.getByTestId('fab-button')).toBeTruthy());
+      });
+
+      it('AC-45: 「視差効果を減らす」なら、一覧の出る動き（Animated.timing）を呼ばない', async () => {
+        jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
+        const r = renderWith(undefined);
+        // isReduceMotionEnabled() の解決を待ってから、地域を渡す
+        await act(async () => {});
+        const timing = jest.spyOn(Animated, 'timing');
+        try {
+          rerenderWith(r, { focusRegion: region });
+
+          expect(r.getByTestId('region-sheet')).toBeTruthy();
+          expect(timing).not.toHaveBeenCalled();
+        } finally {
+          timing.mockRestore();
+        }
+      });
+
+      it('一覧の高さが 200 を超えたら、その高さのぶん下を空けて1回だけ寄せ直す', () => {
+        const r = renderWith({ focusRegion: region });
+
+        layoutSheet(r, 300);
+        layoutSheet(r, 320);
+
+        expect(cameraMocks.fitBounds).toHaveBeenCalledTimes(2);
+        expect(cameraMocks.fitBounds).toHaveBeenLastCalledWith([140.86, 38.26, 140.88, 38.28], {
+          padding: { ...PADDING, bottom: 316 },
+          duration: 600,
+        });
+      });
+
+      it('一覧が低ければ寄せ直さない', () => {
+        const r = renderWith({ focusRegion: region });
+
+        layoutSheet(r, 150);
+
+        expect(cameraMocks.fitBounds).toHaveBeenCalledTimes(1);
+      });
+
+      it('寺社を選んだあと focusRegion が無くなっても、寺社のシートと名前は残す（地域は消す）', () => {
+        // 記録の完了画面の「地図に戻る」は params なしで地図に来る
+        const r = renderWith({ focusRegion: region });
+        fireEvent.press(r.getByTestId('region-spot-0'));
+
+        rerenderWith(r, undefined);
+
+        expect(r.getByTestId('bottom-sheet')).toBeTruthy();
+        expect(r.getByTestId('search-input').props.value).toBe('Test Shrine');
+        expect(spotIds(r, 'goshuin-pinned')).toEqual([]);
+        expect(r.queryByTestId('region-sheet')).toBeNull();
+      });
     });
   });
 });
