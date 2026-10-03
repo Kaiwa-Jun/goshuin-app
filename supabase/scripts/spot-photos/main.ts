@@ -4,10 +4,14 @@
 //   deno run -A --node-modules-dir=none supabase/scripts/spot-photos/main.ts serve [--port 8302] [--work <dir>]
 //   deno run -A --node-modules-dir=none supabase/scripts/spot-photos/main.ts status [--work <dir>]
 //   deno run -A --node-modules-dir=none supabase/scripts/spot-photos/main.ts export [--root <dir>] [--work <dir>]
+//   SPOT_WIKIDATA_CONTACT=<連絡先> deno run -A --node-modules-dir=none supabase/scripts/spot-photos/main.ts fetch [--root <dir>] [--work <dir>]
+//   deno run -A --node-modules-dir=none supabase/scripts/spot-photos/main.ts upload [--dry-run] [--root <dir>] [--work <dir>]（R2_* が要る）
+//   deno run -A --node-modules-dir=none supabase/scripts/spot-photos/main.ts verify [--root <dir>]
+//   deno run -A --node-modules-dir=none supabase/scripts/spot-photos/main.ts generate [--check] [--root <dir>]
 //
 // --root の既定はカレントディレクトリ（リポジトリの直下で打つ）、--work の既定は $HOME/goshuin-work/spot-photos。
 // エラーは標準エラーに、寺社の名前・都道府県か無いファイルの名前を含めて出し、終了コード 1。
-// 契約書: docs/issues/issue-302-spot-photo-band.md（D-1・D-7・「CLI」）
+// 契約書: docs/issues/issue-302-spot-photo-band.md（D-1・D-7・D-9・D-19・D-20・「CLI」）
 import { SEED_FILES } from '../spot-coords/coords.ts';
 import {
   MAPPING_PATH,
@@ -20,12 +24,26 @@ import {
   serializeJson,
 } from '../spot-wikidata/match.ts';
 import {
+  fetchPhotos,
+  type NetIo,
+  R2_ENV_NAMES,
+  StopError,
+  uploadPhotos,
+  verifyPhotos,
+} from './fetchers.ts';
+import {
   buildCandidates,
+  buildCheckSql,
   buildLedger,
+  buildMigrationSql,
   type Candidates,
+  CHECK_SQL_PATH,
   type Choice,
+  type Ledger302,
   LEDGER_PATH,
+  MIGRATION_PATH,
   parseChoices,
+  parseLedger302,
   REJECT_REASONS,
 } from './select.ts';
 import {
@@ -36,13 +54,11 @@ import {
   startServer,
 } from './server.ts';
 
-export interface CliIo {
+export interface CliIo extends NetIo {
   /** 無いときは null */
   readTextFile(path: string): Promise<string | null>;
   /** 親のフォルダも作る */
   writeTextFile(path: string, text: string): Promise<void>;
-  stdout(text: string): void;
-  stderr(text: string): void;
   env(name: string): string | undefined;
 }
 
@@ -51,16 +67,20 @@ export interface Args {
   root: string;
   work: string | null;
   port?: number;
+  check: boolean;
+  dryRun: boolean;
 }
 
 const VALUE_FLAGS = ['--root', '--work', '--port'];
 
 function parseArgs(argv: string[]): Args {
   const [command, ...rest] = argv;
-  const a: Args = { command: command ?? '', root: '.', work: null };
+  const a: Args = { command: command ?? '', root: '.', work: null, check: false, dryRun: false };
   for (let i = 0; i < rest.length; i++) {
     const arg = rest[i];
-    if (VALUE_FLAGS.includes(arg)) {
+    if (arg === '--check') a.check = true;
+    else if (arg === '--dry-run') a.dryRun = true;
+    else if (VALUE_FLAGS.includes(arg)) {
       const v = rest[++i];
       if (v === undefined) throw new Error(`${arg} の値が無い`);
       if (arg === '--root') a.root = v;
@@ -204,6 +224,96 @@ async function serve(io: CliIo, a: Args): Promise<number> {
   return 0;
 }
 
+// --- 台帳を読む（fetch・upload・verify・generate） ---
+
+async function loadLedger(
+  io: CliIo,
+  root: string
+): Promise<{ ledger: Ledger302; rows: SeedRow[] }> {
+  const text = await readRequired(io, joinPath(root, LEDGER_PATH));
+  const photos = parsePhotos(
+    await readRequired(io, joinPath(root, PHOTOS_PATH)),
+    parseMapping(await readRequired(io, joinPath(root, MAPPING_PATH)))
+  );
+  const rows = await loadSeedRows(io, root);
+  return { ledger: parseLedger302(text, photos, rows), rows };
+}
+
+// --- fetch ---
+
+async function fetchCommand(io: CliIo, a: Args): Promise<number> {
+  const contact = io.env('SPOT_WIKIDATA_CONTACT')?.trim();
+  if (!contact) {
+    throw new Error(
+      'SPOT_WIKIDATA_CONTACT が無い。Commons の User-Agent に入れる連絡先を環境変数で渡す（何も取っていない）'
+    );
+  }
+  const { ledger } = await loadLedger(io, a.root);
+  const started = io.now();
+  try {
+    const r = await fetchPhotos(ledger.entries, { io, work: workDir(io, a), contact });
+    const sec = Math.round((io.now() - started) / 1000);
+    io.stdout(
+      `取った ${r.saved} 件 / キャッシュにあった ${r.cached} 件 / 失敗 ${r.failed.length} 件（${sec} 秒）\n`
+    );
+    return r.failed.length === 0 ? 0 : 1;
+  } catch (e) {
+    if (e instanceof StopError) {
+      io.stderr(`エラー: ${e.message}。取れた分は残る（同じコマンドで続きから）\n`);
+      return 1;
+    }
+    throw e;
+  }
+}
+
+// --- upload ---
+
+async function upload(io: CliIo, a: Args): Promise<number> {
+  const { ledger } = await loadLedger(io, a.root);
+  const env = Object.fromEntries(R2_ENV_NAMES.map(n => [n, io.env(n)]));
+  return await uploadPhotos(ledger.entries, { io, work: workDir(io, a), env, dryRun: a.dryRun });
+}
+
+// --- verify ---
+
+async function verify(io: CliIo, a: Args): Promise<number> {
+  const { ledger } = await loadLedger(io, a.root);
+  return await verifyPhotos(ledger.entries, { io });
+}
+
+// --- generate ---
+
+async function generate(io: CliIo, a: Args): Promise<number> {
+  const { ledger, rows } = await loadLedger(io, a.root);
+  const outputs: [string, string][] = [
+    [MIGRATION_PATH, buildMigrationSql(ledger.entries)],
+    [CHECK_SQL_PATH, buildCheckSql(ledger, rows.length)],
+  ];
+  const differ: string[] = [];
+  for (const [path, text] of outputs) {
+    if ((await io.readTextFile(joinPath(a.root, path))) !== text) differ.push(path);
+  }
+  if (a.check) {
+    if (differ.length > 0) {
+      io.stderr(
+        `台帳から作るものと違う（generate をやり直す）:\n${differ.map(p => `  ${p}\n`).join('')}`
+      );
+      return 1;
+    }
+    io.stdout(`生成物は台帳と同じ（${outputs.length} ファイル・${ledger.entries.length} 件）\n`);
+    return 0;
+  }
+  for (const [path, text] of outputs) {
+    if (differ.includes(path)) await io.writeTextFile(joinPath(a.root, path), text);
+  }
+  io.stdout(
+    differ.length > 0
+      ? `書いた（${ledger.entries.length} 件）:\n${differ.map(p => `  ${p}\n`).join('')}`
+      : `変わるものは無い（${outputs.length} ファイル）\n`
+  );
+  return 0;
+}
+
 // --- 入口 ---
 
 export type Command = (io: CliIo, a: Args) => Promise<number>;
@@ -213,6 +323,10 @@ const COMMANDS: Record<string, Command> = {
   serve,
   status,
   export: exportCommand,
+  fetch: fetchCommand,
+  upload,
+  verify,
+  generate,
 };
 
 export async function runCli(argv: string[], io: CliIo): Promise<number> {
@@ -257,6 +371,32 @@ export function denoIo(): CliIo {
       await Deno.writeTextFile(tmp, text);
       await Deno.rename(tmp, path);
     },
+    readFile: async path => {
+      try {
+        return await Deno.readFile(path);
+      } catch (e) {
+        if (e instanceof Deno.errors.NotFound) return null;
+        throw e;
+      }
+    },
+    writeFile: async (path, data) => {
+      await ensureDir(path);
+      const tmp = `${path}.tmp-${crypto.randomUUID()}`;
+      await Deno.writeFile(tmp, data);
+      await Deno.rename(tmp, path);
+    },
+    exists: async path => {
+      try {
+        await Deno.stat(path);
+        return true;
+      } catch (e) {
+        if (e instanceof Deno.errors.NotFound) return false;
+        throw e;
+      }
+    },
+    fetch: (input, init) => fetch(input, init),
+    now: () => Date.now(),
+    sleep: ms => new Promise(resolve => setTimeout(resolve, ms)),
     stdout: text => writeAll(Deno.stdout, text),
     stderr: text => writeAll(Deno.stderr, text),
     env: name => Deno.env.get(name),

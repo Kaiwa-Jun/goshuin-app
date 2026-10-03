@@ -500,3 +500,252 @@ export function buildLedger(choices: Choice[], photos: Photos, rows: SeedRow[]):
   };
   return parseLedger302(ledger, photos, rows);
 }
+
+// --- D-19: 本番の SQL（台帳から作る生成物） ---
+
+const SQL_TAG = 'spot_photos_302 batch1';
+
+/** jsonb の1行（表の列の名前で） */
+function photoRow(e: LedgerEntry302): string {
+  return JSON.stringify({
+    name: e.name,
+    prefecture: e.prefecture,
+    r2_key: e.r2Key,
+    width: e.width,
+    height: e.height,
+    focus_y: e.focusY,
+    author: e.author,
+    license: e.license,
+    license_url: e.licenseUrl,
+    source_url: e.sourceUrl,
+    is_cropped: e.isCropped,
+    status: e.status,
+  });
+}
+
+function photoRows(entries: LedgerEntry302[]): string {
+  const text = entries.map(photoRow).join(',\n');
+  if (text.includes('$photos$'))
+    throw new Error('台帳の文字に $photos$ が入っている（SQL に埋められない）');
+  return text;
+}
+
+const RECORD_COLUMNS =
+  'x(name text, prefecture text, r2_key text, width int, height int, focus_y real, author text, license text, license_url text, source_url text, is_cropped boolean, status text)';
+
+const SAME_SPOT =
+  's.name = f.name AND s.prefecture = f.prefecture AND s.created_by_user_id IS NULL';
+
+/**
+ * 台帳の全部の行を spot_photos に入れる migration（DO ブロック1つ）。1件ずつ「名前・都道府県・作成者なし」で
+ * ちょうど1行の寺社に絞り（0 行・2 行以上なら例外で全体を止める）、spot_id で upsert する
+ */
+export function buildMigrationSql(entries: LedgerEntry302[]): string {
+  if (entries.length === 0) throw new Error('台帳に行が無い');
+  return `-- Issue #302 第1弾: 地図のピンのシートの帯に出す寺社の写真 ${entries.length} 件を spot_photos に入れる。
+-- 生成物。手で直さない。台帳 supabase/data/spot-photos-302.json から次で作る:
+--   deno run -A --node-modules-dir=none supabase/scripts/spot-photos/main.ts generate
+-- 1件ずつ「名前・都道府県・作成者なし」でちょうど1行の寺社に絞り（0 行・2 行以上なら例外で全体を止める）、
+-- spot_id で upsert する（何度流しても同じ中身）。マスタの寺社が1件も無い DB（seed を入れる前）では何もしない。
+DO $spot_photos_302$
+DECLARE
+  photos CONSTANT jsonb := $photos$[
+${photoRows(entries)}
+]$photos$;
+  f record;
+  n int;
+  sid uuid;
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM public.spots WHERE created_by_user_id IS NULL) THEN
+    RAISE NOTICE '${SQL_TAG}: マスタの寺社が無いので何もしない';
+    RETURN;
+  END IF;
+
+  FOR f IN SELECT * FROM jsonb_to_recordset(photos) AS ${RECORD_COLUMNS}
+  LOOP
+    SELECT count(*), min(s.id::text)::uuid INTO n, sid
+      FROM public.spots s
+     WHERE ${SAME_SPOT};
+    IF n <> 1 THEN
+      RAISE EXCEPTION '${SQL_TAG}: %（%）: 名前と都道府県で % 行（1 行のはず）', f.name, f.prefecture, n;
+    END IF;
+    INSERT INTO public.spot_photos
+      (spot_id, r2_key, width, height, focus_y, author, license, license_url, source_url, is_cropped, status)
+    VALUES
+      (sid, f.r2_key, f.width, f.height, f.focus_y, f.author, f.license, f.license_url, f.source_url, f.is_cropped, f.status)
+    ON CONFLICT (spot_id) DO UPDATE SET
+      r2_key = EXCLUDED.r2_key,
+      width = EXCLUDED.width,
+      height = EXCLUDED.height,
+      focus_y = EXCLUDED.focus_y,
+      author = EXCLUDED.author,
+      license = EXCLUDED.license,
+      license_url = EXCLUDED.license_url,
+      source_url = EXCLUDED.source_url,
+      is_cropped = EXCLUDED.is_cropped,
+      status = EXCLUDED.status;
+    GET DIAGNOSTICS n = ROW_COUNT;
+    IF n <> 1 THEN
+      RAISE EXCEPTION '${SQL_TAG}: %（%）: 入ったのが % 行（1 行のはず）', f.name, f.prefecture, n;
+    END IF;
+  END LOOP;
+END
+$spot_photos_302$;
+`;
+}
+
+export const CHECK_KEYS = [
+  'table',
+  'rls',
+  'total',
+  'listed',
+  'not_one',
+  'present',
+  'differ',
+  'missing',
+  'extra',
+  'anon_select',
+  'anon_insert',
+] as const;
+
+export function checkResultLine(v: Record<(typeof CHECK_KEYS)[number], string | number>): string {
+  return `RESULT ${CHECK_KEYS.map(k => `${k}=${v[k]}`).join(' ')}`;
+}
+
+/** 本番の spot_photos が台帳と合うかを読むだけの SQL。最後に RAISE EXCEPTION 'RESULT …' で全部戻す */
+export function buildCheckSql(ledger: Ledger302, seedRowCount: number): string {
+  const entries = ledger.entries;
+  const listed = entries.filter(e => e.status === 'approved').length;
+  const n = entries.length;
+  const base = {
+    table: 'present',
+    rls: 'on',
+    total: seedRowCount,
+    listed,
+    not_one: 0,
+    extra: 0,
+    anon_insert: 'denied',
+  };
+  const before = checkResultLine({ ...base, present: 0, differ: 0, missing: n, anon_select: 0 });
+  const after = checkResultLine({
+    ...base,
+    present: n,
+    differ: 0,
+    missing: 0,
+    anon_select: listed,
+  });
+  const format = CHECK_KEYS.filter(k => k !== 'table')
+    .map(k => `${k}=%`)
+    .join(' ');
+  return `-- ============================================================
+-- 帯の写真: 本番の spot_photos が台帳と合うか（Issue #302 / H-7・H-10・H-13）
+--
+-- 実行: supabase db query --linked -f supabase/validation/spot_photos_302_check.sql
+--
+-- ⚠ 必ずエラーで終わる。それで正しい。最後に RAISE EXCEPTION して、何も残さない（読むだけ）。
+--   期待値:
+--   H-7（表を作る前）: RESULT table=absent
+--   H-10（表を作ったあと・中身を入れる前）: ${before}
+--   H-13（中身を入れたあと）: ${after}
+--
+-- table       = 表 public.spot_photos があるか（absent ならほかは出さない）
+-- rls         = 表の RLS が有効なら on
+-- total       = 作成者なし（created_by_user_id IS NULL）の spots の数（期待値は seed の寺社の行の数）
+-- listed      = 台帳の status: approved の件数
+-- not_one     = 台帳の行のうち、名前・都道府県・作成者なしで 0 行か 2 行以上だった件数
+-- present     = 1 行に絞れて、その寺社の写真の行があり、全部の列が台帳と同じ件数
+-- differ      = 1 行に絞れて、行はあるが列が台帳と違う件数
+-- missing     = 1 行に絞れて、行が無い件数
+-- extra       = spot_photos の行のうち、台帳のどの寺社でもない件数
+-- anon_select = anon のロールで数えた行の数（承認済みだけが見える）
+-- anon_insert = anon のロールで1行入れようとして断られたら denied（下のサブブロックで試し、最後の例外で戻す）
+--
+-- 生成物。手で直さない。台帳 supabase/data/spot-photos-302.json から
+-- supabase/scripts/spot-photos/main.ts generate で作る
+-- ============================================================
+
+DO $spot_photos_302_check$
+DECLARE
+  photos CONSTANT jsonb := $photos$[
+${photoRows(entries)}
+]$photos$;
+  f record;
+  n int;
+  sid uuid;
+  matched uuid[] := '{}';
+  any_spot uuid;
+  rls text;
+  total int;
+  listed int := 0;
+  not_one int := 0;
+  present int := 0;
+  differ int := 0;
+  missing int := 0;
+  extra int;
+  anon_select int;
+  anon_insert text := 'allowed';
+BEGIN
+  IF to_regclass('public.spot_photos') IS NULL THEN
+    RAISE EXCEPTION 'RESULT table=absent';
+  END IF;
+
+  SELECT CASE WHEN c.relrowsecurity THEN 'on' ELSE 'off' END INTO rls
+    FROM pg_class c WHERE c.oid = 'public.spot_photos'::regclass;
+  SELECT count(*) INTO total FROM public.spots WHERE created_by_user_id IS NULL;
+
+  FOR f IN SELECT * FROM jsonb_to_recordset(photos) AS ${RECORD_COLUMNS}
+  LOOP
+    IF f.status = 'approved' THEN
+      listed := listed + 1;
+    END IF;
+    SELECT count(*), min(s.id::text)::uuid INTO n, sid
+      FROM public.spots s
+     WHERE ${SAME_SPOT};
+    IF n <> 1 THEN
+      not_one := not_one + 1;
+      CONTINUE;
+    END IF;
+    matched := matched || sid;
+    IF NOT EXISTS (SELECT 1 FROM public.spot_photos p WHERE p.spot_id = sid) THEN
+      missing := missing + 1;
+    ELSIF EXISTS (
+      SELECT 1 FROM public.spot_photos p
+       WHERE p.spot_id = sid
+         AND p.r2_key = f.r2_key
+         AND p.width = f.width
+         AND p.height = f.height
+         AND p.focus_y = f.focus_y
+         AND p.author IS NOT DISTINCT FROM f.author
+         AND p.license = f.license
+         AND p.license_url IS NOT DISTINCT FROM f.license_url
+         AND p.source_url = f.source_url
+         AND p.is_cropped = f.is_cropped
+         AND p.status = f.status
+    ) THEN
+      present := present + 1;
+    ELSE
+      differ := differ + 1;
+    END IF;
+  END LOOP;
+
+  SELECT count(*) INTO extra FROM public.spot_photos p WHERE NOT (p.spot_id = ANY (matched));
+  SELECT s.id INTO any_spot FROM public.spots s ORDER BY s.id LIMIT 1;
+
+  -- ここから anon のロール（このトランザクションの間だけ）
+  EXECUTE 'SET LOCAL ROLE anon';
+  SELECT count(*) INTO anon_select FROM public.spot_photos;
+  BEGIN
+    INSERT INTO public.spot_photos (spot_id, r2_key, width, height, focus_y, license, source_url)
+    VALUES (coalesce(any_spot, gen_random_uuid()), 'spot-photos/' || repeat('0', 40) || '.jpg',
+            1, 1, 0.5, 'check', 'https://commons.wikimedia.org/wiki/File:check.jpg');
+  EXCEPTION WHEN insufficient_privilege THEN
+    anon_insert := 'denied';
+  END;
+  RESET ROLE;
+
+  RAISE EXCEPTION 'RESULT table=present ${format}',
+    rls, total, listed, not_one, present, differ, missing, extra, anon_select, anon_insert;
+END
+$spot_photos_302_check$;
+`;
+}

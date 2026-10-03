@@ -2,13 +2,23 @@
 // 実行: deno test -A --node-modules-dir=none supabase/scripts/spot-photos/
 //   ⚠ --node-modules-dir=none が要る（無いとルートの package.json 経由で npm: の解決に失敗する）
 //
-// 契約書: docs/issues/issue-302-spot-photo-band.md（S1 / AC-1・AC-2）
+// 契約書: docs/issues/issue-302-spot-photo-band.md（S1 / AC-1・AC-2、S4 / AC-23・AC-24）
 //
 // PGlite は Postgres 17 の WASM。Supabase のロールと auth.role() は無いので、ここで作り物を足す:
 // ロール anon・authenticated・service_role、auth.role()（request.jwt.claim.role を返す）、
 // Supabase の既定の権限の代わりの GRANT。本番の RLS は H-10・H-13 の確かめる SQL で見る
 import { assert, assertEquals, assertStringIncludes } from 'jsr:@std/assert@1';
 import { PGlite } from 'npm:@electric-sql/pglite@0.3.16';
+
+import { SEED_FILES } from '../spot-coords/coords.ts';
+import { fixtureLedgerJson, fixturePhotos, realSeedRows } from './fixtures/load.ts';
+import {
+  buildCheckSql,
+  buildMigrationSql,
+  type Ledger302,
+  type LedgerEntry302,
+  parseLedger302,
+} from './select.ts';
 
 const REPO = new URL('../../../', import.meta.url);
 const readRepo = (rel: string) => Deno.readTextFile(new URL(rel, REPO));
@@ -415,3 +425,266 @@ Deno.test('AC-2: service_role（jwt のロールが service_role）は3行見え
     assertEquals(await photoCount(db), 4);
   });
 });
+
+// --- AC-23: 台帳から作る migration（本物の seed 10 本） ---
+
+async function fixtureLedger(): Promise<Ledger302> {
+  return parseLedger302(await fixtureLedgerJson(), await fixturePhotos(), await realSeedRows());
+}
+
+async function seedAll(db: PGlite): Promise<void> {
+  for (const f of SEED_FILES) await db.exec(await readRepo(f));
+}
+
+const USER = '00000000-0000-4000-8000-000000000001';
+
+/** 写真の行と、結んだ寺社の名前・都道府県・作成者（updated_at を除く） */
+async function attached(db: PGlite) {
+  const res = await db.query<Record<string, unknown>>(
+    `SELECT s.name, s.prefecture, s.created_by_user_id::text AS by, p.spot_id::text AS spot_id,
+            p.r2_key, p.width, p.height, p.focus_y, p.author, p.license, p.license_url,
+            p.source_url, p.is_cropped, p.status, p.created_at::text AS created_at
+       FROM public.spot_photos p JOIN public.spots s ON s.id = p.spot_id
+      ORDER BY s.name, s.prefecture`
+  );
+  return res.rows;
+}
+
+Deno.test(
+  'AC-23: 本物の seed に流すと3行入り、名前・都道府県・作成者なしの寺社に結ぶ。2回流しても同じ',
+  async () => {
+    const ledger = await fixtureLedger();
+    const sql = buildMigrationSql(ledger.entries);
+    await withDb(async db => {
+      await seedAll(db);
+      assertEquals(await raised(db, sql), null);
+      const rows = await attached(db);
+      assertEquals(rows.length, 3);
+      for (const e of ledger.entries) {
+        const r = rows.find(x => x.name === e.name && x.prefecture === e.prefecture)!;
+        const ids = await db.query<{ id: string }>(
+          `SELECT id::text AS id FROM public.spots WHERE name = $1 AND prefecture = $2 AND created_by_user_id IS NULL`,
+          [e.name, e.prefecture]
+        );
+        assertEquals(ids.rows.length, 1);
+        assertEquals(r.spot_id, ids.rows[0].id);
+        assertEquals(
+          [
+            r.r2_key,
+            r.width,
+            r.height,
+            r.author,
+            r.license,
+            r.license_url,
+            r.source_url,
+            r.is_cropped,
+            r.status,
+          ],
+          [
+            e.r2Key,
+            e.width,
+            e.height,
+            e.author,
+            e.license,
+            e.licenseUrl,
+            e.sourceUrl,
+            e.isCropped,
+            e.status,
+          ]
+        );
+        assert(Math.abs((r.focus_y as number) - e.focusY) < 1e-6, e.name);
+      }
+      assertEquals(await raised(db, sql), null);
+      assertEquals(await attached(db), rows);
+    });
+  }
+);
+
+Deno.test('AC-23: マスタの寺社が無い DB では何も入れず、エラーにならない', async () => {
+  const sql = buildMigrationSql((await fixtureLedger()).entries);
+  await withDb(async db => {
+    assertEquals(await raised(db, sql), null);
+    assertEquals(await photoCount(db), 0);
+    // 利用者が足した寺社しか無い DB でも同じ
+    await insertSpot(db, '金蛇水神社', '宮城県', USER);
+    assertEquals(await raised(db, sql), null);
+    assertEquals(await photoCount(db), 0);
+  });
+});
+
+Deno.test('AC-23: seed に無い名前が1つあると、その名前で例外になり1行も入らない', async () => {
+  const entries: LedgerEntry302[] = (await fixtureLedger()).entries;
+  const bad = buildMigrationSql([entries[0], { ...entries[1], name: '存在しない寺' }, entries[2]]);
+  await withDb(async db => {
+    await seedAll(db);
+    const msg = await raised(db, bad);
+    assert(msg !== null);
+    assertStringIncludes(msg, 'spot_photos_302 batch1: 存在しない寺（栃木県）');
+    assertStringIncludes(msg, '0 行');
+    assertEquals(await photoCount(db), 0);
+  });
+});
+
+Deno.test('AC-23: 同じ名前・都道府県の利用者の寺社があっても、マスタの寺社にだけ結ぶ', async () => {
+  const ledger = await fixtureLedger();
+  const sql = buildMigrationSql(ledger.entries);
+  await withDb(async db => {
+    await seedAll(db);
+    const user = await insertSpot(db, '金蛇水神社', '宮城県', USER);
+    assertEquals(await raised(db, sql), null);
+    const rows = await attached(db);
+    assertEquals(rows.length, 3);
+    assertEquals(
+      rows.filter(r => r.spot_id === user),
+      []
+    );
+    assert(rows.every(r => r.by === null));
+  });
+});
+
+Deno.test('AC-23: 同じ名前・都道府県のマスタの寺社が2行あると、2 行で例外', async () => {
+  const sql = buildMigrationSql((await fixtureLedger()).entries);
+  await withDb(async db => {
+    await seedAll(db);
+    await insertSpot(db, '金蛇水神社', '宮城県');
+    const msg = await raised(db, sql);
+    assertStringIncludes(msg ?? '', '金蛇水神社（宮城県）');
+    assertStringIncludes(msg ?? '', '2 行');
+    assertEquals(await photoCount(db), 0);
+  });
+});
+
+// --- AC-24: 確かめる SQL ---
+
+async function masterCount(db: PGlite): Promise<number> {
+  const res = await db.query<{ n: number }>(
+    'SELECT count(*)::int AS n FROM public.spots WHERE created_by_user_id IS NULL'
+  );
+  return res.rows[0].n;
+}
+
+const resultLine = (v: Record<string, string | number>) =>
+  'RESULT ' +
+  [
+    'table',
+    'rls',
+    'total',
+    'listed',
+    'not_one',
+    'present',
+    'differ',
+    'missing',
+    'extra',
+    'anon_select',
+    'anon_insert',
+  ]
+    .map(k => `${k}=${v[k]}`)
+    .join(' ');
+
+Deno.test(
+  'AC-24: 表が無い DB で table=absent、表だけで missing=3、migration のあとで present=3',
+  async () => {
+    const ledger = await fixtureLedger();
+    const check = buildCheckSql(ledger, 1109);
+    const migration = buildMigrationSql(ledger.entries);
+    await withDb(
+      async db => {
+        await seedAll(db);
+        assertEquals(await raised(db, check), 'RESULT table=absent');
+      },
+      { ddl: false }
+    );
+    await withDb(async db => {
+      await seedAll(db);
+      const total = await masterCount(db);
+      assertEquals(total, 1109);
+      const base = {
+        table: 'present',
+        rls: 'on',
+        total,
+        listed: 3,
+        not_one: 0,
+        extra: 0,
+        anon_insert: 'denied',
+      };
+      assertEquals(
+        await raised(db, check),
+        resultLine({ ...base, present: 0, differ: 0, missing: 3, anon_select: 0 })
+      );
+      // 確かめる SQL は何も残さない
+      assertEquals(await photoCount(db), 0);
+
+      await db.exec(migration);
+      assertEquals(
+        await raised(db, check),
+        resultLine({ ...base, present: 3, differ: 0, missing: 0, anon_select: 3 })
+      );
+
+      await db.exec(
+        `UPDATE public.spot_photos SET focus_y = 0.11 WHERE r2_key = '${ledger.entries[2].r2Key}'`
+      );
+      assertEquals(
+        await raised(db, check),
+        resultLine({ ...base, present: 2, differ: 1, missing: 0, anon_select: 3 })
+      );
+
+      const other = await db.query<{ id: string }>(
+        `SELECT id::text AS id FROM public.spots WHERE name = '戸越八幡神社' AND prefecture = '東京都'`
+      );
+      await insertPhoto(
+        db,
+        photoValues(other.rows[0].id, {
+          r2_key: `spot-photos/${sha('9')}.jpg`,
+          status: 'withdrawn',
+        })
+      );
+      const before = await photoRows(db);
+      assertEquals(
+        await raised(db, check),
+        resultLine({ ...base, present: 2, differ: 1, missing: 0, extra: 1, anon_select: 3 })
+      );
+      assertEquals(await photoRows(db), before);
+    });
+  }
+);
+
+Deno.test('AC-24: 絞れない寺社は not_one に数える', async () => {
+  const ledger = await fixtureLedger();
+  await withDb(async db => {
+    await seedAll(db);
+    await db.exec(buildMigrationSql(ledger.entries));
+    await insertSpot(db, '輪王寺', '栃木県');
+    const msg = await raised(db, buildCheckSql(ledger, 1109));
+    assertStringIncludes(
+      msg ?? '',
+      'total=1110 listed=3 not_one=1 present=2 differ=0 missing=0 extra=1'
+    );
+  });
+});
+
+Deno.test(
+  'AC-24: INSERT・UPDATE・DELETE は anon で試す1つだけで、BEGIN … EXCEPTION の中にある',
+  async () => {
+    const check = buildCheckSql(await fixtureLedger(), 1109);
+    const words = check.match(/\b(insert|update|delete|truncate|drop|alter)\b/gi) ?? [];
+    assertEquals(
+      words.map(w => w.toUpperCase()),
+      ['INSERT']
+    );
+    const at = check.search(/\bINSERT\b/);
+    const begin = check.lastIndexOf('BEGIN', at);
+    const exception = check.indexOf('EXCEPTION', at);
+    const roleAt = check.lastIndexOf('SET LOCAL ROLE anon', at);
+    assert(begin > roleAt && roleAt > 0, 'anon にしてからサブブロックに入る');
+    assert(exception > at);
+    assertStringIncludes(
+      check,
+      'supabase db query --linked -f supabase/validation/spot_photos_302_check.sql'
+    );
+    for (const h of ['H-7', 'H-10', 'H-13']) assertStringIncludes(check, h);
+    assertStringIncludes(
+      check,
+      'RESULT table=present rls=on total=1109 listed=3 not_one=0 present=3 differ=0 missing=0 extra=0 anon_select=3 anon_insert=denied'
+    );
+  }
+);

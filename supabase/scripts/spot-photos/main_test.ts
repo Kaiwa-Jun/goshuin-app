@@ -1,6 +1,6 @@
 // Deno テスト（CLI。一時フォルダのリポジトリの直下と作業フォルダで回す。ネットに出ない）
 // 実行: deno test -A --node-modules-dir=none supabase/scripts/spot-photos/
-// 契約書: docs/issues/issue-302-spot-photo-band.md（S3 / AC-14・AC-17・AC-18）
+// 契約書: docs/issues/issue-302-spot-photo-band.md（S3 / AC-14・AC-17・AC-18、S4 / AC-25）
 import { assert, assertEquals, assertStringIncludes } from 'jsr:@std/assert@1';
 
 import { serializeJson } from '../spot-wikidata/match.ts';
@@ -13,7 +13,7 @@ import {
   snapshot,
 } from './fixtures/load.ts';
 import { type CliIo, denoIo, runCli } from './main.ts';
-import { LEDGER_PATH, parseLedger302 } from './select.ts';
+import { CHECK_SQL_PATH, LEDGER_PATH, MIGRATION_PATH, parseLedger302 } from './select.ts';
 
 export function captureIo(over: Partial<CliIo> = {}) {
   let out = '';
@@ -76,6 +76,9 @@ Deno.test(
 );
 
 // --- AC-17: status・export ---
+
+/** ホームのパスの頭（文字のまま書くと、Q-14 の grep に当たる） */
+const HOME_DIRS = ['', 'Users', ''].join('/');
 
 const KANAHEBI_FILE = 'Haiden of Kanahebi-Suijinja shrine 1.JPG';
 
@@ -288,3 +291,100 @@ Deno.test(
     }
   }
 );
+
+// --- AC-25: generate ---
+
+Deno.test(
+  'AC-25: generate は2つのファイルを書き、2回目は変わるものが無い。--check は同じなら 0',
+  async () => {
+    const root = await makeRoot({ ledger: true });
+    try {
+      const first = await run(['generate', '--root', root]);
+      assertEquals(first.code, 0, first.err);
+      assertStringIncludes(first.out, MIGRATION_PATH);
+      assertStringIncludes(first.out, CHECK_SQL_PATH);
+      const migration = await Deno.readTextFile(`${root}/${MIGRATION_PATH}`);
+      const check = await Deno.readTextFile(`${root}/${CHECK_SQL_PATH}`);
+      for (const text of [migration, check]) {
+        assertEquals(text.match(/\d{4}-\d{2}-\d{2}T/), null);
+        assertEquals(text.includes(HOME_DIRS), false);
+        assertEquals(text.includes('goshuin-work'), false);
+        assertEquals(text.includes(root), false);
+      }
+      assertStringIncludes(migration, '金蛇水神社');
+      assertStringIncludes(check, 'total=1109 listed=3');
+
+      const second = await run(['generate', '--root', root]);
+      assertEquals(second.code, 0, second.err);
+      assertStringIncludes(second.out, '変わるものは無い');
+
+      const ok = await run(['generate', '--check', '--root', root]);
+      assertEquals(ok.code, 0, ok.err);
+    } finally {
+      await Deno.remove(root, { recursive: true });
+    }
+  }
+);
+
+Deno.test(
+  'AC-25: 台帳の値を1つ変えると --check は 1 で違うファイルの名前を出し、書かない',
+  async () => {
+    const root = await makeRoot({ ledger: true });
+    try {
+      assertEquals((await run(['generate', '--root', root])).code, 0);
+      const before = await snapshot(root);
+      const ledgerPath = `${root}/${LEDGER_PATH}`;
+      const ledger = JSON.parse(await Deno.readTextFile(ledgerPath));
+      ledger.entries[2].focusY = 0.31;
+      await Deno.writeTextFile(ledgerPath, serializeJson(ledger));
+      const res = await run(['generate', '--check', '--root', root]);
+      assertEquals(res.code, 1);
+      assertStringIncludes(res.err, MIGRATION_PATH);
+      assertStringIncludes(res.err, CHECK_SQL_PATH);
+      const after = await snapshot(root);
+      assertEquals(after[MIGRATION_PATH], before[MIGRATION_PATH]);
+      assertEquals(after[CHECK_SQL_PATH], before[CHECK_SQL_PATH]);
+      // 書くと --check が通る
+      assertEquals((await run(['generate', '--root', root])).code, 0);
+      assertEquals((await run(['generate', '--check', '--root', root])).code, 0);
+    } finally {
+      await Deno.remove(root, { recursive: true });
+    }
+  }
+);
+
+Deno.test(
+  'AC-18: 台帳が無いと generate・fetch・upload・verify は台帳の名前を出して 1',
+  async () => {
+    const root = await makeRoot();
+    const work = await tempWork();
+    try {
+      for (const args of [['generate'], ['fetch'], ['upload', '--dry-run'], ['verify']]) {
+        const res = await run([...args, '--root', root, '--work', work], {
+          env: name => (name === 'HOME' ? work : 'x'),
+          fetch: () => Promise.reject(new Error('呼ばない')),
+        });
+        assertEquals(res.code, 1, args[0]);
+        assertStringIncludes(res.err, 'spot-photos-302.json', args[0]);
+      }
+    } finally {
+      await Deno.remove(root, { recursive: true });
+      await Deno.remove(work, { recursive: true });
+    }
+  }
+);
+
+Deno.test('AC-18: 台帳の行が #301 と合わないと、寺社の名前を出して 1', async () => {
+  const root = await makeRoot({ ledger: true });
+  try {
+    const ledgerPath = `${root}/${LEDGER_PATH}`;
+    const ledger = JSON.parse(await Deno.readTextFile(ledgerPath));
+    ledger.entries[1].author = 'someone else';
+    await Deno.writeTextFile(ledgerPath, serializeJson(ledger));
+    const res = await run(['generate', '--root', root]);
+    assertEquals(res.code, 1);
+    assertStringIncludes(res.err, '輪王寺（栃木県）');
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
