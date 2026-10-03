@@ -847,7 +847,12 @@ export async function analyze(ctx: Ctx): Promise<Analysis> {
     for (const t of tilesOf.get(r.idx)!) {
       features.push(...((await loadTile(cache, t.x, t.y)) ?? []));
     }
-    gsiOf.set(r.idx, gsiPointFor(linkNames(r.name), features, nearOf.get(r.idx)!));
+    const addr = addrOf.get(r.idx) ?? null;
+    const anchors: LatLng[] = [
+      { lat: r.lat, lng: r.lng },
+      ...(addr ? [{ lat: addr.lat, lng: addr.lng }] : []),
+    ];
+    gsiOf.set(r.idx, gsiPointFor(linkNames(r.name), features, nearOf.get(r.idx)!, anchors));
   }
 
   // 結びつけ（D-5）

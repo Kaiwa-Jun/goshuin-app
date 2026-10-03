@@ -440,3 +440,51 @@ Deno.test(
     assertStringIncludes(s.out.stdout, 'review-data.json');
   }
 );
+
+// --- S4 の抜き取りで見つかった取り違えの再現（湯殿山神社・黄金山神社の形） ---
+
+Deno.test(
+  'build: 同名の別の寺社の注記が、その項目の P625 のすぐ近くにあっても、seed の近くの項目を選ぶ',
+  async () => {
+    const seed = { lat: 34.9, lng: 138.2 };
+    const far = { lat: seed.lat + 0.15, lng: seed.lng }; // 約 16.7km 北の同名の神社
+    const world: FakeWorld = {
+      spots: [
+        { name: '同名神社', prefecture: '静岡県', address: '静岡県静岡市葵区テスト1', ...seed },
+      ],
+      ledger: [],
+      entities: [
+        { qid: 'Q900', label: '静岡県', p31: ['Q50337'] },
+        {
+          qid: 'Q501',
+          label: '同名神社',
+          p625: { lat: far.lat, lng: far.lng },
+          p131: ['Q900'],
+          p18: ['Wrong shrine.jpg'],
+        },
+        {
+          qid: 'Q502',
+          label: '同名神社',
+          p625: { lat: seed.lat + 0.0002, lng: seed.lng },
+          p131: ['Q900'],
+        },
+      ],
+      search: { 同名神社: ['Q501', 'Q502'] },
+      wdqs: {},
+      addr: {},
+      gsi: [
+        { layer: 'label', code: 661, knj: '同名神社', lat: seed.lat, lng: seed.lng + 0.00019 }, // seed から約 17m
+        { layer: 'label', code: 661, knj: '同名神社', lat: far.lat, lng: far.lng + 0.0001 }, // Q501 から約 9m
+      ],
+      nominatim: {},
+      commons: ['Wrong shrine.jpg'],
+    };
+    await using s = await setup(world);
+    assertEquals(await s.run('fetch', 'all'), 0, s.out.stderr);
+    assertEquals(await s.run('build'), 0, s.out.stderr);
+    const mapping = parseMapping(await Deno.readTextFile(`${s.root}/${MAPPING_PATH}`));
+    assertEquals(mapping.entries[0].qid, 'Q502');
+    const photos = parsePhotos(await Deno.readTextFile(`${s.root}/${PHOTOS_PATH}`), mapping);
+    assertEquals(photos.entries, []);
+  }
+);

@@ -939,22 +939,10 @@ export function parseGsiTile(bytes: Uint8Array, z: number, x: number, y: number)
   return out;
 }
 
-/**
- * 名前の合う注記のうち near のどれかにいちばん近いものを選び、注記から SNAP_M 以内に記号があれば
- * いちばん近い記号の点、無ければ注記の点
- */
-export function gsiPointFor(
-  names: string[],
-  features: GsiFeature[],
-  near: LatLng[]
-): (LatLng & { label: string }) | null {
-  if (near.length === 0) return null;
-  const labels = features.filter(
-    f => f.kind === 'label' && f.name !== null && names.some(n => nameMatch(f.name!, n) !== 'none')
-  );
+function nearestLabel(labels: GsiFeature[], to: LatLng[]): { f: GsiFeature; d: number } | null {
   let best: { f: GsiFeature; d: number } | null = null;
   for (const f of labels) {
-    const d = Math.min(...near.map(p => distanceMeters(p, f)));
+    const d = Math.min(...to.map(p => distanceMeters(p, f)));
     if (
       !best ||
       d < best.d ||
@@ -963,6 +951,29 @@ export function gsiPointFor(
       best = { f, d };
     }
   }
+  return best;
+}
+
+/**
+ * 名前の合う注記を1つ選び、注記から SNAP_M 以内に記号があればいちばん近い記号の点、無ければ注記の点。
+ * 選び方: anchors（seed と地理院の住所の点）から SUPPORT_M 以内に名前の合う注記があれば、anchors に
+ * いちばん近いもの。無ければ near（anchors と候補の P625）のどれかにいちばん近いもの（D-11）。
+ * anchors を先に見るのは、同じ名前の別の寺社の注記が、その寺社の項目の P625 のすぐ近くにあるため
+ * （S4 の抜き取りで、湯殿山神社・黄金山神社が別の同名の項目に high で結びついた）
+ */
+export function gsiPointFor(
+  names: string[],
+  features: GsiFeature[],
+  near: LatLng[],
+  anchors: LatLng[] = near
+): (LatLng & { label: string }) | null {
+  if (near.length === 0 && anchors.length === 0) return null;
+  const labels = features.filter(
+    f => f.kind === 'label' && f.name !== null && names.some(n => nameMatch(f.name!, n) !== 'none')
+  );
+  const anchored = anchors.length > 0 ? nearestLabel(labels, anchors) : null;
+  const best =
+    anchored && anchored.d <= SUPPORT_M ? anchored : nearestLabel(labels, [...anchors, ...near]);
   if (!best) return null;
   let snap: { f: GsiFeature; d: number } | null = null;
   for (const s of features) {

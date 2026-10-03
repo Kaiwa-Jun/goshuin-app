@@ -778,6 +778,63 @@ Deno.test('AC-7: gsiPointFor は名前の合う注記のうち near にいちば
   assertEquals(gsiPointFor(['石手寺'], [], [c]), null);
 });
 
+// S4 の抜き取りで見つかった取り違え（湯殿山神社・黄金山神社）。同じ名前の注記が seed の近くと、
+// 別の同名の項目の P625 の近くの両方にあるとき、seed・住所の近く（SUPPORT_M 以内）の注記を先に選ぶ
+Deno.test(
+  'gsiPointFor: seed・住所から 300m 以内に名前の合う注記があれば、候補の P625 により近い注記より先に選ぶ',
+  () => {
+    const seed = tileCenter();
+    const wrong = north(seed, 16_700); // 別の同名の寺社の P625
+    const features: GsiFeature[] = [
+      { kind: 'label', code: 661, name: '湯殿山神社', ...east(seed, 17) },
+      { kind: 'label', code: 661, name: '湯殿山神社', ...east(wrong, 9) },
+    ];
+    const p = gsiPointFor(['湯殿山神社'], features, [seed, wrong], [seed]);
+    assert(p);
+    assert(distanceMeters(p, east(seed, 17)) < 0.5, `${p.lat}, ${p.lng}`);
+    // 住所の点も seed と同じ扱い
+    const addr = north(seed, 2_000);
+    const q = gsiPointFor(
+      ['湯殿山神社'],
+      [
+        { kind: 'label', code: 661, name: '湯殿山神社', ...east(addr, 250) },
+        { kind: 'label', code: 661, name: '湯殿山神社', ...east(wrong, 5) },
+      ],
+      [seed, addr, wrong],
+      [seed, addr]
+    );
+    assert(q);
+    assert(distanceMeters(q, east(addr, 250)) < 0.5);
+  }
+);
+
+Deno.test(
+  'gsiPointFor: seed・住所の 300m 以内に無ければ、今までどおり候補の P625 にいちばん近い注記（seed がずれている寺社）',
+  () => {
+    const seed = tileCenter();
+    const cand = north(seed, 800);
+    const features: GsiFeature[] = [
+      { kind: 'label', code: 662, name: '離れた寺', ...east(cand, 50) },
+      { kind: 'label', code: 662, name: '離れた寺', ...north(seed, 3_000) },
+    ];
+    const p = gsiPointFor(['離れた寺'], features, [seed, cand], [seed]);
+    assert(p);
+    assert(distanceMeters(p, east(cand, 50)) < 0.5);
+    // 301m は 300m の外
+    const r = gsiPointFor(
+      ['離れた寺'],
+      [
+        { kind: 'label', code: 662, name: '離れた寺', ...east(seed, 301) },
+        { kind: 'label', code: 662, name: '離れた寺', ...east(cand, 50) },
+      ],
+      [seed, cand],
+      [seed]
+    );
+    assert(r);
+    assert(distanceMeters(r, east(cand, 50)) < 0.5);
+  }
+);
+
 // --- AC-8: classifyCoord ---
 
 const SEED: LatLng = { lat: 35.0, lng: 135.0 };
