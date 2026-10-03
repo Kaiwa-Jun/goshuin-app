@@ -85,7 +85,9 @@ jest.mock('@services/stamps', () => ({
   getStampThumbUrl: jest.fn(
     (path: string) => `https://example.com/cdn-cgi/image/width=400/${path}`
   ),
-  getStampViewUrl: jest.fn((path: string) => `https://example.com/view-1200/${path}`),
+  getStampViewUrl: jest.fn(
+    (path: string) => `https://example.com/cdn-cgi/image/width=1200/${path}`
+  ),
 }));
 
 jest
@@ -298,6 +300,36 @@ describe('GalleryScreen', () => {
     await waitFor(() => {
       expect(getByTestId('gallery-image')).toBeTruthy();
     });
+  });
+
+  /*
+   * 全画面は大きい方（R2 の 1200 の変換）を開く。R2 に原本が無い写真（旧バージョンの
+   * アプリが Supabase にだけ上げたもの）は、Supabase の原本に落として出し続ける（Issue #227 S4a AC-13 / AC-14）
+   */
+  it('全画面は大きい方を開き、出せなければ元の写真に落ちる', async () => {
+    mockUseGalleryStamps.mockReturnValue({
+      stamps: [makeStamp({ id: 'stamp-abc', image_path: 'user-1/old.jpg' })],
+      totalCount: 1,
+      isLoading: false,
+      error: null,
+      removeStamp: jest.fn(),
+      updateStamp: jest.fn(),
+    });
+
+    const { getByTestId } = renderGalleryScreenInGrid();
+    fireEvent.press(getByTestId('gallery-item-stamp-abc'));
+
+    await waitFor(() => {
+      expect(getByTestId('gallery-image').props.source.uri).toBe(
+        'https://example.com/cdn-cgi/image/width=1200/user-1/old.jpg'
+      );
+    });
+
+    fireEvent(getByTestId('gallery-image'), 'error');
+
+    expect(getByTestId('gallery-image').props.source.uri).toBe(
+      'https://example.com/user-1/old.jpg'
+    );
   });
 
   describe('表示モードの切り替え（Issue #116）', () => {

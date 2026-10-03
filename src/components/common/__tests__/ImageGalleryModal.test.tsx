@@ -51,6 +51,40 @@ describe('ImageGalleryModal', () => {
     expect(getByTestId('gallery-image')).toBeTruthy();
   });
 
+  /*
+   * 縮小した方が出せないとき（R2 に原本が無い写真）は、元の写真に落として出し続ける。
+   * 元も出せなければそれ以上は替えない（取り直しを繰り返さない）（Issue #227 S4a AC-14）
+   */
+  it('写真が出せなければ fallbackUrl に一度だけ落ちる', () => {
+    const onImageFallback = jest.fn();
+    const images: GalleryImage[] = [
+      {
+        id: 'old',
+        imageUrl: 'https://img.example/cdn-cgi/image/width=1200/u/old.jpg',
+        fallbackUrl: 'https://supabase.example/storage/u/old.jpg',
+        visitedAt: '2024-06-15',
+      },
+    ];
+    const { getByTestId } = render(
+      <ImageGalleryModal {...defaultProps} images={images} onImageFallback={onImageFallback} />
+    );
+
+    expect(getByTestId('gallery-image').props.source.uri).toBe(
+      'https://img.example/cdn-cgi/image/width=1200/u/old.jpg'
+    );
+
+    fireEvent(getByTestId('gallery-image'), 'error');
+    expect(getByTestId('gallery-image').props.source.uri).toBe(
+      'https://supabase.example/storage/u/old.jpg'
+    );
+
+    fireEvent(getByTestId('gallery-image'), 'error');
+    expect(getByTestId('gallery-image').props.source.uri).toBe(
+      'https://supabase.example/storage/u/old.jpg'
+    );
+    expect(onImageFallback).toHaveBeenCalledTimes(1);
+  });
+
   it('visible=false で何も表示されないこと', () => {
     const { queryByTestId } = render(<ImageGalleryModal {...defaultProps} visible={false} />);
     expect(queryByTestId('gallery-image')).toBeNull();
