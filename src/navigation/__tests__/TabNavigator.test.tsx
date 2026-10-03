@@ -297,6 +297,24 @@ describe('TabNavigator', () => {
     });
   });
 
+  it('AC-15（#305）: 予定は空押しの動き（枠の SVG + 日付の四角）、あゆみは道が引かれる動きのまま', async () => {
+    mockUseAuth.mockReturnValue({
+      user: null,
+      session: null,
+      isLoading: false,
+      isAuthenticated: true,
+    });
+
+    const { getAllByTestId, queryAllByTestId, getAllByText } = renderTabNavigator();
+
+    await waitFor(() => {
+      expect(getAllByTestId('tab-icon-event-square').length).toBeGreaterThan(0);
+      // あゆみは今までどおりフォントのグリフ（空押しの層を持たない）
+      expect(getAllByText('timeline').length).toBeGreaterThan(0);
+      expect(queryAllByTestId(/^tab-icon-timeline-(frame|ring|square|seal)$/)).toHaveLength(0);
+    });
+  });
+
   it('shows gallery guest empty state when unauthenticated user taps Gallery tab', async () => {
     mockUseAuth.mockReturnValue({
       user: null,

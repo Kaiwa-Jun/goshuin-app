@@ -1,0 +1,94 @@
+{
+  "mapSelected": {
+    "count": 2,
+    "icons": [
+      {
+        "w": 24,
+        "h": 24,
+        "svgCount": 1,
+        "svgW": 24,
+        "svgH": 24,
+        "viewBox": "0 0 24 24",
+        "sqLeft": 12,
+        "sqTop": 12,
+        "sqW": 5,
+        "sqH": 5,
+        "sqBg": "rgb(242, 127, 13)",
+        "pathFill": "rgb(242, 127, 13)",
+        "pathFillAttr": "#f27f0d",
+        "ringOpacity": "0",
+        "sealOpacity": "0",
+        "sqOpacity": "1",
+        "ringTransform": "matrix(1, 0, 0, 1, 0, 0)",
+        "parentOpacity": "0"
+      },
+      {
+        "w": 24,
+        "h": 24,
+        "svgCount": 1,
+        "svgW": 24,
+        "svgH": 24,
+        "viewBox": "0 0 24 24",
+        "sqLeft": 12,
+        "sqTop": 12,
+        "sqW": 5,
+        "sqH": 5,
+        "sqBg": "rgb(142, 142, 143)",
+        "pathFill": "rgb(142, 142, 143)",
+        "pathFillAttr": "#8E8E8F",
+        "ringOpacity": "0",
+        "sealOpacity": "0",
+        "sqOpacity": "1",
+        "ringTransform": "matrix(1, 0, 0, 1, 0, 0)",
+        "parentOpacity": "1"
+      }
+    ],
+    "dpr": 3
+  },
+  "planSelected1000": {
+    "count": 2,
+    "icons": [
+      {
+        "w": 24,
+        "h": 24,
+        "svgCount": 1,
+        "svgW": 24,
+        "svgH": 24,
+        "viewBox": "0 0 24 24",
+        "sqLeft": 12,
+        "sqTop": 12,
+        "sqW": 5,
+        "sqH": 5,
+        "sqBg": "rgb(242, 127, 13)",
+        "pathFill": "rgb(242, 127, 13)",
+        "pathFillAttr": "#f27f0d",
+        "ringOpacity": "0",
+        "sealOpacity": "0",
+        "sqOpacity": "1",
+        "ringTransform": "matrix(1, 0, 0, 1, 0, 0)",
+        "parentOpacity": "1"
+      },
+      {
+        "w": 24,
+        "h": 24,
+        "svgCount": 1,
+        "svgW": 24,
+        "svgH": 24,
+        "viewBox": "0 0 24 24",
+        "sqLeft": 12,
+        "sqTop": 12,
+        "sqW": 5,
+        "sqH": 5,
+        "sqBg": "rgb(142, 142, 143)",
+        "pathFill": "rgb(142, 142, 143)",
+        "pathFillAttr": "#8E8E8F",
+        "ringOpacity": "0",
+        "sealOpacity": "0",
+        "sqOpacity": "1",
+        "ringTransform": "matrix(1, 0, 0, 1, 0, 0)",
+        "parentOpacity": "0"
+      }
+    ],
+    "dpr": 3
+  }
+}

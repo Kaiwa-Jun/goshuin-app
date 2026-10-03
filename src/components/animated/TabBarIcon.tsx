@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, Easing, StyleSheet } from 'react-native';
+import { Animated, Easing, StyleSheet, View } from 'react-native';
+import { Path, Svg } from 'react-native-svg';
 import { useNavigationState } from '@react-navigation/native';
 import { useReduceMotion } from '@hooks/useReduceMotion';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -20,6 +21,73 @@ const GEAR_DURATION_MS = 320;
 const GEAR_DETENT_DEG = 60;
 /** 道が引かれきるまで */
 const DRAW_DURATION_MS = 620;
+/** 日付の四角が空押しされ、朱が差し、タブの色に戻るまで（#305） */
+const EMBOSS_DURATION_MS = 600;
+/** 押した瞬間に朱を差すか。朱をやめるなら、朱の層ごと描かない */
+const EMBOSS_SEAL = true;
+
+/** Material Icons `event` の枠（日付の四角を除いたもの）。24 の格子 */
+const EVENT_FRAME_PATH =
+  'M16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z';
+/** `event` の日付の四角（24 の格子の x12〜17・y12〜17） */
+const EVENT_SQUARE_ORIGIN = 12;
+const EVENT_SQUARE_SIZE = 5;
+
+interface Knot {
+  at: number;
+  value: number;
+  /** 前の節からこの節までの進み方。無ければ一定の速さ */
+  easing?: (t: number) => number;
+}
+
+/**
+ * 節ごとの easing を、interpolate の節に焼き込む。
+ * native driver の interpolate は easing を受け取れないので、
+ * 時間は一定の速さで進め、形は細かい節で持たせる
+ */
+function bake(knots: Knot[], steps = 8) {
+  const inputRange = [knots[0].at];
+  const outputRange = [knots[0].value];
+  for (let i = 1; i < knots.length; i++) {
+    const from = knots[i - 1];
+    const to = knots[i];
+    if (to.easing) {
+      for (let s = 1; s < steps; s++) {
+        const t = s / steps;
+        inputRange.push(from.at + (to.at - from.at) * t);
+        outputRange.push(from.value + (to.value - from.value) * to.easing(t));
+      }
+    }
+    inputRange.push(to.at);
+    outputRange.push(to.value);
+  }
+  return { inputRange, outputRange };
+}
+
+// 試作 docs/design/mockups/2026-10-plan-tab-icon-v2.html の D と同じ値
+const settle = Easing.bezier(0.22, 1, 0.36, 1);
+const easeInOut = Easing.bezier(0.42, 0, 0.58, 1);
+/** 輪郭: 少し大きいところから、うっすら押される。色が入ったら溶ける */
+const EMBOSS_RING_OPACITY = bake([
+  { at: 0, value: 0 },
+  { at: 0.35, value: 0.55, easing: settle },
+  { at: 0.75, value: 0.55 },
+  { at: 1, value: 0 },
+]);
+const EMBOSS_RING_SCALE = bake([
+  { at: 0, value: 1.12 },
+  { at: 0.35, value: 1, easing: settle },
+  { at: 1, value: 1 },
+]);
+/** 朱: 輪郭のあとから差し、入りきったらすぐ引く */
+const EMBOSS_SEAL_OPACITY = bake([
+  { at: 0, value: 0 },
+  { at: 0.3, value: 0 },
+  { at: 0.65, value: 1, easing: easeInOut },
+  { at: 1, value: 0, easing: easeInOut },
+]);
+/** 四角（タブの色）: 朱の下で入れ替わり、朱が引くと見えてくる */
+const EMBOSS_SQUARE_OPACITY = { inputRange: [0, 0.64, 0.65, 1], outputRange: [0, 0, 1, 1] };
 
 /** 24px のアイコン枠に対する、組み立てた本のページ1枚の寸法（book グリフに寄せる） */
 const PAGE_WIDTH_RATIO = 0.46;
@@ -42,7 +110,7 @@ export function resetTabBarIconMotion() {
   lastActive.clear();
 }
 
-export type TabIconMotion = 'spin' | 'open-book' | 'gear' | 'draw';
+export type TabIconMotion = 'spin' | 'open-book' | 'gear' | 'draw' | 'emboss';
 
 interface TabBarIconProps {
   name: IconName;
@@ -118,15 +186,20 @@ export function TabBarIcon({
           ? SPIN_DURATION_MS
           : motion === 'draw'
             ? DRAW_DURATION_MS
-            : OPEN_DURATION_MS,
+            : motion === 'emboss'
+              ? EMBOSS_DURATION_MS
+              : OPEN_DURATION_MS,
       // 回転は行き過ぎて戻す（方位磁針が揺れて落ち着く）。
-      // 本は素直に開き、道は書き終わりで筆を止めるように減速する
+      // 本は素直に開き、道は書き終わりで筆を止めるように減速する。
+      // 空押しは層ごとに進み方が違うので、時間は一定にして形は節に持たせる
       easing:
         motion === 'spin'
           ? Easing.out(Easing.back(2))
           : motion === 'draw'
             ? Easing.out(Easing.cubic)
-            : Easing.inOut(Easing.cubic),
+            : motion === 'emboss'
+              ? Easing.linear
+              : Easing.inOut(Easing.cubic),
       useNativeDriver: true,
     }).start();
   }, [focused, isActive, motion, reduceMotion, routeName, progress]);
@@ -142,6 +215,60 @@ export function TabBarIcon({
       <Animated.View style={{ transform: [{ rotate }] }} testID={`tab-icon-${name}`}>
         <MaterialIcons name={name} size={size} color={color} />
       </Animated.View>
+    );
+  }
+
+  if (motion === 'emboss') {
+    // 予定に印を捺す。勢いは付けず、先に日付の四角の輪郭だけがうっすら押され（空押し）、
+    // あとから朱が差して、タブの色に戻る。グリフの一部だけは動かせないので、
+    // event の枠を SVG で描き、日付の四角を View で重ねる（形はフォントのグリフと一致する）
+    const unit = size / 24;
+    const squareBox = {
+      left: EVENT_SQUARE_ORIGIN * unit,
+      top: EVENT_SQUARE_ORIGIN * unit,
+      width: EVENT_SQUARE_SIZE * unit,
+      height: EVENT_SQUARE_SIZE * unit,
+    };
+    return (
+      <View style={{ width: size, height: size }} testID={`tab-icon-${name}`}>
+        <Svg width={size} height={size} viewBox="0 0 24 24" testID={`tab-icon-${name}-frame`}>
+          <Path d={EVENT_FRAME_PATH} fill={color} />
+        </Svg>
+        <Animated.View
+          testID={`tab-icon-${name}-ring`}
+          style={[
+            styles.embossLayer,
+            squareBox,
+            {
+              borderWidth: unit,
+              borderColor: color,
+              opacity: progress.interpolate(EMBOSS_RING_OPACITY),
+              transform: [{ scale: progress.interpolate(EMBOSS_RING_SCALE) }],
+            },
+          ]}
+        />
+        <Animated.View
+          testID={`tab-icon-${name}-square`}
+          style={[
+            styles.embossLayer,
+            squareBox,
+            { backgroundColor: color, opacity: progress.interpolate(EMBOSS_SQUARE_OPACITY) },
+          ]}
+        />
+        {EMBOSS_SEAL && (
+          <Animated.View
+            testID={`tab-icon-${name}-seal`}
+            style={[
+              styles.embossLayer,
+              squareBox,
+              {
+                backgroundColor: colors.seal,
+                opacity: progress.interpolate(EMBOSS_SEAL_OPACITY),
+              },
+            ]}
+          />
+        )}
+      </View>
     );
   }
 
@@ -263,6 +390,9 @@ export function TabBarIcon({
 }
 
 const styles = StyleSheet.create({
+  embossLayer: {
+    position: 'absolute',
+  },
   drawWrapper: {
     overflow: 'hidden',
     alignItems: 'center',

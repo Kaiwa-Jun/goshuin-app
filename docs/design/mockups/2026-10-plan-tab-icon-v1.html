@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>予定タブのアイコンの動き</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<style>
+  :root {
+    --tint: #f27f0d;      /* colors.primary[500] = tabBarActiveTintColor */
+    --idle: #8e8e93;      /* React Navigation の非アクティブの既定 */
+    --seal: #C2342B;      /* colors.seal */
+    --bg: #f5f5f4;
+    --card: #ffffff;
+    --ink: #1f2937;
+    --sub: #6b7280;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  p.lead { color: var(--sub); font-size: 14px; margin: 0 0 20px; line-height: 1.7; }
+  .variants { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-bottom: 16px; }
+  .variant { border: 1px solid #e5e7eb; background: var(--card); border-radius: 12px; padding: 10px 12px;
+    text-align: left; cursor: pointer; font: inherit; color: inherit; }
+  .variant b { display: block; font-size: 14px; }
+  .variant span { display: block; font-size: 12px; color: var(--sub); margin-top: 2px; line-height: 1.5; }
+  .variant[aria-pressed="true"] { border-color: var(--tint); box-shadow: 0 0 0 2px #fde4cc inset; }
+  .stage { display: grid; grid-template-columns: 1fr; gap: 16px; }
+  .card { background: var(--card); border-radius: 16px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+  .preview { display: flex; align-items: center; justify-content: center; gap: 28px; min-height: 180px; flex-wrap: wrap; }
+  .preview .big { font-size: 112px; }      /* 1em = アイコン1つ分（24px の 112/24 倍） */
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
+  .controls button { font: inherit; font-size: 13px; border: 1px solid #e5e7eb; background: #fff; border-radius: 999px;
+    padding: 6px 12px; cursor: pointer; }
+  .controls button[aria-pressed="true"] { border-color: var(--tint); color: var(--tint); }
+  .desc { font-size: 13px; color: var(--sub); line-height: 1.7; margin: 8px 0 0; }
+  /* 下タブ（iPhone の幅） */
+  .phone { width: 100%; max-width: 393px; margin: 0 auto; border-radius: 22px; overflow: hidden; background: #fff;
+    border: 1px solid #e5e7eb; }
+  .screen { height: 120px; background: linear-gradient(#fafaf9, #f5f5f4); display: flex; align-items: center;
+    justify-content: center; color: var(--sub); font-size: 13px; }
+  .tabbar { display: grid; grid-template-columns: repeat(5, 1fr); border-top: 1px solid #e5e7eb; padding: 6px 0 22px; }
+  .tab { display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; border: 0;
+    background: none; font: inherit; color: var(--idle); padding: 0; }
+  .tab .label { font-size: 10px; font-weight: 500; }
+  .tab[aria-selected="true"] { color: var(--tint); }
+  .tab .ic { font-size: 24px; width: 1em; height: 1em; position: relative; }
+  .tab .material-icons { font-size: 24px; display: block; }
+  /* 予定のアイコン（1em 四方。中は 24 の格子で置く） */
+  .plan { position: relative; width: 1em; height: 1em; color: inherit; }
+  .plan > * { position: absolute; }
+  .plan svg { inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .u { /* 24 の格子の1目盛り */ }
+  .sq { left: calc(12em/24); top: calc(12em/24); width: calc(5em/24); height: calc(5em/24); background: currentColor; }
+  .sheet { left: calc(5em/24); top: calc(8em/24); width: calc(14em/24); height: calc(11em/24);
+    transform-origin: 50% 0; backface-visibility: hidden; }
+  .sheet .sheet-paper { position: absolute; inset: 0; background: #fff; }
+  .sheet .sheet-tint { position: absolute; inset: 0; background: currentColor; opacity: .16; }
+  .sheet .sq { position: absolute; }
+  .sheet .sq { left: calc(7em/24); top: calc(4em/24); }
+  .dot { width: calc(2.4em/24); height: calc(2.4em/24); border-radius: 50%; background: currentColor; opacity: 0; }
+  .persp { perspective: calc(80em/24); }
+  footer { margin-top: 24px; font-size: 12px; color: var(--sub); line-height: 1.7; }
+</style>
+</head>
+<body>
+<main>
+  <h1>予定タブのアイコンの動き（試作 v1）</h1>
+  <p class="lead">
+    いまの予定は、あゆみと同じ「左から右へ現れる」動き。カレンダーの意味に合った動きを4案。
+    下の大きい表示か、下タブの「予定」を押すと動きます。ほかのタブは、いまの動きを大まかに写したもの（比べる用）。
+  </p>
+
+  <div class="variants" role="group" aria-label="案">
+    <button class="variant" data-v="now" aria-pressed="false"><b>いま</b><span>左から右へ現れる（あゆみと同じ）</span></button>
+    <button class="variant" data-v="stamp" aria-pressed="true"><b>案1 予定に印を捺す</b><span>空のカレンダーに、日付の四角が朱印のように捺される</span></button>
+    <button class="variant" data-v="tear" aria-pressed="false"><b>案2 日めくり</b><span>前の日の紙が上へめくれ、次の日（予定の日）が出る</span></button>
+    <button class="variant" data-v="order" aria-pressed="false"><b>案3 順番に並ぶ</b><span>①②③と寺社が並び、1日の予定にまとまる</span></button>
+    <button class="variant" data-v="swing" aria-pressed="false"><b>案4 壁掛けが揺れる</b><span>リングを支点に、掛けたカレンダーが揺れて止まる</span></button>
+  </div>
+
+  <div class="stage">
+    <section class="card">
+      <div class="preview">
+        <div class="big"><div class="plan" id="bigIcon"></div></div>
+        <div style="color:var(--tint);font-size:48px"><div class="plan" id="midIcon" style="font-size:48px"></div></div>
+        <div style="color:var(--tint);font-size:24px"><div class="plan" id="smallIcon" style="font-size:24px"></div></div>
+      </div>
+      <div class="controls">
+        <button id="play">▶ 動かす</button>
+        <button data-speed="1" aria-pressed="true">ふつう</button>
+        <button data-speed="4" aria-pressed="false">1/4 の速さ</button>
+      </div>
+      <p class="desc" id="desc"></p>
+    </section>
+
+    <section class="card">
+      <div class="phone">
+        <div class="screen" id="screenLabel">地図</div>
+        <div class="tabbar" role="tablist">
+          <button class="tab" role="tab" data-tab="map" aria-selected="true"><span class="ic"><span class="material-icons" data-glyph>explore</span></span><span class="label">地図</span></button>
+          <button class="tab" role="tab" data-tab="plan" aria-selected="false"><span class="ic"><div class="plan" id="tabIcon"></div></span><span class="label">予定</span></button>
+          <button class="tab" role="tab" data-tab="book" aria-selected="false"><span class="ic"><span class="material-icons" data-glyph>menu_book</span></span><span class="label">御朱印帳</span></button>
+          <button class="tab" role="tab" data-tab="ayumi" aria-selected="false"><span class="ic"><span class="material-icons" data-glyph>timeline</span><span class="cover"></span></span><span class="label">あゆみ</span></button>
+          <button class="tab" role="tab" data-tab="settings" aria-selected="false"><span class="ic"><span class="material-icons" data-glyph>settings</span></span><span class="label">設定</span></button>
+        </div>
+      </div>
+      <p class="desc">別のタブを押してから「予定」を押すと、選ばれた瞬間に1回だけ動きます（いまのアプリと同じ）。</p>
+    </section>
+  </div>
+
+  <footer>
+    素材: アイコンの形は Material Icons の <code>event</code>（アプリの MaterialIcons と同じ）を、枠と日付の四角に分けた SVG。
+    色は <code>colors.primary[500]</code>（選択中）と <code>colors.seal</code>（案1 の捺した瞬間）。
+    実装は react-native-svg と Animated（native driver）で同じ組み方ができる。どの案も1回だけ動いて止まり、「視差効果を減らす」では動かさない。
+  </footer>
+</main>
+
+<script>
+  // Material Icons "event" の枠（日付の四角を除いたもの）。24 の格子
+  const FRAME = 'M16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z';
+  const DESC = {
+    now: 'いまの動き。白い板が右へ抜けて、アイコンが左から現れる（620ms・ease-out cubic）。あゆみの「道が引かれる」と同じで、カレンダーの意味は無い。',
+    stamp: '空のカレンダーに、日付の四角が上から捺される（700ms。前半で 2.6 倍・−10° から加速して落ち、0.9 倍で着地、少し戻って 1 倍。枠も一瞬沈む）。捺した瞬間は朱、落ち着くとタブの色に戻る。「予定を決める＝日に印を付ける」。御朱印の「捺す」とも重なる。',
+    tear: '前の日の紙（白地＋前の印）が、リングを軸に上へめくれて消え、下から次の日の印が出る（560ms）。「めくる」は御朱印帳と同じ比喩。カレンダーらしさがいちばん強い。',
+    order: '小さな点が①②③と順に打たれ（参拝の順番の提案）、最後に1つの日付の四角にまとまる（680ms）。予定の機能（まわる順番）をいちばん表すが、24px では細かい。',
+    swing: 'リングを支点に、壁に掛けたカレンダーが揺れて止まる（650ms）。いちばん単純で見分けやすいが、意味は「カレンダー」まで。'
+  };
+  let variant = 'stamp';
+  let slow = 1;
+
+  function el(tag, cls, html) { const e = document.createElement(tag); if (cls) e.className = cls; if (html) e.innerHTML = html; return e; }
+  function frameSvg() { return `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="${FRAME}"/></svg>`; }
+
+  // アイコンを組み直す（どの案も、止まっている姿は event と同じ）
+  function build(host) {
+    host.innerHTML = '';
+    host.classList.remove('persp');
+    const wrap = el('div', 'wrap'); wrap.style.position = 'absolute'; wrap.style.inset = '0';
+    wrap.innerHTML = frameSvg();
+    host.appendChild(wrap);
+    const sq = el('div', 'sq'); host.appendChild(sq);
+    if (variant === 'tear') {
+      host.classList.add('persp');
+      const sheet = el('div', 'sheet'); sheet.style.opacity = '0';
+      sheet.appendChild(el('div', 'sheet-paper'));
+      sheet.appendChild(el('div', 'sheet-tint'));
+      const oldSq = el('div', 'sq'); oldSq.style.left = 'calc(2em/24)'; oldSq.style.top = 'calc(2em/24)'; // 前の日の印（左上寄り）
+      sheet.appendChild(oldSq);
+      host.appendChild(sheet);
+    }
+    if (variant === 'order') {
+      [6.3, 10.3, 14.3].forEach((x, i) => {
+        const d = el('div', 'dot'); d.style.left = `calc(${x}em/24)`; d.style.top = `calc(13.3em/24)`; d.dataset.i = i; host.appendChild(d);
+      });
+    }
+    if (variant === 'now') {
+      host.style.overflow = 'hidden';
+      const cover = el('div', 'cover'); cover.style.cssText = 'position:absolute;inset:0;background:#fff;width:calc(100% + 2px);transform:translateX(100%)';
+      host.appendChild(cover);
+    } else host.style.overflow = 'visible';
+    return host;
+  }
+
+  const ms = n => n * slow;
+  function animate(host) {
+    build(host);
+    const sq = host.querySelector(':scope > .sq');
+    const wrap = host.querySelector('.wrap');
+    if (variant === 'now') {
+      const cover = host.querySelector('.cover');
+      cover.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(calc(100% + 2px))' }],
+        { duration: ms(620), easing: 'cubic-bezier(0.33,1,0.68,1)', fill: 'both' });
+    }
+    if (variant === 'stamp') {
+      // 前半: 上から落ちる（大きく・薄く → 等倍で着地。加速して落とす）
+      // 後半: 着地で少し潰れて戻る。朱からタブの色へ
+      // 色そのものは動かさない（native driver は transform と opacity だけ）。
+      // 朱の四角を上に重ね、その opacity を下げてタブの色の四角を見せる
+      const seal = el('div', 'sq'); seal.style.background = '#C2342B'; host.appendChild(seal);
+      const drop = [
+        { transform: 'scale(2.6) rotate(-10deg)', easing: 'cubic-bezier(0.55,0,1,0.45)' },
+        { offset: 0.42, transform: 'scale(0.9) rotate(0deg)', easing: 'cubic-bezier(0.33,1,0.68,1)' },
+        { offset: 0.62, transform: 'scale(1.04)', easing: 'ease-out' },
+        { offset: 0.78, transform: 'scale(1)' },
+        { transform: 'scale(1)' }
+      ];
+      const opa = [0, 1, 1, 1, 0];
+      seal.animate(drop.map((k, i) => ({ ...k, opacity: opa[i] })), { duration: ms(700), easing: 'linear', fill: 'both' });
+      sq.animate([
+        { transform: 'scale(2.6) rotate(-10deg)', opacity: 0 }, { offset: 0.41, transform: 'scale(0.9)', opacity: 0 },
+        { offset: 0.42, transform: 'scale(0.9) rotate(0deg)', opacity: 1, easing: 'cubic-bezier(0.33,1,0.68,1)' },
+        { offset: 0.62, transform: 'scale(1.04)', opacity: 1, easing: 'ease-out' },
+        { offset: 0.78, transform: 'scale(1)', opacity: 1 }, { transform: 'scale(1)', opacity: 1 }
+      ], { duration: ms(700), easing: 'linear', fill: 'both' }); // 朱の下に隠れたまま着地する
+      wrap.animate([
+        { transform: 'translateY(0)' }, { offset: 0.42, transform: 'translateY(0)' },
+        { offset: 0.5, transform: 'translateY(calc(0.7em/24))' }, { offset: 0.7, transform: 'translateY(0)' }, { transform: 'translateY(0)' }
+      ], { duration: ms(700), easing: 'linear' }); // 捺した重みで枠がわずかに沈む
+    }
+    if (variant === 'tear') {
+      const sheet = host.querySelector('.sheet');
+      sq.animate([{ opacity: 0, transform: 'scale(0.6)' }, { offset: 0.55, opacity: 0, transform: 'scale(0.6)' }, { opacity: 1, transform: 'scale(1)' }],
+        { duration: ms(560), easing: 'cubic-bezier(0.34,1.56,0.64,1)', fill: 'both' });
+      sheet.animate([
+        { opacity: 1, transform: 'rotateX(0deg)' },
+        { offset: 0.6, opacity: 1, transform: 'rotateX(-110deg)' },
+        { opacity: 0, transform: 'rotateX(-170deg)' }
+      ], { duration: ms(560), easing: 'cubic-bezier(0.65,0,0.35,1)', fill: 'both' });
+    }
+    if (variant === 'order') {
+      const dots = [...host.querySelectorAll('.dot')];
+      sq.animate([{ opacity: 0, transform: 'scale(0.4)' }, { offset: 0.66, opacity: 0, transform: 'scale(0.4)' }, { opacity: 1, transform: 'scale(1)' }],
+        { duration: ms(680), easing: 'cubic-bezier(0.34,1.56,0.64,1)', fill: 'both' });
+      dots.forEach((d, i) => {
+        const start = 0.08 + i * 0.16;
+        d.animate([
+          { opacity: 0, transform: 'scale(0)' },
+          { offset: start, opacity: 0, transform: 'scale(0)' },
+          { offset: start + 0.1, opacity: 1, transform: 'scale(1.25)' },
+          { offset: start + 0.16, opacity: 1, transform: 'scale(1)' },
+          { offset: 0.62, opacity: 1, transform: 'translate(0,0) scale(1)' },
+          { opacity: 0, transform: `translate(calc(${(14.5 - [7.5, 11.5, 15.5][i])}em/24), calc(1em/24)) scale(0.4)` }
+        ], { duration: ms(680), easing: 'linear', fill: 'both' });
+      });
+    }
+    if (variant === 'swing') {
+      host.style.transformOrigin = '50% 4%';
+      host.animate([
+        { transform: 'rotate(-14deg)' }, { offset: 0.35, transform: 'rotate(9deg)' },
+        { offset: 0.6, transform: 'rotate(-5deg)' }, { offset: 0.82, transform: 'rotate(2deg)' }, { transform: 'rotate(0deg)' }
+      ], { duration: ms(650), easing: 'ease-out' });
+    }
+  }
+
+  const bigIcon = document.getElementById('bigIcon');
+  const midIcon = document.getElementById('midIcon');
+  const smallIcon = document.getElementById('smallIcon');
+  const tabIcon = document.getElementById('tabIcon');
+  bigIcon.parentElement.style.color = 'var(--tint)';
+  function playPreview() { [bigIcon, midIcon, smallIcon].forEach(animate); }
+  function refresh() {
+    [bigIcon, midIcon, smallIcon, tabIcon].forEach(build);
+    document.getElementById('desc').textContent = DESC[variant];
+  }
+
+  document.querySelectorAll('.variant').forEach(b => b.addEventListener('click', () => {
+    variant = b.dataset.v;
+    document.querySelectorAll('.variant').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    refresh(); playPreview();
+  }));
+  document.getElementById('play').addEventListener('click', playPreview);
+  document.querySelectorAll('[data-speed]').forEach(b => b.addEventListener('click', () => {
+    slow = Number(b.dataset.speed);
+    document.querySelectorAll('[data-speed]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    playPreview();
+  }));
+  bigIcon.parentElement.addEventListener('click', playPreview);
+
+  // 下タブ: 選ばれた瞬間に1回だけ動く。ほかのタブは今の動きを大まかに写したもの
+  const LABEL = { map: '地図', plan: '予定', book: '御朱印帳', ayumi: 'あゆみ', settings: '設定' };
+  let gear = 0;
+  document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+    if (t.getAttribute('aria-selected') === 'true') return;
+    document.querySelectorAll('.tab').forEach(x => x.setAttribute('aria-selected', String(x === t)));
+    document.getElementById('screenLabel').textContent = LABEL[t.dataset.tab];
+    const g = t.querySelector('[data-glyph]');
+    if (t.dataset.tab === 'plan') animate(tabIcon);
+    if (t.dataset.tab === 'map') g.animate([{ transform: 'rotate(0)' }, { transform: 'rotate(360deg)' }], { duration: ms(700), easing: 'cubic-bezier(0.34,1.8,0.64,1)' });
+    if (t.dataset.tab === 'settings') { const from = gear; gear += 60; g.animate([{ transform: `rotate(${from}deg)` }, { transform: `rotate(${gear}deg)` }], { duration: ms(320), easing: 'cubic-bezier(0.34,2.1,0.64,1)', fill: 'forwards' }); }
+    if (t.dataset.tab === 'book') g.animate([{ transform: 'perspective(240px) rotateY(70deg) scale(.88)', opacity: .6 }, { transform: 'perspective(240px) rotateY(0) scale(1)', opacity: 1 }], { duration: ms(900), easing: 'cubic-bezier(0.65,0,0.35,1)' });
+    if (t.dataset.tab === 'ayumi') { const ic = t.querySelector('.ic'); ic.style.overflow = 'hidden'; const c = document.createElement('span'); c.style.cssText = 'position:absolute;inset:0;background:#fff;width:26px'; ic.appendChild(c); c.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(26px)' }], { duration: ms(620), easing: 'cubic-bezier(0.33,1,0.68,1)', fill: 'forwards' }).onfinish = () => c.remove(); }
+  }));
+
+  refresh();
+  setTimeout(playPreview, 300);
+</script>
+</body>
+</html>

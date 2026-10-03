@@ -1,0 +1,3 @@
+
+--- states ---
+plan1 after2000 {"ring":"0","seal":"0","sq":"1"}
