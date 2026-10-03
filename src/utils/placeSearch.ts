@@ -1,14 +1,21 @@
-// 地図の検索で、寺社の名前に加えて住所と県でも当てる（Issue #311 の第1段。端末の中だけで探す）
+// 地図の検索で、寺社の名前に加えて住所と県でも当てる（Issue #311）。
+// 第1段は端末の中だけで探す。名前にも住所にも当たらない言葉だけ、第2段で国土地理院の答え（駅・名所）から場所を選ぶ。
+// 問い合わせそのものは src/services/placeSearch.ts（ここは答えの選び方だけ）
 import { PREFECTURE_NAMES } from '../../supabase/functions/_shared/prefectures';
 import type { FocusRegion } from '@/navigation/types';
 import type { Spot } from '@/types/supabase';
 import { PREFECTURE } from '@utils/frequentArea';
+import { calculateDistance, getBoundingBox } from '@utils/geo';
 import { normalizeSpotName } from '@utils/spotName';
 
 /** 地名で当てる言葉の最短。1 文字（「中」）で住所に当てると何にでも当たる */
 export const MIN_AREA_QUERY_LENGTH = 2;
 /** 場所の行の最大数。4 つ目からの県の寺社も寺社の行には出る */
 export const MAX_PLACE_ROWS = 3;
+/** 第2段の場所のまわりで寺社を数える半径 */
+export const PLACE_RADIUS_KM = 2;
+/** 第2段で、すでに残した場所からこの距離以内の場所はまとめる（「渋谷駅」の5つの点が1行になる） */
+export const PLACE_MERGE_KM = 1;
 
 export interface SpotWithDistance {
   spot: Spot;
@@ -33,6 +40,14 @@ export interface PlaceRow {
   external: boolean;
 }
 export type SearchRow = SpotRow | PlaceRow;
+
+/** 国土地理院の住所検索の1件 */
+export interface GsiFeature {
+  /** [経度, 緯度] */
+  geometry: { coordinates: [number, number] };
+  /** dataSource が無いものは住所。'1' 駅・名所、'3' 施設、'4' 山・川など、'5' 町名（答えを見て読み取った） */
+  properties: { title: string; addressCode: string; dataSource?: string };
+}
 
 /** 全角・半角と空白で当たり外れが変わらないようにそろえる */
 export function normalizeQuery(text: string): string {
@@ -148,15 +163,25 @@ export function buildSearchRows({
   spots,
   filterType,
   order,
+  gsiFeatures,
 }: {
   query: string;
   spots: SpotWithDistance[];
   filterType: SpotTypeFilter;
   order: SearchOrder;
+  /** 第2段の答え。第1段が0件（神社・寺院の絞り込みの前で数える）のときだけ使う */
+  gsiFeatures?: GsiFeature[] | null;
 }): SearchRow[] {
   const q = normalizeQuery(query);
   if (!q) return [];
   const typed = spots.filter(s => filterType === 'all' || s.spot.type === filterType);
+
+  if (gsiFeatures && !hasLocalHits(query, spots)) {
+    // 第2段: [場所の行…, 残った場所のどれかから 2km 以内の寺社（入力の順に1回ずつ）]
+    const placeRows = rankGsiPlaces({ query, features: gsiFeatures, spots: typed, order });
+    const nearIds = new Set(placeRows.flatMap(p => p.region.spotIds));
+    return [...placeRows, ...typed.filter(s => nearIds.has(s.spot.id)).map(toSpotRow)];
+  }
 
   // 名前がそのまま一致する寺社を先頭に（「明治神宮」のエンターで明治神宮が開く）
   const byName = typed.filter(s => isNameMatch(s.spot, q));
@@ -176,4 +201,109 @@ export function buildSearchRows({
   return placeFirst
     ? [...placeRows, ...nameRows, ...areaRows]
     : [...nameRows, ...placeRows, ...areaRows];
+}
+
+/** 住所の答えの県（title の先頭）か、addressCode の先頭 2 桁（JIS の県コード）。0 で 5 桁に埋めてから読む */
+export function prefectureOfCode(addressCode: string): string | null {
+  if (!/^\d{1,5}$/.test(addressCode)) return null;
+  const code = Number(addressCode.padStart(5, '0').slice(0, 2));
+  return PREFECTURE_NAMES[code - 1] ?? null;
+}
+
+/** 中心から PLACE_RADIUS_KM の範囲。spotIds は入力の順 */
+export function regionAround(
+  label: string,
+  center: { lat: number; lng: number },
+  spots: Spot[]
+): FocusRegion {
+  const box = getBoundingBox(center.lat, center.lng, PLACE_RADIUS_KM);
+  return {
+    label,
+    bounds: [box.minLng, box.minLat, box.maxLng, box.maxLat],
+    spotIds: spots.map(s => s.id),
+  };
+}
+
+/** 交番・郵便局・学校（'3'）と「〜丁目」などの町名（'5'）は、寺社を探す手がかりにならない */
+const DROPPED_GSI_SOURCES = new Set(['3', '5']);
+/** 「〜郡」を落とす（比企郡嵐山町 → 嵐山町）。大和郡山市のように郡の後ろが町村でないものは落とさない */
+const COUNTY = /^.+?郡(?=[^市区]*[町村])/;
+
+/**
+ * 第2段の場所の行。国土地理院は関連の強い順に返さず（「横浜」の先頭は青森県横浜町）、
+ * 範囲も返さないので、ここで選んで並べる（D-9）。spots は神社・寺院の絞り込みのあと・近い順
+ */
+export function rankGsiPlaces({
+  query,
+  features,
+  spots,
+  order,
+}: {
+  query: string;
+  features: GsiFeature[];
+  spots: SpotWithDistance[];
+  order: SearchOrder;
+}): PlaceRow[] {
+  const q = normalizeQuery(query);
+  if (!q) return [];
+  const exactLabels = new Set([q, `${q}駅`, `${q}市`, `${q}区`, `${q}町`, `${q}村`]);
+
+  const candidates = features.flatMap((feature, index) => {
+    const { title, addressCode, dataSource } = feature.properties;
+    // 「東京タワー」で「北海道札幌市東区」のような、一部だけの当たりを捨てる
+    if (!normalizeQuery(title).includes(q)) return [];
+    if (dataSource && DROPPED_GSI_SOURCES.has(dataSource)) return [];
+    const isAddress = !dataSource;
+    const prefecture = isAddress
+      ? (title.match(PREFECTURE)?.[1] ?? null)
+      : prefectureOfCode(addressCode);
+    const label = isAddress ? title.replace(PREFECTURE, '').replace(COUNTY, '') || title : title;
+    const [lng, lat] = feature.geometry.coordinates;
+    const hits = spots.filter(
+      s => calculateDistance(lat, lng, s.spot.lat, s.spot.lng) <= PLACE_RADIUS_KM
+    );
+    if (hits.length === 0) return [];
+    return [
+      {
+        label,
+        prefecture,
+        center: { lat, lng },
+        tier: exactLabels.has(normalizeQuery(label)) ? 1 : 2,
+        index,
+        hits,
+        nearest: Math.min(...hits.map(h => h.distance)),
+      },
+    ];
+  });
+
+  candidates.sort(
+    (a, b) =>
+      a.tier - b.tier ||
+      (order === 'nearby' ? a.nearest - b.nearest : b.hits.length - a.hits.length) ||
+      a.index - b.index
+  );
+
+  const kept: typeof candidates = [];
+  for (const c of candidates) {
+    if (kept.length >= MAX_PLACE_ROWS) break;
+    const merged = kept.some(
+      k =>
+        calculateDistance(k.center.lat, k.center.lng, c.center.lat, c.center.lng) <= PLACE_MERGE_KM
+    );
+    if (!merged) kept.push(c);
+  }
+
+  return kept.map(c => ({
+    kind: 'place',
+    key: `gsi:${c.label}:${c.prefecture ?? ''}`,
+    label: c.label,
+    prefecture: c.prefecture,
+    count: c.hits.length,
+    region: regionAround(
+      c.label,
+      c.center,
+      c.hits.map(h => h.spot)
+    ),
+    external: true,
+  }));
 }

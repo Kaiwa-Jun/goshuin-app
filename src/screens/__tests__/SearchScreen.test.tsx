@@ -5,9 +5,10 @@ import { SearchScreen } from '@screens/SearchScreen';
 import type { Spot } from '@/types/supabase';
 import type { PlaceRow, SearchRow } from '@utils/placeSearch';
 import { buildSearchRows } from '@utils/placeSearch';
-import { TEST_SPOTS } from '@utils/__tests__/placeSearchFixtures';
+import { SHIBUYA_STATION, TEST_SPOTS } from '@utils/__tests__/placeSearchFixtures';
 import { colors } from '@theme/colors';
 import { borderRadius } from '@theme/spacing';
+import { typography } from '@theme/typography';
 
 jest.mock('react-native-safe-area-context', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
@@ -535,6 +536,37 @@ describe('SearchScreen', () => {
       expect(mockNavigation.navigate).toHaveBeenCalledTimes(1);
       expect(mockNavigation.navigate).toHaveBeenCalledWith('Map', { focusRegion: place.region });
       expect(mockAddHistory).not.toHaveBeenCalled();
+    });
+
+    it('UI-3: 外の地名検索の場所があるときだけ、一覧のいちばん下に「出典：国土地理院」', () => {
+      const rows = buildSearchRows({
+        query: '渋谷駅',
+        spots: TEST_SPOTS,
+        filterType: 'all',
+        order: 'nearby',
+        gsiFeatures: SHIBUYA_STATION,
+      });
+      mockUseSearchScreenReturn = {
+        ...mockUseSearchScreenReturn,
+        query: '渋谷駅',
+        rows,
+        showPlaceCredit: true,
+      };
+      const r = renderScreen();
+
+      const credit = r.getByTestId('search-place-credit');
+      expect(credit.props.children).toBe('出典：国土地理院');
+      expect(StyleSheet.flatten(credit.props.style)).toMatchObject({
+        color: colors.gray[400],
+        fontSize: typography.caption.fontSize,
+      });
+      const cards = r.getAllByTestId('search-result-card');
+      expect(positionOf(r, credit)).toBeGreaterThan(positionOf(r, cards[cards.length - 1]));
+    });
+
+    it('UI-3: 端末の中で当たった場所だけなら、出典は出さない', () => {
+      show('横浜', rowsFor('横浜'));
+      expect(renderScreen().queryByTestId('search-place-credit')).toBeNull();
     });
 
     it('AC-24: エンターで何も返らなければ、何もしない', async () => {

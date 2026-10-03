@@ -2,9 +2,14 @@ import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { PermissionStatus } from 'expo-location';
 import { useSpots } from '@hooks/useSpots';
 import { useLocation } from '@hooks/useLocation';
+import { fetchGsiPlaces } from '@services/placeSearch';
 import { calculateDistance } from '@utils/geo';
 import {
   buildSearchRows,
+  hasLocalHits,
+  MIN_AREA_QUERY_LENGTH,
+  normalizeQuery,
+  type GsiFeature,
   type SearchOrder,
   type SearchRow,
   type SpotTypeFilter,
@@ -37,7 +42,13 @@ const DEBOUNCE_MS = 300;
 export function useSearchScreen(): UseSearchScreenReturn {
   const { location, permissionStatus } = useLocation();
   const { allSpots, isLoading } = useSpots(location, 'all', new Set());
-  const [query, setQuery] = useState('');
+  const [query, setQueryState] = useState('');
+  // いま入っている言葉。エンターは state の反映を待たずにこれを読む（打った直後でも、打った言葉で動く）
+  const queryRef = useRef('');
+  const setQuery = useCallback((text: string) => {
+    queryRef.current = text;
+    setQueryState(text);
+  }, []);
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [filterType, setFilterType] = useState<SpotTypeFilter>('all');
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -67,6 +78,52 @@ export function useSearchScreen(): UseSearchScreenReturn {
       .sort((a, b) => a.distance - b.distance);
   }, [allSpots, location]);
 
+  // 読み込み中は allSpots が空なので、第1段が何にも当たらない。その間に外へ問い合わせると
+  // 「横浜」まで国土地理院に出てしまうので、第2段もエンターも読み終わってから
+  const spotsReady = !isLoading && allSpots.length > 0;
+
+  // 第2段の答え。言葉（そろえた形）ごとに Promise でためる（同じ言葉で2回呼ばない・打っている間と
+  // エンターも1本にまとめる）。ためるのは検索画面を開いている間だけ。失敗（null）はためない
+  const gsiCacheRef = useRef(new Map<string, Promise<GsiFeature[] | null>>());
+  const lookupGsi = useCallback((text: string) => {
+    const key = normalizeQuery(text);
+    const cached = gsiCacheRef.current.get(key);
+    if (cached) return cached;
+    const pending = fetchGsiPlaces(text).then(features => {
+      if (features === null) gsiCacheRef.current.delete(key);
+      return features;
+    });
+    gsiCacheRef.current.set(key, pending);
+    return pending;
+  }, []);
+
+  /** 第2段を呼ぶ言葉か（D-8）。名前にも地名にも1件も当たらない（絞り込みの前で数える）2 文字以上 */
+  const needsGsi = useCallback(
+    (text: string) =>
+      spotsReady &&
+      normalizeQuery(text).length >= MIN_AREA_QUERY_LENGTH &&
+      !hasLocalHits(text, spotsWithDistance),
+    [spotsReady, spotsWithDistance]
+  );
+
+  // 一覧の言葉（300ms 待った言葉）の第2段の答え
+  const [gsiAnswer, setGsiAnswer] = useState<{ key: string; features: GsiFeature[] } | null>(null);
+  useEffect(() => {
+    if (!needsGsi(debouncedQuery)) return;
+    const key = normalizeQuery(debouncedQuery);
+    // 答えが返った時に一覧の言葉が変わっていたら（このあと effect が片付けられていたら）使わない
+    let stale = false;
+    lookupGsi(debouncedQuery).then(features => {
+      if (!stale && features) setGsiAnswer({ key, features });
+    });
+    return () => {
+      stale = true;
+    };
+  }, [debouncedQuery, needsGsi, lookupGsi]);
+
+  const debouncedKey = normalizeQuery(debouncedQuery);
+  const gsiFeatures = gsiAnswer?.key === debouncedKey ? gsiAnswer.features : null;
+
   const rows = useMemo(
     () =>
       buildSearchRows({
@@ -74,26 +131,44 @@ export function useSearchScreen(): UseSearchScreenReturn {
         spots: spotsWithDistance,
         filterType,
         order: suggestionMode,
+        gsiFeatures,
       }),
-    [debouncedQuery, spotsWithDistance, filterType, suggestionMode]
+    [debouncedQuery, spotsWithDistance, filterType, suggestionMode, gsiFeatures]
   );
 
   const showPlaceCredit = rows.some(r => r.kind === 'place' && r.external);
 
+  // 第2段の答えを待っている間の2回目のエンターは何もしない（二度押しで2回移らない）
+  const submittingRef = useRef(false);
+
   // エンターは 300ms 待つ前の言葉で一覧を作り直す（待ちの間に押しても、打った言葉で動く）
   const resolveSubmit = useCallback(async (): Promise<SearchRow | null> => {
-    if (isLoading || allSpots.length === 0) return null;
+    if (!spotsReady || submittingRef.current) return null;
+    const text = queryRef.current;
+    let features: GsiFeature[] | null = null;
+    if (needsGsi(text)) {
+      submittingRef.current = true;
+      try {
+        features = await lookupGsi(text);
+      } finally {
+        submittingRef.current = false;
+      }
+      // 待つ間に言葉が変わったら、何もしない
+      if (normalizeQuery(queryRef.current) !== normalizeQuery(text)) return null;
+    }
     const submitRows = buildSearchRows({
-      query,
+      query: text,
       spots: spotsWithDistance,
       filterType,
       order: suggestionMode,
+      gsiFeatures: features,
     });
     return submitRows[0] ?? null;
-  }, [isLoading, allSpots, query, spotsWithDistance, filterType, suggestionMode]);
+  }, [spotsReady, needsGsi, lookupGsi, spotsWithDistance, filterType, suggestionMode]);
 
   const clearSearch = useCallback(() => {
-    setQuery('');
+    queryRef.current = '';
+    setQueryState('');
     setDebouncedQuery('');
     setFilterType('all');
   }, []);

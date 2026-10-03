@@ -1,7 +1,8 @@
-// 契約書（docs/issues/issue-311-place-search.md）の「テストの寺社」。placeSearch と検索画面のフックのテストで共有する。
+// 契約書（docs/issues/issue-311-place-search.md）の「テストの寺社」と国土地理院の答えの見本。
+// placeSearch と検索画面のフックのテストで共有する。
 // ファイル名に .test を付けない（jest の testMatch に拾わせない）
 import type { Spot } from '@/types/supabase';
-import type { SpotWithDistance } from '@utils/placeSearch';
+import type { GsiFeature, SpotWithDistance } from '@utils/placeSearch';
 
 export function makeSpot(
   id: string,
@@ -102,3 +103,37 @@ export const TEST_SPOTS: SpotWithDistance[] = [
   ),
   near(400, makeSpot('m1', '手で足した寺', 'temple', null, null, 35.0, 135.0)),
 ];
+
+/** 国土地理院の住所検索の答えの1件。coordinates は [経度, 緯度] */
+export function gsi(
+  title: string,
+  addressCode: string,
+  dataSource: string | undefined,
+  coordinates: [number, number]
+): GsiFeature {
+  return {
+    geometry: { coordinates },
+    properties:
+      dataSource === undefined ? { title, addressCode } : { title, addressCode, dataSource },
+  };
+}
+
+// 契約書の「国土地理院の答えの見本」
+export const F1 = gsi('千葉県茂原市渋谷', '', undefined, [140.3016, 35.4667]);
+export const F2 = gsi('渋谷警察署渋谷駅前交番', '13113', '3', [139.7011, 35.6593]);
+export const F3 = gsi('高座渋谷駅', '14213', '1', [139.4649, 35.4324]);
+export const F4 = gsi('渋谷駅', '13113', '1', [139.7029, 35.6588]);
+export const F5 = gsi('渋谷駅', '13113', '1', [139.6967, 35.6586]);
+export const SHIBUYA_STATION = [F1, F2, F3, F4, F5];
+
+export const G1 = gsi('東京スカイツリー', '13107', '1', [139.8107, 35.7095]);
+export const G2 = gsi('とうきょうスカイツリー駅', '13107', '1', [139.8093, 35.7167]);
+
+export const H1 = gsi('北海道札幌市東区', '', undefined, [141.36, 43.08]);
+export const H2 = gsi('愛宕警察署東京タワー前交番', '13103', '3', [139.748, 35.659]);
+export const H3 = gsi('東京タワー', '13103', '1', [139.7454, 35.6586]);
+export const TOKYO_TOWER = [H1, H2, H3];
+
+export const I3 = gsi('埼玉県比企郡嵐山町', '', undefined, [139.32, 36.057]);
+export const I1 = gsi('嵐山', '26111', '4', [135.6735, 35.011]);
+export const I2 = gsi('阪急嵐山線', '26111', '1', [135.7, 34.99]);

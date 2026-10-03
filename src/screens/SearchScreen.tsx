@@ -30,6 +30,7 @@ export function SearchScreen({ navigation }: Props) {
     query,
     setQuery,
     rows,
+    showPlaceCredit,
     resolveSubmit,
     filterType,
     setFilterType,
@@ -141,6 +142,14 @@ export function SearchScreen({ navigation }: Props) {
                   onPress={() => handleRowPress(item)}
                 />
               )}
+              // 国土地理院の答えから作った場所があるときだけ（国土地理院コンテンツ利用規約）
+              ListFooterComponent={
+                showPlaceCredit ? (
+                  <Text testID="search-place-credit" style={styles.credit}>
+                    出典：国土地理院
+                  </Text>
+                ) : null
+              }
             />
           )
         ) : (
@@ -202,6 +211,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 1,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  credit: {
+    ...typography.caption,
+    color: colors.gray[400],
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },

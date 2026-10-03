@@ -2,8 +2,9 @@ import { renderHook, act } from '@testing-library/react-native';
 import { PermissionStatus } from 'expo-location';
 import { useSearchScreen, MAX_SUGGESTED_SPOTS } from '@hooks/useSearchScreen';
 import type { Spot } from '@/types/supabase';
-import type { SearchRow, SpotRow } from '@utils/placeSearch';
-import { TEST_SPOTS } from '@utils/__tests__/placeSearchFixtures';
+import type { GsiFeature, PlaceRow, SearchRow, SpotRow } from '@utils/placeSearch';
+import { SHIBUYA_STATION, TEST_SPOTS, TOKYO_TOWER } from '@utils/__tests__/placeSearchFixtures';
+import { fetchGsiPlaces } from '@services/placeSearch';
 
 import { useSpots } from '@hooks/useSpots';
 import { useLocation } from '@hooks/useLocation';
@@ -14,6 +15,10 @@ jest.mock('@services/spots', () => ({
 }));
 jest.mock('@hooks/useSpots');
 jest.mock('@hooks/useLocation');
+// テストからネットに出ない（Issue #311 の第2段）
+jest.mock('@services/placeSearch', () => ({ fetchGsiPlaces: jest.fn(async () => []) }));
+
+const mockFetchGsiPlaces = fetchGsiPlaces as jest.MockedFunction<typeof fetchGsiPlaces>;
 
 const mockUseSpots = useSpots as jest.MockedFunction<typeof useSpots>;
 const mockUseLocation = useLocation as jest.MockedFunction<typeof useLocation>;
@@ -381,6 +386,188 @@ describe('useSearchScreen', () => {
       });
 
       expect(top).toBeNull();
+    });
+  });
+
+  describe('第2段（Issue #311。名前にも住所にも無い言葉は国土地理院で引く）', () => {
+    const tokyoStation = { latitude: 35.6812, longitude: 139.7671 };
+
+    /** 答えを後から返せる Promise */
+    function deferred() {
+      let resolve!: (value: GsiFeature[] | null) => void;
+      const promise = new Promise<GsiFeature[] | null>(r => {
+        resolve = r;
+      });
+      return { promise, resolve };
+    }
+
+    function typeAndWait(result: { current: ReturnType<typeof useSearchScreen> }, text: string) {
+      act(() => {
+        result.current.setQuery(text);
+      });
+      act(() => {
+        jest.advanceTimersByTime(300);
+      });
+    }
+
+    const placeLabel = (row: SearchRow | undefined) =>
+      row?.kind === 'place' ? (row as PlaceRow).label : undefined;
+
+    beforeEach(() => {
+      mockUseLocation.mockReturnValue({
+        location: tokyoStation,
+        isLoading: false,
+        error: null,
+        permissionStatus: PermissionStatus.GRANTED,
+        refreshLocation: jest.fn(),
+      });
+      mockSpots(TEST_SPOTS.map(s => s.spot));
+      mockFetchGsiPlaces.mockReset();
+      mockFetchGsiPlaces.mockResolvedValue([]);
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('AC-34: 名前か住所に当たる言葉・1 文字の言葉では呼ばない', () => {
+      const { result } = renderHook(() => useSearchScreen());
+
+      for (const text of ['横浜', '渋谷', '明治神宮', '渋']) typeAndWait(result, text);
+
+      expect(mockFetchGsiPlaces).not.toHaveBeenCalled();
+    });
+
+    it('AC-35: 当たらない言葉は 300ms 待った言葉で1回呼び、答えは言葉ごとにためる', async () => {
+      mockFetchGsiPlaces.mockResolvedValue(SHIBUYA_STATION);
+      const { result } = renderHook(() => useSearchScreen());
+
+      typeAndWait(result, '渋谷駅');
+      await act(async () => {});
+
+      expect(mockFetchGsiPlaces).toHaveBeenCalledTimes(1);
+      expect(mockFetchGsiPlaces).toHaveBeenCalledWith('渋谷駅');
+      expect(placeLabel(result.current.rows[0])).toBe('渋谷駅');
+      expect(result.current.showPlaceCredit).toBe(true);
+
+      typeAndWait(result, '');
+      typeAndWait(result, '渋谷駅');
+      await act(async () => {});
+
+      expect(mockFetchGsiPlaces).toHaveBeenCalledTimes(1);
+      expect(placeLabel(result.current.rows[0])).toBe('渋谷駅');
+    });
+
+    it('AC-36: 答えが返った時に一覧の言葉が変わっていたら、その答えは使わない', async () => {
+      const shibuya = deferred();
+      const tower = deferred();
+      mockFetchGsiPlaces.mockImplementation(q =>
+        q === '渋谷駅' ? shibuya.promise : tower.promise
+      );
+      const { result } = renderHook(() => useSearchScreen());
+
+      typeAndWait(result, '渋谷駅');
+      typeAndWait(result, '東京タワー');
+      await act(async () => {
+        shibuya.resolve(SHIBUYA_STATION);
+      });
+
+      expect(result.current.rows.some(r => placeLabel(r) === '渋谷駅')).toBe(false);
+
+      await act(async () => {
+        tower.resolve(TOKYO_TOWER);
+      });
+
+      expect(placeLabel(result.current.rows[0])).toBe('東京タワー');
+    });
+
+    it('AC-37: 失敗（null）なら行は無く、出典も出さない。失敗はためない', async () => {
+      mockFetchGsiPlaces.mockResolvedValue(null);
+      const { result } = renderHook(() => useSearchScreen());
+
+      typeAndWait(result, '渋谷駅');
+      await act(async () => {});
+
+      expect(result.current.rows).toEqual([]);
+      expect(result.current.showPlaceCredit).toBe(false);
+
+      typeAndWait(result, '');
+      typeAndWait(result, '渋谷駅');
+      await act(async () => {});
+
+      expect(mockFetchGsiPlaces).toHaveBeenCalledTimes(2);
+    });
+
+    it('AC-38: エンターは答えを待つ。答えが出る前の2回目は null。問い合わせは1本', async () => {
+      mockFetchGsiPlaces.mockResolvedValue(SHIBUYA_STATION);
+      const { result } = renderHook(() => useSearchScreen());
+
+      let first: SearchRow | null = null;
+      let second: SearchRow | null = null;
+      await act(async () => {
+        result.current.setQuery('渋谷駅');
+        const a = result.current.resolveSubmit();
+        const b = result.current.resolveSubmit();
+        [first, second] = await Promise.all([a, b]);
+      });
+
+      expect(mockFetchGsiPlaces).toHaveBeenCalledTimes(1);
+      expect(placeLabel(first ?? undefined)).toBe('渋谷駅');
+      expect(second).toBeNull();
+
+      // 300ms たっても、同じ言葉ではもう呼ばない（エンターと打っている間で1本）
+      act(() => {
+        jest.advanceTimersByTime(300);
+      });
+      await act(async () => {});
+      expect(mockFetchGsiPlaces).toHaveBeenCalledTimes(1);
+    });
+
+    it('AC-38: エンターの答えを待つ間に言葉が変わったら null', async () => {
+      const shibuya = deferred();
+      mockFetchGsiPlaces.mockReturnValue(shibuya.promise);
+      const { result } = renderHook(() => useSearchScreen());
+
+      act(() => {
+        result.current.setQuery('渋谷駅');
+      });
+      let pending!: Promise<SearchRow | null>;
+      act(() => {
+        pending = result.current.resolveSubmit();
+      });
+      act(() => {
+        result.current.setQuery('東京');
+      });
+      let answer: SearchRow | null | undefined;
+      await act(async () => {
+        shibuya.resolve(SHIBUYA_STATION);
+        answer = await pending;
+      });
+
+      expect(answer).toBeNull();
+    });
+
+    it('AC-40: 寺社の読み込み中は呼ばない・エンターは null。読み終わったら第1段から数え直す', async () => {
+      mockUseSpots.mockReturnValue({ spots: [], allSpots: [], isLoading: true, error: null });
+      const { result, rerender } = renderHook(() => useSearchScreen());
+
+      typeAndWait(result, '横浜');
+      await act(async () => {});
+      let top: SearchRow | null = null;
+      await act(async () => {
+        top = await result.current.resolveSubmit();
+      });
+
+      expect(mockFetchGsiPlaces).not.toHaveBeenCalled();
+      expect(top).toBeNull();
+
+      mockSpots(TEST_SPOTS.map(s => s.spot));
+      rerender({});
+      await act(async () => {});
+
+      expect(placeLabel(result.current.rows[0])).toBe('横浜');
+      expect(mockFetchGsiPlaces).not.toHaveBeenCalled();
     });
   });
 });
