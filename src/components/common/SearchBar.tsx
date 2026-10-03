@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, TextInput, StyleSheet, TouchableOpacity, Pressable } from 'react-native';
+import type { TextInputProps } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { colors } from '@theme/colors';
 import { typography, singleLineInput } from '@theme/typography';
@@ -18,6 +19,11 @@ interface SearchBarProps {
   autoFocus?: boolean;
   leftIcon?: 'search' | 'back';
   onLeftIconPress?: () => void;
+  /** キーボードの確定キー（Issue #311）。渡さなければ今のまま */
+  onSubmitEditing?: TextInputProps['onSubmitEditing'];
+  returnKeyType?: TextInputProps['returnKeyType'];
+  /** 'submit' なら確定してもキーボードを閉じない（何もしないときに閉じないため） */
+  submitBehavior?: TextInputProps['submitBehavior'];
   /**
    * 'floating' は地図の上に重ねるとき用。
    * 地図の地の色(#F2F3F0)と gray[100] の差は L* で 0.4 しかなく、
@@ -43,6 +49,9 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   autoFocus = false,
   leftIcon = 'search',
   onLeftIconPress,
+  onSubmitEditing,
+  returnKeyType,
+  submitBehavior,
   variant = 'plain',
 }) => {
   const containerStyle = [styles.container, variant === 'floating' && styles.floating];
@@ -68,6 +77,9 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           onFocus={onFocus}
           editable={editable}
           autoFocus={autoFocus}
+          onSubmitEditing={onSubmitEditing}
+          returnKeyType={returnKeyType}
+          submitBehavior={submitBehavior}
           testID="search-input"
         />
       </View>

@@ -6,11 +6,13 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { SearchBar } from '@components/common/SearchBar';
 import { FilterChips } from '@components/common/FilterChips';
 import { SearchResultCard } from '@components/search/SearchResultCard';
+import { SearchPlaceRow } from '@components/search/SearchPlaceRow';
 import { SearchHistoryList } from '@components/search/SearchHistoryList';
 import { useSearchScreen } from '@hooks/useSearchScreen';
 import { useSearchHistory } from '@hooks/useSearchHistory';
 import type { SearchHistoryItem } from '@hooks/useSearchHistory';
 import type { MapStackScreenProps } from '@/navigation/types';
+import type { PlaceRow, SearchRow, SpotRow, SpotTypeFilter } from '@utils/placeSearch';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { spacing } from '@theme/spacing';
@@ -27,7 +29,8 @@ export function SearchScreen({ navigation }: Props) {
   const {
     query,
     setQuery,
-    results,
+    rows,
+    resolveSubmit,
     filterType,
     setFilterType,
     clearSearch,
@@ -39,12 +42,26 @@ export function SearchScreen({ navigation }: Props) {
 
   const searchRowTop = insets.top + spacing.xs;
   const hasQuery = query.length > 0;
-  const showEmpty = hasQuery && results.length === 0;
+  const showEmpty = hasQuery && rows.length === 0;
   const suggestionTitle = suggestionMode === 'nearby' ? '近くのスポット' : '人気のスポット';
+  // 場所の帯は、並び（エンターの行き先）に関わらず一覧のいちばん上に出す（S0 で選ばれた B）
+  const placeRows = rows.filter((r): r is PlaceRow => r.kind === 'place');
+  const spotRows = rows.filter((r): r is SpotRow => r.kind === 'spot');
 
-  const handleResultPress = (spotId: string, spotName: string) => {
-    addHistory({ spotId, spotName });
-    navigation.navigate('Map', { focusSpotId: spotId });
+  // 行を押したときとエンターは同じ道を通る（Issue #311）
+  const handleRowPress = (row: SearchRow) => {
+    if (row.kind === 'place') {
+      // 場所は履歴に残さない（L-1）
+      navigation.navigate('Map', { focusRegion: row.region });
+      return;
+    }
+    addHistory({ spotId: row.spot.id, spotName: row.spot.name });
+    navigation.navigate('Map', { focusSpotId: row.spot.id });
+  };
+
+  const handleSubmit = async () => {
+    const row = await resolveSubmit();
+    if (row) handleRowPress(row);
   };
 
   const handleHistorySelect = (item: SearchHistoryItem) => {
@@ -63,6 +80,9 @@ export function SearchScreen({ navigation }: Props) {
             onClear={clearSearch}
             leftIcon="back"
             onLeftIconPress={() => navigation.goBack()}
+            onSubmitEditing={handleSubmit}
+            returnKeyType="search"
+            submitBehavior="submit"
           />
         </View>
       </View>
@@ -80,7 +100,7 @@ export function SearchScreen({ navigation }: Props) {
                   <FilterChips
                     options={FILTER_OPTIONS}
                     selectedKey={filterType}
-                    onSelect={key => setFilterType(key as 'all' | 'shrine' | 'temple')}
+                    onSelect={key => setFilterType(key as SpotTypeFilter)}
                   />
                   <View style={styles.emptyContainer}>
                     <MaterialIcons name="search-off" size={48} color={colors.gray[300]} />
@@ -91,7 +111,7 @@ export function SearchScreen({ navigation }: Props) {
             />
           ) : (
             <FlatList
-              data={results}
+              data={spotRows}
               keyExtractor={item => item.spot.id}
               keyboardShouldPersistTaps="handled"
               keyboardDismissMode="on-drag"
@@ -100,9 +120,17 @@ export function SearchScreen({ navigation }: Props) {
                   <FilterChips
                     options={FILTER_OPTIONS}
                     selectedKey={filterType}
-                    onSelect={key => setFilterType(key as 'all' | 'shrine' | 'temple')}
+                    onSelect={key => setFilterType(key as SpotTypeFilter)}
                   />
-                  <Text style={styles.sectionTitle}>検索結果</Text>
+                  {placeRows.map((row, i) => (
+                    <SearchPlaceRow
+                      key={row.key}
+                      testID={`search-place-row-${i}`}
+                      row={row}
+                      onPress={() => handleRowPress(row)}
+                    />
+                  ))}
+                  {spotRows.length > 0 && <Text style={styles.sectionTitle}>検索結果</Text>}
                 </>
               }
               renderItem={({ item }) => (
@@ -110,7 +138,7 @@ export function SearchScreen({ navigation }: Props) {
                   spot={item.spot}
                   distance={item.distance}
                   query={query}
-                  onPress={() => handleResultPress(item.spot.id, item.spot.name)}
+                  onPress={() => handleRowPress(item)}
                 />
               )}
             />
