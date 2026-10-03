@@ -30,6 +30,11 @@ export interface UseSearchScreenReturn {
   showPlaceCredit: boolean;
   /** 一覧の言葉で第2段の答えを待っている（「見つかりませんでした」の代わりに「探しています」） */
   isSearchingPlace: boolean;
+  /**
+   * 入力した言葉と 300ms 待ったあとの言葉（一覧の言葉）が違う。打っている途中・待ちの間は、
+   * 一覧はまだ前の言葉のものなので「見つかりませんでした」も「探しています」も出さない
+   */
+  isTyping: boolean;
   /** いま入っている言葉で、一覧のいちばん上の行。何もしないなら null */
   resolveSubmit: () => Promise<SearchRow | null>;
   filterType: SpotTypeFilter;
@@ -199,6 +204,7 @@ export function useSearchScreen(): UseSearchScreenReturn {
     rows,
     showPlaceCredit,
     isSearchingPlace,
+    isTyping: query !== debouncedQuery,
     resolveSubmit,
     filterType,
     setFilterType,

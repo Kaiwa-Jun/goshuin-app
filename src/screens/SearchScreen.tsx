@@ -32,6 +32,7 @@ export function SearchScreen({ navigation }: Props) {
     rows,
     showPlaceCredit,
     isSearchingPlace,
+    isTyping,
     resolveSubmit,
     filterType,
     setFilterType,
@@ -104,7 +105,8 @@ export function SearchScreen({ navigation }: Props) {
                     selectedKey={filterType}
                     onSelect={key => setFilterType(key as SpotTypeFilter)}
                   />
-                  {isSearchingPlace ? (
+                  {/* 打っている途中・待ちの間は、一覧がまだ前の言葉のものなので何も言わない */}
+                  {isTyping ? null : isSearchingPlace ? (
                     // 国土地理院の答えを待つ間（最長 5 秒）。見つかるのに一瞬「見つかりませんでした」と出さない
                     <View style={styles.emptyContainer}>
                       <View style={styles.searching} testID="search-place-searching">

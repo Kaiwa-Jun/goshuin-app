@@ -548,6 +548,26 @@ describe('useSearchScreen', () => {
       expect(answer).toBeNull();
     });
 
+    it('入力した言葉と 300ms 待ったあとの言葉が違う間は isTyping', () => {
+      const { result } = renderHook(() => useSearchScreen());
+      expect(result.current.isTyping).toBe(false);
+
+      act(() => {
+        result.current.setQuery('東京タワー');
+      });
+      expect(result.current.isTyping).toBe(true);
+
+      act(() => {
+        jest.advanceTimersByTime(300);
+      });
+      expect(result.current.isTyping).toBe(false);
+
+      act(() => {
+        result.current.clearSearch();
+      });
+      expect(result.current.isTyping).toBe(false);
+    });
+
     describe('探しています（第2段の答えを待つ間）', () => {
       it('問い合わせ中は isSearchingPlace。答えが来たら外れて結果になる', async () => {
         const shibuya = deferred();

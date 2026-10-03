@@ -67,6 +67,7 @@ let mockUseSearchScreenReturn = {
   rows: [] as SearchRow[],
   showPlaceCredit: false,
   isSearchingPlace: false,
+  isTyping: false,
   resolveSubmit: mockResolveSubmit,
   filterType: 'all' as 'all' | 'shrine' | 'temple',
   setFilterType: mockSetFilterType,
@@ -133,6 +134,7 @@ describe('SearchScreen', () => {
       rows: [],
       showPlaceCredit: false,
       isSearchingPlace: false,
+      isTyping: false,
       resolveSubmit: mockResolveSubmit,
       filterType: 'all',
       setFilterType: mockSetFilterType,
@@ -569,6 +571,34 @@ describe('SearchScreen', () => {
     it('UI-3: 端末の中で当たった場所だけなら、出典は出さない', () => {
       show('横浜', rowsFor('横浜'));
       expect(renderScreen().queryByTestId('search-place-credit')).toBeNull();
+    });
+
+    it('打っている途中・300ms の待ちの間は、「探しています」も「見つかりませんでした」も出さない', () => {
+      mockUseSearchScreenReturn = {
+        ...mockUseSearchScreenReturn,
+        query: '東京タワー',
+        rows: [],
+        isTyping: true,
+      };
+      const r = renderScreen();
+      expect(r.queryByTestId('search-place-searching')).toBeNull();
+      expect(r.queryByText('見つかりませんでした')).toBeNull();
+
+      // 前の言葉を問い合わせている途中に打ち足したときも
+      mockUseSearchScreenReturn = { ...mockUseSearchScreenReturn, isSearchingPlace: true };
+      r.rerender(<SearchScreen navigation={mockNavigation as never} route={mockRoute} />);
+      expect(r.queryByTestId('search-place-searching')).toBeNull();
+      expect(r.queryByText('見つかりませんでした')).toBeNull();
+    });
+
+    it('打っている途中でも、前の言葉の一覧は残す（今の動き）', () => {
+      mockUseSearchScreenReturn = {
+        ...mockUseSearchScreenReturn,
+        query: '靖國神',
+        rows: rowsFor('靖國'),
+        isTyping: true,
+      };
+      expect(renderScreen().getAllByTestId('search-result-card')).toHaveLength(1);
     });
 
     it('第2段の答えを待つ間は「探しています」。「見つかりませんでした」は出さない', () => {
