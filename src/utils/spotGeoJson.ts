@@ -48,7 +48,7 @@ export interface SpotFeatureCollection {
 export interface SpotSources {
   /** 団子化の対象。未訪問のみ */
   clustered: SpotFeatureCollection;
-  /** 団子に吸収させない。訪問済み・行きたい（= 自分の記録） */
+  /** 団子に吸収させない。訪問済み・行きたい（= 自分の記録）と、検索で寄せた地域の寺社 */
   pinned: SpotFeatureCollection;
 }
 
@@ -105,10 +105,16 @@ export function buildSpotSources({
   spots,
   visitedSpotIds,
   wishlistSpotIds,
+  focusIds,
 }: {
   spots: Spot[];
   visitedSpotIds: Set<string>;
   wishlistSpotIds: Set<string>;
+  /**
+   * 団子に入れず・間引かずに出す寺社（Issue #311 の地域）。状態・色は変えない。
+   * 未訪問のピンはズームで間引かれる（VISIBLE_SPOT_FILTER）ので、地域に寄せただけでは全部は出ない
+   */
+  focusIds?: Set<string>;
 }): SpotSources {
   if (spots.length === 0) return { clustered: EMPTY, pinned: EMPTY };
 
@@ -117,7 +123,8 @@ export function buildSpotSources({
 
   for (const spot of spots) {
     const state = getSpotPinState(spot, visitedSpotIds, wishlistSpotIds);
-    (state === 'unvisited' ? clustered : pinned).push(toFeature(spot, state));
+    const pin = state !== 'unvisited' || focusIds?.has(spot.id);
+    (pin ? pinned : clustered).push(toFeature(spot, state));
   }
 
   return {

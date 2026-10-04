@@ -98,6 +98,21 @@ describe('buildSpotSources', () => {
     expect(input).toEqual(spots);
   });
 
+  it('AC-12（#311）: focusIds の寺社は、未訪問でも団子にしない pinned へ。状態は変えない', () => {
+    const { clustered, pinned } = buildSpotSources({
+      spots: [makeSpot({ id: 'a' }), makeSpot({ id: 'b', type: 'shrine' }), makeSpot({ id: 'c' })],
+      visitedSpotIds: new Set(['b']),
+      wishlistSpotIds: NONE,
+      focusIds: new Set(['a', 'b']),
+    });
+
+    expect(pinned.features.map(f => [f.properties.spotId, f.properties.state])).toEqual([
+      ['a', 'unvisited'],
+      ['b', 'visited-shrine'],
+    ]);
+    expect(clustered.features.map(f => f.properties.spotId)).toEqual(['c']);
+  });
+
   it('スポットが無ければ両方とも空の FeatureCollection', () => {
     const { clustered, pinned } = buildSpotSources({
       spots: [],

@@ -77,4 +77,31 @@ describe('SearchBar', () => {
       expect(containerStyle(getByTestId('search-bar')).backgroundColor).toBe(colors.white);
     });
   });
+
+  describe('エンター（Issue #311）', () => {
+    it('AC-19: onSubmitEditing・returnKeyType・submitBehavior を TextInput へそのまま渡す', () => {
+      const onSubmitEditing = jest.fn();
+      const { getByTestId } = render(
+        <SearchBar
+          onSubmitEditing={onSubmitEditing}
+          returnKeyType="search"
+          submitBehavior="submit"
+        />
+      );
+      const input = getByTestId('search-input');
+
+      expect(input.props.onSubmitEditing).toBe(onSubmitEditing);
+      expect(input.props.returnKeyType).toBe('search');
+      expect(input.props.submitBehavior).toBe('submit');
+
+      fireEvent(input, 'submitEditing');
+      expect(onSubmitEditing).toHaveBeenCalledTimes(1);
+    });
+
+    it('AC-19: 渡さないときは今のまま（returnKeyType・submitBehavior は undefined）', () => {
+      const input = render(<SearchBar />).getByTestId('search-input');
+      expect(input.props.returnKeyType).toBeUndefined();
+      expect(input.props.submitBehavior).toBeUndefined();
+    });
+  });
 });
