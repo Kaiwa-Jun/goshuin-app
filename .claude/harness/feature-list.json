@@ -224,7 +224,7 @@
     {
       "id": "ISSUE-302",
       "title": "地図のピンのシートの帯に寺社の写真を出す（#293 第2段・Wikimedia Commons → R2 → spot_photos）",
-      "note": "契約書 docs/issues/issue-302-spot-photo-band.md・試作 preview/302-photo-band（オーナーが実機で OK）。表 spot_photos（RLS で承認済みだけ読める）・選ぶ画面（supabase/scripts/spot-photos/）・台帳 supabase/data/spot-photos-302.json（688 寺社。high 669・medium 19。AC-39 の抜き取りで 4 寺社を外した）・本番の SQL（migration 約 274KB）。帯に写真の地・写真に挟むページ・白いつまみ・ⓘ の吹き出し。#295 の上に積む。未: Expo Web UI-1〜6（.env が要るのでリーダー）・シミュレータ UI-7〜10・H（オーナー）・AC-39 の抜き取り（evaluator）。passes は evaluator の PASS のあとでリーダーが付ける。goshuin-evaluator PASS（AC 42/42。AC-39 は例外 2 件 575 稲佐の浜・77 雲昌寺をリーダーの決定で記録・UI-1〜6 6/6・Q 15/15）。写真は 688 寺社。未確認: UI-7〜10（シミュレータ）と H（R2・本番はオーナー）。",
+      "note": "契約書 docs/issues/issue-302-spot-photo-band.md・試作 preview/302-photo-band（オーナーが実機で OK）。表 spot_photos（RLS で承認済みだけ読める）・選ぶ画面（supabase/scripts/spot-photos/）・台帳 supabase/data/spot-photos-302.json（688 寺社。high 669・medium 19。AC-39 の抜き取りで 4 寺社を外した）・本番の SQL（migration 約 274KB）。帯に写真の地・写真に挟むページ・白いつまみ・ⓘ の吹き出し。#295 の上に積む。未: Expo Web UI-1〜6（.env が要るのでリーダー）・シミュレータ UI-7〜10・H（オーナー）・AC-39 の抜き取り（evaluator）。passes は evaluator の PASS のあとでリーダーが付ける。goshuin-evaluator PASS（AC 42/42。AC-39 は例外 2 件 575 稲佐の浜・77 雲昌寺をリーダーの決定で記録・UI-1〜6 6/6・Q 15/15）。写真は 688 寺社。本番（R2 に 688 枚・spot_photos に 688 件）は 2026-10-04 に H-1〜H-14 で反映し、H-15 はオーナーが iPhone で確認。未確認: UI-7〜10（シミュレータ）。",
       "passes": true
     }
   ]

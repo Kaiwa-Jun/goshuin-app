@@ -404,6 +404,25 @@ goshuin-evaluator がこの基準に基づいて合否判定を行う。数の�
 
 - H-1 のダッシュボードの文言は 2026-10 の時点の見込み（#227 で同じ形のトークンを作った）。名前が違って見つからないときは、R2 の概要の画面で「API」「Token」と書いてある所を探す。それでも無ければ止めてリーダーに渡す
 
+### 本番の記録（2026-10-04。H-1〜H-5 はオーナー、H-6〜H-14・L-1 はオーナーの依頼でリーダー）
+
+| 手順       | 結果                                                                                                                                       |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| H-0        | ✅ キャッシュ 692 件・deno 2.9.4・supabase 2.118.0                                                                                         |
+| H-1〜H-2   | ✅ オーナーがバケット `goshuin-images` だけの Object Read & Write のトークンを作り、ターミナルに入れた（Account ID は #227 の値）          |
+| H-3        | ✅ `台帳 688 件 / R2 に既にある 0 件 / 置く 688 件 / キャッシュに無い 0 件`                                                                |
+| H-4        | ✅ `置いた 688 件 / 失敗 0 件 / R2 にある台帳の写真 688 / 688`                                                                             |
+| H-5        | ✅ オーナーが `unset` し、トークンを消した                                                                                                 |
+| H-6        | ✅ `688/688 件 200`                                                                                                                        |
+| H-7        | ✅ `RESULT table=absent`（約 277KB の1文も `db query --linked` で通った）                                                                  |
+| H-8・H-9   | ✅ `ERROR` なし・`Repaired migration history: [20261004000000] => applied`                                                                 |
+| H-10       | ✅ `RESULT table=present rls=on total=1109 listed=688 not_one=0 present=0 differ=0 missing=688 extra=0 anon_select=0 anon_insert=denied`   |
+| H-11・H-12 | ✅ `ERROR` なし（約 274KB）・`Repaired migration history: [20261004010000] => applied`                                                     |
+| H-13       | ✅ `RESULT table=present rls=on total=1109 listed=688 not_one=0 present=688 differ=0 missing=0 extra=0 anon_select=688 anon_insert=denied` |
+| H-14       | ✅ `20261004000000`・`20261004010000` が Local と Remote の両方にある                                                                      |
+| L-1        | ✅ 金蛇水神社の変換 URL が `200 image/webp`（約 340KB）                                                                                    |
+| H-15       | ✅ オーナーが iPhone（開発用アプリ・develop）で確認                                                                                        |
+
 ### H のあとにリーダーが確かめる（鍵は要らない）
 
 - **L-1**: `curl -s -o /dev/null -w '%{http_code} %{content_type}\n' -H 'Accept: image/webp' 'https://img.goshuinsanpo.com/cdn-cgi/image/width=1200,quality=78,format=webp/<台帳の先頭の r2Key>'` が `200 image/webp`。1回だけ打つ（変換を1つ使う）
