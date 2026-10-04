@@ -1,0 +1,73 @@
+{
+  "idx": 544,
+  "name": "金持神社",
+  "prefecture": "鳥取県",
+  "qid": "Q246463",
+  "p373": "Kamochi-jinja",
+  "p18": [],
+  "lists": {
+    "p373": ["Kamochi Jinja.jpg", "Sakae-no-yashiro.jpeg", "Shibata jinja.jpeg"],
+    "p180": []
+  },
+  "truncated": [],
+  "files": [
+    {
+      "file": "Kamochi Jinja.jpg",
+      "width": 1728,
+      "height": 2304,
+      "mime": "image/jpeg",
+      "sha1": "0c3412450c804253ce8640780f655fd9055a352a",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/8/89/Kamochi_Jinja.jpg",
+      "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Kamochi_Jinja.jpg",
+      "license": "CC BY 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
+      "artist": "Flow in edgewise",
+      "artistHtml": "<a href=\"https://ja.wikipedia.org/wiki/user:Flow_in_edgewise\" class=\"extiw\" title=\"ja:user:Flow in edgewise\">Flow in edgewise</a>",
+      "credit": "Flow in edgewise撮影",
+      "creditHtml": "<a href=\"https://ja.wikipedia.org/wiki/user:Flow_in_edgewise\" class=\"extiw\" title=\"ja:user:Flow in edgewise\">Flow in edgewise</a>撮影",
+      "attributionRequired": true,
+      "copyrighted": true,
+      "restrictions": "",
+      "usageTerms": "Creative Commons Attribution 3.0"
+    },
+    {
+      "file": "Sakae-no-yashiro.jpeg",
+      "width": 3072,
+      "height": 2304,
+      "mime": "image/jpeg",
+      "sha1": "619139b30e0c8d449e10d2e3d588e5e9435a6b13",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/4/4a/Sakae-no-yashiro.jpeg",
+      "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Sakae-no-yashiro.jpeg",
+      "license": "Public domain",
+      "licenseUrl": null,
+      "artist": "nnh",
+      "artistHtml": "<a href=\"//commons.wikimedia.org/wiki/User:Nnh\" title=\"User:Nnh\">nnh</a>",
+      "credit": "photo by nnh",
+      "creditHtml": "photo by <a href=\"//commons.wikimedia.org/wiki/User:Nnh\" title=\"User:Nnh\">nnh</a>",
+      "attributionRequired": false,
+      "copyrighted": false,
+      "restrictions": "",
+      "usageTerms": "Public domain"
+    },
+    {
+      "file": "Shibata jinja.jpeg",
+      "width": 3072,
+      "height": 2304,
+      "mime": "image/jpeg",
+      "sha1": "18c873c054d0d030585ffc4e782dd3d1fe863a97",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/a/a7/Shibata_jinja.jpeg",
+      "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Shibata_jinja.jpeg",
+      "license": "Public domain",
+      "licenseUrl": null,
+      "artist": "nnh",
+      "artistHtml": "<a href=\"//commons.wikimedia.org/wiki/User:Nnh\" title=\"User:Nnh\">nnh</a>",
+      "credit": "photo by nnh",
+      "creditHtml": "photo by <a href=\"//commons.wikimedia.org/wiki/User:Nnh\" title=\"User:Nnh\">nnh</a>",
+      "attributionRequired": false,
+      "copyrighted": false,
+      "restrictions": "",
+      "usageTerms": "Public domain"
+    }
+  ],
+  "missing": []
+}

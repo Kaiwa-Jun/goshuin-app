@@ -4,11 +4,17 @@
 import { assert, assertEquals, assertStringIncludes } from 'jsr:@std/assert@1';
 
 import { serializeJson } from '../spot-wikidata/match.ts';
+import { BATCH2_DIR, type Gathered320, MANUAL_PATH, POOL_PATH, spots320 } from './batch2.ts';
 import {
   fixtureCandidates,
+  fixtureGathered,
+  fixtureManual,
   fixturePhotos,
+  fixturePoolJson,
+  fixtureTargets,
   makeRoot,
   readFixture,
+  realMapping,
   realSeedRows,
   snapshot,
 } from './fixtures/load.ts';
@@ -388,3 +394,140 @@ Deno.test('AC-18: 台帳の行が #301 と合わないと、寺社の名前を�
     await Deno.remove(root, { recursive: true });
   }
 });
+
+// --- #320 AC-8: pool ---
+
+/**
+ * 台帳のフィクスチャの root の対象（約 466 寺社）のうち Q-ID のある寺社の、集めた値を作業フォルダに置く。
+ * 候補のフィクスチャの寺社は commons-b2/gather/ の値、ほかは何も集まらなかった値
+ */
+async function writeGathered(work: string): Promise<number> {
+  const spots = spots320(await fixtureTargets(), await realMapping(), await fixtureManual());
+  const known = await fixtureGathered();
+  let n = 0;
+  for (const s of spots) {
+    if (s.qid === null) continue;
+    const g: Gathered320 = known.get(s.idx) ?? {
+      idx: s.idx,
+      name: s.name,
+      prefecture: s.prefecture,
+      qid: s.qid,
+      p373: s.p373,
+      p18: s.p18,
+      lists: { p373: [], p180: [] },
+      truncated: [],
+      files: [],
+      missing: [],
+    };
+    const path = `${work}/${BATCH2_DIR}/gather/${s.idx}.json`;
+    await Deno.mkdir(path.slice(0, path.lastIndexOf('/')), { recursive: true });
+    await Deno.writeTextFile(path, serializeJson(g));
+    n++;
+  }
+  return n;
+}
+
+Deno.test(
+  'AC-8: pool は --root の spot-photos-320.json だけを書き（--work は書かない）、2回目も同じ中身',
+  async () => {
+    const root = await makeRoot({ ledger: true, manual: true });
+    const work = await tempWork();
+    try {
+      await writeGathered(work);
+      const rootBefore = await snapshot(root);
+      const workBefore = await snapshot(work);
+      const first = await run(['pool', '--root', root, '--work', work]);
+      assertEquals(first.code, 0, first.err);
+      assertStringIncludes(first.out, POOL_PATH);
+      assertEquals(await snapshot(work), workBefore);
+      const after = await snapshot(root);
+      assertEquals(
+        Object.keys(after).filter(k => !(k in rootBefore)),
+        [POOL_PATH]
+      );
+      const text = after[POOL_PATH];
+      const pool = JSON.parse(text);
+      // 対象の全部を idx の順に持ち、フィクスチャの寺社は pool-320.json と同じ
+      const targets = await fixtureTargets();
+      assertEquals(
+        pool.entries.map((e: { idx: number }) => e.idx),
+        targets.map(t => t.idx)
+      );
+      const fixture = await fixturePoolJson();
+      for (const e of fixture.entries) {
+        assertEquals(
+          pool.entries.find((x: { idx: number }) => x.idx === e.idx),
+          e,
+          String(e.name)
+        );
+      }
+      assertEquals(pool.counts.targets, targets.length);
+      assertEquals(text.match(/\d{4}-\d{2}-\d{2}T/), null);
+      assertEquals(text.includes(work), false);
+
+      const second = await run(['pool', '--root', root, '--work', work]);
+      assertEquals(second.code, 0, second.err);
+      assertStringIncludes(second.out, '変わるものは無い');
+      assertEquals(await Deno.readTextFile(`${root}/${POOL_PATH}`), text);
+
+      // --check: 同じなら 0。prettier で整形しても（JSON として同じなら）0
+      assertEquals((await run(['pool', '--check', '--root', root, '--work', work])).code, 0);
+      const pretty = JSON.stringify(pool);
+      await Deno.writeTextFile(`${root}/${POOL_PATH}`, pretty);
+      assertEquals((await run(['pool', '--check', '--root', root, '--work', work])).code, 0);
+      // 値を1つ変えると 1 でファイルの名前を出し、書かない
+      const changed = pretty.replace('"width":5472', '"width":5473');
+      assert(changed !== pretty);
+      await Deno.writeTextFile(`${root}/${POOL_PATH}`, changed);
+      const bad = await run(['pool', '--check', '--root', root, '--work', work]);
+      assertEquals(bad.code, 1);
+      assertStringIncludes(bad.err, 'spot-photos-320.json');
+      assertEquals(await Deno.readTextFile(`${root}/${POOL_PATH}`), changed);
+    } finally {
+      await Deno.remove(root, { recursive: true });
+      await Deno.remove(work, { recursive: true });
+    }
+  }
+);
+
+Deno.test(
+  'AC-8: Q-ID のある対象の寺社の集めた値が無いと、その寺社の名前と gather を出して 1',
+  async () => {
+    const root = await makeRoot({ ledger: true, manual: true });
+    const work = await tempWork();
+    try {
+      await writeGathered(work);
+      await Deno.remove(`${work}/${BATCH2_DIR}/gather/421.json`);
+      const res = await run(['pool', '--root', root, '--work', work]);
+      assertEquals(res.code, 1);
+      assertStringIncludes(res.err, '伊勢神宮内宮（皇大神宮）（三重県）');
+      assertStringIncludes(res.err, 'gather');
+      assertEquals(POOL_PATH in (await snapshot(root)), false);
+    } finally {
+      await Deno.remove(root, { recursive: true });
+      await Deno.remove(work, { recursive: true });
+    }
+  }
+);
+
+Deno.test(
+  'AC-8: 手で結ぶ台帳の p373 を変えたあと（集めた値は前のまま）に pool を打つと、その寺社の名前を出して 1',
+  async () => {
+    const root = await makeRoot({ ledger: true, manual: true });
+    const work = await tempWork();
+    try {
+      await writeGathered(work);
+      const path = `${root}/${MANUAL_PATH}`;
+      const manual = JSON.parse(await Deno.readTextFile(path));
+      manual.entries[2].p373 = 'Ise Grand Shrine';
+      await Deno.writeTextFile(path, serializeJson(manual));
+      const res = await run(['pool', '--root', root, '--work', work]);
+      assertEquals(res.code, 1);
+      assertStringIncludes(res.err, '伊勢神宮内宮（皇大神宮）（三重県）');
+      assertEquals(POOL_PATH in (await snapshot(root)), false);
+    } finally {
+      await Deno.remove(root, { recursive: true });
+      await Deno.remove(work, { recursive: true });
+    }
+  }
+);

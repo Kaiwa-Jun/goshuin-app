@@ -130,7 +130,12 @@ export function isFocusY(v: unknown): v is number {
  * 候補にするファイル: ① 横長 ② 幅 1280 以上 ③ ライセンスがあり GFDL で始まらない
  * ④ restrictions が空 ⑤ JPEG か PNG ⑥ 撮影者が無いなら、帰属の表示が要らないもの
  */
-export function screenFile(f: PhotoFile): boolean {
+export function screenFile(
+  f: Pick<
+    PhotoFile,
+    'width' | 'height' | 'license' | 'restrictions' | 'mime' | 'artist' | 'attributionRequired'
+  >
+): boolean {
   return (
     f.width > f.height &&
     f.width >= PHOTO_MIN_WIDTH &&

@@ -1,0 +1,311 @@
+{
+  "schemaVersion": 1,
+  "issue": 320,
+  "note": "帯の写真の第2弾の候補。rank 5 で第1弾の台帳に無い寺社の全部と、Commons のカテゴリ（P373 の直下）・P180・P18（手で結んだ寺社）から集めて規則で絞ったファイル。supabase/scripts/spot-photos/main.ts pool で作る。手で直さない",
+  "attribution": {
+    "commons": "Wikimedia Commons。ライセンスはファイルごと（license・licenseUrl）"
+  },
+  "counts": {
+    "targets": 7,
+    "withFiles": 5,
+    "noQid": 1,
+    "noFiles": 1,
+    "manual": 3,
+    "files": 14,
+    "truncated": 1
+  },
+  "entries": [
+    {
+      "idx": 9,
+      "name": "星置神社",
+      "prefecture": "北海道",
+      "qid": null,
+      "linkConfidence": null,
+      "p373": null,
+      "gap": "no-qid",
+      "truncated": [],
+      "files": []
+    },
+    {
+      "idx": 41,
+      "name": "中尊寺",
+      "prefecture": "岩手県",
+      "qid": "Q2660144",
+      "linkConfidence": "high",
+      "p373": "Chusonji",
+      "gap": null,
+      "truncated": [],
+      "files": [
+        {
+          "file": "Miyajima, daisho-in, 05.jpg",
+          "sources": ["p180"],
+          "width": 5472,
+          "height": 3648,
+          "mime": "image/jpeg",
+          "sha1": "e8a94f7b3d61e87966976bc0a300f9c98ff5a8f3",
+          "url": "https://upload.wikimedia.org/wikipedia/commons/9/95/Miyajima%2C_daisho-in%2C_05.jpg",
+          "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Miyajima,_daisho-in,_05.jpg",
+          "license": "CC BY 3.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
+          "artist": "Sailko",
+          "attributionRequired": true,
+          "restrictions": ""
+        },
+        {
+          "file": "Yakushiji Nara06s3s4440.jpg",
+          "sources": ["p373"],
+          "width": 4440,
+          "height": 2960,
+          "mime": "image/jpeg",
+          "sha1": "ad7664730290e6ab4cb251b761a405cb8a3cde3f",
+          "url": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Yakushiji_Nara06s3s4440.jpg",
+          "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Yakushiji_Nara06s3s4440.jpg",
+          "license": "CC BY 2.5",
+          "licenseUrl": "https://creativecommons.org/licenses/by/2.5",
+          "artist": "663highland",
+          "attributionRequired": true,
+          "restrictions": ""
+        },
+        {
+          "file": "Chuson-ji Noh Stage 03.jpg",
+          "sources": ["p373", "p180"],
+          "width": 2000,
+          "height": 1500,
+          "mime": "image/jpeg",
+          "sha1": "579e899f9723b5c900a148ce24fe18cc0d5206ac",
+          "url": "https://upload.wikimedia.org/wikipedia/commons/4/4a/Chuson-ji_Noh_Stage_03.jpg",
+          "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Chuson-ji_Noh_Stage_03.jpg",
+          "license": "CC BY-SA 3.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+          "artist": "Tak1701d",
+          "attributionRequired": true,
+          "restrictions": ""
+        }
+      ]
+    },
+    {
+      "idx": 347,
+      "name": "戸隠神社中社",
+      "prefecture": "長野県",
+      "qid": "Q135464157",
+      "linkConfidence": "manual",
+      "p373": "Togakushi Shrine",
+      "gap": null,
+      "truncated": [],
+      "files": [
+        {
+          "file": "Musashino Hachiman-gū (Musashino) 01.jpg",
+          "sources": ["p373"],
+          "width": 4032,
+          "height": 3024,
+          "mime": "image/jpeg",
+          "sha1": "72fdcb7f9381d20cbd2933223dbd4cdf21a74af7",
+          "url": "https://upload.wikimedia.org/wikipedia/commons/b/b7/Musashino_Hachiman-g%C5%AB_%28Musashino%29_01.jpg",
+          "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Musashino_Hachiman-g%C5%AB_(Musashino)_01.jpg",
+          "license": "CC0",
+          "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+          "artist": "Higa4",
+          "attributionRequired": false,
+          "restrictions": ""
+        },
+        {
+          "file": "Torinoko Sanjo Shrine 11.jpg",
+          "sources": ["p373"],
+          "width": 3770,
+          "height": 2514,
+          "mime": "image/jpeg",
+          "sha1": "4f9335f1648c391920c1acf56db839ad26cacf75",
+          "url": "https://upload.wikimedia.org/wikipedia/commons/e/ef/Torinoko_Sanjo_Shrine_11.jpg",
+          "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Torinoko_Sanjo_Shrine_11.jpg",
+          "license": "CC BY 3.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
+          "artist": "Σ64",
+          "attributionRequired": true,
+          "restrictions": ""
+        },
+        {
+          "file": "Torinoko Sanjo Shrine 05.jpg",
+          "sources": ["p373"],
+          "width": 3678,
+          "height": 2452,
+          "mime": "image/jpeg",
+          "sha1": "3226175085c72e755bcea4e603fb1cdef1ed245a",
+          "url": "https://upload.wikimedia.org/wikipedia/commons/1/1e/Torinoko_Sanjo_Shrine_05.jpg",
+          "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Torinoko_Sanjo_Shrine_05.jpg",
+          "license": "CC BY 3.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
+          "artist": "Σ64",
+          "attributionRequired": true,
+          "restrictions": ""
+        }
+      ]
+    },
+    {
+      "idx": 348,
+      "name": "戸隠神社奥社",
+      "prefecture": "長野県",
+      "qid": "Q135464157",
+      "linkConfidence": "manual",
+      "p373": "Togakushi Shrine",
+      "gap": null,
+      "truncated": [],
+      "files": [
+        {
+          "file": "Musashino Hachiman-gū (Musashino) 01.jpg",
+          "sources": ["p373"],
+          "width": 4032,
+          "height": 3024,
+          "mime": "image/jpeg",
+          "sha1": "72fdcb7f9381d20cbd2933223dbd4cdf21a74af7",
+          "url": "https://upload.wikimedia.org/wikipedia/commons/b/b7/Musashino_Hachiman-g%C5%AB_%28Musashino%29_01.jpg",
+          "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Musashino_Hachiman-g%C5%AB_(Musashino)_01.jpg",
+          "license": "CC0",
+          "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+          "artist": "Higa4",
+          "attributionRequired": false,
+          "restrictions": ""
+        },
+        {
+          "file": "Torinoko Sanjo Shrine 11.jpg",
+          "sources": ["p373"],
+          "width": 3770,
+          "height": 2514,
+          "mime": "image/jpeg",
+          "sha1": "4f9335f1648c391920c1acf56db839ad26cacf75",
+          "url": "https://upload.wikimedia.org/wikipedia/commons/e/ef/Torinoko_Sanjo_Shrine_11.jpg",
+          "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Torinoko_Sanjo_Shrine_11.jpg",
+          "license": "CC BY 3.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
+          "artist": "Σ64",
+          "attributionRequired": true,
+          "restrictions": ""
+        },
+        {
+          "file": "Torinoko Sanjo Shrine 05.jpg",
+          "sources": ["p373"],
+          "width": 3678,
+          "height": 2452,
+          "mime": "image/jpeg",
+          "sha1": "3226175085c72e755bcea4e603fb1cdef1ed245a",
+          "url": "https://upload.wikimedia.org/wikipedia/commons/1/1e/Torinoko_Sanjo_Shrine_05.jpg",
+          "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Torinoko_Sanjo_Shrine_05.jpg",
+          "license": "CC BY 3.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
+          "artist": "Σ64",
+          "attributionRequired": true,
+          "restrictions": ""
+        }
+      ]
+    },
+    {
+      "idx": 421,
+      "name": "伊勢神宮内宮（皇大神宮）",
+      "prefecture": "三重県",
+      "qid": "Q11581011",
+      "linkConfidence": "manual",
+      "p373": "Naiku",
+      "gap": null,
+      "truncated": [],
+      "files": [
+        {
+          "file": "Masumida Shrine Haiden.jpg",
+          "sources": ["p373"],
+          "width": 5953,
+          "height": 3974,
+          "mime": "image/jpeg",
+          "sha1": "74535e6d5be999e4f14113951869476806a07fb0",
+          "url": "https://upload.wikimedia.org/wikipedia/commons/c/c0/Masumida_Shrine_Haiden.jpg",
+          "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Masumida_Shrine_Haiden.jpg",
+          "license": "CC BY-SA 4.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+          "artist": "Bariston",
+          "attributionRequired": true,
+          "restrictions": ""
+        },
+        {
+          "file": "Tsurugaoka Hachimangu 001.jpg",
+          "sources": ["p18", "p373"],
+          "width": 4282,
+          "height": 2839,
+          "mime": "image/jpeg",
+          "sha1": "2996e1b55a77dbf1d45325c9cb8c8414d3d56ba2",
+          "url": "https://upload.wikimedia.org/wikipedia/commons/5/59/Tsurugaoka_Hachimangu_001.jpg",
+          "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Tsurugaoka_Hachimangu_001.jpg",
+          "license": "CC0",
+          "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+          "artist": "Ocdp",
+          "attributionRequired": false,
+          "restrictions": ""
+        },
+        {
+          "file": "Oarai Isosaki Shrine 04.jpg",
+          "sources": ["p180"],
+          "width": 3888,
+          "height": 2592,
+          "mime": "image/jpeg",
+          "sha1": "7fded91a0037bcd4e486d7ae90f8b27c804acc2b",
+          "url": "https://upload.wikimedia.org/wikipedia/commons/b/bd/Oarai_Isosaki_Shrine_04.jpg",
+          "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Oarai_Isosaki_Shrine_04.jpg",
+          "license": "CC BY 3.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
+          "artist": "Σ64",
+          "attributionRequired": true,
+          "restrictions": ""
+        }
+      ]
+    },
+    {
+      "idx": 544,
+      "name": "金持神社",
+      "prefecture": "鳥取県",
+      "qid": "Q246463",
+      "linkConfidence": "medium",
+      "p373": "Kamochi-jinja",
+      "gap": null,
+      "truncated": [],
+      "files": [
+        {
+          "file": "Sakae-no-yashiro.jpeg",
+          "sources": ["p373"],
+          "width": 3072,
+          "height": 2304,
+          "mime": "image/jpeg",
+          "sha1": "619139b30e0c8d449e10d2e3d588e5e9435a6b13",
+          "url": "https://upload.wikimedia.org/wikipedia/commons/4/4a/Sakae-no-yashiro.jpeg",
+          "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Sakae-no-yashiro.jpeg",
+          "license": "Public domain",
+          "licenseUrl": null,
+          "artist": "nnh",
+          "attributionRequired": false,
+          "restrictions": ""
+        },
+        {
+          "file": "Shibata jinja.jpeg",
+          "sources": ["p373"],
+          "width": 3072,
+          "height": 2304,
+          "mime": "image/jpeg",
+          "sha1": "18c873c054d0d030585ffc4e782dd3d1fe863a97",
+          "url": "https://upload.wikimedia.org/wikipedia/commons/a/a7/Shibata_jinja.jpeg",
+          "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Shibata_jinja.jpeg",
+          "license": "Public domain",
+          "licenseUrl": null,
+          "artist": "nnh",
+          "attributionRequired": false,
+          "restrictions": ""
+        }
+      ]
+    },
+    {
+      "idx": 890,
+      "name": "増上寺",
+      "prefecture": "東京都",
+      "qid": "Q249139",
+      "linkConfidence": "high",
+      "p373": "Zōjō-ji",
+      "gap": "no-files",
+      "truncated": ["p373"],
+      "files": []
+    }
+  ]
+}

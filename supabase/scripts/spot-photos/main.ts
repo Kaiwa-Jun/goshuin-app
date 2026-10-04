@@ -11,11 +11,13 @@
 //
 // 第2弾（#320）:
 //   SPOT_WIKIDATA_CONTACT=<連絡先> deno run -A --node-modules-dir=none supabase/scripts/spot-photos/main.ts manual-link [--root <dir>] [--work <dir>]
+//   SPOT_WIKIDATA_CONTACT=<連絡先> deno run -A --node-modules-dir=none supabase/scripts/spot-photos/main.ts gather [--root <dir>] [--work <dir>]
+//   deno run -A --node-modules-dir=none supabase/scripts/spot-photos/main.ts pool [--check] [--root <dir>] [--work <dir>]
 //
 // --root の既定はカレントディレクトリ（リポジトリの直下で打つ）、--work の既定は $HOME/goshuin-work/spot-photos。
 // エラーは標準エラーに、寺社の名前・都道府県か無いファイルの名前を含めて出し、終了コード 1。
 // 契約書: docs/issues/issue-302-spot-photo-band.md（D-1・D-7・D-9・D-19・D-20・「CLI」）、
-//         docs/issues/issue-320-spot-photos-batch2.md（D-2・D-3・D-12・「CLI」）
+//         docs/issues/issue-320-spot-photos-batch2.md（D-2〜D-6・D-12・「CLI」）
 import { SEED_FILES } from '../spot-coords/coords.ts';
 import {
   MAPPING_PATH,
@@ -27,7 +29,19 @@ import {
   type SeedRow,
   serializeJson,
 } from '../spot-wikidata/match.ts';
-import { BATCH2_DIR, MANUAL_PATH, manual320Of, parseManual320, targets320 } from './batch2.ts';
+import {
+  BATCH2_DIR,
+  buildPool320,
+  type Gathered320,
+  MANUAL_PATH,
+  manual320Of,
+  parseGathered320,
+  parseManual320,
+  parsePool320,
+  POOL_PATH,
+  spots320,
+  targets320,
+} from './batch2.ts';
 import {
   fetchPhotos,
   type NetIo,
@@ -36,7 +50,7 @@ import {
   uploadPhotos,
   verifyPhotos,
 } from './fetchers.ts';
-import { manualLink, parseDraft } from './gather.ts';
+import { gatherSpots, manualLink, parseDraft } from './gather.ts';
 import {
   buildCandidates,
   buildCheckSql,
@@ -50,6 +64,7 @@ import {
   MIGRATION_PATH,
   parseChoices,
   parseLedger302,
+  label,
   REJECT_REASONS,
 } from './select.ts';
 import {
@@ -391,6 +406,83 @@ async function manualLinkCommand(io: CliIo, a: Args): Promise<number> {
   return 0;
 }
 
+// --- gather（D-4） ---
+
+async function loadSpots(io: CliIo, root: string) {
+  const t = await loadTargets(io, root);
+  const manual = parseManual320(
+    await readRequired(io, joinPath(root, MANUAL_PATH)),
+    t.rows,
+    t.mapping,
+    t.targets
+  );
+  return { ...t, manual, spots: spots320(t.targets, t.mapping, manual) };
+}
+
+async function gatherCommand(io: CliIo, a: Args): Promise<number> {
+  const contact = requireContact(io);
+  const { spots } = await loadSpots(io, a.root);
+  const started = io.now();
+  const r = await gatherSpots(spots, { io, work: `${workDir(io, a)}/${BATCH2_DIR}`, contact });
+  const line = `集めた ${r.gathered} 寺社 / キャッシュにあった ${r.cached} 寺社 / 呼び出し ${r.calls} 回（${seconds(io, started)} 秒）\n`;
+  if (r.stopped !== null) {
+    io.stderr(`エラー: ${r.stopped}。終わった寺社は残る（同じコマンドで続きから）\n${line}`);
+    return 1;
+  }
+  io.stdout(line);
+  return 0;
+}
+
+// --- pool（D-5・D-6） ---
+
+/** JSON として同じか（コミットのときに prettier が整形しても同じとみなす） */
+function sameJson(text: string | null, value: unknown): boolean {
+  if (text === null) return false;
+  try {
+    return JSON.stringify(JSON.parse(text)) === JSON.stringify(value);
+  } catch {
+    return false;
+  }
+}
+
+async function poolCommand(io: CliIo, a: Args): Promise<number> {
+  const { rows, mapping, photos, ledger1, targets, manual, spots } = await loadSpots(io, a.root);
+  const work = `${workDir(io, a)}/${BATCH2_DIR}`;
+  const gathered = new Map<number, Gathered320>();
+  const absent: string[] = [];
+  for (const s of spots) {
+    if (s.qid === null) continue;
+    const text = await io.readTextFile(`${work}/gather/${s.idx}.json`);
+    if (text === null) absent.push(`${label(s)}: ${work}/gather/${s.idx}.json が無い\n`);
+    else gathered.set(s.idx, parseGathered320(text));
+  }
+  if (absent.length > 0) {
+    io.stderr(absent.join(''));
+    throw new Error(`集めた値が無い寺社が ${absent.length} ある（先に gather を打つ）`);
+  }
+  const pool = buildPool320(spots, gathered, { ledger: ledger1, photos301: photos });
+  parsePool320(pool, { rows, mapping, manual, targets, photos301: photos, ledger: ledger1 });
+  const path = joinPath(a.root, POOL_PATH);
+  const same = sameJson(await io.readTextFile(path), pool);
+  const c = pool.counts;
+  const summary = `対象 ${c.targets}・候補あり ${c.withFiles}・結べない ${c.noQid}・候補のファイルが無い ${c.noFiles}・手で結んだ ${c.manual}・ファイル ${c.files}・一覧が切れた ${c.truncated}`;
+  if (a.check) {
+    if (!same) {
+      io.stderr(`いまの集めた値から作る候補と違う（pool をやり直す）:\n  ${POOL_PATH}\n`);
+      return 1;
+    }
+    io.stdout(`${POOL_PATH} は集めた値と同じ（${summary}）\n`);
+    return 0;
+  }
+  if (same) {
+    io.stdout(`変わるものは無い（${POOL_PATH}。${summary}）\n`);
+    return 0;
+  }
+  await io.writeTextFile(path, serializeJson(pool));
+  io.stdout(`${POOL_PATH} を書いた（${summary}）\n`);
+  return 0;
+}
+
 // --- 入口 ---
 
 export type Command = (io: CliIo, a: Args) => Promise<number>;
@@ -405,6 +497,8 @@ const COMMANDS: Record<string, Command> = {
   verify,
   generate,
   'manual-link': manualLinkCommand,
+  gather: gatherCommand,
+  pool: poolCommand,
 };
 
 export async function runCli(argv: string[], io: CliIo): Promise<number> {

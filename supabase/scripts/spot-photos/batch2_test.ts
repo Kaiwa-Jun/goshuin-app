@@ -1,12 +1,13 @@
 // Deno テスト（帯の写真の第2弾 #320 の純関数。ネットに出ない）
 // 実行: deno test -A --node-modules-dir=none supabase/scripts/spot-photos/
-// 契約書: docs/issues/issue-320-spot-photos-batch2.md（S1 / AC-1〜AC-3）
+// 契約書: docs/issues/issue-320-spot-photos-batch2.md（S1 / AC-1〜AC-3、S2 / AC-6・AC-7）
 import { assert, assertEquals, assertStringIncludes, assertThrows } from 'jsr:@std/assert@1';
 
 import { distanceMeters } from '../spot-coords/coords.ts';
 import {
   type Mapping,
   parseEntity,
+  type PhotoFile,
   type SeedRow,
   serializeJson,
   type WdItem,
@@ -14,25 +15,35 @@ import {
 import {
   basisText,
   BATCH2_DIR,
+  buildPool320,
+  checkPoolTargets,
+  type Gathered320,
   GRID_THUMB_WIDTH,
   LIST_LIMIT,
   MANUAL_MAX_DISTANCE_M,
   MANUAL_PATH,
   manualLinkOf,
   parseManual320,
+  parsePool320,
   POOL_MAX_FILES,
   POOL_PATH,
   TARGET_RANK,
   targets320,
 } from './batch2.ts';
 import {
+  fixtureGathered,
   fixtureManualJson,
+  fixturePhotos,
+  fixturePoolCtx,
+  fixturePoolJson,
+  fixtureSpots,
   fixtureWdEntity,
+  readFixture,
   readRepo,
   realMapping,
   realSeedRows,
 } from './fixtures/load.ts';
-import { LEDGER_PATH } from './select.ts';
+import { LEDGER_PATH, screenFile } from './select.ts';
 
 /** ホームのパスの頭（文字のまま書くと、Q-8 の grep に当たる） */
 const HOME_DIRS = ['', 'Users', ''].join('/');
@@ -339,3 +350,316 @@ Deno.test('AC-3: 上のキーが違う・entries が無いと止める', async (
   // 文字でも読める
   assertEquals(parse(JSON.stringify(m)), parse(m));
 });
+
+// --- AC-6: 候補の絞り方 ---
+
+/** 何度も読むので1回だけ読む */
+const pf = {
+  spots: await fixtureSpots(),
+  gathered: await fixtureGathered(),
+  ctx: await fixturePoolCtx(),
+  photos: await fixturePhotos(),
+};
+
+function gatheredOf(name: string): Gathered320 {
+  const s = pf.spots.find(x => x.name === name)!;
+  return structuredClone(pf.gathered.get(s.idx)!);
+}
+
+function poolEntry(pool: ReturnType<typeof buildPool320>, name: string) {
+  return pool.entries.find(e => e.name === name)!;
+}
+
+/** フィクスチャの #301 の寺社のファイル（screenFile の確かめに使う） */
+function photo301(name: string, file?: string): PhotoFile {
+  const e = pf.photos.entries.find(x => x.name === name)!;
+  return structuredClone(file ? e.files.find(f => f.file === file)! : e.files[0]);
+}
+
+Deno.test(
+  'AC-6: buildPool320 はフィクスチャの集めた値から pool-320.json と同じものを作る',
+  async () => {
+    const pool = buildPool320(pf.spots, pf.gathered, pf.ctx);
+    assertEquals(pool as unknown, JSON.parse(await readFixture('pool-320.json')));
+    assertEquals(
+      pool.entries.map(e => e.idx),
+      [9, 41, 347, 348, 421, 544, 890]
+    );
+  }
+);
+
+Deno.test(
+  'AC-6: screenFile を通らないファイル・第1弾の行の sha1・その寺社の第1弾の候補だったファイルを外す',
+  () => {
+    const g = gatheredOf('中尊寺');
+    const names = g.files.map(f => f.file);
+    // 集めた値には、外すはずのファイルがある
+    for (const f of [
+      'Togoshi hachiman.JPG', // 縦長
+      'Ooyama afurijinjya.jpg', // GFDL
+      'Haiden of Kanahebi-Suijinja shrine 1.JPG', // 台帳の第1弾の行（金蛇水神社）の sha1
+      '230728 Chusonji Hiraizumi Iwate pref Japan01s3.jpg', // 中尊寺の第1弾の候補
+    ]) {
+      assert(names.includes(f), f);
+    }
+    // 幅 1279・personality・SVG・撮影者なしで帰属の要る CC を足す
+    const extra = [
+      { ...photo301('井戸寺'), file: 'Narrow 1279.jpg', width: 1279, sha1: 'a'.repeat(40) },
+      photo301('事任八幡宮'),
+      photo301('亀岡八幡宮'),
+      photo301('愛宕神社'),
+    ];
+    for (const f of extra) assertEquals(screenFile(f), false, f.file);
+    g.files.push(...extra);
+    g.lists.p373.push(...extra.map(f => f.file));
+    const gathered = new Map(pf.gathered);
+    gathered.set(g.idx, g);
+    const pool = buildPool320(pf.spots, gathered, pf.ctx);
+    assertEquals(
+      poolEntry(pool, '中尊寺').files.map(f => f.file),
+      ['Miyajima, daisho-in, 05.jpg', 'Yakushiji Nara06s3s4440.jpg', 'Chuson-ji Noh Stage 03.jpg']
+    );
+  }
+);
+
+Deno.test(
+  'AC-6: P373 と P180 の両方で出たファイルは1つで sources が [p373, p180]、手で結んだ寺社の P18 が先頭',
+  () => {
+    const pool = buildPool320(pf.spots, pf.gathered, pf.ctx);
+    const chuson = poolEntry(pool, '中尊寺').files;
+    assertEquals(chuson.filter(f => f.file === 'Chuson-ji Noh Stage 03.jpg').length, 1);
+    assertEquals(chuson.find(f => f.file === 'Chuson-ji Noh Stage 03.jpg')!.sources, [
+      'p373',
+      'p180',
+    ]);
+    assertEquals(chuson.find(f => f.file === 'Miyajima, daisho-in, 05.jpg')!.sources, ['p180']);
+    const naiku = poolEntry(pool, '伊勢神宮内宮（皇大神宮）');
+    assertEquals(naiku.linkConfidence, 'manual');
+    assertEquals(
+      naiku.files.map(f => [f.file, f.sources]),
+      [
+        ['Masumida Shrine Haiden.jpg', ['p373']],
+        ['Tsurugaoka Hachimangu 001.jpg', ['p18', 'p373']],
+        ['Oarai Isosaki Shrine 04.jpg', ['p180']],
+      ]
+    );
+    // 写すのは決めた値だけ（HTML・クレジットは持たない）
+    assertEquals(Object.keys(naiku.files[0]), [
+      'file',
+      'sources',
+      'width',
+      'height',
+      'mime',
+      'sha1',
+      'url',
+      'descriptionUrl',
+      'license',
+      'licenseUrl',
+      'artist',
+      'attributionRequired',
+      'restrictions',
+    ]);
+    // 同じカテゴリを持つ手で結んだ 2 寺社は、同じファイルを持つ
+    assertEquals(poolEntry(pool, '戸隠神社中社').files, poolEntry(pool, '戸隠神社奥社').files);
+  }
+);
+
+Deno.test(
+  'AC-6: 通るファイルが 31 ある寺社は width × height の大きい順に 30 で、いちばん小さいものが無い',
+  () => {
+    const g = gatheredOf('戸隠神社中社');
+    const base = g.files[0];
+    const many = Array.from({ length: 31 }, (_, i) => ({
+      ...base,
+      file: `Many ${String(i).padStart(2, '0')}.jpg`,
+      sha1: (i + 10).toString(16).padStart(40, 'b'),
+      width: 2000 + i * 10,
+      height: 1500,
+    }));
+    // 同じ大きさの2つは、ファイル名の昇順
+    many[5] = { ...many[5], file: 'Same B.jpg', width: 3000 };
+    many[6] = { ...many[6], file: 'Same A.jpg', width: 3000 };
+    g.files = many;
+    g.lists = { p373: many.map(f => f.file), p180: [] };
+    const gathered = new Map(pf.gathered);
+    gathered.set(g.idx, g);
+    const files = poolEntry(buildPool320(pf.spots, gathered, pf.ctx), '戸隠神社中社').files;
+    assertEquals(files.length, POOL_MAX_FILES);
+    assertEquals(
+      files.some(f => f.file === 'Many 00.jpg'),
+      false
+    );
+    for (let i = 1; i < files.length; i++) {
+      assert(files[i - 1].width * files[i - 1].height >= files[i].width * files[i].height);
+    }
+    const a = files.findIndex(f => f.file === 'Same A.jpg');
+    assertEquals(files[a + 1].file, 'Same B.jpg');
+    // フィクスチャでも同じ大きさの2つ（金持神社）はファイル名の昇順
+    const kamochi = poolEntry(buildPool320(pf.spots, pf.gathered, pf.ctx), '金持神社').files;
+    assertEquals(
+      kamochi.map(f => [f.file, f.width * f.height]),
+      [
+        ['Sakae-no-yashiro.jpeg', 3072 * 2304],
+        ['Shibata jinja.jpeg', 3072 * 2304],
+      ]
+    );
+  }
+);
+
+Deno.test(
+  'AC-6: Q-ID の無い寺社は no-qid、通るファイルが 0 の寺社は no-files。counts は entries から数える',
+  () => {
+    const pool = buildPool320(pf.spots, pf.gathered, pf.ctx);
+    assertEquals(poolEntry(pool, '星置神社'), {
+      idx: 9,
+      name: '星置神社',
+      prefecture: '北海道',
+      qid: null,
+      linkConfidence: null,
+      p373: null,
+      gap: 'no-qid',
+      truncated: [],
+      files: [],
+    });
+    const zojoji = poolEntry(pool, '増上寺');
+    assertEquals([zojoji.gap, zojoji.files, zojoji.truncated], ['no-files', [], ['p373']]);
+    assertEquals(pool.counts, {
+      targets: 7,
+      withFiles: 5,
+      noQid: 1,
+      noFiles: 1,
+      manual: 3,
+      files: 14,
+      truncated: 1,
+    });
+  }
+);
+
+Deno.test(
+  'AC-6: 集めた値が無い・qid / p373 / p18 が今の対応表・手で結ぶ台帳と違うと、寺社の名前と gather を出して止める',
+  () => {
+    const naiku = pf.spots.find(s => s.name === '伊勢神宮内宮（皇大神宮）')!;
+    const none = new Map(pf.gathered);
+    none.delete(naiku.idx);
+    assertThrows(
+      () => buildPool320(pf.spots, none, pf.ctx),
+      Error,
+      '伊勢神宮内宮（皇大神宮）（三重県）'
+    );
+    for (const change of [
+      (g: Gathered320) => (g.qid = 'Q1'),
+      (g: Gathered320) => (g.p373 = 'Ise Grand Shrine'),
+      (g: Gathered320) => (g.p18 = []),
+    ]) {
+      const g = gatheredOf('伊勢神宮内宮（皇大神宮）');
+      change(g);
+      const gathered = new Map(pf.gathered);
+      gathered.set(g.idx, g);
+      const e = assertThrows(() => buildPool320(pf.spots, gathered, pf.ctx), Error);
+      assertStringIncludes(e.message, '伊勢神宮内宮（皇大神宮）（三重県）');
+      assertStringIncludes(e.message, 'gather');
+    }
+  }
+);
+
+// --- AC-7: 候補の検査 ---
+
+type PoolJson = Awaited<ReturnType<typeof fixturePoolJson>>;
+type FileJson = Record<string, unknown>;
+
+const filesOf = (p: PoolJson, i: number) => p.entries[i].files as FileJson[];
+
+Deno.test('AC-7: フィクスチャの候補は parsePool320 を通る', async () => {
+  const pool = parsePool320(await fixturePoolJson(), pf.ctx);
+  assertEquals(pool.entries.length, 7);
+  // 文字でも読める
+  assertEquals(parsePool320(await readFixture('pool-320.json'), pf.ctx), pool);
+  const text = serializeJson(pool);
+  assertEquals(text.match(/\d{4}-\d{2}-\d{2}T/), null);
+  assertEquals(text.includes(HOME_DIRS), false);
+  assertEquals(text.includes('goshuin-work'), false);
+  // 座標を持たない（Q-9）
+  for (const k of ['lat', 'lng', 'p625']) assertEquals(text.includes(`"${k}"`), false, k);
+});
+
+/** 中尊寺（entries[1]）のファイル数を 31 にする（大きい順・名前と sha1 は別々） */
+function thirtyOne(p: PoolJson): void {
+  const base = filesOf(p, 1)[0];
+  p.entries[1].files = Array.from({ length: 31 }, (_, i) => ({
+    ...base,
+    file: `Many ${String(i).padStart(2, '0')}.jpg`,
+    sha1: (i + 10).toString(16).padStart(40, 'c'),
+    width: 9000 - i * 10,
+  }));
+  p.counts.files += 28;
+}
+
+const BAD_POOL: [string, string, (p: PoolJson) => void][] = [
+  [
+    '決めたキーのほか（artistHtml）がある',
+    '中尊寺',
+    p => (filesOf(p, 1)[0].artistHtml = '<a>x</a>'),
+  ],
+  ['screenFile を通らないファイル', '中尊寺', p => (filesOf(p, 1)[0].license = 'GFDL')],
+  ['31 ファイル', '中尊寺', thirtyOne],
+  ['並びが大きい順でない', '中尊寺', p => filesOf(p, 1).reverse()],
+  [
+    '台帳の第1弾の行の sha1',
+    '中尊寺',
+    p => (filesOf(p, 1)[2].sha1 = 'ecabf0cb9c1192910b283e495515489c8343d403'),
+  ],
+  [
+    'その寺社の第1弾の候補だったファイル',
+    '中尊寺',
+    p => (filesOf(p, 1)[2].file = '230728 Chusonji Hiraizumi Iwate pref Japan01s3.jpg'),
+  ],
+  ['qid が対応表と違う（high の寺社）', '中尊寺', p => (p.entries[1].qid = 'Q1')],
+  [
+    'linkConfidence が manual で手で結ぶ台帳に行が無い',
+    '中尊寺',
+    p => (p.entries[1].linkConfidence = 'manual'),
+  ],
+  [
+    '対象でない idx',
+    '金蛇水神社',
+    p =>
+      p.entries.push({
+        ...p.entries[6],
+        idx: 1028,
+        name: '金蛇水神社',
+        prefecture: '宮城県',
+      }),
+  ],
+  ["gap: 'no-files' で files がある", '増上寺', p => (p.entries[6].files = [filesOf(p, 1)[0]])],
+  ['gap が null で files が空', '金持神社', p => (p.entries[5].files = [])],
+  ['idx の順でない', '金持神社', p => p.entries.reverse()],
+  ['p373 が対応表と違う', '中尊寺', p => (p.entries[1].p373 = 'Chuson-ji')],
+];
+
+for (const [why, who, mutate] of BAD_POOL) {
+  Deno.test(`AC-7: ${why} なら、寺社の名前で止める`, async () => {
+    const p = await fixturePoolJson();
+    mutate(p);
+    assertThrows(() => parsePool320(p, pf.ctx), Error, who);
+  });
+}
+
+Deno.test('AC-7: counts が数え直しと違う・上のキーが違うと止める', async () => {
+  const p = await fixturePoolJson();
+  p.counts.files += 1;
+  assertThrows(() => parsePool320(p, pf.ctx), Error, 'counts');
+  const q = await fixturePoolJson();
+  assertThrows(() => parsePool320({ ...q, extra: 1 }, pf.ctx));
+  assertThrows(() => parsePool320({ ...q, issue: 302 }, pf.ctx));
+});
+
+Deno.test(
+  'AC-7: checkPoolTargets は、対象が1寺社足りない候補を、足りない寺社の名前で止める',
+  async () => {
+    const pool = parsePool320(await fixturePoolJson(), pf.ctx);
+    const targets = pf.ctx.targets.filter(t => pool.entries.some(e => e.idx === t.idx));
+    checkPoolTargets(pool, targets);
+    const less = { ...pool, entries: pool.entries.filter(e => e.name !== '金持神社') };
+    assertThrows(() => checkPoolTargets(less, targets), Error, '金持神社（鳥取県）');
+  }
+);

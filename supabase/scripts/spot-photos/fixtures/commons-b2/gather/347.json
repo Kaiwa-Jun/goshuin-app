@@ -1,0 +1,77 @@
+{
+  "idx": 347,
+  "name": "戸隠神社中社",
+  "prefecture": "長野県",
+  "qid": "Q135464157",
+  "p373": "Togakushi Shrine",
+  "p18": [],
+  "lists": {
+    "p373": [
+      "Torinoko Sanjo Shrine 11.jpg",
+      "Torinoko Sanjo Shrine 05.jpg",
+      "Musashino Hachiman-gū (Musashino) 01.jpg"
+    ],
+    "p180": []
+  },
+  "truncated": [],
+  "files": [
+    {
+      "file": "Torinoko Sanjo Shrine 11.jpg",
+      "width": 3770,
+      "height": 2514,
+      "mime": "image/jpeg",
+      "sha1": "4f9335f1648c391920c1acf56db839ad26cacf75",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/e/ef/Torinoko_Sanjo_Shrine_11.jpg",
+      "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Torinoko_Sanjo_Shrine_11.jpg",
+      "license": "CC BY 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
+      "artist": "Σ64",
+      "artistHtml": "<a href=\"https://ja.wikipedia.org/wiki/user:%CE%A364\" class=\"extiw\" title=\"ja:user:Σ64\">Σ64</a>",
+      "credit": "Own work",
+      "creditHtml": "<span class=\"int-own-work\" lang=\"en\">Own work</span>",
+      "attributionRequired": true,
+      "copyrighted": true,
+      "restrictions": "",
+      "usageTerms": "Creative Commons Attribution 3.0"
+    },
+    {
+      "file": "Torinoko Sanjo Shrine 05.jpg",
+      "width": 3678,
+      "height": 2452,
+      "mime": "image/jpeg",
+      "sha1": "3226175085c72e755bcea4e603fb1cdef1ed245a",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/1/1e/Torinoko_Sanjo_Shrine_05.jpg",
+      "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Torinoko_Sanjo_Shrine_05.jpg",
+      "license": "CC BY 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
+      "artist": "Σ64",
+      "artistHtml": "<a href=\"https://ja.wikipedia.org/wiki/user:%CE%A364\" class=\"extiw\" title=\"ja:user:Σ64\">Σ64</a>",
+      "credit": "Own work",
+      "creditHtml": "<span class=\"int-own-work\" lang=\"en\">Own work</span>",
+      "attributionRequired": true,
+      "copyrighted": true,
+      "restrictions": "",
+      "usageTerms": "Creative Commons Attribution 3.0"
+    },
+    {
+      "file": "Musashino Hachiman-gū (Musashino) 01.jpg",
+      "width": 4032,
+      "height": 3024,
+      "mime": "image/jpeg",
+      "sha1": "72fdcb7f9381d20cbd2933223dbd4cdf21a74af7",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/b/b7/Musashino_Hachiman-g%C5%AB_%28Musashino%29_01.jpg",
+      "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Musashino_Hachiman-g%C5%AB_(Musashino)_01.jpg",
+      "license": "CC0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+      "artist": "Higa4",
+      "artistHtml": "<a href=\"//commons.wikimedia.org/wiki/User:Higa4\" title=\"User:Higa4\">Higa4</a>",
+      "credit": "Own work",
+      "creditHtml": "<span class=\"int-own-work\" lang=\"en\">Own work</span>",
+      "attributionRequired": false,
+      "copyrighted": true,
+      "restrictions": "",
+      "usageTerms": "Creative Commons Zero, Public Domain Dedication"
+    }
+  ],
+  "missing": []
+}

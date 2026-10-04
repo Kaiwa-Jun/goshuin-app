@@ -1,0 +1,35 @@
+{
+  "idx": 890,
+  "name": "増上寺",
+  "prefecture": "東京都",
+  "qid": "Q249139",
+  "p373": "Zōjō-ji",
+  "p18": [],
+  "lists": {
+    "p373": ["Zojoji frontal steps.jpg"],
+    "p180": []
+  },
+  "truncated": ["p373"],
+  "files": [
+    {
+      "file": "Zojoji frontal steps.jpg",
+      "width": 1200,
+      "height": 820,
+      "mime": "image/jpeg",
+      "sha1": "d9b6716516177e228e312bc3c57d2082f93dff5f",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/0/0e/Zojoji_frontal_steps.jpg",
+      "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Zojoji_frontal_steps.jpg",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+      "artist": "SElefant",
+      "artistHtml": "<a href=\"//commons.wikimedia.org/wiki/User:SElefant\" title=\"User:SElefant\">SElefant</a>",
+      "credit": "Own work",
+      "creditHtml": "<span class=\"int-own-work\" lang=\"en\">Own work</span>",
+      "attributionRequired": true,
+      "copyrighted": true,
+      "restrictions": "",
+      "usageTerms": "Creative Commons Attribution-Share Alike 3.0"
+    }
+  ],
+  "missing": []
+}
