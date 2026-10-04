@@ -27,10 +27,12 @@ import {
   buildCheckSql,
   buildMigrationSql,
   CHECK_SQL_PATH,
+  CHECK_SQL_PATH_BATCH2,
   COMMONS_INTERVAL_MS,
   commonsThumbUrl,
   LEDGER_PATH,
   MIGRATION_PATH,
+  MIGRATION_PATH_BATCH2,
   parseChoice,
   parseLedger302,
   PHOTO_MIN_WIDTH,
@@ -525,3 +527,68 @@ Deno.test('AC-13: 第2弾の行があるのに候補を渡さないと、寺社�
   // 第2弾の行の無い台帳は、今と同じ引数（候補なし）で通る
   parseLedger302(await fixtureLedgerJson(), fixtures.photos!, fixtures.rows!);
 });
+
+// --- #320 S4: 弾ごとの SQL ---
+
+Deno.test('定数（#320）: 第2弾の migration と確かめる SQL のパス', () => {
+  assertEquals(
+    MIGRATION_PATH_BATCH2,
+    'supabase/migrations/20261004020000_spot_photos_302_batch2.sql'
+  );
+  assertEquals(CHECK_SQL_PATH_BATCH2, 'supabase/validation/spot_photos_302_batch2_check.sql');
+});
+
+Deno.test(
+  '本番の SQL（第2弾）: 撮影者に $ があっても、$photos$[ と ]$photos$ の間に $ を残さない',
+  async () => {
+    const pool = await fixturePool();
+    const ledger = parseLedger302(
+      await fixtureLedgerB2Json(),
+      fixtures.photos!,
+      fixtures.rows!,
+      pool
+    );
+    const evil = {
+      ...ledger,
+      entries: ledger.entries.map((e, i) =>
+        e.batch === 2 ? { ...e, author: EVIL_AUTHORS[i - 3] } : e
+      ),
+    };
+    const b2 = evil.entries.filter(e => e.batch === 2);
+    for (const sql of [buildMigrationSql(b2, 2), buildCheckSql(evil, 1109, 2)]) {
+      const start = sql.indexOf('$photos$[');
+      const end = sql.indexOf(']$photos$');
+      assert(start > 0 && end > start);
+      const body = sql.slice(start + '$photos$['.length, end);
+      assertEquals(body.includes('$'), false, body);
+      const rows = JSON.parse(`[${body}]`) as { author: string }[];
+      assertEquals(
+        rows.map(r => r.author),
+        EVIL_AUTHORS.slice(0, 2)
+      );
+      const tag = sql.includes('$spot_photos_302_batch2_check$')
+        ? '$spot_photos_302_batch2_check$'
+        : '$spot_photos_302_batch2$';
+      assertEquals(sql.split(tag).length - 1, 2, tag);
+    }
+  }
+);
+
+Deno.test(
+  '本番の SQL（第2弾）: 第1弾の行を第2弾の migration に入れようとすると、寺社の名前で止める',
+  async () => {
+    const pool = await fixturePool();
+    const ledger = parseLedger302(
+      await fixtureLedgerB2Json(),
+      fixtures.photos!,
+      fixtures.rows!,
+      pool
+    );
+    assertThrows(() => buildMigrationSql(ledger.entries, 2), Error, '北海道神宮頓宮');
+    assertThrows(
+      () => buildMigrationSql(ledger.entries.filter(e => e.batch === 2)),
+      Error,
+      '中尊寺'
+    );
+  }
+);

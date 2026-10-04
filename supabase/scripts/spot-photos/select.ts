@@ -19,6 +19,10 @@ export const COMMONS_INTERVAL_MS = 1000;
 export const LEDGER_PATH = 'supabase/data/spot-photos-302.json';
 export const MIGRATION_PATH = 'supabase/migrations/20261004010000_spot_photos_302_batch1.sql';
 export const CHECK_SQL_PATH = 'supabase/validation/spot_photos_302_check.sql';
+/** 第2弾（#320 D-9）の migration と確かめる SQL（第2弾の行だけから作る） */
+export const MIGRATION_PATH_BATCH2 =
+  'supabase/migrations/20261004020000_spot_photos_302_batch2.sql';
+export const CHECK_SQL_PATH_BATCH2 = 'supabase/validation/spot_photos_302_batch2_check.sql';
 
 export const LEDGER_NOTE =
   '帯に出す寺社の写真（承認したものだけ）。supabase/scripts/spot-photos/main.ts export で作る。本番の SQL はここから generate で作る。手で直さない';
@@ -663,6 +667,15 @@ function entriesFrom301(choices: Choice[], photos: Photos): LedgerEntry302[] {
 // --- D-19: 本番の SQL（台帳から作る生成物） ---
 
 const SQL_TAG = 'spot_photos_302 batch1';
+const SQL_TAG_BATCH2 = 'spot_photos_302 batch2';
+
+/** 弾の行だけか（ほかの弾の行が混じれば寺社の名前で止める） */
+function onlyBatch(entries: LedgerEntry302[], batch: 1 | 2, what: string): void {
+  const other = entries.find(e => e.batch !== batch);
+  if (other) {
+    throw new Error(`${label(other)}: batch ${other.batch} の行は第${batch}弾の${what}に入れない`);
+  }
+}
 
 /** jsonb の1行（表の列の名前で） */
 function photoRow(e: LedgerEntry302): string {
@@ -700,17 +713,26 @@ const SAME_SPOT =
   's.name = f.name AND s.prefecture = f.prefecture AND s.created_by_user_id IS NULL';
 
 /**
- * 台帳の全部の行を spot_photos に入れる migration（DO ブロック1つ）。1件ずつ「名前・都道府県・作成者なし」で
- * ちょうど1行の寺社に絞り（0 行・2 行以上なら例外で全体を止める）、spot_id で upsert する
+ * 台帳の弾（batch。既定 1）の行を spot_photos に入れる migration（DO ブロック1つ）。1件ずつ「名前・都道府県・作成者なし」で
+ * ちょうど1行の寺社に絞り（0 行・2 行以上なら例外で全体を止める）、spot_id で upsert する。
+ * 第2弾（#320）は見出しと例外の頭だけが違う（第1弾の出力は変えない）
  */
-export function buildMigrationSql(entries: LedgerEntry302[]): string {
+export function buildMigrationSql(entries: LedgerEntry302[], batch: 1 | 2 = 1): string {
   if (entries.length === 0) throw new Error('台帳に行が無い');
-  return `-- Issue #302 第1弾: 地図のピンのシートの帯に出す寺社の写真 ${entries.length} 件を spot_photos に入れる。
--- 生成物。手で直さない。台帳 supabase/data/spot-photos-302.json から次で作る:
+  onlyBatch(entries, batch, ' migration ');
+  const tag = batch === 1 ? SQL_TAG : SQL_TAG_BATCH2;
+  const block = batch === 1 ? 'spot_photos_302' : 'spot_photos_302_batch2';
+  const head =
+    batch === 1
+      ? `-- Issue #302 第1弾: 地図のピンのシートの帯に出す寺社の写真 ${entries.length} 件を spot_photos に入れる。
+-- 生成物。手で直さない。台帳 supabase/data/spot-photos-302.json から次で作る:`
+      : `-- Issue #320（#302 第2弾）: 地図のピンのシートの帯に出す寺社の写真 ${entries.length} 件を spot_photos に入れる（第1弾の行は変えない）。
+-- 生成物。手で直さない。台帳 supabase/data/spot-photos-302.json の batch: 2 の行から次で作る:`;
+  return `${head}
 --   deno run -A --node-modules-dir=none supabase/scripts/spot-photos/main.ts generate
 -- 1件ずつ「名前・都道府県・作成者なし」でちょうど1行の寺社に絞り（0 行・2 行以上なら例外で全体を止める）、
 -- spot_id で upsert する（何度流しても同じ中身）。マスタの寺社が1件も無い DB（seed を入れる前）では何もしない。
-DO $spot_photos_302$
+DO $${block}$
 DECLARE
   photos CONSTANT jsonb := $photos$[
 ${photoRows(entries)}
@@ -720,7 +742,7 @@ ${photoRows(entries)}
   sid uuid;
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.spots WHERE created_by_user_id IS NULL) THEN
-    RAISE NOTICE '${SQL_TAG}: マスタの寺社が無いので何もしない';
+    RAISE NOTICE '${tag}: マスタの寺社が無いので何もしない';
     RETURN;
   END IF;
 
@@ -730,7 +752,7 @@ BEGIN
       FROM public.spots s
      WHERE ${SAME_SPOT};
     IF n <> 1 THEN
-      RAISE EXCEPTION '${SQL_TAG}: %（%）: 名前と都道府県で % 行（1 行のはず）', f.name, f.prefecture, n;
+      RAISE EXCEPTION '${tag}: %（%）: 名前と都道府県で % 行（1 行のはず）', f.name, f.prefecture, n;
     END IF;
     INSERT INTO public.spot_photos
       (spot_id, r2_key, width, height, focus_y, author, license, license_url, source_url, is_cropped, status)
@@ -749,11 +771,11 @@ BEGIN
       status = EXCLUDED.status;
     GET DIAGNOSTICS n = ROW_COUNT;
     IF n <> 1 THEN
-      RAISE EXCEPTION '${SQL_TAG}: %（%）: 入ったのが % 行（1 行のはず）', f.name, f.prefecture, n;
+      RAISE EXCEPTION '${tag}: %（%）: 入ったのが % 行（1 行のはず）', f.name, f.prefecture, n;
     END IF;
   END LOOP;
 END
-$spot_photos_302$;
+$${block}$;
 `;
 }
 
@@ -775,9 +797,13 @@ export function checkResultLine(v: Record<(typeof CHECK_KEYS)[number], string | 
   return `RESULT ${CHECK_KEYS.map(k => `${k}=${v[k]}`).join(' ')}`;
 }
 
-/** 本番の spot_photos が台帳と合うかを読むだけの SQL。最後に RAISE EXCEPTION 'RESULT …' で全部戻す */
-export function buildCheckSql(ledger: Ledger302, seedRowCount: number): string {
-  const entries = ledger.entries;
+/**
+ * 本番の spot_photos が台帳と合うかを読むだけの SQL。最後に RAISE EXCEPTION 'RESULT …' で全部戻す。
+ * 弾（batch。既定 1）の行だけを埋める。第2弾（#320）は extra の代わりに others を出す
+ */
+export function buildCheckSql(ledger: Ledger302, seedRowCount: number, batch: 1 | 2 = 1): string {
+  if (batch === 2) return buildCheckSqlBatch2(ledger, seedRowCount);
+  const entries = ledger.entries.filter(e => e.batch === 1);
   const listed = entries.filter(e => e.status === 'approved').length;
   const n = entries.length;
   const base = {
@@ -797,9 +823,6 @@ export function buildCheckSql(ledger: Ledger302, seedRowCount: number): string {
     missing: 0,
     anon_select: listed,
   });
-  const format = CHECK_KEYS.filter(k => k !== 'table')
-    .map(k => `${k}=%`)
-    .join(' ');
   return `-- ============================================================
 -- 帯の写真: 本番の spot_photos が台帳と合うか（Issue #302 / H-7・H-10・H-13）
 --
@@ -827,7 +850,19 @@ export function buildCheckSql(ledger: Ledger302, seedRowCount: number): string {
 -- supabase/scripts/spot-photos/main.ts generate で作る
 -- ============================================================
 
-DO $spot_photos_302_check$
+${checkBlock(entries, { block: 'spot_photos_302_check', count: 'extra', keys: CHECK_KEYS })}`;
+}
+
+/** 確かめる SQL の DO ブロック（第1弾と第2弾で同じ作り。数える変数の名前と RESULT のキーだけが違う） */
+function checkBlock(
+  entries: LedgerEntry302[],
+  o: { block: string; count: 'extra' | 'others'; keys: readonly string[] }
+): string {
+  const format = o.keys
+    .filter(k => k !== 'table')
+    .map(k => `${k}=%`)
+    .join(' ');
+  return `DO $${o.block}$
 DECLARE
   photos CONSTANT jsonb := $photos$[
 ${photoRows(entries)}
@@ -844,7 +879,7 @@ ${photoRows(entries)}
   present int := 0;
   differ int := 0;
   missing int := 0;
-  extra int;
+  ${o.count} int;
   anon_select int;
   anon_insert text := 'allowed';
 BEGIN
@@ -891,7 +926,7 @@ BEGIN
     END IF;
   END LOOP;
 
-  SELECT count(*) INTO extra FROM public.spot_photos p WHERE NOT (p.spot_id = ANY (matched));
+  SELECT count(*) INTO ${o.count} FROM public.spot_photos p WHERE NOT (p.spot_id = ANY (matched));
   SELECT s.id INTO any_spot FROM public.spots s ORDER BY s.id LIMIT 1;
 
   -- ここから anon のロール（このトランザクションの間だけ）
@@ -907,8 +942,93 @@ BEGIN
   RESET ROLE;
 
   RAISE EXCEPTION 'RESULT table=present ${format}',
-    rls, total, listed, not_one, present, differ, missing, extra, anon_select, anon_insert;
+    rls, total, listed, not_one, present, differ, missing, ${o.count}, anon_select, anon_insert;
 END
-$spot_photos_302_check$;
+$${o.block}$;
 `;
+}
+
+/** 第2弾の確かめる SQL の RESULT のキー（第1弾の extra の代わりに others） */
+export const CHECK_KEYS_BATCH2 = [
+  'table',
+  'rls',
+  'total',
+  'listed',
+  'not_one',
+  'present',
+  'differ',
+  'missing',
+  'others',
+  'anon_select',
+  'anon_insert',
+] as const;
+
+export function checkResultLine2(
+  v: Record<(typeof CHECK_KEYS_BATCH2)[number], string | number>
+): string {
+  return `RESULT ${CHECK_KEYS_BATCH2.map(k => `${k}=${v[k]}`).join(' ')}`;
+}
+
+/**
+ * 第2弾（#320 D-9）の確かめる SQL。台帳の第2弾の行だけを埋め、others（第2弾のどの寺社でもない行の数。
+ * 期待値は台帳の第1弾の行の数）を出す。期待値の数を出すので台帳の全部を受け取る
+ */
+function buildCheckSqlBatch2(ledger: Ledger302, seedRowCount: number): string {
+  const entries = ledger.entries.filter(e => e.batch === 2);
+  if (entries.length === 0) throw new Error('台帳に第2弾の行が無い');
+  const batch1 = ledger.entries.filter(e => e.batch === 1);
+  const seen1 = batch1.filter(e => e.status === 'approved').length;
+  const listed = entries.filter(e => e.status === 'approved').length;
+  const n = entries.length;
+  const base = {
+    table: 'present',
+    rls: 'on',
+    total: seedRowCount,
+    listed,
+    not_one: 0,
+    others: batch1.length,
+    anon_insert: 'denied',
+  };
+  const before = checkResultLine2({
+    ...base,
+    present: 0,
+    differ: 0,
+    missing: n,
+    anon_select: seen1,
+  });
+  const after = checkResultLine2({
+    ...base,
+    present: n,
+    differ: 0,
+    missing: 0,
+    anon_select: seen1 + listed,
+  });
+  return `-- ============================================================
+-- 帯の写真の第2弾: 本番の spot_photos が台帳の第2弾の行と合うか（Issue #320 / H-7・H-11）
+--
+-- 実行: supabase db query --linked -f ${CHECK_SQL_PATH_BATCH2}
+--
+-- ⚠ 必ずエラーで終わる。それで正しい。最後に RAISE EXCEPTION して、何も残さない（読むだけ）。
+--   期待値:
+--   H-7（第2弾を入れる前）: ${before}
+--   H-11（第2弾を入れたあと）: ${after}
+--   第1弾の行がこの migration で変わらないことは、第1弾の確かめる SQL（${CHECK_SQL_PATH}）も流して見る（H-8・H-12）
+--
+-- table       = 表 public.spot_photos があるか（absent ならほかは出さない）
+-- rls         = 表の RLS が有効なら on
+-- total       = 作成者なし（created_by_user_id IS NULL）の spots の数（期待値は seed の寺社の行の数）
+-- listed      = 台帳の第2弾の status: approved の件数
+-- not_one     = 台帳の第2弾の行のうち、名前・都道府県・作成者なしで 0 行か 2 行以上だった件数
+-- present     = 1 行に絞れて、その寺社の写真の行があり、全部の列が台帳と同じ件数
+-- differ      = 1 行に絞れて、行はあるが列が台帳と違う件数
+-- missing     = 1 行に絞れて、行が無い件数
+-- others      = spot_photos の行のうち、第2弾のどの寺社（1 行に絞れたもの）でもない件数（期待値は台帳の第1弾の行の数）
+-- anon_select = anon のロールで数えた行の数（承認済みだけが見える）
+-- anon_insert = anon のロールで1行入れようとして断られたら denied（下のサブブロックで試し、最後の例外で戻す）
+--
+-- 生成物。手で直さない。台帳 supabase/data/spot-photos-302.json の batch: 2 の行から
+-- supabase/scripts/spot-photos/main.ts generate で作る
+-- ============================================================
+
+${checkBlock(entries, { block: 'spot_photos_302_batch2_check', count: 'others', keys: CHECK_KEYS_BATCH2 })}`;
 }

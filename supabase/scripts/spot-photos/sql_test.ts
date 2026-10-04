@@ -14,6 +14,7 @@ import { SEED_FILES } from '../spot-coords/coords.ts';
 import { EVIL_AUTHORS, fixtureLedgerJson, fixturePhotos, realSeedRows } from './fixtures/load.ts';
 import { parsePhotos } from '../spot-wikidata/match.ts';
 import { realMapping } from './fixtures/load.ts';
+import { fixtureLedgerB2Json, fixturePool } from './fixtures/load.ts';
 import {
   buildCheckSql,
   buildMigrationSql,
@@ -809,6 +810,232 @@ Deno.test(
       assertEquals(await raised(db, check), after);
       assertEquals(await attached(db), once);
       assertEquals(await masterCount(db), 1109);
+    });
+  }
+);
+
+// --- #320 AC-17・AC-18: 第2弾の migration と確かめる SQL（本物の seed 10 本） ---
+
+/** 第1弾 3 行・第2弾 2 行のフィクスチャの台帳 */
+async function fixtureLedgerB2(): Promise<Ledger302> {
+  return parseLedger302(
+    await fixtureLedgerB2Json(),
+    await fixturePhotos(),
+    await realSeedRows(),
+    await fixturePool()
+  );
+}
+
+async function sqlB2() {
+  const ledger = await fixtureLedgerB2();
+  const b1 = ledger.entries.filter(e => e.batch === 1);
+  const b2 = ledger.entries.filter(e => e.batch === 2);
+  return {
+    ledger,
+    b1,
+    b2,
+    migration1: buildMigrationSql(b1),
+    migration2: buildMigrationSql(b2, 2),
+    check1: buildCheckSql({ ...ledger, entries: b1 }, 1109),
+    check2: buildCheckSql(ledger, 1109, 2),
+  };
+}
+
+const resultLine2 = (v: Record<string, string | number>) =>
+  'RESULT ' +
+  [
+    'table',
+    'rls',
+    'total',
+    'listed',
+    'not_one',
+    'present',
+    'differ',
+    'missing',
+    'others',
+    'anon_select',
+    'anon_insert',
+  ]
+    .map(k => `${k}=${v[k]}`)
+    .join(' ');
+
+Deno.test(
+  'AC-17: 表 → 第1弾 → 第2弾の migration で 5 行。第2弾の2行は名前・都道府県・作成者なしの寺社に結び、第1弾の3行は変わらない',
+  async () => {
+    const t = await sqlB2();
+    await withDb(async db => {
+      await seedAll(db);
+      assertEquals(await raised(db, t.migration1), null);
+      const batch1 = await attached(db);
+      assertEquals(batch1.length, 3);
+      assertEquals(await raised(db, t.migration2), null);
+      const rows = await attached(db);
+      assertEquals(rows.length, 5);
+      // 第1弾の3行は、第2弾を流す前と全部の列が同じ
+      for (const r of batch1) assert(rows.some(x => JSON.stringify(x) === JSON.stringify(r)));
+      for (const e of t.b2) {
+        const r = rows.find(x => x.name === e.name && x.prefecture === e.prefecture)!;
+        const ids = await db.query<{ id: string }>(
+          `SELECT id::text AS id FROM public.spots WHERE name = $1 AND prefecture = $2 AND created_by_user_id IS NULL`,
+          [e.name, e.prefecture]
+        );
+        assertEquals(ids.rows.length, 1);
+        assertEquals(r.spot_id, ids.rows[0].id);
+        assertEquals([r.r2_key, r.author, r.source_url], [e.r2Key, e.author, e.sourceUrl]);
+        assert(Math.abs((r.focus_y as number) - e.focusY) < 1e-6, e.name);
+      }
+      // 2回流しても同じ
+      assertEquals(await raised(db, t.migration2), null);
+      assertEquals(await attached(db), rows);
+    });
+  }
+);
+
+Deno.test(
+  'AC-17: 第2弾の migration は、マスタの寺社が無い DB では何も入れず、エラーにならない',
+  async () => {
+    const t = await sqlB2();
+    await withDb(async db => {
+      assertEquals(await raised(db, t.migration2), null);
+      assertEquals(await photoCount(db), 0);
+    });
+  }
+);
+
+Deno.test(
+  'AC-17: 第2弾に seed に無い名前があると、例外の文が spot_photos_302 batch2: で始まり、第2弾の行は1行も入らない',
+  async () => {
+    const t = await sqlB2();
+    const bad = buildMigrationSql([t.b2[0], { ...t.b2[1], name: '存在しない宮' }], 2);
+    await withDb(async db => {
+      await seedAll(db);
+      await db.exec(t.migration1);
+      const msg = await raised(db, bad);
+      assert(msg !== null);
+      assert(msg.startsWith('spot_photos_302 batch2: 存在しない宮（三重県）'), msg);
+      assertEquals(await photoCount(db), 3);
+    });
+  }
+);
+
+Deno.test(
+  'AC-18: 第2弾の確かめる SQL は absent・第1弾だけ・第2弾のあと・違い・ほかの行を数える',
+  async () => {
+    const t = await sqlB2();
+    await withDb(
+      async db => {
+        await seedAll(db);
+        assertEquals(await raised(db, t.check2), 'RESULT table=absent');
+      },
+      { ddl: false }
+    );
+    await withDb(async db => {
+      await seedAll(db);
+      await db.exec(t.migration1);
+      const base = {
+        table: 'present',
+        rls: 'on',
+        total: 1109,
+        listed: 2,
+        not_one: 0,
+        others: 3,
+        anon_insert: 'denied',
+      };
+      assertEquals(
+        await raised(db, t.check2),
+        resultLine2({ ...base, present: 0, differ: 0, missing: 2, anon_select: 3 })
+      );
+      assertEquals(await photoCount(db), 3);
+
+      await db.exec(t.migration2);
+      assertEquals(
+        await raised(db, t.check2),
+        resultLine2({ ...base, present: 2, differ: 0, missing: 0, anon_select: 5 })
+      );
+
+      await db.exec(
+        `UPDATE public.spot_photos SET focus_y = 0.11 WHERE r2_key = '${t.b2[1].r2Key}'`
+      );
+      assertEquals(
+        await raised(db, t.check2),
+        resultLine2({ ...base, present: 1, differ: 1, missing: 0, anon_select: 5 })
+      );
+
+      const other = await db.query<{ id: string }>(
+        `SELECT id::text AS id FROM public.spots WHERE name = '戸越八幡神社' AND prefecture = '東京都'`
+      );
+      await insertPhoto(
+        db,
+        photoValues(other.rows[0].id, {
+          r2_key: `spot-photos/${sha('9')}.jpg`,
+          status: 'withdrawn',
+        })
+      );
+      const before = await photoRows(db);
+      assertEquals(
+        await raised(db, t.check2),
+        resultLine2({ ...base, present: 1, differ: 1, missing: 0, others: 4, anon_select: 5 })
+      );
+      assertEquals(await photoRows(db), before);
+      // そのとき第1弾の確かめる SQL は present=3 extra=3（第2弾の2行と足した1行）
+      assertStringIncludes(
+        (await raised(db, t.check1)) ?? '',
+        'listed=3 not_one=0 present=3 differ=0 missing=0 extra=3 anon_select=5'
+      );
+    });
+  }
+);
+
+Deno.test(
+  'AC-18: 第2弾の確かめる SQL の INSERT は anon で試す1つだけで、BEGIN … EXCEPTION の中にある。先頭に期待値の2行',
+  async () => {
+    const t = await sqlB2();
+    const check = t.check2;
+    const words = check.match(/\b(insert|update|delete|truncate|drop|alter)\b/gi) ?? [];
+    assertEquals(
+      words.map(w => w.toUpperCase()),
+      ['INSERT']
+    );
+    const at = check.search(/\bINSERT\b/);
+    const begin = check.lastIndexOf('BEGIN', at);
+    const exception = check.indexOf('EXCEPTION', at);
+    const roleAt = check.lastIndexOf('SET LOCAL ROLE anon', at);
+    assert(begin > roleAt && roleAt > 0, 'anon にしてからサブブロックに入る');
+    assert(exception > at);
+    assertStringIncludes(
+      check,
+      'supabase db query --linked -f supabase/validation/spot_photos_302_batch2_check.sql'
+    );
+    for (const h of ['H-7', 'H-11']) assertStringIncludes(check, h);
+    assertStringIncludes(
+      check,
+      'RESULT table=present rls=on total=1109 listed=2 not_one=0 present=0 differ=0 missing=2 others=3 anon_select=3 anon_insert=denied'
+    );
+    assertStringIncludes(
+      check,
+      'RESULT table=present rls=on total=1109 listed=2 not_one=0 present=2 differ=0 missing=0 others=3 anon_select=5 anon_insert=denied'
+    );
+  }
+);
+
+Deno.test(
+  '第2弾: 撮影者にドル引用を閉じる文字があっても、spots は消えず、撮影者はそのまま入る',
+  async () => {
+    const t = await sqlB2();
+    const evil = t.b2.map((e, i) => ({ ...e, author: EVIL_AUTHORS[i] }));
+    await withDb(async db => {
+      await seedAll(db);
+      await db.exec(t.migration1);
+      assertEquals(await raised(db, buildMigrationSql(evil, 2)), null);
+      assertEquals(await masterCount(db), 1109);
+      const authors = await db.query<{ author: string }>(
+        `SELECT author FROM public.spot_photos WHERE author = ANY($1) ORDER BY author`,
+        [EVIL_AUTHORS]
+      );
+      assertEquals(
+        authors.rows.map(r => r.author),
+        EVIL_AUTHORS.slice(0, 2).sort()
+      );
     });
   }
 );

@@ -23,6 +23,12 @@ import {
 } from './fixtures/load.ts';
 import { type CliIo, denoIo, runCli } from './main.ts';
 import { CHECK_SQL_PATH, LEDGER_PATH, MIGRATION_PATH, parseLedger302 } from './select.ts';
+import {
+  buildCheckSql,
+  buildMigrationSql,
+  CHECK_SQL_PATH_BATCH2,
+  MIGRATION_PATH_BATCH2,
+} from './select.ts';
 
 export function captureIo(over: Partial<CliIo> = {}) {
   let out = '';
@@ -830,6 +836,93 @@ Deno.test(
     } finally {
       await Deno.remove(root, { recursive: true });
       await Deno.remove(work, { recursive: true });
+    }
+  }
+);
+
+// --- #320 AC-15: generate（弾ごと） ---
+
+Deno.test(
+  'AC-15: 第2弾の行のある台帳で generate は4ファイルを書き、第1弾の2ファイルは第2弾の行を除いて作ったものと同じ',
+  async () => {
+    const root = await makeRoot({
+      ledgerText: await readFixture('ledger-302-b2.json'),
+      manual: true,
+      pool: true,
+    });
+    try {
+      const first = await run(['generate', '--root', root]);
+      assertEquals(first.code, 0, first.err);
+      for (const p of [
+        MIGRATION_PATH,
+        CHECK_SQL_PATH,
+        MIGRATION_PATH_BATCH2,
+        CHECK_SQL_PATH_BATCH2,
+      ]) {
+        assertStringIncludes(first.out, p);
+      }
+      const read = (p: string) => Deno.readTextFile(`${root}/${p}`);
+      const ledger = parseLedger302(
+        await read(LEDGER_PATH),
+        await fixturePhotos(),
+        await realSeedRows(),
+        await fixturePool()
+      );
+      const b1 = ledger.entries.filter(e => e.batch === 1);
+      assertEquals(await read(MIGRATION_PATH), buildMigrationSql(b1));
+      assertEquals(await read(CHECK_SQL_PATH), buildCheckSql({ ...ledger, entries: b1 }, 1109));
+      // 第1弾だけの台帳から作ったものとも同じ
+      const only1 = await makeRoot({ ledger: true });
+      try {
+        assertEquals((await run(['generate', '--root', only1])).code, 0);
+        const s1 = await snapshot(only1);
+        assertEquals(await read(MIGRATION_PATH), s1[MIGRATION_PATH]);
+        assertEquals(await read(CHECK_SQL_PATH), s1[CHECK_SQL_PATH]);
+        // 第1弾の行だけの台帳では第2弾の2ファイルを作らない
+        assertEquals(MIGRATION_PATH_BATCH2 in s1, false);
+        assertEquals(CHECK_SQL_PATH_BATCH2 in s1, false);
+      } finally {
+        await Deno.remove(only1, { recursive: true });
+      }
+      const m2 = await read(MIGRATION_PATH_BATCH2);
+      const c2 = await read(CHECK_SQL_PATH_BATCH2);
+      assertStringIncludes(m2, '-- Issue #320（#302 第2弾）');
+      assertStringIncludes(m2, '伊勢神宮内宮（皇大神宮）');
+      assertEquals(m2.includes('北海道神宮頓宮'), false);
+      assertStringIncludes(c2, 'total=1109 listed=2');
+      for (const text of [m2, c2, await read(MIGRATION_PATH), await read(CHECK_SQL_PATH)]) {
+        assertEquals(text.match(/\d{4}-\d{2}-\d{2}T/), null);
+        assertEquals(text.includes(HOME_DIRS), false);
+        assertEquals(text.includes('goshuin-work'), false);
+        assertEquals(text.includes(root), false);
+      }
+
+      const second = await run(['generate', '--root', root]);
+      assertEquals(second.code, 0, second.err);
+      assertStringIncludes(second.out, '変わるものは無い（4 ファイル）');
+      assertEquals((await run(['generate', '--check', '--root', root])).code, 0);
+
+      // 第2弾の行の値を1つ変えると --check は 1 で、第2弾の migration の名前を出して書かない
+      const before = await snapshot(root);
+      const ledgerPath = `${root}/${LEDGER_PATH}`;
+      const raw = JSON.parse(await Deno.readTextFile(ledgerPath));
+      raw.entries[4].focusY = 0.31;
+      await Deno.writeTextFile(ledgerPath, serializeJson(raw));
+      const bad = await run(['generate', '--check', '--root', root]);
+      assertEquals(bad.code, 1);
+      assertStringIncludes(bad.err, '20261004020000_spot_photos_302_batch2.sql');
+      assertEquals(bad.err.includes(MIGRATION_PATH), false);
+      const after = await snapshot(root);
+      for (const p of [
+        MIGRATION_PATH,
+        CHECK_SQL_PATH,
+        MIGRATION_PATH_BATCH2,
+        CHECK_SQL_PATH_BATCH2,
+      ]) {
+        assertEquals(after[p], before[p], p);
+      }
+    } finally {
+      await Deno.remove(root, { recursive: true });
     }
   }
 );

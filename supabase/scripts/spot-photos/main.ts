@@ -18,11 +18,13 @@
 //   deno run -A --node-modules-dir=none supabase/scripts/spot-photos/main.ts serve --batch 2 [--port 8302] [--work <dir>]
 //   deno run -A --node-modules-dir=none supabase/scripts/spot-photos/main.ts status --batch 2 [--work <dir>]
 //   deno run -A --node-modules-dir=none supabase/scripts/spot-photos/main.ts export --batch 2 [--root <dir>] [--work <dir>]
+//   generate は台帳にある弾ごとに migration と確かめる SQL を作る（第2弾は 20261004020000_…_batch2.sql と
+//   spot_photos_302_batch2_check.sql。第1弾の2ファイルは第1弾の行だけから作り、変わらない）
 //
 // --root の既定はカレントディレクトリ（リポジトリの直下で打つ）、--work の既定は $HOME/goshuin-work/spot-photos。
 // エラーは標準エラーに、寺社の名前・都道府県か無いファイルの名前を含めて出し、終了コード 1。
 // 契約書: docs/issues/issue-302-spot-photo-band.md（D-1・D-7・D-9・D-19・D-20・「CLI」）、
-//         docs/issues/issue-320-spot-photos-batch2.md（D-2〜D-8・D-12・「CLI」）
+//         docs/issues/issue-320-spot-photos-batch2.md（D-2〜D-9・D-12・「CLI」）
 import { SEED_FILES } from '../spot-coords/coords.ts';
 import {
   MAPPING_PATH,
@@ -66,11 +68,13 @@ import {
   buildMigrationSql,
   type Candidates,
   CHECK_SQL_PATH,
+  CHECK_SQL_PATH_BATCH2,
   type Choice,
   type ChoiceSource,
   type Ledger302,
   LEDGER_PATH,
   MIGRATION_PATH,
+  MIGRATION_PATH_BATCH2,
   parseChoices,
   parseLedger302,
   label,
@@ -349,10 +353,19 @@ async function verify(io: CliIo, a: Args): Promise<number> {
 
 async function generate(io: CliIo, a: Args): Promise<number> {
   const { ledger, rows } = await loadLedger(io, a.root);
+  // 弾ごとに作る。第1弾の2ファイルは第1弾の行だけから（#320 D-9。第2弾の行が無ければ第2弾のファイルは作らない）
+  const batch1 = ledger.entries.filter(e => e.batch === 1);
+  const batch2 = ledger.entries.filter(e => e.batch === 2);
   const outputs: [string, string][] = [
-    [MIGRATION_PATH, buildMigrationSql(ledger.entries)],
+    [MIGRATION_PATH, buildMigrationSql(batch1)],
     [CHECK_SQL_PATH, buildCheckSql(ledger, rows.length)],
   ];
+  if (batch2.length > 0) {
+    outputs.push(
+      [MIGRATION_PATH_BATCH2, buildMigrationSql(batch2, 2)],
+      [CHECK_SQL_PATH_BATCH2, buildCheckSql(ledger, rows.length, 2)]
+    );
+  }
   const differ: string[] = [];
   for (const [path, text] of outputs) {
     if ((await io.readTextFile(joinPath(a.root, path))) !== text) differ.push(path);
