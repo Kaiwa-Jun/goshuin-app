@@ -12,7 +12,7 @@ import {
   type SeedRow,
   type WdItem,
 } from '../spot-wikidata/match.ts';
-import { label, screenFile } from './select.ts';
+import { type CandidateFile, candidateFile, commonsThumbUrl, label, screenFile } from './select.ts';
 
 // --- 定数（値を変えるのはリーダーの判断。契約書の表とテストと README を一緒に直す） ---
 
@@ -891,4 +891,106 @@ export function checkPoolTargets(pool: Pool320, targets: readonly SeedRow[]): vo
       `候補に対象の寺社が ${missing.length} 足りない: ${missing.map(t => label(t)).join('・')}`
     );
   }
+}
+
+// --- D-7: 第2弾の選ぶ画面のデータ ---
+
+/** 選ぶ画面の1ファイル（第1弾の CandidateFile に、出どころと一覧の小さな写真を足したもの） */
+export interface CandidateFile320 extends CandidateFile {
+  sources: Source320[];
+  /** 一覧（格子）の小さな写真（幅 250） */
+  gridUrl: string;
+}
+
+export interface Candidate320 {
+  idx: number;
+  name: string;
+  prefecture: string;
+  /** seed の住所 */
+  address: string;
+  qid: string;
+  /** 対応表か手で結ぶ台帳のラベル */
+  label: string | null;
+  linkConfidence: LinkConfidence320;
+  /** 手で結んだ寺社の根拠の文（ほかは null） */
+  basis: string | null;
+  files: CandidateFile320[];
+}
+
+export interface Candidates320 {
+  schemaVersion: 1;
+  issue: 320;
+  batch: 2;
+  counts: {
+    /** 候補の寺社の全部（対象） */
+    targets: number;
+    /** 候補のファイルがある寺社（画面に出す） */
+    spots: number;
+    files: number;
+    high: number;
+    medium: number;
+    manual: number;
+    noQid: number;
+    noFiles: number;
+    truncated: number;
+  };
+  entries: Candidate320[];
+}
+
+/**
+ * 公開の候補（spot-photos-320.json）のうち、候補のファイルがある寺社だけを選ぶ画面のデータにする（idx の順）。
+ * 帯の写真は第1弾と同じ規則（幅 1280 より大きければ縮小版、ちょうど 1280 なら元のファイル）
+ */
+export function buildCandidates320(
+  pool: Pool320,
+  ctx: { rows: readonly SeedRow[]; mapping: Mapping; manual: Manual320 }
+): Candidates320 {
+  const seed = new Map(ctx.rows.map(r => [r.idx, r]));
+  const byIdx = new Map(ctx.mapping.entries.map(m => [m.idx, m]));
+  const manualByIdx = new Map(ctx.manual.entries.map(m => [m.idx, m]));
+  const entries: Candidate320[] = [];
+  for (const e of [...pool.entries].sort((a, b) => a.idx - b.idx)) {
+    if (e.gap !== null || e.qid === null || e.linkConfidence === null) continue;
+    const row = seed.get(e.idx);
+    if (!row || row.name !== e.name || row.prefecture !== e.prefecture) {
+      throw new Error(`${label(e)}: seed に idx ${e.idx} の同じ寺社が無い`);
+    }
+    const me = manualByIdx.get(e.idx);
+    if (e.linkConfidence === 'manual' && !me) {
+      throw new Error(`${label(e)}: 手で結ぶ台帳に行が無い`);
+    }
+    entries.push({
+      idx: e.idx,
+      name: e.name,
+      prefecture: e.prefecture,
+      address: row.address,
+      qid: e.qid,
+      label: me ? me.label : (byIdx.get(e.idx)?.label ?? null),
+      linkConfidence: e.linkConfidence,
+      basis: e.linkConfidence === 'manual' && me ? me.basis : null,
+      files: e.files.map(f => ({
+        ...candidateFile(f),
+        sources: [...f.sources],
+        gridUrl: commonsThumbUrl(f.url, GRID_THUMB_WIDTH),
+      })),
+    });
+  }
+  const conf = (c: LinkConfidence320) => entries.filter(e => e.linkConfidence === c).length;
+  return {
+    schemaVersion: 1,
+    issue: 320,
+    batch: 2,
+    counts: {
+      targets: pool.counts.targets,
+      spots: entries.length,
+      files: entries.reduce((n, e) => n + e.files.length, 0),
+      high: conf('high'),
+      medium: conf('medium'),
+      manual: conf('manual'),
+      noQid: pool.counts.noQid,
+      noFiles: pool.counts.noFiles,
+      truncated: pool.counts.truncated,
+    },
+    entries,
+  };
 }

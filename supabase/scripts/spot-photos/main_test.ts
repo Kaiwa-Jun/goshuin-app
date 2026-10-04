@@ -7,9 +7,12 @@ import { serializeJson } from '../spot-wikidata/match.ts';
 import { BATCH2_DIR, type Gathered320, MANUAL_PATH, POOL_PATH, spots320 } from './batch2.ts';
 import {
   fixtureCandidates,
+  fixtureCandidates320,
   fixtureGathered,
+  fixtureLedgerB2Json,
   fixtureManual,
   fixturePhotos,
+  fixturePool,
   fixturePoolJson,
   fixtureTargets,
   makeRoot,
@@ -525,6 +528,305 @@ Deno.test(
       assertEquals(res.code, 1);
       assertStringIncludes(res.err, '伊勢神宮内宮（皇大神宮）（三重県）');
       assertEquals(POOL_PATH in (await snapshot(root)), false);
+    } finally {
+      await Deno.remove(root, { recursive: true });
+      await Deno.remove(work, { recursive: true });
+    }
+  }
+);
+
+// --- #320 AC-9: candidates --batch 2 ---
+
+/** 第1弾 3 行の台帳・#301・手で結ぶ台帳・第2弾の候補のフィクスチャを持つ root */
+async function root320(): Promise<string> {
+  return await makeRoot({ ledger: true, manual: true, pool: true });
+}
+
+Deno.test(
+  'AC-9: candidates --batch 2 は <work>/b2/review/candidates.json だけを書き、ほかは1バイトも変えない',
+  async () => {
+    const root = await root320();
+    const work = await tempWork();
+    try {
+      assertEquals((await run(['candidates', '--root', root, '--work', work])).code, 0);
+      const rootBefore = await snapshot(root);
+      const workBefore = await snapshot(work);
+      const res = await run(['candidates', '--batch', '2', '--root', root, '--work', work]);
+      assertEquals(res.code, 0, res.err);
+      assertStringIncludes(res.out, `${BATCH2_DIR}/review/candidates.json`);
+      assertEquals(await snapshot(root), rootBefore);
+      const after = await snapshot(work);
+      assertEquals(
+        Object.keys(after).filter(k => !(k in workBefore)),
+        ['b2/review/candidates.json']
+      );
+      for (const k of Object.keys(workBefore)) assertEquals(after[k], workBefore[k], k);
+
+      const data = JSON.parse(after['b2/review/candidates.json']);
+      assertEquals(data, await fixtureCandidates320());
+      assertEquals(data.batch, 2);
+      // 候補のファイルがある寺社だけ（idx の順）
+      assertEquals(
+        data.entries.map((e: { idx: number }) => e.idx),
+        [41, 347, 348, 421, 544]
+      );
+      const manual = JSON.parse(await Deno.readTextFile(`${root}/${MANUAL_PATH}`));
+      for (const e of data.entries) {
+        if (e.linkConfidence === 'manual') {
+          const m = manual.entries.find((x: { idx: number }) => x.idx === e.idx);
+          assertEquals(e.basis, m.basis);
+        } else assertEquals(e.basis, null);
+        for (const f of e.files) {
+          assert(f.sources.length > 0);
+          assertStringIncludes(f.thumbUrl, '/1280px-');
+          assertStringIncludes(f.gridUrl, '/250px-');
+        }
+      }
+    } finally {
+      await Deno.remove(root, { recursive: true });
+      await Deno.remove(work, { recursive: true });
+    }
+  }
+);
+
+Deno.test('AC-9: --batch に 1・2 のほかを渡すと 1', async () => {
+  const root = await root320();
+  const work = await tempWork();
+  try {
+    for (const v of ['3', '0', 'two']) {
+      const res = await run(['candidates', '--batch', v, '--root', root, '--work', work]);
+      assertEquals(res.code, 1, v);
+      assertStringIncludes(res.err, '--batch');
+    }
+    assertEquals((await run(['candidates', '--batch'])).code, 1);
+    assertEquals(Object.keys(await snapshot(work)), []);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+    await Deno.remove(work, { recursive: true });
+  }
+});
+
+Deno.test(
+  'fixtures/work/b2 の candidates.json は、フィクスチャから candidates --batch 2 で作ったものと同じ',
+  async () => {
+    const committed = JSON.parse(await readFixture('work/b2/review/candidates.json'));
+    assertEquals(committed, await fixtureCandidates320());
+  }
+);
+
+// --- #320 AC-11: status --batch 2 ---
+
+async function writeChoices320(work: string, choices: unknown[]): Promise<void> {
+  await Deno.mkdir(`${work}/${BATCH2_DIR}/review`, { recursive: true });
+  await Deno.writeTextFile(
+    `${work}/${BATCH2_DIR}/review/choices.json`,
+    serializeJson({ schemaVersion: 1, issue: 302, choices })
+  );
+}
+
+/** 第2弾: 採る 2（high 1・manual 1）・外す 1 */
+async function someChoices320() {
+  const c = await fixtureCandidates320();
+  const of = (name: string) => c.entries.find(e => e.name === name)!;
+  return [
+    {
+      idx: of('中尊寺').idx,
+      decision: 'approve',
+      file: 'Miyajima, daisho-in, 05.jpg',
+      focusY: 0.5,
+      linkChecked: false,
+    },
+    { idx: of('戸隠神社中社').idx, decision: 'reject', reason: 'quality' },
+    {
+      idx: of('伊勢神宮内宮（皇大神宮）').idx,
+      decision: 'approve',
+      file: 'Masumida Shrine Haiden.jpg',
+      focusY: 0.45,
+    },
+  ];
+}
+
+Deno.test(
+  'AC-11: status --batch 2 は 対象・候補あり・結べない・候補のファイルが無い・一覧が切れた と、決めた数・外した理由を出す',
+  async () => {
+    const root = await root320();
+    const work = await tempWork();
+    try {
+      assertEquals(
+        (await run(['candidates', '--batch', '2', '--root', root, '--work', work])).code,
+        0
+      );
+      const none = await run(['status', '--batch', '2', '--work', work]);
+      assertEquals(none.code, 0, none.err);
+      const lines = none.out.trimEnd().split('\n');
+      assertEquals(lines, [
+        '対象 7・候補あり 5（high 1・medium 1・manual 3）・結べない 1・候補のファイルが無い 1・一覧が切れた 1',
+        '決めた 0 / 5・採る 0（high 0・medium 0・manual 0）・外す 0・まだ 5',
+        '外した理由: person 0・other-place 0・not-spot 0・quality 0・other 0',
+      ]);
+      // 対象 = 候補あり + 結べない + 候補のファイルが無い
+      const [t, c, q, z] = lines[0]
+        .match(/\d+/g)!
+        .map(Number)
+        .filter((_, i) => [0, 1, 5, 6].includes(i));
+      assertEquals(t, c + q + z);
+
+      await writeChoices320(work, await someChoices320());
+      const some = await run(['status', '--batch', '2', '--work', work]);
+      assertEquals(some.code, 0, some.err);
+      assertStringIncludes(
+        some.out,
+        '決めた 3 / 5・採る 2（high 1・medium 0・manual 1）・外す 1・まだ 2'
+      );
+      assertStringIncludes(
+        some.out,
+        '外した理由: person 0・other-place 0・not-spot 0・quality 1・other 0'
+      );
+      // 第1弾の status（--batch なし）は第2弾の作業フォルダを見ない
+      const first = await run(['status', '--work', work]);
+      assertEquals(first.code, 1);
+      assertStringIncludes(first.err, `${work}/review/candidates.json`);
+    } finally {
+      await Deno.remove(root, { recursive: true });
+      await Deno.remove(work, { recursive: true });
+    }
+  }
+);
+
+// --- #320 AC-12: export --batch 2 ---
+
+Deno.test(
+  'AC-12: export --batch 2 は第1弾の行を変えずに、採った寺社だけを batch: 2・idx の順で後ろに足す',
+  async () => {
+    const root = await root320();
+    const work = await tempWork();
+    try {
+      const before = JSON.parse(await Deno.readTextFile(`${root}/${LEDGER_PATH}`));
+      assertEquals(
+        (await run(['candidates', '--batch', '2', '--root', root, '--work', work])).code,
+        0
+      );
+      await writeChoices320(work, await someChoices320());
+      const res = await run(['export', '--batch', '2', '--root', root, '--work', work]);
+      assertEquals(res.code, 0, res.err);
+      assertStringIncludes(res.err, 'まだ 2 件');
+
+      const text = await Deno.readTextFile(`${root}/${LEDGER_PATH}`);
+      const ledger = JSON.parse(text);
+      for (const k of ['schemaVersion', 'issue', 'note', 'attribution']) {
+        assertEquals(ledger[k], before[k], k);
+      }
+      assertEquals(ledger.entries.slice(0, 3), before.entries);
+      assertEquals(
+        ledger.entries
+          .slice(3)
+          .map((e: Record<string, unknown>) => [
+            e.batch,
+            e.idx,
+            e.name,
+            e.linkConfidence,
+            e.linkChecked,
+            e.file,
+            e.focusY,
+          ]),
+        [
+          [2, 41, '中尊寺', 'high', false, 'Miyajima, daisho-in, 05.jpg', 0.5],
+          [2, 421, '伊勢神宮内宮（皇大神宮）', 'manual', true, 'Masumida Shrine Haiden.jpg', 0.45],
+        ]
+      );
+      assertEquals(ledger, await fixtureLedgerB2Json());
+      parseLedger302(text, await fixturePhotos(), await realSeedRows(), await fixturePool());
+      for (const word of ['reason', 'quality', work, 'goshuin-work']) {
+        assertEquals(text.includes(word), false, word);
+      }
+
+      // 2回打っても同じ文字
+      const again = await run(['export', '--batch', '2', '--root', root, '--work', work]);
+      assertEquals(again.code, 0, again.err);
+      assertEquals(await Deno.readTextFile(`${root}/${LEDGER_PATH}`), text);
+    } finally {
+      await Deno.remove(root, { recursive: true });
+      await Deno.remove(work, { recursive: true });
+    }
+  }
+);
+
+Deno.test(
+  'AC-12: 第2弾の行のある台帳で export（--batch なし）を打つと、第2弾の行が残る',
+  async () => {
+    const root = await makeRoot({
+      ledgerText: await readFixture('ledger-302-b2.json'),
+      manual: true,
+      pool: true,
+    });
+    const work = await tempWork();
+    try {
+      assertEquals((await run(['candidates', '--root', root, '--work', work])).code, 0);
+      const c = await fixtureCandidates();
+      const of = (name: string) => c.entries.find(e => e.name === name)!;
+      await writeChoices(work, [
+        {
+          idx: of('北海道神宮頓宮').idx,
+          decision: 'approve',
+          file: of('北海道神宮頓宮').files[0].file,
+          focusY: 0.6,
+          linkChecked: true,
+        },
+        {
+          idx: of('輪王寺').idx,
+          decision: 'approve',
+          file: of('輪王寺').files[0].file,
+          focusY: 0.5,
+        },
+        {
+          idx: of('金蛇水神社').idx,
+          decision: 'approve',
+          file: of('金蛇水神社').files[0].file,
+          focusY: 0.42,
+        },
+      ]);
+      const res = await run(['export', '--root', root, '--work', work]);
+      assertEquals(res.code, 0, res.err);
+      const ledger = JSON.parse(await Deno.readTextFile(`${root}/${LEDGER_PATH}`));
+      const b2 = await fixtureLedgerB2Json();
+      assertEquals(
+        ledger.entries.map((e: Record<string, unknown>) => [e.batch, e.idx, e.focusY]),
+        [
+          [1, 4, 0.6],
+          [1, 144, 0.5],
+          [1, 1028, 0.42],
+          [2, 41, 0.5],
+          [2, 421, 0.45],
+        ]
+      );
+      assertEquals(ledger.entries.slice(3), b2.entries.slice(3));
+    } finally {
+      await Deno.remove(root, { recursive: true });
+      await Deno.remove(work, { recursive: true });
+    }
+  }
+);
+
+Deno.test(
+  'AC-12: <work>/b2/review/candidates.json が、いまの候補から作るものと違うと書かずに 1',
+  async () => {
+    const root = await root320();
+    const work = await tempWork();
+    try {
+      assertEquals(
+        (await run(['candidates', '--batch', '2', '--root', root, '--work', work])).code,
+        0
+      );
+      await writeChoices320(work, await someChoices320());
+      const path = `${work}/${BATCH2_DIR}/review/candidates.json`;
+      const data = JSON.parse(await Deno.readTextFile(path));
+      data.entries[0].files[0].focus = 1;
+      await Deno.writeTextFile(path, serializeJson(data));
+      const before = await Deno.readTextFile(`${root}/${LEDGER_PATH}`);
+      const res = await run(['export', '--batch', '2', '--root', root, '--work', work]);
+      assertEquals(res.code, 1);
+      assertStringIncludes(res.err, 'candidates.json');
+      assertEquals(await Deno.readTextFile(`${root}/${LEDGER_PATH}`), before);
     } finally {
       await Deno.remove(root, { recursive: true });
       await Deno.remove(work, { recursive: true });

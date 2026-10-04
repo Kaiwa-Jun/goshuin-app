@@ -9,15 +9,20 @@
 //   deno run -A --node-modules-dir=none supabase/scripts/spot-photos/main.ts verify [--root <dir>]
 //   deno run -A --node-modules-dir=none supabase/scripts/spot-photos/main.ts generate [--check] [--root <dir>]
 //
-// 第2弾（#320）:
+// 第2弾（#320）。candidates・serve・status・export に --batch 2 を付けると、作業フォルダの b2/ を第1弾の作業フォルダと
+// 同じに扱う（--batch を付けなければ第1弾・今のまま）。fetch・upload・verify・generate は台帳の全部の弾を見る:
 //   SPOT_WIKIDATA_CONTACT=<連絡先> deno run -A --node-modules-dir=none supabase/scripts/spot-photos/main.ts manual-link [--root <dir>] [--work <dir>]
 //   SPOT_WIKIDATA_CONTACT=<連絡先> deno run -A --node-modules-dir=none supabase/scripts/spot-photos/main.ts gather [--root <dir>] [--work <dir>]
 //   deno run -A --node-modules-dir=none supabase/scripts/spot-photos/main.ts pool [--check] [--root <dir>] [--work <dir>]
+//   deno run -A --node-modules-dir=none supabase/scripts/spot-photos/main.ts candidates --batch 2 [--root <dir>] [--work <dir>]
+//   deno run -A --node-modules-dir=none supabase/scripts/spot-photos/main.ts serve --batch 2 [--port 8302] [--work <dir>]
+//   deno run -A --node-modules-dir=none supabase/scripts/spot-photos/main.ts status --batch 2 [--work <dir>]
+//   deno run -A --node-modules-dir=none supabase/scripts/spot-photos/main.ts export --batch 2 [--root <dir>] [--work <dir>]
 //
 // --root の既定はカレントディレクトリ（リポジトリの直下で打つ）、--work の既定は $HOME/goshuin-work/spot-photos。
 // エラーは標準エラーに、寺社の名前・都道府県か無いファイルの名前を含めて出し、終了コード 1。
 // 契約書: docs/issues/issue-302-spot-photo-band.md（D-1・D-7・D-9・D-19・D-20・「CLI」）、
-//         docs/issues/issue-320-spot-photos-batch2.md（D-2〜D-6・D-12・「CLI」）
+//         docs/issues/issue-320-spot-photos-batch2.md（D-2〜D-8・D-12・「CLI」）
 import { SEED_FILES } from '../spot-coords/coords.ts';
 import {
   MAPPING_PATH,
@@ -31,13 +36,16 @@ import {
 } from '../spot-wikidata/match.ts';
 import {
   BATCH2_DIR,
+  buildCandidates320,
   buildPool320,
+  type Candidates320,
   type Gathered320,
   MANUAL_PATH,
   manual320Of,
   parseGathered320,
   parseManual320,
   parsePool320,
+  type Pool320,
   POOL_PATH,
   spots320,
   targets320,
@@ -59,6 +67,7 @@ import {
   type Candidates,
   CHECK_SQL_PATH,
   type Choice,
+  type ChoiceSource,
   type Ledger302,
   LEDGER_PATH,
   MIGRATION_PATH,
@@ -90,13 +99,22 @@ export interface Args {
   port?: number;
   check: boolean;
   dryRun: boolean;
+  /** 選ぶ弾（#320。candidates・serve・status・export が見る。既定 1） */
+  batch: 1 | 2;
 }
 
-const VALUE_FLAGS = ['--root', '--work', '--port'];
+const VALUE_FLAGS = ['--root', '--work', '--port', '--batch'];
 
 function parseArgs(argv: string[]): Args {
   const [command, ...rest] = argv;
-  const a: Args = { command: command ?? '', root: '.', work: null, check: false, dryRun: false };
+  const a: Args = {
+    command: command ?? '',
+    root: '.',
+    work: null,
+    check: false,
+    dryRun: false,
+    batch: 1,
+  };
   for (let i = 0; i < rest.length; i++) {
     const arg = rest[i];
     if (arg === '--check') a.check = true;
@@ -106,7 +124,10 @@ function parseArgs(argv: string[]): Args {
       if (v === undefined) throw new Error(`${arg} の値が無い`);
       if (arg === '--root') a.root = v;
       else if (arg === '--work') a.work = v;
-      else {
+      else if (arg === '--batch') {
+        if (v !== '1' && v !== '2') throw new Error(`--batch は 1 か 2: ${v}`);
+        a.batch = v === '2' ? 2 : 1;
+      } else {
         const n = Number(v);
         if (!Number.isInteger(n) || n < 1) throw new Error(`${arg} は 1 以上の整数: ${v}`);
         a.port = n;
@@ -125,6 +146,12 @@ export function workDir(io: CliIo, a: Args): string {
   const home = io.env('HOME');
   if (!home) throw new Error('HOME が無い。--work で作業フォルダを渡す');
   return `${home}/goshuin-work/spot-photos`;
+}
+
+/** 選ぶ画面の作業フォルダ（--batch 2 は作業フォルダの b2/。第1弾の作業フォルダと同じに扱う） */
+export function reviewDir(io: CliIo, a: Args): string {
+  const work = workDir(io, a);
+  return a.batch === 2 ? `${work}/${BATCH2_DIR}` : work;
 }
 
 export async function readRequired(io: CliIo, path: string): Promise<string> {
@@ -161,7 +188,7 @@ async function readCandidates(io: CliIo, work: string): Promise<Candidates> {
   return JSON.parse(text) as Candidates;
 }
 
-async function readChoices(io: CliIo, work: string, candidates: Candidates): Promise<Choice[]> {
+async function readChoices(io: CliIo, work: string, candidates: ChoiceSource): Promise<Choice[]> {
   const text = await io.readTextFile(`${work}/review/${CHOICES_FILE}`);
   return text === null ? [] : parseChoices(text, candidates);
 }
@@ -169,6 +196,7 @@ async function readChoices(io: CliIo, work: string, candidates: Candidates): Pro
 // --- candidates ---
 
 async function candidatesCommand(io: CliIo, a: Args): Promise<number> {
+  if (a.batch === 2) return await candidates320Command(io, a);
   const { candidates } = await loadSources(io, a.root);
   const path = `${workDir(io, a)}/review/${CANDIDATES_FILE}`;
   await io.writeTextFile(path, serializeJson(candidates));
@@ -199,8 +227,13 @@ export function statusText(candidates: Candidates, choices: Choice[]): string {
 }
 
 async function status(io: CliIo, a: Args): Promise<number> {
-  const work = workDir(io, a);
+  const work = reviewDir(io, a);
   const candidates = await readCandidates(io, work);
+  if (a.batch === 2) {
+    const c = candidates as unknown as Candidates320;
+    io.stdout(statusText320(c, await readChoices(io, work, c)));
+    return 0;
+  }
   io.stdout(statusText(candidates, await readChoices(io, work, candidates)));
   return 0;
 }
@@ -208,6 +241,7 @@ async function status(io: CliIo, a: Args): Promise<number> {
 // --- export ---
 
 async function exportCommand(io: CliIo, a: Args): Promise<number> {
+  if (a.batch === 2) return await export320(io, a);
   const { photos, candidates, rows } = await loadSources(io, a.root);
   const work = workDir(io, a);
   // 画面のデータと、いまの #301・規則から作った候補が同じでなければ、選んだものは信じない
@@ -218,15 +252,19 @@ async function exportCommand(io: CliIo, a: Args): Promise<number> {
     );
   }
   const choices = await readChoices(io, work, candidates);
-  const ledger = buildLedger(choices, photos, rows);
-  if (ledger.entries.length === 0) throw new Error('採ったものが無い（台帳は書かない）');
+  // 台帳の第1弾の行だけを置き換え、第2弾の行は残す（#320 D-8）
+  const { base, pool } = await readBase(io, a.root, 1, photos, rows);
+  const ledger = buildLedger(choices, photos, rows, { batch: 1, base, pool });
+  const fresh = ledger.entries.filter(e => e.batch === 1);
+  if (fresh.length === 0) throw new Error('採ったものが無い（台帳は書かない）');
   const path = joinPath(a.root, LEDGER_PATH);
   await io.writeTextFile(path, serializeJson(ledger));
   const pending = candidates.entries.length - choices.length;
   if (pending > 0) io.stderr(`まだ ${pending} 件（決めていない寺社は台帳に入らない）\n`);
-  const medium = ledger.entries.filter(e => e.linkConfidence === 'medium').length;
+  const medium = fresh.filter(e => e.linkConfidence === 'medium').length;
+  const others = ledger.entries.length - fresh.length;
   io.stdout(
-    `${LEDGER_PATH} を書いた（採る ${ledger.entries.length} 件。high ${ledger.entries.length - medium}・medium ${medium}）\n`
+    `${LEDGER_PATH} を書いた（採る ${fresh.length} 件。high ${fresh.length - medium}・medium ${medium}）${others > 0 ? `。ほかの弾の行 ${others} 件はそのまま` : ''}\n`
   );
   return 0;
 }
@@ -234,7 +272,7 @@ async function exportCommand(io: CliIo, a: Args): Promise<number> {
 // --- serve ---
 
 async function serve(io: CliIo, a: Args): Promise<number> {
-  const work = workDir(io, a);
+  const work = reviewDir(io, a);
   await loadCandidates(work);
   const server = await startServer({
     work,
@@ -252,6 +290,11 @@ async function loadLedger(
   root: string
 ): Promise<{ ledger: Ledger302; rows: SeedRow[] }> {
   const text = await readRequired(io, joinPath(root, LEDGER_PATH));
+  // 第2弾の行は第2弾の候補（公開のファイル）と突き合わせる（#320 D-8・D-10）
+  if (hasBatch2(JSON.parse(text))) {
+    const b = await loadBatch2(io, root);
+    return { ledger: parseLedger302(text, b.photos, b.rows, b.pool), rows: b.rows };
+  }
   const photos = parsePhotos(
     await readRequired(io, joinPath(root, PHOTOS_PATH)),
     parseMapping(await readRequired(io, joinPath(root, MAPPING_PATH)))
@@ -480,6 +523,115 @@ async function poolCommand(io: CliIo, a: Args): Promise<number> {
   }
   await io.writeTextFile(path, serializeJson(pool));
   io.stdout(`${POOL_PATH} を書いた（${summary}）\n`);
+  return 0;
+}
+
+// --- #320: 第2弾の選ぶ画面・台帳（D-7・D-8） ---
+
+function hasBatch2(raw: unknown): boolean {
+  return (
+    isObject(raw) &&
+    Array.isArray(raw.entries) &&
+    raw.entries.some(e => isObject(e) && e.batch === 2)
+  );
+}
+
+/** 第2弾の公開のファイル（手で結ぶ台帳・候補）と、対象（台帳の第1弾の行から） */
+async function loadBatch2(io: CliIo, root: string) {
+  const s = await loadSpots(io, root);
+  const pool: Pool320 = parsePool320(await readRequired(io, joinPath(root, POOL_PATH)), {
+    rows: s.rows,
+    mapping: s.mapping,
+    manual: s.manual,
+    targets: s.targets,
+    photos301: s.photos,
+    ledger: s.ledger1,
+  });
+  return { ...s, pool };
+}
+
+/**
+ * いまの台帳のうち、弾 drop のほかの行（台帳が無ければ null）。上のキーはそのまま。
+ * 残る行に第2弾の行があれば、第2弾の候補でも確かめる
+ */
+async function readBase(
+  io: CliIo,
+  root: string,
+  drop: 1 | 2,
+  photos: Photos,
+  rows: SeedRow[],
+  pool?: Pool320
+): Promise<{ base: Ledger302 | null; pool: Pool320 | undefined }> {
+  const text = await io.readTextFile(joinPath(root, LEDGER_PATH));
+  if (text === null) return { base: null, pool };
+  const raw = JSON.parse(text);
+  const kept =
+    isObject(raw) && Array.isArray(raw.entries)
+      ? { ...raw, entries: raw.entries.filter(e => !(isObject(e) && e.batch === drop)) }
+      : raw;
+  const need = pool ?? (hasBatch2(kept) ? (await loadBatch2(io, root)).pool : undefined);
+  return { base: parseLedger302(kept, photos, rows, need), pool: need };
+}
+
+async function candidates320Command(io: CliIo, a: Args): Promise<number> {
+  const { pool, rows, mapping, manual } = await loadBatch2(io, a.root);
+  const candidates = buildCandidates320(pool, { rows, mapping, manual });
+  const path = `${reviewDir(io, a)}/review/${CANDIDATES_FILE}`;
+  await io.writeTextFile(path, serializeJson(candidates));
+  const c = candidates.counts;
+  io.stdout(
+    `${path} を書いた（第2弾 ${c.spots} 寺社・${c.files} ファイル。high ${c.high}・medium ${c.medium}・manual ${c.manual}）\n`
+  );
+  return 0;
+}
+
+export function statusText320(candidates: Candidates320, choices: Choice[]): string {
+  const conf = new Map(candidates.entries.map(e => [e.idx, e.linkConfidence]));
+  const mine = choices.filter(c => conf.has(c.idx));
+  const approved = mine.filter(c => c.decision === 'approve');
+  const rejected = mine.filter(c => c.decision === 'reject');
+  const n = (k: string) => approved.filter(c => conf.get(c.idx) === k).length;
+  const k = candidates.counts;
+  const spots = candidates.entries.length;
+  const reasons = REJECT_REASONS.map(
+    r => `${r} ${rejected.filter(c => c.decision === 'reject' && c.reason === r).length}`
+  );
+  return [
+    `対象 ${k.targets}・候補あり ${spots}（high ${k.high}・medium ${k.medium}・manual ${k.manual}）・結べない ${k.noQid}・候補のファイルが無い ${k.noFiles}・一覧が切れた ${k.truncated}`,
+    `決めた ${mine.length} / ${spots}・採る ${approved.length}（high ${n('high')}・medium ${n('medium')}・manual ${n('manual')}）・外す ${rejected.length}・まだ ${spots - mine.length}`,
+    `外した理由: ${reasons.join('・')}`,
+    '',
+  ].join('\n');
+}
+
+async function export320(io: CliIo, a: Args): Promise<number> {
+  const b = await loadBatch2(io, a.root);
+  const candidates = buildCandidates320(b.pool, {
+    rows: b.rows,
+    mapping: b.mapping,
+    manual: b.manual,
+  });
+  const work = reviewDir(io, a);
+  // 画面のデータと、いまの第2弾の候補から作ったものが同じでなければ、選んだものは信じない
+  const saved = await readCandidates(io, work);
+  if (JSON.stringify(saved) !== JSON.stringify(candidates)) {
+    throw new Error(
+      `${work}/review/${CANDIDATES_FILE} が、いまの第2弾の候補から作るものと違う（candidates --batch 2 を打ち直して選び直す）`
+    );
+  }
+  const choices = await readChoices(io, work, candidates);
+  // 台帳の第2弾の行だけを置き換え、第1弾の行は残す（D-8）
+  const { base } = await readBase(io, a.root, 2, b.photos, b.rows, b.pool);
+  const ledger = buildLedger(choices, b.photos, b.rows, { batch: 2, pool: b.pool, base });
+  const fresh = ledger.entries.filter(e => e.batch === 2);
+  if (fresh.length === 0) throw new Error('採ったものが無い（台帳は書かない）');
+  await io.writeTextFile(joinPath(a.root, LEDGER_PATH), serializeJson(ledger));
+  const pending = candidates.entries.length - choices.length;
+  if (pending > 0) io.stderr(`まだ ${pending} 件（決めていない寺社は台帳に入らない）\n`);
+  const n = (k: string) => fresh.filter(e => e.linkConfidence === k).length;
+  io.stdout(
+    `${LEDGER_PATH} を書いた（第2弾 採る ${fresh.length} 件。high ${n('high')}・medium ${n('medium')}・manual ${n('manual')}。ほかの弾の行 ${ledger.entries.length - fresh.length} 件はそのまま）\n`
+  );
   return 0;
 }
 

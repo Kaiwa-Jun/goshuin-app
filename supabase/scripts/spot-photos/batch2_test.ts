@@ -1,6 +1,6 @@
 // Deno テスト（帯の写真の第2弾 #320 の純関数。ネットに出ない）
 // 実行: deno test -A --node-modules-dir=none supabase/scripts/spot-photos/
-// 契約書: docs/issues/issue-320-spot-photos-batch2.md（S1 / AC-1〜AC-3、S2 / AC-6・AC-7）
+// 契約書: docs/issues/issue-320-spot-photos-batch2.md（S1 / AC-1〜AC-3、S2 / AC-6・AC-7、S3 / AC-9）
 import { assert, assertEquals, assertStringIncludes, assertThrows } from 'jsr:@std/assert@1';
 
 import { distanceMeters } from '../spot-coords/coords.ts';
@@ -15,6 +15,7 @@ import {
 import {
   basisText,
   BATCH2_DIR,
+  buildCandidates320,
   buildPool320,
   checkPoolTargets,
   type Gathered320,
@@ -32,6 +33,7 @@ import {
 } from './batch2.ts';
 import {
   fixtureGathered,
+  fixtureManual,
   fixtureManualJson,
   fixturePhotos,
   fixturePoolCtx,
@@ -661,5 +663,56 @@ Deno.test(
     checkPoolTargets(pool, targets);
     const less = { ...pool, entries: pool.entries.filter(e => e.name !== '金持神社') };
     assertThrows(() => checkPoolTargets(less, targets), Error, '金持神社（鳥取県）');
+  }
+);
+
+// --- AC-9: 第2弾の選ぶ画面のデータ ---
+
+Deno.test(
+  'AC-9: buildCandidates320 は候補のファイルがある寺社だけを、出どころ・帯の写真・一覧の小さな写真つきで作る',
+  async () => {
+    const pool = parsePool320(await fixturePoolJson(), pf.ctx);
+    const manual = await fixtureManual();
+    const c = buildCandidates320(pool, { rows: real.rows, mapping: real.mapping, manual });
+    assertEquals(c.schemaVersion, 1);
+    assertEquals(c.issue, 320);
+    assertEquals(c.batch, 2);
+    assertEquals(c.counts, {
+      targets: 7,
+      spots: 5,
+      files: 14,
+      high: 1,
+      medium: 1,
+      manual: 3,
+      noQid: 1,
+      noFiles: 1,
+      truncated: 1,
+    });
+    const chuson = c.entries.find(e => e.name === '中尊寺')!;
+    assertEquals(chuson.basis, null);
+    assertEquals(chuson.label, real.mapping.entries.find(m => m.idx === chuson.idx)!.label);
+    assertStringIncludes(chuson.address, '岩手県');
+    const f = chuson.files.find(x => x.file === 'Chuson-ji Noh Stage 03.jpg')!;
+    assertEquals(f.sources, ['p373', 'p180']);
+    assertEquals(
+      f.thumbUrl,
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4a/Chuson-ji_Noh_Stage_03.jpg/1280px-Chuson-ji_Noh_Stage_03.jpg'
+    );
+    assertEquals(
+      f.gridUrl,
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4a/Chuson-ji_Noh_Stage_03.jpg/250px-Chuson-ji_Noh_Stage_03.jpg'
+    );
+    const naiku = c.entries.find(e => e.name === '伊勢神宮内宮（皇大神宮）')!;
+    const m = manual.entries.find(x => x.idx === naiku.idx)!;
+    assertEquals([naiku.linkConfidence, naiku.basis, naiku.label], ['manual', m.basis, '皇大神宮']);
+    // 幅がちょうど 1280 なら、帯の写真は元のファイル
+    const narrow = structuredClone(pool);
+    const nf = narrow.entries.find(e => e.name === '金持神社')!.files[0];
+    nf.width = 1280;
+    nf.height = 960;
+    const k = buildCandidates320(narrow, { rows: real.rows, mapping: real.mapping, manual });
+    const kf = k.entries.find(e => e.name === '金持神社')!.files[0];
+    assertEquals(kf.thumbUrl, nf.url);
+    assertStringIncludes(kf.gridUrl, '/250px-');
   }
 );

@@ -1,7 +1,9 @@
 // 帯の写真（Issue #302）。候補の規則・台帳の形を決める純関数（ネット・ファイルに出ない）。
 // CLI は main.ts、選ぶ画面のサーバーは server.ts、Commons と R2 は fetchers.ts。
-// 契約書: docs/issues/issue-302-spot-photo-band.md（D-3〜D-9・D-19）
+// 契約書: docs/issues/issue-302-spot-photo-band.md（D-3〜D-9・D-19）、
+//         docs/issues/issue-320-spot-photos-batch2.md（D-7〜D-9。第2弾の行・manual・弾ごとの SQL）
 import type { Mapping, PhotoFile, Photos, SeedRow } from '../spot-wikidata/match.ts';
+import type { Pool320, PoolEntry320 } from './batch2.ts';
 
 // --- 定数（値を変えるのはリーダーの判断。契約書の表とテストと README を一緒に直す） ---
 
@@ -72,7 +74,8 @@ export interface LedgerEntry302 {
   name: string;
   prefecture: string;
   qid: string;
-  linkConfidence: 'high' | 'medium';
+  /** manual は第2弾（#320）で手で Wikidata に結んだ寺社（batch 2 から・linkChecked はいつも true） */
+  linkConfidence: 'high' | 'medium' | 'manual';
   linkChecked: boolean;
   file: string;
   sha1: string;
@@ -179,7 +182,22 @@ function seedRowOf(
   return row;
 }
 
-function candidateFile(f: PhotoFile): CandidateFile {
+/** 選ぶ画面の1ファイル（第2弾の候補のファイルにも使う） */
+export function candidateFile(
+  f: Pick<
+    PhotoFile,
+    | 'file'
+    | 'sha1'
+    | 'mime'
+    | 'width'
+    | 'height'
+    | 'url'
+    | 'artist'
+    | 'license'
+    | 'licenseUrl'
+    | 'descriptionUrl'
+  >
+): CandidateFile {
   return {
     file: f.file,
     sha1: f.sha1,
@@ -272,8 +290,12 @@ function parseEntry(raw: unknown, i: number): LedgerEntry302 {
   if (!isInt(e.batch, 1)) throw new Error(`${who}: batch が 1 以上の整数でない`);
   if (!isInt(e.idx, 1)) throw new Error(`${who}: idx が 1 以上の整数でない`);
   if (typeof e.qid !== 'string' || !/^Q\d+$/.test(e.qid)) throw new Error(`${who}: qid の形が違う`);
-  if (e.linkConfidence !== 'high' && e.linkConfidence !== 'medium') {
-    throw new Error(`${who}: linkConfidence が high / medium でない`);
+  if (
+    e.linkConfidence !== 'high' &&
+    e.linkConfidence !== 'medium' &&
+    e.linkConfidence !== 'manual'
+  ) {
+    throw new Error(`${who}: linkConfidence が high / medium / manual でない`);
   }
   if (typeof e.linkChecked !== 'boolean') throw new Error(`${who}: linkChecked が真偽でない`);
   if (typeof e.file !== 'string' || e.file === '') throw new Error(`${who}: file が無い`);
@@ -337,11 +359,53 @@ function checkAgainst301(e: LedgerEntry302, photos: Map<number, Photos['entries'
   if (e.r2Key !== r2KeyOf(f)) throw new Error(`${who}: r2Key が ${r2KeyOf(f)} でない: ${e.r2Key}`);
 }
 
+/** 第2弾（#320）の行が、第2弾の候補（spot-photos-320.json）の同じ寺社のファイルと同じか */
+function checkAgainst320(e: LedgerEntry302, pool: Map<number, PoolEntry320>): void {
+  const who = label(e);
+  const p = pool.get(e.idx);
+  if (!p || p.name !== e.name || p.prefecture !== e.prefecture) {
+    throw new Error(`${who}: 第2弾の候補に idx ${e.idx} の同じ寺社が無い`);
+  }
+  if (p.qid !== e.qid) throw new Error(`${who}: qid ${e.qid} が第2弾の候補（${p.qid}）と違う`);
+  if (p.linkConfidence !== e.linkConfidence) {
+    throw new Error(
+      `${who}: linkConfidence ${e.linkConfidence} が第2弾の候補（${p.linkConfidence}）と違う`
+    );
+  }
+  const f = p.files.find(x => x.file === e.file);
+  if (!f) throw new Error(`${who}: ${e.file} が第2弾の候補に無い`);
+  const expected: Partial<Record<keyof LedgerEntry302, unknown>> = {
+    sha1: f.sha1,
+    width: f.width,
+    height: f.height,
+    author: f.artist,
+    license: f.license,
+    licenseUrl: f.licenseUrl,
+    sourceUrl: f.descriptionUrl,
+  };
+  for (const [k, v] of Object.entries(expected)) {
+    if (e[k as keyof LedgerEntry302] !== v) {
+      throw new Error(
+        `${who}: ${k} が第2弾の候補と違う（台帳 ${JSON.stringify(e[k as keyof LedgerEntry302])}・候補 ${JSON.stringify(v)}）`
+      );
+    }
+  }
+  if (!screenFile(f)) throw new Error(`${who}: ${e.file} は候補の規則（D-5）を通らない`);
+  if (e.r2Key !== r2KeyOf(f)) throw new Error(`${who}: r2Key が ${r2KeyOf(f)} でない: ${e.r2Key}`);
+}
+
 /**
  * 公開の台帳の検査（JSON の文字でも、読んだ値でもよい）。決めたキーのほかがある・#301 と合わない・
- * 規則を通らない・重なる・順でない、のどれでも寺社の名前を含む文で止める
+ * 規則を通らない・重なる・順でない、のどれでも寺社の名前を含む文で止める。
+ * batch: 1 の行は #301 の写真の候補と、batch: 2 の行は第2弾の候補（batch2。#320）と突き合わせる。
+ * 第2弾の行があるのに batch2 を渡さなければ止める
  */
-export function parseLedger302(json: unknown, photos: Photos, rows: SeedRow[]): Ledger302 {
+export function parseLedger302(
+  json: unknown,
+  photos: Photos,
+  rows: SeedRow[],
+  batch2?: Pool320
+): Ledger302 {
   const raw = typeof json === 'string' ? JSON.parse(json) : json;
   if (!isObject(raw)) throw new Error('台帳がオブジェクトでない');
   exactKeys(raw, TOP_KEYS, '台帳');
@@ -356,6 +420,7 @@ export function parseLedger302(json: unknown, photos: Photos, rows: SeedRow[]): 
 
   const seed = new Map(rows.map(r => [r.idx, r]));
   const byIdx = new Map(photos.entries.map(p => [p.idx, p]));
+  const poolByIdx = new Map(batch2?.entries.map(p => [p.idx, p]));
   const entries = raw.entries.map(parseEntry);
   const seenIdx = new Map<number, LedgerEntry302>();
   const seenName = new Map<string, LedgerEntry302>();
@@ -373,9 +438,23 @@ export function parseLedger302(json: unknown, photos: Photos, rows: SeedRow[]): 
     if (last && (e.batch < last.batch || (e.batch === last.batch && e.idx < last.idx))) {
       throw new Error(`${who}: (batch, idx) の順でない（前は ${label(last)}）`);
     }
-    checkAgainst301(e, byIdx);
+    if (e.linkConfidence === 'manual' && e.batch < 2) {
+      throw new Error(`${who}: 結びつきの manual は第2弾（batch 2）からの行だけ`);
+    }
+    if (e.batch === 1) checkAgainst301(e, byIdx);
+    else if (e.batch === 2) {
+      if (!batch2) {
+        throw new Error(
+          `${who}: 第2弾の行があるのに、第2弾の候補（spot-photos-320.json）を渡していない`
+        );
+      }
+      checkAgainst320(e, poolByIdx);
+    } else throw new Error(`${who}: batch ${e.batch} の行は読めない（1 か 2）`);
     if (e.linkConfidence === 'medium' && e.linkChecked !== true) {
       throw new Error(`${who}: 結びつきが medium なのに linkChecked が true でない`);
+    }
+    if (e.linkConfidence === 'manual' && e.linkChecked !== true) {
+      throw new Error(`${who}: 結びつきが manual なのに linkChecked が true でない`);
     }
     seenIdx.set(e.idx, e);
     seenName.set(who, e);
@@ -403,11 +482,23 @@ export type Choice =
 
 const CHOICE_KEYS = ['idx', 'decision', 'file', 'focusY', 'linkChecked', 'reason'];
 
+/** 選んだ1件を確かめるのに要る、選ぶ画面のデータ（第1弾の Candidates と第2弾の Candidates320） */
+export interface ChoiceSource {
+  entries: readonly {
+    idx: number;
+    name: string;
+    prefecture: string;
+    linkConfidence: 'high' | 'medium' | 'manual';
+    files: readonly { file: string; sha1: string }[];
+  }[];
+}
+
 /**
  * 選ぶ画面から届いた1件を確かめる（サーバーが保存する前と export）。others は保存してある分で、
- * 同じ idx の行は置き換えるので見ない。だめなら寺社の名前を含む文で止める
+ * 同じ idx の行は置き換えるので見ない。だめなら寺社の名前を含む文で止める。
+ * 手で結んだ寺社（manual）は、手で結ぶ台帳がしるしなので linkChecked を送らなくても true で残す
  */
-export function parseChoice(body: unknown, candidates: Candidates, others: Choice[]): Choice {
+export function parseChoice(body: unknown, candidates: ChoiceSource, others: Choice[]): Choice {
   if (!isObject(body)) throw new Error('選んだ1件がオブジェクトでない');
   const entry = candidates.entries.find(e => e.idx === body.idx);
   if (!entry) throw new Error(`idx ${String(body.idx)} は候補の寺社ではない`);
@@ -434,7 +525,7 @@ export function parseChoice(body: unknown, candidates: Candidates, others: Choic
   if (body.linkChecked !== undefined && typeof body.linkChecked !== 'boolean') {
     throw new Error(`${who}: linkChecked が真偽でない`);
   }
-  const linkChecked = body.linkChecked === true;
+  const linkChecked = entry.linkConfidence === 'manual' || body.linkChecked === true;
   if (entry.linkConfidence === 'medium' && !linkChecked) {
     throw new Error(
       `${who}: 結びつきが「中」なので、Wikidata の項目がこの寺社だと確かめてから採る`
@@ -452,7 +543,7 @@ export function parseChoice(body: unknown, candidates: Candidates, others: Choic
 }
 
 /** choices.json の全部を確かめる（idx の順・1 idx 1 行）。だめなら寺社の名前で止める */
-export function parseChoices(json: unknown, candidates: Candidates): Choice[] {
+export function parseChoices(json: unknown, candidates: ChoiceSource): Choice[] {
   const raw = typeof json === 'string' ? JSON.parse(json) : json;
   if (!isObject(raw) || !Array.isArray(raw.choices))
     throw new Error('choices.json に choices が無い');
@@ -469,8 +560,74 @@ export function parseChoices(json: unknown, candidates: Candidates): Choice[] {
 /** 1 回目の承認の弾 */
 export const BATCH = 1;
 
-/** 採った寺社だけを台帳にする（(batch, idx) の順）。#301 の値をそのまま写し、parseLedger302 を通す */
-export function buildLedger(choices: Choice[], photos: Photos, rows: SeedRow[]): Ledger302 {
+/** 採った寺社の第2弾（#320）の行。第2弾の候補の値をそのまま写す */
+function entriesFrom320(choices: Choice[], pool: Pool320): LedgerEntry302[] {
+  const byIdx = new Map(pool.entries.map(p => [p.idx, p]));
+  const entries: LedgerEntry302[] = [];
+  for (const c of [...choices].sort((a, b) => a.idx - b.idx)) {
+    if (c.decision !== 'approve') continue;
+    const p = byIdx.get(c.idx);
+    const f = p?.files.find(x => x.file === c.file);
+    if (!p || !f || p.qid === null || p.linkConfidence === null) {
+      throw new Error(`idx ${c.idx}: 第2弾の候補に ${c.file} が無い`);
+    }
+    entries.push({
+      batch: 2,
+      idx: p.idx,
+      name: p.name,
+      prefecture: p.prefecture,
+      qid: p.qid,
+      linkConfidence: p.linkConfidence,
+      linkChecked: p.linkConfidence === 'manual' ? true : c.linkChecked,
+      file: f.file,
+      sha1: f.sha1,
+      r2Key: r2KeyOf(f),
+      width: f.width,
+      height: f.height,
+      focusY: c.focusY,
+      author: f.artist,
+      license: f.license as string,
+      licenseUrl: f.licenseUrl,
+      sourceUrl: f.descriptionUrl,
+      isCropped: true,
+      status: 'approved',
+    });
+  }
+  return entries;
+}
+
+/**
+ * 採った寺社だけを台帳にする（(batch, idx) の順）。候補の値をそのまま写し、parseLedger302 を通す。
+ * opts.batch（既定 1）の行だけを選んだものに置き換え、opts.base（いまの台帳）のほかの弾の行と
+ * 上のキー（schemaVersion・issue・note・attribution）はそのまま残す。第2弾は opts.pool の値を写す
+ */
+export function buildLedger(
+  choices: Choice[],
+  photos: Photos,
+  rows: SeedRow[],
+  opts: { batch?: 1 | 2; pool?: Pool320; base?: Ledger302 | null } = {}
+): Ledger302 {
+  const batch = opts.batch ?? BATCH;
+  let fresh: LedgerEntry302[];
+  if (batch === 2) {
+    if (!opts.pool)
+      throw new Error('第2弾の台帳の行には、第2弾の候補（spot-photos-320.json）が要る');
+    fresh = entriesFrom320(choices, opts.pool);
+  } else fresh = entriesFrom301(choices, photos);
+  const others = (opts.base?.entries ?? []).filter(e => e.batch !== batch);
+  const entries = [...others, ...fresh].sort((a, b) => a.batch - b.batch || a.idx - b.idx);
+  const ledger: Ledger302 = {
+    schemaVersion: 1,
+    issue: 302,
+    note: opts.base?.note ?? LEDGER_NOTE,
+    attribution: opts.base?.attribution ?? LEDGER_ATTRIBUTION,
+    entries,
+  };
+  return parseLedger302(ledger, photos, rows, opts.pool);
+}
+
+/** 採った寺社の第1弾の行。#301 の値をそのまま写す */
+function entriesFrom301(choices: Choice[], photos: Photos): LedgerEntry302[] {
   const byIdx = new Map(photos.entries.map(p => [p.idx, p]));
   const entries: LedgerEntry302[] = [];
   for (const c of [...choices].sort((a, b) => a.idx - b.idx)) {
@@ -500,14 +657,7 @@ export function buildLedger(choices: Choice[], photos: Photos, rows: SeedRow[]):
       status: 'approved',
     });
   }
-  const ledger: Ledger302 = {
-    schemaVersion: 1,
-    issue: 302,
-    note: LEDGER_NOTE,
-    attribution: LEDGER_ATTRIBUTION,
-    entries,
-  };
-  return parseLedger302(ledger, photos, rows);
+  return entries;
 }
 
 // --- D-19: 本番の SQL（台帳から作る生成物） ---

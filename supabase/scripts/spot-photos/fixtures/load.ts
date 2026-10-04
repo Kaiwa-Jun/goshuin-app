@@ -6,7 +6,8 @@
 // manual-320.json は wd/ から manual-link で作る手で結ぶ台帳 3 行。
 // commons-b2/ は偽の Commons の応答（pages.json は #301 のキャッシュの本物の imageinfo の page、lists.json は
 // カテゴリと P180 の一覧）と、そこから gather で集めた値（gather/<idx>.json）、
-// pool-320.json はそこから pool で作る候補 7 寺社
+// pool-320.json はそこから pool で作る候補 7 寺社、ledger-302-b2.json は ledger-302.json に第2弾の 2 行を足した台帳、
+// work/b2/ は第2弾の選ぶ画面を Playwright で見る作業フォルダの写し（candidates --batch 2 で作る）
 import { SEED_FILES } from '../../spot-coords/coords.ts';
 import {
   type Mapping,
@@ -17,6 +18,8 @@ import {
   type SeedRow,
 } from '../../spot-wikidata/match.ts';
 import {
+  buildCandidates320,
+  type Candidates320,
   type Gathered320,
   type Manual320,
   parseGathered320,
@@ -131,6 +134,22 @@ export async function fixturePoolJson(): Promise<
 
 export async function fixturePool(): Promise<Pool320> {
   return parsePool320(await fixturePoolJson(), await fixturePoolCtx());
+}
+
+/** 候補のフィクスチャから作る、第2弾の選ぶ画面のデータ */
+export async function fixtureCandidates320(): Promise<Candidates320> {
+  return buildCandidates320(await fixturePool(), {
+    rows: await realSeedRows(),
+    mapping: await realMapping(),
+    manual: await fixtureManual(),
+  });
+}
+
+/** 第1弾 3 行と第2弾 2 行の台帳のフィクスチャ（読んだだけの値。テストで書き換える） */
+export async function fixtureLedgerB2Json(): Promise<
+  Record<string, unknown> & { entries: Record<string, unknown>[] }
+> {
+  return JSON.parse(await readFixture('ledger-302-b2.json'));
 }
 
 /** 本物の seed 10 本とフィクスチャ（または本物）の #301 を持つ、一時のリポジトリの直下 */
