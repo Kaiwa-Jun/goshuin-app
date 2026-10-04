@@ -1,6 +1,17 @@
-import { renderHook, waitFor } from '@testing-library/react-native';
+import { renderHook, waitFor, act } from '@testing-library/react-native';
 import { useSpotStamps } from '@hooks/useSpotStamps';
 import type { Stamp } from '@/types/supabase';
+
+// useFocusEffect を useEffect として動かし、最後に渡された cb を覚える（useWishlist.test.ts と同じ）
+let mockFocusCallback: (() => void) | null = null;
+jest.mock('@react-navigation/native', () => ({
+  useFocusEffect: (cb: () => void) => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+    const { useEffect } = require('react');
+    mockFocusCallback = cb;
+    useEffect(cb, [cb]);
+  },
+}));
 
 const mockFetchStampsBySpotId = jest.fn();
 const mockFetchPublicStampsBySpotId = jest.fn();
@@ -150,5 +161,40 @@ describe('useSpotStamps', () => {
       expect(result.current.stamps).toEqual(mine);
       expect(result.current.visitCount).toBe(1);
     });
+  });
+
+  /* Issue #293 D-11: 記録して地図に戻ったら、シートの記録を取り直す */
+  it('戻ると取り直す。届くまでは isLoading を戻さず、今の配列を出したまま（AC-3）', async () => {
+    mockIsAuthenticated = true;
+    const first = makeStamp({ id: 'stamp-1' });
+    const second = makeStamp({ id: 'stamp-2', visited_at: '2024-07-01' });
+    mockFetchStampsBySpotId.mockResolvedValueOnce([first]);
+
+    const { result } = renderHook(() => useSpotStamps('spot-1'));
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+    expect(result.current.stamps.map(s => s.id)).toEqual(['stamp-1']);
+    const before = result.current.stamps;
+
+    let resolveSecond: (stamps: Stamp[]) => void = () => {};
+    mockFetchStampsBySpotId.mockReturnValueOnce(
+      new Promise<Stamp[]>(resolve => {
+        resolveSecond = resolve;
+      })
+    );
+    act(() => {
+      mockFocusCallback?.();
+    });
+
+    expect(mockFetchStampsBySpotId).toHaveBeenCalledTimes(2);
+    expect(mockFetchStampsBySpotId).toHaveBeenLastCalledWith('spot-1');
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.stamps).toBe(before);
+
+    await act(async () => {
+      resolveSecond([second, first]);
+    });
+    expect(result.current.stamps.map(s => s.id)).toEqual(['stamp-2', 'stamp-1']);
   });
 });

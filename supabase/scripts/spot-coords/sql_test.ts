@@ -411,17 +411,23 @@ Deno.test(
 const REPO = new URL('../../../', import.meta.url);
 const readRepo = (rel: string) => Deno.readTextFile(new URL(rel, REPO));
 const MIGRATION_FILE = migrationPath('20260928000000', 1);
+const MIGRATION_FILE_2 = migrationPath('20261003000000', 2);
 
-const RESULT_BEFORE =
-  'RESULT total=1109 listed=458 rest=651 at_new=0 at_old=458 neither=0 not_one=0 inactive=0';
-const RESULT_AFTER =
-  'RESULT total=1109 listed=458 rest=651 at_new=458 at_old=0 neither=0 not_one=0 inactive=0';
+const result = (atNew: number) =>
+  `RESULT total=1109 listed=504 rest=605 at_new=${atNew} at_old=${504 - atNew} neither=0 not_one=0 inactive=0`;
+/** 第1弾の前（台帳の全件が old） */
+const RESULT_BEFORE = result(0);
+/** 第1弾の後 = 第2弾の前（いまの本番） */
+const RESULT_BETWEEN = result(458);
+/** 第2弾の後 */
+const RESULT_AFTER = result(504);
 
 Deno.test(
-  'AC-16: 本物の seed に、ファイルの migration と確かめる SQL を流す（本番の再現・2回流す）',
+  'AC-16: 本物の seed に、ファイルの migration（第1弾 → 第2弾）と確かめる SQL を流す（本番の再現・2回流す）',
   async () => {
     const ledger = parseLedger(await readRepo(LEDGER_PATH));
     const migration = await readRepo(MIGRATION_FILE);
+    const migration2 = await readRepo(MIGRATION_FILE_2);
     const check = await readRepo(CHECK_SQL_PATH);
     await withDb(async db => {
       for (const f of SEED_FILES) await db.exec(await readRepo(f));
@@ -431,12 +437,13 @@ Deno.test(
       assertEquals(master.rows[0].n, 1109);
       const seeded = coordsOf(await rows(db));
 
-      // 新しい seed（直した座標）: 確かめる SQL は at_new=458、migration は何もしない
+      // 新しい seed（直した座標）: 確かめる SQL は at_new=504、どちらの migration も何もしない
       assertEquals(await raised(db, check), RESULT_AFTER);
       assertEquals(await raised(db, migration), null);
+      assertEquals(await raised(db, migration2), null);
       assertEquals(coordsOf(await rows(db)), seeded);
 
-      // 台帳の 458 件を old に戻す（本番の再現）
+      // 台帳の 504 件を old に戻す（第1弾の前の本番の再現）
       for (const e of ledger.entries) {
         const r = await db.query(
           'UPDATE public.spots SET lat = $3, lng = $4 WHERE name = $1 AND prefecture = $2 AND created_by_user_id IS NULL',
@@ -446,8 +453,12 @@ Deno.test(
       }
       assertEquals(await raised(db, check), RESULT_BEFORE);
 
-      // 直す → 全 1,109 行が seed を流した直後と同じ（差 1e-9 未満）
+      // 第1弾を当てる → いまの本番（第2弾の前）
       assertEquals(await raised(db, migration), null);
+      assertEquals(await raised(db, check), RESULT_BETWEEN);
+
+      // 第2弾を当てる → 全 1,109 行が seed を流した直後と同じ（差 1e-9 未満）
+      assertEquals(await raised(db, migration2), null);
       assertEquals(await raised(db, check), RESULT_AFTER);
       const fixed = coordsOf(await rows(db));
       assertEquals(fixed.length, seeded.length);
@@ -460,6 +471,7 @@ Deno.test(
 
       // もう一度流しても変わらない
       assertEquals(await raised(db, migration), null);
+      assertEquals(await raised(db, migration2), null);
       assertEquals(coordsOf(await rows(db)), fixed);
     });
   }

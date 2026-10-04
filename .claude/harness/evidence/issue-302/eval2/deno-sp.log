@@ -1,0 +1,99 @@
+[0m[32mCheck[0m supabase/scripts/spot-photos/data_test.ts
+[0m[32mCheck[0m supabase/scripts/spot-photos/fetchers_test.ts
+[0m[32mCheck[0m supabase/scripts/spot-photos/geometry_test.ts
+[0m[32mCheck[0m supabase/scripts/spot-photos/main_test.ts
+[0m[32mCheck[0m supabase/scripts/spot-photos/select_test.ts
+[0m[32mCheck[0m supabase/scripts/spot-photos/server_test.ts
+[0m[32mCheck[0m supabase/scripts/spot-photos/sql_test.ts
+[0m[38;5;245mrunning 3 tests from ./supabase/scripts/spot-photos/data_test.ts[0m
+AC-36: 本物の台帳は検査を通り、全部が第1弾・承認済みで、数は status の「採る」と同じ ... [0m[32mok[0m [0m[38;5;245m(51ms)[0m
+AC-38: 誤りと分かっている結びつきと、別の神社の写真が無い。sha1 が重ならない ... [0m[32mok[0m [0m[38;5;245m(23ms)[0m
+AC-40: コミットした migration と確かめる SQL は、台帳から作るものと同じ（generate --check が 0） ... [0m[32mok[0m [0m[38;5;245m(51ms)[0m
+[0m[38;5;245mrunning 15 tests from ./supabase/scripts/spot-photos/fetchers_test.ts[0m
+AC-19: imageinfo を 50 件ずつ・縮小版は1つずつ 1,000ms あけて取り、どれも User-Agent を付ける ... [0m[32mok[0m [0m[38;5;245m(194ms)[0m
+AC-19: 取り下げ（withdrawn）の行とキャッシュにある行は取らない ... [0m[32mok[0m [0m[38;5;245m(2ms)[0m
+AC-19: CLI の fetch は SPOT_WIKIDATA_CONTACT が無いと1回も呼ばずに 1。あれば台帳の3件を取る ... [0m[32mok[0m [0m[38;5;245m(36ms)[0m
+AC-20: sha1 が違う・中身が JPEG でも PNG でもない・縮小版の幅が 1280 でないものは保存せず、名前を出して 1 ... [0m[32mok[0m [0m[38;5;245m(2ms)[0m
+AC-20: CLI の fetch は失敗があれば 1（ほかは保存する） ... [0m[32mok[0m [0m[38;5;245m(21ms)[0m
+AC-21: upload --dry-run は PUT せずに数を出し、upload は無いキーだけを置いて数え直す ... [0m[32mok[0m [0m[38;5;245m(7ms)[0m
+AC-21: キャッシュに無いものが1つでも・鍵が無い・spot-photos/ の外のキー なら PUT せずに 1 ... [0m[32mok[0m [0m[38;5;245m(1ms)[0m
+AC-21: PUT に失敗した写真があると、数え直して足りないので 1 ... [0m[32mok[0m [0m[38;5;245m(2ms)[0m
+AC-21: CLI の upload --dry-run（鍵は偽物・偽の R2）で キャッシュに無い 0 件 ... [0m[32mok[0m [0m[38;5;245m(19ms)[0m
+AC-22: verify は台帳の各行に HEAD（変換を使わない）を送り、全部 200 なら 0、違えば名前を出して 1 ... [0m[32mok[0m [0m[38;5;245m(285µs)[0m
+AC-22: CLI の verify は台帳から読む（鍵は要らない） ... [0m[32mok[0m [0m[38;5;245m(12ms)[0m
+AC-20: 縮小版の URL が Commons の置き場所（upload・thumb.wikimedia.org）でなければ、取りに行かずに名前を出す ... [0m[32mok[0m [0m[38;5;245m(1ms)[0m
+AC-19: 縮小版が thumb.wikimedia.org（utm 付き）でも、幅がちょうど 1280 の元のファイル（upload.wikimedia.org）でも取る ... [0m[32mok[0m [0m[38;5;245m(2ms)[0m
+AC-20: 縮小版が別のホストへ 302 を返しても、ついて行かずに名前を出す（ほかは保存する） ... [0m[32mok[0m [0m[38;5;245m(1ms)[0m
+AC-22: verify もリダイレクトについて行かない（3xx は 200 と数えない） ... [0m[32mok[0m [0m[38;5;245m(126µs)[0m
+[0m[38;5;245mrunning 1 test from ./supabase/scripts/spot-photos/geometry_test.ts[0m
+AC-12: 選ぶ画面の geometry.js とアプリの spotPhotoGeometry.ts が、全部の組で同じ値 ... [0m[32mok[0m [0m[38;5;245m(546µs)[0m
+[0m[38;5;245mrunning 12 tests from ./supabase/scripts/spot-photos/main_test.ts[0m
+AC-14: candidates は作業フォルダの review/candidates.json だけを書き、2回目も同じ中身 ... [0m[32mok[0m [0m[38;5;245m(50ms)[0m
+fixtures/work の candidates.json は、フィクスチャから candidates で作ったものと同じ ... [0m[32mok[0m [0m[38;5;245m(9ms)[0m
+AC-17: status は 決めた・採る（high・medium）・外す・まだ と、外した理由ごとの数を出す ... [0m[32mok[0m [0m[38;5;245m(23ms)[0m
+AC-17: export は採った寺社だけを (batch, idx) の順で台帳に書き、まだがあれば標準エラーに出す ... [0m[32mok[0m [0m[38;5;245m(38ms)[0m
+AC-17: 全部決めたら、まだを出さない。選んだものが決まりに合わなければ書かずに止める ... [0m[32mok[0m [0m[38;5;245m(40ms)[0m
+AC-17: 1件も採っていなければ export は書かずに止める ... [0m[32mok[0m [0m[38;5;245m(19ms)[0m
+AC-18: spot-photos-301.json・対応表・candidates.json が無いと、無いファイルの名前を出して 1 ... [0m[32mok[0m [0m[38;5;245m(9ms)[0m
+知らないサブコマンド・引数は 1。--work の既定は $HOME/goshuin-work/spot-photos ... [0m[32mok[0m [0m[38;5;245m(407µs)[0m
+AC-25: generate は2つのファイルを書き、2回目は変わるものが無い。--check は同じなら 0 ... [0m[32mok[0m [0m[38;5;245m(20ms)[0m
+AC-25: 台帳の値を1つ変えると --check は 1 で違うファイルの名前を出し、書かない ... [0m[32mok[0m [0m[38;5;245m(32ms)[0m
+AC-18: 台帳が無いと generate・fetch・upload・verify は台帳の名前を出して 1 ... [0m[32mok[0m [0m[38;5;245m(6ms)[0m
+AC-18: 台帳の行が #301 と合わないと、寺社の名前を出して 1 ... [0m[32mok[0m [0m[38;5;245m(10ms)[0m
+[0m[38;5;245mrunning 29 tests from ./supabase/scripts/spot-photos/select_test.ts[0m
+定数は契約書の表の値 ... [0m[32mok[0m [0m[38;5;245m(234µs)[0m
+AC-7: screenFile は 縦長・正方形・幅 1279・GFDL・personality・SVG・撮影者なしの CC を外す ... [0m[32mok[0m [0m[38;5;245m(4ms)[0m
+AC-7: 幅 1280 の横長の CC BY-SA 4.0・撮影者なしの PD・PNG・高さ ÷ 幅 0.45 を通す ... [0m[32mok[0m [0m[38;5;245m(3ms)[0m
+AC-8: 本物の #301 から 733 寺社・755 ファイル（high 707・medium 26） ... [0m[32mok[0m [0m[38;5;245m(16ms)[0m
+AC-8: フィクスチャの候補は 15 寺社・18 ファイル。カードに要る値を持つ ... [0m[32mok[0m [0m[38;5;245m(11ms)[0m
+AC-8: seed に無い idx・名前の違う行があると、寺社の名前で止める ... [0m[32mok[0m [0m[38;5;245m(9ms)[0m
+AC-9: commonsThumbUrl は thumb/ を挟み、名前の前に 1280px- を付ける（%2C はそのまま） ... [0m[32mok[0m [0m[38;5;245m(219µs)[0m
+AC-9: r2KeyOf は spot-photos/<sha1>.jpg、PNG は .png ... [0m[32mok[0m [0m[38;5;245m(86µs)[0m
+AC-10: 正しい台帳は通り、3 行を (batch, idx) の順に返す ... [0m[32mok[0m [0m[38;5;245m(11ms)[0m
+AC-10: reviewer のキーがある なら、寺社の名前で止める ... [0m[32mok[0m [0m[38;5;245m(635µs)[0m
+AC-10: decided_at のキーがある なら、寺社の名前で止める ... [0m[32mok[0m [0m[38;5;245m(309µs)[0m
+AC-10: author が #301 と1字違う なら、寺社の名前で止める ... [0m[32mok[0m [0m[38;5;245m(425µs)[0m
+AC-10: sha1 が #301 と違う なら、寺社の名前で止める ... [0m[32mok[0m [0m[38;5;245m(288µs)[0m
+AC-10: r2Key の拡張子が mime と合わない なら、寺社の名前で止める ... [0m[32mok[0m [0m[38;5;245m(244µs)[0m
+AC-10: focusY が 0.123 なら、寺社の名前で止める ... [0m[32mok[0m [0m[38;5;245m(263µs)[0m
+AC-10: focusY が 1.2 なら、寺社の名前で止める ... [0m[32mok[0m [0m[38;5;245m(239µs)[0m
+AC-10: medium で linkChecked が false なら、寺社の名前で止める ... [0m[32mok[0m [0m[38;5;245m(186µs)[0m
+AC-10: 同じ sha1 の2行（中尊寺と中尊寺金色堂） なら、寺社の名前で止める ... [0m[32mok[0m [0m[38;5;245m(355µs)[0m
+AC-10: 同じ idx の2行 なら、寺社の名前で止める ... [0m[32mok[0m [0m[38;5;245m(300µs)[0m
+AC-10: idx の seed の名前が違う なら、寺社の名前で止める ... [0m[32mok[0m [0m[38;5;245m(239µs)[0m
+AC-10: (batch, idx) の順でない なら、寺社の名前で止める ... [0m[32mok[0m [0m[38;5;245m(263µs)[0m
+AC-10: width が #301 と違う なら、寺社の名前で止める ... [0m[32mok[0m [0m[38;5;245m(312µs)[0m
+AC-10: licenseUrl が #301 と違う なら、寺社の名前で止める ... [0m[32mok[0m [0m[38;5;245m(148µs)[0m
+AC-10: sourceUrl が #301 と違う なら、寺社の名前で止める ... [0m[32mok[0m [0m[38;5;245m(406µs)[0m
+AC-10: status が知らない値 なら、寺社の名前で止める ... [0m[32mok[0m [0m[38;5;245m(338µs)[0m
+AC-10: screenFile を通らないファイル（縦長）なら、寺社の名前で止める ... [0m[32mok[0m [0m[38;5;245m(399µs)[0m
+AC-10: 台帳の上のキーが違う・entries が無いと止める ... [0m[32mok[0m [0m[38;5;245m(225µs)[0m
+本番の SQL: 撮影者に $ があっても、$photos$[ と ]$photos$ の間に $ を残さない ... [0m[32mok[0m [0m[38;5;245m(526µs)[0m
+台帳: licenseUrl が http(s) でない（javascript: など）なら、寺社の名前で止める ... [0m[32mok[0m [0m[38;5;245m(691µs)[0m
+[0m[38;5;245mrunning 4 tests from ./supabase/scripts/spot-photos/server_test.ts[0m
+既定のポートは 8302 ... [0m[32mok[0m [0m[38;5;245m(376µs)[0m
+AC-15: 127.0.0.1 だけで待ち、画面と API のほかは 404 ... [0m[32mok[0m [0m[38;5;245m(48ms)[0m
+AC-16: 決まりに合わない1件は 400 と寺社の名前を返し、保存しない ... [0m[32mok[0m [0m[38;5;245m(30ms)[0m
+AC-16: 正しい1件は choices.json に残り、GET で同じものが返る。同じ idx は置き換える ... [0m[32mok[0m [0m[38;5;245m(25ms)[0m
+[0m[38;5;245mrunning 17 tests from ./supabase/scripts/spot-photos/sql_test.ts[0m
+AC-1: spot_photos に D-2 の列があり、RLS が有効で、ポリシーが2つ ... [0m[32mok[0m [0m[38;5;245m(1s)[0m
+AC-1: 正しい行は入り、決まりに合わない行は入らない ... [0m[32mok[0m [0m[38;5;245m(549ms)[0m
+AC-1: license_url は null か http(s) の URL だけ（javascript: などは入らない） ... [0m[32mok[0m [0m[38;5;245m(528ms)[0m
+AC-1: spots の行を消すと写真の行も消え、UPDATE すると updated_at が進む ... [0m[32mok[0m [0m[38;5;245m(418ms)[0m
+AC-2: anon は承認済みの2行だけ見え、書き込めない（行の数と中身が変わらない） ... [0m[32mok[0m [0m[38;5;245m(561ms)[0m
+AC-2: authenticated は承認済みの2行だけ見え、書き込めない（行の数と中身が変わらない） ... [0m[32mok[0m [0m[38;5;245m(711ms)[0m
+AC-2: service_role（jwt のロールが service_role）は3行見えて入れられる ... [0m[32mok[0m [0m[38;5;245m(520ms)[0m
+AC-23: 本物の seed に流すと3行入り、名前・都道府県・作成者なしの寺社に結ぶ。2回流しても同じ ... [0m[32mok[0m [0m[38;5;245m(823ms)[0m
+AC-23: マスタの寺社が無い DB では何も入れず、エラーにならない ... [0m[32mok[0m [0m[38;5;245m(653ms)[0m
+AC-23: seed に無い名前が1つあると、その名前で例外になり1行も入らない ... [0m[32mok[0m [0m[38;5;245m(552ms)[0m
+AC-23: 同じ名前・都道府県の利用者の寺社があっても、マスタの寺社にだけ結ぶ ... [0m[32mok[0m [0m[38;5;245m(501ms)[0m
+AC-23: 同じ名前・都道府県のマスタの寺社が2行あると、2 行で例外 ... [0m[32mok[0m [0m[38;5;245m(609ms)[0m
+AC-24: 表が無い DB で table=absent、表だけで missing=3、migration のあとで present=3 ... [0m[32mok[0m [0m[38;5;245m(1s)[0m
+AC-24: 絞れない寺社は not_one に数える ... [0m[32mok[0m [0m[38;5;245m(504ms)[0m
+AC-24: INSERT・UPDATE・DELETE は anon で試す1つだけで、BEGIN … EXCEPTION の中にある ... [0m[32mok[0m [0m[38;5;245m(27ms)[0m
+撮影者にドル引用を閉じる文字があっても、spots は消えず、撮影者はそのまま入る ... [0m[32mok[0m [0m[38;5;245m(636ms)[0m
+AC-40: 本物の seed に、コミットした migration を2回流すと、確かめる SQL が present=<件数> not_one=0 missing=0 ... [0m[32mok[0m [0m[38;5;245m(1s)[0m
+
+[0m[32mok[0m | 81 passed | 0 failed [0m[38;5;245m(13s)[0m
+
+exit 0

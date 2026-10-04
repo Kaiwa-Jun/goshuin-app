@@ -1,0 +1,314 @@
+{
+  "schemaVersion": 1,
+  "ledgerOsmCount": 55,
+  "maxOsm": 99,
+  "counts": {
+    "suggest": 3,
+    "owner": 3,
+    "investigate": 2,
+    "keep": 10
+  },
+  "items": [
+    {
+      "idx": 1,
+      "name": "北海道神宮",
+      "prefecture": "北海道",
+      "address": "北海道札幌市中央区宮ヶ丘474",
+      "type": "shrine",
+      "rank": 5,
+      "file": "supabase/seeds/01_hokkaido_tohoku.sql",
+      "line": 10,
+      "seed": {
+        "lat": 43.0544,
+        "lng": 141.3094
+      },
+      "verdict": "suggest",
+      "suggestion": {
+        "choice": "wd",
+        "lat": 43.061595,
+        "lng": 141.3094,
+        "ref": "Q999000001"
+      },
+      "points": [
+        {
+          "kind": "wd",
+          "lat": 43.061595,
+          "lng": 141.3094,
+          "ref": "Q999000001",
+          "label": "北海道神宮（作り物）",
+          "distanceM": 800
+        },
+        {
+          "kind": "gsi",
+          "lat": 43.061595,
+          "lng": 141.309892,
+          "ref": null,
+          "label": "北海道神宮",
+          "distanceM": 801
+        }
+      ],
+      "link": {
+        "qid": "Q999000001",
+        "confidence": "high",
+        "label": "北海道神宮（作り物）"
+      }
+    },
+    {
+      "idx": 90,
+      "name": "慈恩寺",
+      "prefecture": "山形県",
+      "address": "山形県寒河江市大字慈恩寺鬼越31",
+      "type": "temple",
+      "rank": 5,
+      "file": "supabase/seeds/01_hokkaido_tohoku.sql",
+      "line": 224,
+      "seed": {
+        "lat": 38.4103,
+        "lng": 140.2509
+      },
+      "verdict": "suggest",
+      "suggestion": {
+        "choice": "osm",
+        "lat": 38.4103,
+        "lng": 140.257786,
+        "ref": "node/999000002"
+      },
+      "points": [
+        {
+          "kind": "osm",
+          "lat": 38.4103,
+          "lng": 140.257786,
+          "ref": "node/999000002",
+          "label": "慈恩寺",
+          "distanceM": 600
+        },
+        {
+          "kind": "addr",
+          "lat": 38.411199,
+          "lng": 140.257786,
+          "ref": null,
+          "label": "山形県寒河江市大字慈恩寺鬼越31（作り物）",
+          "distanceM": 608
+        }
+      ],
+      "link": {
+        "qid": null,
+        "confidence": "none",
+        "label": null
+      }
+    },
+    {
+      "idx": 181,
+      "name": "武蔵一宮氷川神社",
+      "prefecture": "埼玉県",
+      "address": "埼玉県さいたま市大宮区高鼻町1-407",
+      "type": "shrine",
+      "rank": 5,
+      "file": "supabase/seeds/02_kanto.sql",
+      "line": 155,
+      "seed": {
+        "lat": 35.9168,
+        "lng": 139.6297
+      },
+      "verdict": "suggest",
+      "suggestion": {
+        "choice": "wd",
+        "lat": 35.9168,
+        "lng": 139.616375,
+        "ref": "Q999000003"
+      },
+      "points": [
+        {
+          "kind": "wd",
+          "lat": 35.9168,
+          "lng": 139.616375,
+          "ref": "Q999000003",
+          "label": "武蔵一宮氷川神社（作り物）",
+          "distanceM": 1200
+        },
+        {
+          "kind": "addr",
+          "lat": 35.91734,
+          "lng": 139.616375,
+          "ref": null,
+          "label": "埼玉県さいたま市大宮区高鼻町1-407（作り物）",
+          "distanceM": 1201
+        },
+        {
+          "kind": "osm",
+          "lat": 35.94378,
+          "lng": 139.6297,
+          "ref": "node/999000004",
+          "label": "武蔵一宮氷川神社",
+          "distanceM": 3000
+        }
+      ],
+      "link": {
+        "qid": "Q999000003",
+        "confidence": "medium",
+        "label": "武蔵一宮氷川神社（作り物）"
+      }
+    },
+    {
+      "idx": 342,
+      "name": "諏訪大社上社本宮",
+      "prefecture": "長野県",
+      "address": "長野県諏訪市中洲宮山1",
+      "type": "shrine",
+      "rank": 5,
+      "file": "supabase/seeds/03_chubu.sql",
+      "line": 253,
+      "seed": {
+        "lat": 35.9982,
+        "lng": 138.1195
+      },
+      "verdict": "owner",
+      "suggestion": null,
+      "points": [
+        {
+          "kind": "wd",
+          "lat": 36.006294,
+          "lng": 138.1195,
+          "ref": "Q999000005",
+          "label": "諏訪大社上社本宮（作り物）",
+          "distanceM": 900
+        },
+        {
+          "kind": "osm",
+          "lat": 36.006294,
+          "lng": 138.120612,
+          "ref": "node/999000006",
+          "label": "諏訪大社上社本宮",
+          "distanceM": 906
+        },
+        {
+          "kind": "addr",
+          "lat": 35.9982,
+          "lng": 138.120056,
+          "ref": null,
+          "label": "長野県諏訪市中洲宮山1（作り物）",
+          "distanceM": 50
+        }
+      ],
+      "link": {
+        "qid": "Q999000005",
+        "confidence": "high",
+        "label": "諏訪大社上社本宮（作り物）"
+      }
+    },
+    {
+      "idx": 514,
+      "name": "元興寺",
+      "prefecture": "奈良県",
+      "address": "奈良県奈良市中院町11",
+      "type": "temple",
+      "rank": 4,
+      "file": "supabase/seeds/04_kinki.sql",
+      "line": 236,
+      "seed": {
+        "lat": 34.6768,
+        "lng": 135.8331
+      },
+      "verdict": "owner",
+      "suggestion": null,
+      "points": [
+        {
+          "kind": "gsi",
+          "lat": 34.681297,
+          "lng": 135.8331,
+          "ref": null,
+          "label": "元興寺",
+          "distanceM": 500
+        },
+        {
+          "kind": "addr",
+          "lat": 34.681297,
+          "lng": 135.833428,
+          "ref": null,
+          "label": "奈良県奈良市中院町11（作り物）",
+          "distanceM": 501
+        }
+      ],
+      "link": {
+        "qid": null,
+        "confidence": "none",
+        "label": null
+      }
+    },
+    {
+      "idx": 797,
+      "name": "彦嶽宮",
+      "prefecture": "熊本県",
+      "address": "熊本県山鹿市津留2248",
+      "type": "shrine",
+      "rank": 4,
+      "file": "supabase/seeds/06_kyushu_okinawa.sql",
+      "line": 193,
+      "seed": {
+        "lat": 33.0164,
+        "lng": 130.6883
+      },
+      "verdict": "owner",
+      "suggestion": null,
+      "points": [
+        {
+          "kind": "addr",
+          "lat": 33.0164,
+          "lng": 130.695808,
+          "ref": null,
+          "label": "熊本県山鹿市津留2248（作り物）",
+          "distanceM": 700
+        }
+      ],
+      "link": {
+        "qid": null,
+        "confidence": "none",
+        "label": null
+      }
+    },
+    {
+      "idx": 1016,
+      "name": "慈照寺（銀閣寺）",
+      "prefecture": "京都府",
+      "address": "京都府京都市左京区銀閣寺町2",
+      "type": "temple",
+      "rank": 4,
+      "file": "supabase/seeds/seed_kyoto_rank_spots.sql",
+      "line": 45,
+      "seed": {
+        "lat": 35.0269,
+        "lng": 135.7983
+      },
+      "verdict": "investigate",
+      "suggestion": null,
+      "points": [],
+      "link": {
+        "qid": null,
+        "confidence": "none",
+        "label": null
+      }
+    },
+    {
+      "idx": 935,
+      "name": "亀戸香取神社",
+      "prefecture": "東京都",
+      "address": "東京都江東区亀戸3-57-22",
+      "type": "shrine",
+      "rank": 3,
+      "file": "supabase/seeds/seed_tokyo_rank3_4_spots.sql",
+      "line": 104,
+      "seed": {
+        "lat": 35.7044,
+        "lng": 139.8255
+      },
+      "verdict": "investigate",
+      "suggestion": null,
+      "points": [],
+      "link": {
+        "qid": null,
+        "confidence": "none",
+        "label": null
+      }
+    }
+  ]
+}

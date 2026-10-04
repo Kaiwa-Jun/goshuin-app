@@ -1,0 +1,25 @@
+== AC-24
+supabase/data/spot-wikidata-301.json:0
+supabase/data/spot-photos-301.json:0
+0
+== AC-25a
+== AC-25b
+== AC-26
+生成物はキャッシュと同じ（2 ファイル）
+exit 0
+== AC-29
+(end)
+== AC-30
+spot-wikidata-301.json: 2
+spot-photos-301.json: 1
+~/goshuin-work/spot-wikidata: 4
+SPOT_WIKIDATA_CONTACT: 3
+fetch all: 2
+build --check: 1
+serve: 3
+check-export: 2
+import-owner: 5
+CC0: 3
+ODbL: 3
+国土地理院: 6
+deno test -A --node-modules-dir=none supabase/scripts/spot-wikidata/: 1

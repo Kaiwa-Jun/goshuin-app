@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "issue": 302,
+  "note": "帯に出す寺社の写真（承認したものだけ）。supabase/scripts/spot-photos/main.ts export で作る。本番の SQL はここから generate で作る。手で直さない",
+  "attribution": {
+    "commons": "Wikimedia Commons。撮影者とライセンスは行ごと（author・license・licenseUrl・sourceUrl）"
+  },
+  "entries": [
+    {
+      "batch": 1,
+      "idx": 4,
+      "name": "北海道神宮頓宮",
+      "prefecture": "北海道",
+      "qid": "Q21654596",
+      "linkConfidence": "medium",
+      "linkChecked": true,
+      "file": "Hokkaido Jingu Tongu.JPG",
+      "sha1": "884eb021c8e904229ae6e1e16021617d334bc42c",
+      "r2Key": "spot-photos/884eb021c8e904229ae6e1e16021617d334bc42c.jpg",
+      "width": 4320,
+      "height": 3240,
+      "focusY": 0.4,
+      "author": "禁樹なずな",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Hokkaido_Jingu_Tongu.JPG",
+      "isCropped": true,
+      "status": "approved"
+    },
+    {
+      "batch": 1,
+      "idx": 144,
+      "name": "輪王寺",
+      "prefecture": "栃木県",
+      "qid": "Q1348249",
+      "linkConfidence": "high",
+      "linkChecked": false,
+      "file": "NikkoRinnoji5390.jpg",
+      "sha1": "1bfec532e55565a740ebeb5913c077a40d8a689a",
+      "r2Key": "spot-photos/1bfec532e55565a740ebeb5913c077a40d8a689a.jpg",
+      "width": 1350,
+      "height": 900,
+      "focusY": 0.55,
+      "author": null,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:NikkoRinnoji5390.jpg",
+      "isCropped": true,
+      "status": "approved"
+    },
+    {
+      "batch": 1,
+      "idx": 1028,
+      "name": "金蛇水神社",
+      "prefecture": "宮城県",
+      "qid": "Q11647860",
+      "linkConfidence": "high",
+      "linkChecked": false,
+      "file": "Haiden of Kanahebi-Suijinja shrine 1.JPG",
+      "sha1": "ecabf0cb9c1192910b283e495515489c8343d403",
+      "r2Key": "spot-photos/ecabf0cb9c1192910b283e495515489c8343d403.jpg",
+      "width": 4032,
+      "height": 3024,
+      "focusY": 0.5,
+      "author": "Bachstelze",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Haiden_of_Kanahebi-Suijinja_shrine_1.JPG",
+      "isCropped": true,
+      "status": "approved"
+    }
+  ]
+}

@@ -232,7 +232,7 @@ the map shows nearby spots. Tap a pin for details.
 Recording and visit plans need an account: tap "+" on the map and sign in with
 Apple or Google. Reviewers may use their own Apple ID (private relay is
 supported); no demo credentials are needed. Account deletion: "設定" tab ->
-"アカウントを削除".
+scroll to the bottom -> "アカウントを削除".
 
 To find a missing shrine: on the record screen, type a name in the spot field,
 tap the orange row at the bottom ("…をもっと探す") and choose a region. Limit:

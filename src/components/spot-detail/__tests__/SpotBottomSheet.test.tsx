@@ -1,7 +1,7 @@
 import React from 'react';
-import { render, fireEvent, within } from '@testing-library/react-native';
+import { act, render, fireEvent, within, waitFor } from '@testing-library/react-native';
 import '@testing-library/react-native/extend-expect';
-import { Animated, Dimensions, StyleSheet } from 'react-native';
+import { AccessibilityInfo, Animated, Dimensions, StyleSheet, View } from 'react-native';
 import { BottomTabBarHeightContext } from '@react-navigation/bottom-tabs';
 import {
   SpotBottomSheet,
@@ -12,8 +12,12 @@ import {
   COMPACT_SCREEN_RATIO,
   sumCompactParts,
 } from '../SpotBottomSheet';
+import { SpotSheetHero } from '../SpotSheetHero';
+import { SpotPhotoCredit } from '../SpotPhotoCredit';
+import { HERO_COMPACT_NAME_TOP } from '../spotHeroMotion';
+import { colors } from '@theme/colors';
 import { spacing } from '@theme/spacing';
-import type { Spot } from '@/types/supabase';
+import type { Spot, SpotPhoto } from '@/types/supabase';
 
 jest.mock('@react-navigation/bottom-tabs', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
@@ -46,7 +50,12 @@ const mockSpot: Spot = {
 
 jest.mock('@hooks/useSpotDetail', () => ({
   useSpotDetail: (spotId: string | null) => ({
-    spot: spotId === 'spot-1' ? mockSpot : null,
+    spot:
+      spotId === 'spot-1'
+        ? mockSpot
+        : spotId === 'spot-2'
+          ? { ...mockSpot, id: 'spot-2', name: '源覚寺', type: 'temple' }
+          : null,
     isLoading: false,
     error: null,
   }),
@@ -65,6 +74,12 @@ jest.mock('@hooks/useSpotStamps', () => ({
     latestVisitDate: '2024-06-15',
     isLoading: false,
   }),
+}));
+
+// 帯の写真（Issue #302）。既定は写真なし（第1段の帯）
+let mockPhoto: SpotPhoto | null = null;
+jest.mock('@hooks/useSpotPhoto', () => ({
+  useSpotPhoto: () => ({ photo: mockPhoto }),
 }));
 
 jest.mock('@hooks/useSpotInfo', () => ({
@@ -186,7 +201,15 @@ describe('resolveCompactHeight', () => {
   it('小型端末では画面の 6 割を超えない（フッターを含めるため 0.5 → 0.6。Issue #253）', () => {
     expect(COMPACT_SCREEN_RATIO).toBe(0.6);
     expect(resolveCompactHeight(999, 618)).toBe(371);
-    expect(resolveCompactHeight(999, 800)).toBe(380);
+    expect(resolveCompactHeight(999, 800)).toBe(410);
+  });
+
+  // 帯の下の名前の行の位置（50）がつまみ（20）の代わりに入って 30 高くなった分を打ち消す。
+  // 380 のままだと、受付2行・写真の帯・見出しのある寺社で見出しがフッターに隠れた（Issue #293）
+  it('上限は 410（帯で増えた 30 を 380 に足す。Issue #293）', () => {
+    expect(COMPACT_MAX_HEIGHT).toBe(410);
+    expect(resolveCompactHeight(405, 800)).toBe(405);
+    expect(resolveCompactHeight(999, 700)).toBe(410);
   });
 
   it('不正な値はフォールバックする', () => {
@@ -197,9 +220,10 @@ describe('resolveCompactHeight', () => {
 });
 
 describe('sumCompactParts', () => {
-  it('ハンドル・中身・フッターの和。未計測は 0', () => {
-    expect(sumCompactParts({ handle: 20, primary: 250, footer: 70 })).toBe(340);
-    expect(sumCompactParts({ handle: 20, primary: 0, footer: 70 })).toBe(90);
+  it('帯の下の名前の行の位置・中身・フッターの和。未計測は 0（Issue #293 AC-30）', () => {
+    expect(HERO_COMPACT_NAME_TOP).toBe(50);
+    expect(sumCompactParts({ top: 50, primary: 250, footer: 70 })).toBe(370);
+    expect(sumCompactParts({ top: 50, primary: 0, footer: 70 })).toBe(120);
   });
 });
 
@@ -359,19 +383,18 @@ describe('SpotBottomSheet — 並びが入れ替わらない（Issue #253）', (
     expect(style.paddingBottom).toBe(spacing.md + 34);
   });
 
-  it('閉じた高さは ハンドル + 見出しまでの中身 + フッター の実測の和', () => {
+  it('閉じた高さは 帯の下の名前の行の位置（50）＋ 見出しまでの中身 ＋ フッター（Issue #293 AC-30）', () => {
     const spring = jest.spyOn(Animated, 'spring');
     const ui = render(<SpotBottomSheet {...props} />);
     const layout = (id: string, height: number) =>
       fireEvent(ui.getByTestId(id), 'layout', {
         nativeEvent: { layout: { height, width: 390, x: 0, y: 0 } },
       });
-    layout('sheet-handle', 20);
     layout('spot-sheet-primary', 250);
     layout('spot-sheet-footer', 70);
     const available = Dimensions.get('window').height - 49;
     const last = spring.mock.calls.at(-1)?.[1] as { toValue: number };
-    expect(last.toValue).toBe(available - 340);
+    expect(last.toValue).toBe(available - 370);
   });
 
   it('写真を押すと、その写真からギャラリーが開く。シートは開かない', () => {
@@ -393,5 +416,364 @@ describe('SpotBottomSheet — 並びが入れ替わらない（Issue #253）', (
     fireEvent.press(ui.getByTestId('sheet-handle'));
     expect(ui.queryByTestId('limited-goshuin-heading')).toBeNull();
     expect(ui.queryByTestId('spot-thumbnails')).toBeNull();
+  });
+
+  /* Issue #293: シートの上の帯（場所の顔）。帯はスクロールの外、中身を持ち上げて帯の下の端に重ねる */
+  describe('帯（Issue #293）', () => {
+    const hidden = { includeHiddenElements: true };
+    type JsonNode = { props: Record<string, unknown>; children: (JsonNode | string)[] | null };
+    const findNode = (node: unknown, id: string): JsonNode | null => {
+      if (!node || typeof node !== 'object') return null;
+      if (Array.isArray(node)) {
+        for (const child of node) {
+          const found = findNode(child, id);
+          if (found) return found;
+        }
+        return null;
+      }
+      const n = node as JsonNode;
+      if (n.props?.testID === id) return n;
+      return findNode(n.children, id);
+    };
+    const childIds = (node: JsonNode | null) =>
+      (node?.children ?? []).map(c => (typeof c === 'string' ? c : c.props.testID));
+    const flatten = (node: { props: { style?: unknown } }) =>
+      (StyleSheet.flatten(node.props.style) ?? {}) as Record<string, unknown>;
+    const read = (value: unknown): number => {
+      const v =
+        value && typeof value === 'object' && '__getValue' in value
+          ? (value as { __getValue: () => unknown }).__getValue()
+          : value;
+      return typeof v === 'string' ? parseFloat(v) : (v as number);
+    };
+    const transformValue = (node: { props: { style?: unknown } }, key: string) =>
+      read(
+        ((flatten(node).transform ?? []) as Record<string, unknown>[]).find(t => key in t)?.[key]
+      );
+
+    /** spring を、すぐに行き先へ置いて終わるものにする */
+    const stubSpring = () =>
+      jest.spyOn(Animated, 'spring').mockImplementation((value, config) => {
+        (value as Animated.Value).setValue((config as { toValue: number }).toValue);
+        return {
+          start: (cb?: Animated.EndCallback) => cb?.({ finished: true }),
+          stop: jest.fn(),
+          reset: jest.fn(),
+        } as unknown as Animated.CompositeAnimation;
+      });
+
+    it('帯・中身・つまみの順に重ね、中身の中は ぼかし → 白い地 → 中身（AC-27）', () => {
+      const ui = render(<SpotBottomSheet {...props} />);
+      const json = ui.toJSON();
+      expect(childIds(findNode(json, 'bottom-sheet'))).toEqual([
+        'spot-hero',
+        'spot-sheet-body',
+        'sheet-handle',
+      ]);
+      const body = ui.getByTestId('spot-sheet-body');
+      const scroll = within(body).getByTestId('spot-sheet-scroll');
+      expect(within(scroll).queryByTestId('spot-hero', hidden)).toBeNull();
+      expect(within(scroll).getByTestId('spot-sheet-surface')).toBeTruthy();
+      expect(childIds(findNode(json, 'spot-sheet-surface'))).toEqual([
+        'spot-hero-fade',
+        'spot-sheet-ground',
+        'spot-sheet-content',
+      ]);
+      expect(
+        within(ui.getByTestId('spot-sheet-content')).getByTestId('spot-sheet-primary')
+      ).toBeTruthy();
+
+      const handle = ui.getByTestId('sheet-handle');
+      expect(flatten(handle)).toEqual(
+        expect.objectContaining({
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          alignItems: 'center',
+          paddingVertical: spacing.sm,
+        })
+      );
+      expect(handle.props.onLayout).toBeUndefined();
+      expect(flatten(body)).toEqual(expect.objectContaining({ flex: 1, marginTop: 152 }));
+    });
+
+    it('ぼかし・白い地・中身の余白（AC-28）', () => {
+      const ui = render(<SpotBottomSheet {...props} />);
+      const fade = ui.getByTestId('spot-hero-fade', hidden);
+      expect(fade.props.colors).toEqual([
+        colors.spotHero.fadeClear,
+        colors.spotHero.fadeMid,
+        colors.white,
+      ]);
+      expect(fade.props.locations).toEqual([5 / 57, 29 / 57, 47 / 57]);
+      expect(fade.props.start).toEqual({ x: 0.5, y: 0 });
+      expect(fade.props.end).toEqual({ x: 0.5, y: 1 });
+      expect(flatten(fade)).toEqual(
+        expect.objectContaining({ position: 'absolute', top: 0, left: 0, right: 0, height: 57 })
+      );
+      expect(flatten(ui.getByTestId('spot-sheet-ground', hidden))).toEqual(
+        expect.objectContaining({
+          position: 'absolute',
+          top: 56,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: colors.white,
+        })
+      );
+      expect(flatten(ui.getByTestId('spot-sheet-surface'))).toEqual(
+        expect.objectContaining({ flexGrow: 1, minHeight: 184 })
+      );
+      expect(flatten(ui.getByTestId('spot-sheet-content'))).toEqual(
+        expect.objectContaining({ paddingTop: 26, paddingHorizontal: spacing.lg })
+      );
+      const container = StyleSheet.flatten(
+        ui.getByTestId('spot-sheet-scroll').props.contentContainerStyle
+      ) as Record<string, unknown>;
+      expect(container.flexGrow).toBe(1);
+      expect('paddingHorizontal' in container).toBe(false);
+    });
+
+    it('半分では中身を 128 持ち上げ、大きくで 0。印とページも開きについていく（AC-29）', () => {
+      stubSpring();
+      const ui = render(<SpotBottomSheet {...props} />);
+      const body = () => transformValue(ui.getByTestId('spot-sheet-body'), 'translateY');
+      const crest = (key: string) => transformValue(ui.getByTestId('spot-hero-crest', hidden), key);
+      const pagesX = () => transformValue(ui.getByTestId('spot-hero-pages', hidden), 'translateX');
+
+      expect(body()).toBeCloseTo(-128, 3);
+      expect(crest('translateY')).toBeCloseTo(-44, 3);
+      expect(crest('scale')).toBeCloseTo(0.833, 3);
+      expect(pagesX()).toBeCloseTo(35, 3);
+
+      fireEvent.press(ui.getByTestId('sheet-handle'));
+      expect(body()).toBeCloseTo(0, 3);
+      expect(crest('translateY')).toBeCloseTo(0, 3);
+      expect(crest('scale')).toBeCloseTo(1, 3);
+      expect(pagesX()).toBeCloseTo(0, 3);
+
+      fireEvent.press(ui.getByTestId('sheet-handle'));
+      expect(body()).toBeCloseTo(-128, 3);
+    });
+
+    it('帯を押すと、つまみと同じく開閉する（AC-31）', () => {
+      const ui = render(<SpotBottomSheet {...props} />);
+      expect(ui.queryByTestId('limited-goshuin-item-0')).toBeNull();
+      fireEvent.press(ui.getByTestId('spot-hero'));
+      expect(ui.getByTestId('limited-goshuin-item-0')).toBeTruthy();
+      expect(ui.getByTestId('spot-sheet-scroll').props.scrollEnabled).toBe(true);
+      fireEvent.press(ui.getByTestId('spot-hero'));
+      expect(ui.queryByTestId('limited-goshuin-item-0')).toBeNull();
+      expect(ui.getByTestId('spot-sheet-scroll').props.scrollEnabled).toBe(false);
+    });
+
+    describe('帯に渡すもの（AC-32）', () => {
+      const heroProps = (ui: ReturnType<typeof render>) =>
+        ui.UNSAFE_getByType(SpotSheetHero).props as React.ComponentProps<typeof SpotSheetHero>;
+
+      it('① 行った寺社: 自分の記録の枚数と、いちばん新しい記録の写真', () => {
+        const ui = render(<SpotBottomSheet {...props} />);
+        expect(heroProps(ui)).toEqual(
+          expect.objectContaining({
+            spotType: 'shrine',
+            visited: true,
+            visitedReady: true,
+            pageCount: 2,
+            pageImageUri: 'https://example.com/user-1/s1.jpg',
+            reduceMotion: false,
+          })
+        );
+      });
+
+      it('② ほかの寺社の記録は数えない', () => {
+        mockStamps = [{ ...stamp('x1'), spot_id: 'spot-9' }];
+        const ui = render(<SpotBottomSheet {...props} />);
+        expect(heroProps(ui)).toEqual(
+          expect.objectContaining({ pageCount: 1, pageImageUri: null })
+        );
+      });
+
+      it('③ 4件でも束は3枚', () => {
+        mockStamps = ['a', 'b', 'c', 'd'].map(id => stamp(id));
+        const ui = render(<SpotBottomSheet {...props} />);
+        expect(heroProps(ui).pageCount).toBe(3);
+      });
+
+      it('④ 行っていない寺社', () => {
+        const ui = render(<SpotBottomSheet {...props} visitedSpotIds={new Set()} />);
+        expect(heroProps(ui).visited).toBe(false);
+      });
+
+      it('⑤ 訪問済みをまだ取れていない', () => {
+        const ui = render(<SpotBottomSheet {...props} visitedReady={false} />);
+        expect(heroProps(ui).visitedReady).toBe(false);
+      });
+    });
+
+    it('視差効果を減らす は、シートで1回読んで帯に渡す（AC-33）', async () => {
+      jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
+      const ui = render(<SpotBottomSheet {...props} />);
+      await waitFor(() => {
+        expect(ui.UNSAFE_getByType(SpotSheetHero).props.reduceMotion).toBe(true);
+      });
+    });
+
+    describe('シートを通した記録した瞬間（AC-34）', () => {
+      let timing: jest.SpyInstance;
+      beforeEach(() => {
+        timing = jest.spyOn(Animated, 'timing').mockReturnValue({
+          start: jest.fn(),
+          stop: jest.fn(),
+          reset: jest.fn(),
+        } as unknown as Animated.CompositeAnimation);
+      });
+      const durations = () =>
+        timing.mock.calls
+          .map(call => (call[1] as { duration?: number }).duration)
+          .filter(d => d === 500 || d === 250);
+
+      it('行っていない寺社が 行った になると、0.5秒と0.25秒の動きが1回ずつ', () => {
+        const ui = render(<SpotBottomSheet {...props} visitedSpotIds={new Set()} />);
+        ui.rerender(<SpotBottomSheet {...props} visitedSpotIds={new Set(['spot-1'])} />);
+        expect(durations().sort()).toEqual([250, 500]);
+      });
+
+      it('訪問済みをまだ取れていない描画からは動かさない', () => {
+        const ui = render(
+          <SpotBottomSheet {...props} visitedSpotIds={new Set()} visitedReady={false} />
+        );
+        ui.rerender(<SpotBottomSheet {...props} visitedSpotIds={new Set(['spot-1'])} />);
+        expect(durations()).toEqual([]);
+      });
+
+      it('行った寺社へ切り替えても動かさない（帯は寺社ごとに作り直す）', () => {
+        const visited = new Set(['spot-2']);
+        const ui = render(<SpotBottomSheet {...props} spotId="spot-1" visitedSpotIds={visited} />);
+        ui.rerender(<SpotBottomSheet {...props} spotId="spot-2" visitedSpotIds={visited} />);
+        expect(durations()).toEqual([]);
+        expect(ui.UNSAFE_getByType(SpotSheetHero).props).toEqual(
+          expect.objectContaining({ spotType: 'temple', visited: true })
+        );
+      });
+    });
+  });
+});
+
+describe('SpotBottomSheet — 帯の写真（Issue #302）', () => {
+  const props = {
+    spotId: 'spot-1' as string | null,
+    visitedSpotIds: new Set(['spot-1']),
+    onDismiss: jest.fn(),
+    onRecord: jest.fn(),
+    wishlistSpotIds: new Set<string>(),
+    onWishlistToggle: jest.fn(),
+  };
+  const PHOTO: SpotPhoto = {
+    uri: 'https://example.com/p.jpg',
+    width: 1280,
+    height: 960,
+    focusY: 0.5,
+    author: 'Bachstelze',
+    license: 'CC BY-SA 3.0',
+    licenseUrl: 'https://creativecommons.org/licenses/by-sa/3.0',
+    sourceUrl: 'https://commons.wikimedia.org/wiki/File:A.jpg',
+    isCropped: true,
+  };
+  const hidden = { includeHiddenElements: true };
+  type JsonNode = { props: Record<string, unknown>; children: (JsonNode | string)[] | null };
+  const findNode = (node: unknown, id: string): JsonNode | null => {
+    if (!node || typeof node !== 'object') return null;
+    if (Array.isArray(node)) {
+      for (const child of node) {
+        const found = findNode(child, id);
+        if (found) return found;
+      }
+      return null;
+    }
+    const n = node as JsonNode;
+    if (n.props?.testID === id) return n;
+    return findNode(n.children, id);
+  };
+  const childIds = (node: JsonNode | null) =>
+    (node?.children ?? [])
+      .map(c => (typeof c === 'string' ? c : c.props.testID))
+      .filter(id => id !== undefined);
+  const flatten = (node: { props: { style?: unknown } }) =>
+    (StyleSheet.flatten(node.props.style) ?? {}) as Record<string, unknown>;
+  const heroProps = (ui: ReturnType<typeof render>) =>
+    ui.UNSAFE_getByType(SpotSheetHero).props as React.ComponentProps<typeof SpotSheetHero>;
+  /** つまみの棒 */
+  const bar = (ui: ReturnType<typeof render>) =>
+    within(ui.getByTestId('sheet-handle')).UNSAFE_getAllByType(View)[0];
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+    mockPhoto = null;
+  });
+
+  it('写真が無い・読めるまで・読めた・読めなかった で、帯・ⓘ・つまみが替わる（AC-33）', () => {
+    const none = render(<SpotBottomSheet {...props} />);
+    expect(heroProps(none)).toEqual(expect.objectContaining({ photo: null, photoReady: false }));
+    expect(none.queryByTestId('spot-photo-credit', hidden)).toBeNull();
+    expect(flatten(bar(none)).backgroundColor).toBe(colors.gray[300]);
+    expect(Object.values(flatten(bar(none)))).not.toContain(colors.spotHeroPhoto.handle);
+
+    mockPhoto = PHOTO;
+    const ui = render(<SpotBottomSheet {...props} />);
+    expect(heroProps(ui).photo).toBe(PHOTO);
+    expect(heroProps(ui).photoReady).toBe(false);
+    expect(ui.queryByTestId('spot-photo-credit', hidden)).toBeNull();
+
+    act(() => heroProps(ui).onPhotoLoad?.());
+    expect(heroProps(ui).photoReady).toBe(true);
+    const surface = ui.getByTestId('spot-sheet-surface');
+    expect(within(surface).getByTestId('spot-photo-credit')).toBeTruthy();
+    expect(childIds(findNode(ui.toJSON(), 'spot-sheet-surface'))).toEqual([
+      'spot-hero-fade',
+      'spot-sheet-ground',
+      'spot-sheet-content',
+      'spot-photo-credit',
+    ]);
+    expect(flatten(bar(ui))).toEqual(
+      expect.objectContaining({
+        backgroundColor: colors.spotHeroPhoto.handle,
+        shadowColor: colors.black,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.18,
+        shadowRadius: 2,
+      })
+    );
+
+    act(() => heroProps(ui).onPhotoError?.());
+    expect(heroProps(ui).photoReady).toBe(false);
+    expect(ui.queryByTestId('spot-photo-credit', hidden)).toBeNull();
+    expect(flatten(bar(ui)).backgroundColor).toBe(colors.gray[300]);
+  });
+
+  it('写真が替わると、新しい写真が読めるまで読めていない扱い（AC-34）', () => {
+    mockPhoto = PHOTO;
+    const ui = render(<SpotBottomSheet {...props} />);
+    act(() => heroProps(ui).onPhotoLoad?.());
+    expect(heroProps(ui).photoReady).toBe(true);
+
+    mockPhoto = { ...PHOTO, uri: 'https://example.com/q.jpg' };
+    ui.rerender(<SpotBottomSheet {...props} spotId="spot-2" />);
+    expect(heroProps(ui).photoReady).toBe(false);
+    expect(ui.queryByTestId('spot-photo-credit', hidden)).toBeNull();
+    act(() => heroProps(ui).onPhotoLoad?.());
+    expect(heroProps(ui).photoReady).toBe(true);
+  });
+
+  it('ⓘ の 視差効果を減らす は、帯と同じくシートで1回読んだ値（AC-34）', async () => {
+    jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
+    mockPhoto = PHOTO;
+    const ui = render(<SpotBottomSheet {...props} />);
+    act(() => heroProps(ui).onPhotoLoad?.());
+    await waitFor(() => {
+      expect(heroProps(ui).reduceMotion).toBe(true);
+      expect(ui.UNSAFE_getByType(SpotPhotoCredit).props.reduceMotion).toBe(true);
+    });
+    expect(ui.UNSAFE_getByType(SpotPhotoCredit).props.photo).toBe(PHOTO);
   });
 });

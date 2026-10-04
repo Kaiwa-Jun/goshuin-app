@@ -1,0 +1,646 @@
+{
+  "schemaVersion": 1,
+  "issue": 301,
+  "note": "Wikimedia Commons の写真の候補（対応表の P18）。採るか・focus_y・承認は #302 で決める。表示には撮影者・ライセンス・元のページが要る",
+  "attribution": {
+    "commons": "Wikimedia Commons。ライセンスはファイルごと（license・licenseUrl）"
+  },
+  "entries": [
+    {
+      "idx": 1,
+      "name": "北海道神宮",
+      "prefecture": "北海道",
+      "qid": "Q710826",
+      "linkConfidence": "high",
+      "files": [
+        {
+          "file": "Hokkaido Jingu.JPG",
+          "width": 1280,
+          "height": 960,
+          "mime": "image/jpeg",
+          "sha1": "28fde091d042a897a436d04e38d321dad4697329",
+          "url": "https://upload.wikimedia.org/wikipedia/commons/a/a9/Hokkaido_Jingu.JPG",
+          "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Hokkaido_Jingu.JPG",
+          "license": "CC BY-SA 3.0",
+          "licenseUrl": "http://creativecommons.org/licenses/by-sa/3.0/",
+          "artist": "Daigaku2051",
+          "artistHtml": "<a href=\"//commons.wikimedia.org/w/index.php?title=User:Daigaku2051&amp;action=edit&amp;redlink=1\" class=\"new\" title=\"User:Daigaku2051 (page does not exist)\">Daigaku2051</a>",
+          "credit": "Own work",
+          "creditHtml": "<span class=\"int-own-work\" lang=\"en\">Own work</span>",
+          "attributionRequired": true,
+          "copyrighted": true,
+          "restrictions": "",
+          "usageTerms": "Creative Commons Attribution-Share Alike 3.0"
+        }
+      ]
+    },
+    {
+      "idx": 4,
+      "name": "北海道神宮頓宮",
+      "prefecture": "北海道",
+      "qid": "Q21654596",
+      "linkConfidence": "medium",
+      "files": [
+        {
+          "file": "Hokkaido Jingu Tongu.JPG",
+          "width": 4320,
+          "height": 3240,
+          "mime": "image/jpeg",
+          "sha1": "884eb021c8e904229ae6e1e16021617d334bc42c",
+          "url": "https://upload.wikimedia.org/wikipedia/commons/c/cd/Hokkaido_Jingu_Tongu.JPG",
+          "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Hokkaido_Jingu_Tongu.JPG",
+          "license": "CC BY-SA 4.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+          "artist": "禁樹なずな",
+          "artistHtml": "<a href=\"//commons.wikimedia.org/wiki/User:%E7%A6%81%E6%A8%B9%E3%81%AA%E3%81%9A%E3%81%AA\" title=\"User:禁樹なずな\">禁樹なずな</a>",
+          "credit": "Own work",
+          "creditHtml": "<span class=\"int-own-work\" lang=\"en\">Own work</span>",
+          "attributionRequired": true,
+          "copyrighted": true,
+          "restrictions": "",
+          "usageTerms": "Creative Commons Attribution-Share Alike 4.0"
+        }
+      ]
+    },
+    {
+      "idx": 41,
+      "name": "中尊寺",
+      "prefecture": "岩手県",
+      "qid": "Q2660144",
+      "linkConfidence": "high",
+      "files": [
+        {
+          "file": "230728 Chusonji Hiraizumi Iwate pref Japan01s3.jpg",
+          "width": 5472,
+          "height": 3648,
+          "mime": "image/jpeg",
+          "sha1": "672e15434a31d8934bfbe9ba8d90da03ced98617",
+          "url": "https://upload.wikimedia.org/wikipedia/commons/9/9b/230728_Chusonji_Hiraizumi_Iwate_pref_Japan01s3.jpg",
+          "descriptionUrl": "https://commons.wikimedia.org/wiki/File:230728_Chusonji_Hiraizumi_Iwate_pref_Japan01s3.jpg",
+          "license": "CC BY-SA 4.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+          "artist": "663highland",
+          "artistHtml": "<a href=\"https://ja.wikipedia.org/wiki/user:663highland\" class=\"extiw\" title=\"ja:user:663highland\">663highland</a>",
+          "credit": "Own work",
+          "creditHtml": "<span class=\"int-own-work\" lang=\"en\">Own work</span>",
+          "attributionRequired": true,
+          "copyrighted": true,
+          "restrictions": "",
+          "usageTerms": "Creative Commons Attribution-Share Alike 4.0"
+        }
+      ]
+    },
+    {
+      "idx": 51,
+      "name": "中尊寺金色堂",
+      "prefecture": "岩手県",
+      "qid": "Q11363889",
+      "linkConfidence": "high",
+      "files": [
+        {
+          "file": "230728 Chusonji Hiraizumi Iwate pref Japan01s3.jpg",
+          "width": 5472,
+          "height": 3648,
+          "mime": "image/jpeg",
+          "sha1": "672e15434a31d8934bfbe9ba8d90da03ced98617",
+          "url": "https://upload.wikimedia.org/wikipedia/commons/9/9b/230728_Chusonji_Hiraizumi_Iwate_pref_Japan01s3.jpg",
+          "descriptionUrl": "https://commons.wikimedia.org/wiki/File:230728_Chusonji_Hiraizumi_Iwate_pref_Japan01s3.jpg",
+          "license": "CC BY-SA 4.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+          "artist": "663highland",
+          "artistHtml": "<a href=\"https://ja.wikipedia.org/wiki/user:663highland\" class=\"extiw\" title=\"ja:user:663highland\">663highland</a>",
+          "credit": "Own work",
+          "creditHtml": "<span class=\"int-own-work\" lang=\"en\">Own work</span>",
+          "attributionRequired": true,
+          "copyrighted": true,
+          "restrictions": "",
+          "usageTerms": "Creative Commons Attribution-Share Alike 4.0"
+        }
+      ]
+    },
+    {
+      "idx": 138,
+      "name": "筑波山大御堂",
+      "prefecture": "茨城県",
+      "qid": "Q11435427",
+      "linkConfidence": "high",
+      "files": [
+        {
+          "file": "Omido,Tsukuba city,Japan.jpg",
+          "width": 2992,
+          "height": 2000,
+          "mime": "image/jpeg",
+          "sha1": "68993918141059632047704b5b3b2895616bfcf9",
+          "url": "https://upload.wikimedia.org/wikipedia/commons/5/5a/Omido%2CTsukuba_city%2CJapan.jpg",
+          "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Omido,Tsukuba_city,Japan.jpg",
+          "license": "CC BY-SA 4.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+          "artist": "Katorisi",
+          "artistHtml": "<a href=\"//commons.wikimedia.org/w/index.php?title=User:Katorisi&amp;action=edit&amp;redlink=1\" class=\"new\" title=\"User:Katorisi (page does not exist)\">Katorisi</a>",
+          "credit": "Own work",
+          "creditHtml": "<span class=\"int-own-work\" lang=\"en\">Own work</span>",
+          "attributionRequired": true,
+          "copyrighted": true,
+          "restrictions": "",
+          "usageTerms": "Creative Commons Attribution-Share Alike 4.0"
+        },
+        {
+          "file": "筑波山大御堂.JPG",
+          "width": 3456,
+          "height": 2304,
+          "mime": "image/jpeg",
+          "sha1": "c129474615019dba3e63efd31b31218b6f9dd815",
+          "url": "https://upload.wikimedia.org/wikipedia/commons/2/2f/%E7%AD%91%E6%B3%A2%E5%B1%B1%E5%A4%A7%E5%BE%A1%E5%A0%82.JPG",
+          "descriptionUrl": "https://commons.wikimedia.org/wiki/File:%E7%AD%91%E6%B3%A2%E5%B1%B1%E5%A4%A7%E5%BE%A1%E5%A0%82.JPG",
+          "license": "CC BY 4.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
+          "artist": "小池 隆",
+          "artistHtml": "<a href=\"//commons.wikimedia.org/wiki/User:Takashi.koike\" title=\"User:Takashi.koike\">小池 隆</a>",
+          "credit": "Own work",
+          "creditHtml": "<span class=\"int-own-work\" lang=\"en\">Own work</span>",
+          "attributionRequired": true,
+          "copyrighted": true,
+          "restrictions": "",
+          "usageTerms": "Creative Commons Attribution 4.0"
+        }
+      ]
+    },
+    {
+      "idx": 141,
+      "name": "日光東照宮",
+      "prefecture": "栃木県",
+      "qid": "Q696641",
+      "linkConfidence": "high",
+      "files": [
+        {
+          "file": "Nikko Toshogu Yomeimon Gate 2024.jpg",
+          "width": 4080,
+          "height": 3072,
+          "mime": "image/jpeg",
+          "sha1": "68fad4b1ac1b5bf02ec7cd095e850ea4a56159bb",
+          "url": "https://upload.wikimedia.org/wikipedia/commons/b/b5/Nikko_Toshogu_Yomeimon_Gate_2024.jpg",
+          "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Nikko_Toshogu_Yomeimon_Gate_2024.jpg",
+          "license": "CC BY-SA 4.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+          "artist": "Jpatokal",
+          "artistHtml": "<a href=\"//commons.wikimedia.org/wiki/User:Jpatokal\" class=\"mw-redirect\" title=\"User:Jpatokal\">Jpatokal</a>",
+          "credit": "Own work",
+          "creditHtml": "<span class=\"int-own-work\" lang=\"en\">Own work</span>",
+          "attributionRequired": true,
+          "copyrighted": true,
+          "restrictions": "",
+          "usageTerms": "Creative Commons Attribution-Share Alike 4.0"
+        },
+        {
+          "file": "Nikko toshogu shrine.jpg",
+          "width": 6000,
+          "height": 4000,
+          "mime": "image/jpeg",
+          "sha1": "8515231e92fb6f67e0be01343a9eff15e594732d",
+          "url": "https://upload.wikimedia.org/wikipedia/commons/3/35/Nikko_toshogu_shrine.jpg",
+          "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Nikko_toshogu_shrine.jpg",
+          "license": "CC BY-SA 4.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+          "artist": "Koichi Sato",
+          "artistHtml": "<a href=\"//commons.wikimedia.org/w/index.php?title=User:Koichi_Sato&amp;action=edit&amp;redlink=1\" class=\"new\" title=\"User:Koichi Sato (page does not exist)\">Koichi Sato</a>",
+          "credit": "Own work",
+          "creditHtml": "<span class=\"int-own-work\" lang=\"en\">Own work</span>",
+          "attributionRequired": true,
+          "copyrighted": true,
+          "restrictions": "",
+          "usageTerms": "Creative Commons Attribution-Share Alike 4.0"
+        },
+        {
+          "file": "170825 Nikko Tosho-gu Nikko Japan30s3.jpg",
+          "width": 6000,
+          "height": 4000,
+          "mime": "image/jpeg",
+          "sha1": "24b1d240cfeae5f7c427530a9c30bd343594aec1",
+          "url": "https://upload.wikimedia.org/wikipedia/commons/f/f5/170825_Nikko_Tosho-gu_Nikko_Japan30s3.jpg",
+          "descriptionUrl": "https://commons.wikimedia.org/wiki/File:170825_Nikko_Tosho-gu_Nikko_Japan30s3.jpg",
+          "license": "CC BY-SA 4.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+          "artist": "663highland",
+          "artistHtml": "<a href=\"https://ja.wikipedia.org/wiki/user:663highland\" class=\"extiw\" title=\"ja:user:663highland\">663highland</a>",
+          "credit": "Own work",
+          "creditHtml": "<span class=\"int-own-work\" lang=\"en\">Own work</span>",
+          "attributionRequired": true,
+          "copyrighted": true,
+          "restrictions": "",
+          "usageTerms": "Creative Commons Attribution-Share Alike 4.0"
+        }
+      ]
+    },
+    {
+      "idx": 144,
+      "name": "輪王寺",
+      "prefecture": "栃木県",
+      "qid": "Q1348249",
+      "linkConfidence": "high",
+      "files": [
+        {
+          "file": "NikkoRinnoji5390.jpg",
+          "width": 1350,
+          "height": 900,
+          "mime": "image/jpeg",
+          "sha1": "1bfec532e55565a740ebeb5913c077a40d8a689a",
+          "url": "https://upload.wikimedia.org/wikipedia/commons/d/dd/NikkoRinnoji5390.jpg",
+          "descriptionUrl": "https://commons.wikimedia.org/wiki/File:NikkoRinnoji5390.jpg",
+          "license": "Public domain",
+          "licenseUrl": null,
+          "artist": null,
+          "artistHtml": null,
+          "credit": null,
+          "creditHtml": null,
+          "attributionRequired": false,
+          "copyrighted": false,
+          "restrictions": "",
+          "usageTerms": "Public domain"
+        }
+      ]
+    },
+    {
+      "idx": 154,
+      "name": "中禅寺（立木観音）",
+      "prefecture": "栃木県",
+      "qid": "Q11366837",
+      "linkConfidence": "high",
+      "files": [
+        {
+          "file": "Nikkō Chūzen-ji 2026.jpg",
+          "width": 6695,
+          "height": 3032,
+          "mime": "image/jpeg",
+          "sha1": "e4c80b3504e37150f170463763d74f47a708d3ac",
+          "url": "https://upload.wikimedia.org/wikipedia/commons/a/a7/Nikk%C5%8D_Ch%C5%ABzen-ji_2026.jpg",
+          "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Nikk%C5%8D_Ch%C5%ABzen-ji_2026.jpg",
+          "license": "CC BY-SA 4.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+          "artist": "Adrian Tync",
+          "artistHtml": "<a href=\"//commons.wikimedia.org/wiki/User:Gower\" title=\"User:Gower\">Adrian Tync</a>",
+          "credit": "Own work",
+          "creditHtml": "<span class=\"int-own-work\" lang=\"en\">Own work</span>",
+          "attributionRequired": true,
+          "copyrighted": true,
+          "restrictions": "",
+          "usageTerms": "Creative Commons Attribution-Share Alike 4.0"
+        }
+      ]
+    },
+    {
+      "idx": 239,
+      "name": "大山阿夫利神社",
+      "prefecture": "神奈川県",
+      "qid": "Q11434713",
+      "linkConfidence": "high",
+      "files": [
+        {
+          "file": "Ooyama afurijinjya.jpg",
+          "width": 4288,
+          "height": 2848,
+          "mime": "image/jpeg",
+          "sha1": "502339b28f7289b7a30408b186c640f5e682c1c3",
+          "url": "https://upload.wikimedia.org/wikipedia/commons/d/d1/Ooyama_afurijinjya.jpg",
+          "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Ooyama_afurijinjya.jpg",
+          "license": "GFDL",
+          "licenseUrl": "http://www.gnu.org/copyleft/fdl.html",
+          "artist": "Pyzhou",
+          "artistHtml": "<a href=\"//commons.wikimedia.org/wiki/User:Pyzhou\" title=\"User:Pyzhou\">Pyzhou</a>",
+          "credit": "Own work",
+          "creditHtml": "<span class=\"int-own-work\" lang=\"en\">Own work</span>",
+          "attributionRequired": true,
+          "copyrighted": true,
+          "restrictions": "",
+          "usageTerms": "GNU Free Documentation License"
+        },
+        {
+          "file": "Ōyama Aburi Shrine, Kanagawa, Japan - April 2008.jpg",
+          "width": 3888,
+          "height": 2592,
+          "mime": "image/jpeg",
+          "sha1": "f3729eb5a2a0c4f88e25f73bd397fae96f18bfbc",
+          "url": "https://upload.wikimedia.org/wikipedia/commons/7/70/%C5%8Cyama_Aburi_Shrine%2C_Kanagawa%2C_Japan_-_April_2008.jpg",
+          "descriptionUrl": "https://commons.wikimedia.org/wiki/File:%C5%8Cyama_Aburi_Shrine,_Kanagawa,_Japan_-_April_2008.jpg",
+          "license": "CC BY-SA 3.0",
+          "licenseUrl": "http://creativecommons.org/licenses/by-sa/3.0/",
+          "artist": "Σ64",
+          "artistHtml": "<a href=\"//commons.wikimedia.org/wiki/User:%CE%A364\" title=\"User:Σ64\">Σ64</a>",
+          "credit": "Own work",
+          "creditHtml": "<span class=\"int-own-work\" lang=\"en\">Own work</span>",
+          "attributionRequired": true,
+          "copyrighted": true,
+          "restrictions": "",
+          "usageTerms": "Creative Commons Attribution-Share Alike 3.0"
+        }
+      ]
+    },
+    {
+      "idx": 243,
+      "name": "新潟縣護國神社",
+      "prefecture": "新潟県",
+      "qid": "Q11503581",
+      "linkConfidence": "high",
+      "files": [
+        {
+          "file": "Niigata Gokoku Shrine 20070815.png",
+          "width": 2048,
+          "height": 1536,
+          "mime": "image/png",
+          "sha1": "f378d2ef28910a556ad0fccd5f2b35fe62c15b46",
+          "url": "https://upload.wikimedia.org/wikipedia/commons/2/29/Niigata_Gokoku_Shrine_20070815.png",
+          "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Niigata_Gokoku_Shrine_20070815.png",
+          "license": "CC BY-SA 3.0",
+          "licenseUrl": "http://creativecommons.org/licenses/by-sa/3.0/",
+          "artist": "Rosemary org",
+          "artistHtml": "<a href=\"https://ja.wikipedia.org/wiki/%E5%88%A9%E7%94%A8%E8%80%85:Rosemary_org\" class=\"extiw\" title=\"ja:利用者:Rosemary org\">Rosemary org</a>",
+          "credit": "新潟縣護國神社社殿.png",
+          "creditHtml": "<a href=\"https://ja.wikipedia.org/wiki/%E3%83%95%E3%82%A1%E3%82%A4%E3%83%AB:%E6%96%B0%E6%BD%9F%E7%B8%A3%E8%AD%B7%E5%9C%8B%E7%A5%9E%E7%A4%BE%E7%A4%BE%E6%AE%BF.png\" class=\"extiw\" title=\"ja:ファイル:新潟縣護國神社社殿.png\">新潟縣護國神社社殿.png</a>",
+          "attributionRequired": true,
+          "copyrighted": true,
+          "restrictions": "",
+          "usageTerms": "Creative Commons Attribution-Share Alike 3.0"
+        }
+      ]
+    },
+    {
+      "idx": 256,
+      "name": "宝徳山稲荷大社",
+      "prefecture": "新潟県",
+      "qid": "Q11452556",
+      "linkConfidence": "high",
+      "files": [
+        {
+          "file": "Houtokuinari Nagaoka.jpg",
+          "width": 2400,
+          "height": 1200,
+          "mime": "image/jpeg",
+          "sha1": "9931353c4c615abb10bad899938a86cf933d83ae",
+          "url": "https://upload.wikimedia.org/wikipedia/commons/b/b7/Houtokuinari_Nagaoka.jpg",
+          "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Houtokuinari_Nagaoka.jpg",
+          "license": "CC BY-SA 3.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+          "artist": "Triglav",
+          "artistHtml": "<a href=\"//commons.wikimedia.org/wiki/User:Triglav\" title=\"User:Triglav\">Triglav</a>",
+          "credit": "Own work",
+          "creditHtml": "<span class=\"int-own-work\" lang=\"en\">Own work</span>",
+          "attributionRequired": true,
+          "copyrighted": true,
+          "restrictions": "",
+          "usageTerms": "Creative Commons Attribution-Share Alike 3.0"
+        }
+      ]
+    },
+    {
+      "idx": 389,
+      "name": "事任八幡宮",
+      "prefecture": "静岡県",
+      "qid": "Q11371148",
+      "linkConfidence": "high",
+      "files": [
+        {
+          "file": "Kotonomama Hachimangu 201708late 2.jpg",
+          "width": 3264,
+          "height": 2448,
+          "mime": "image/jpeg",
+          "sha1": "78cb504983fa1fbb1b1a7f342e2dea23a9431ccb",
+          "url": "https://upload.wikimedia.org/wikipedia/commons/c/c6/Kotonomama_Hachimangu_201708late_2.jpg",
+          "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Kotonomama_Hachimangu_201708late_2.jpg",
+          "license": "CC BY 4.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
+          "artist": "観光・CP課",
+          "artistHtml": "観光・CP課",
+          "credit": "事任八幡宮の写真 - オープンデータサイト",
+          "creditHtml": "<a rel=\"nofollow\" class=\"external text\" href=\"https://www.city.kakegawa.shizuoka.jp/opendata/dataset/11551.html\">事任八幡宮の写真 - オープンデータサイト</a>",
+          "attributionRequired": true,
+          "copyrighted": true,
+          "restrictions": "personality",
+          "usageTerms": "Creative Commons Attribution 4.0"
+        }
+      ]
+    },
+    {
+      "idx": 660,
+      "name": "井戸寺",
+      "prefecture": "徳島県",
+      "qid": "Q11373550",
+      "linkConfidence": "high",
+      "files": [
+        {
+          "file": "Idozi02.jpg",
+          "width": 1280,
+          "height": 665,
+          "mime": "image/jpeg",
+          "sha1": "17ef32448d559bb315fb90fb198d0a8ba1485b8e",
+          "url": "https://upload.wikimedia.org/wikipedia/commons/a/af/Idozi02.jpg",
+          "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Idozi02.jpg",
+          "license": "CC BY-SA 3.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+          "artist": "Dokudami",
+          "artistHtml": "<a href=\"//commons.wikimedia.org/wiki/User:Dokudami\" title=\"User:Dokudami\">Dokudami</a>",
+          "credit": "Own work",
+          "creditHtml": "<span class=\"int-own-work\" lang=\"en\">Own work</span>",
+          "attributionRequired": true,
+          "copyrighted": true,
+          "restrictions": "",
+          "usageTerms": "Creative Commons Attribution-Share Alike 3.0"
+        }
+      ]
+    },
+    {
+      "idx": 765,
+      "name": "崇福寺",
+      "prefecture": "長崎県",
+      "qid": "Q63208",
+      "linkConfidence": "high",
+      "files": [
+        {
+          "file": "Nagasaki-Sofukuji-Daiyuhoden-M5601.jpg",
+          "width": 1280,
+          "height": 1280,
+          "mime": "image/jpeg",
+          "sha1": "bed39287f2be69681a2491e28b93382bef099f8a",
+          "url": "https://upload.wikimedia.org/wikipedia/commons/c/cf/Nagasaki-Sofukuji-Daiyuhoden-M5601.jpg",
+          "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Nagasaki-Sofukuji-Daiyuhoden-M5601.jpg",
+          "license": "Public domain",
+          "licenseUrl": null,
+          "artist": "Fg2",
+          "artistHtml": "<a href=\"//commons.wikimedia.org/wiki/User:Fg2\" title=\"User:Fg2\">Fg2</a>",
+          "credit": "I took this photo and contribute my rights in the file to the public domain. Individuals and organizations retain rights to images in the file.",
+          "creditHtml": "I took this photo and contribute my rights in the file to the public domain. Individuals and organizations retain rights to images in the file.",
+          "attributionRequired": false,
+          "copyrighted": false,
+          "restrictions": "",
+          "usageTerms": "Public domain"
+        }
+      ]
+    },
+    {
+      "idx": 884,
+      "name": "靖國神社",
+      "prefecture": "東京都",
+      "qid": "Q242803",
+      "linkConfidence": "high",
+      "files": [
+        {
+          "file": "2018 Haiden (Yasukuni Shrine).jpg",
+          "width": 2500,
+          "height": 1691,
+          "mime": "image/jpeg",
+          "sha1": "8b72b909552e91ad9255e9ff93b2c8c7c686ede0",
+          "url": "https://upload.wikimedia.org/wikipedia/commons/d/df/2018_Haiden_%28Yasukuni_Shrine%29.jpg",
+          "descriptionUrl": "https://commons.wikimedia.org/wiki/File:2018_Haiden_(Yasukuni_Shrine).jpg",
+          "license": "CC BY-SA 4.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+          "artist": "Kakidai",
+          "artistHtml": "<a href=\"//commons.wikimedia.org/wiki/User:Kakidai\" title=\"User:Kakidai\">Kakidai</a>",
+          "credit": "Own work",
+          "creditHtml": "<span class=\"int-own-work\" lang=\"en\">Own work</span>",
+          "attributionRequired": true,
+          "copyrighted": true,
+          "restrictions": "",
+          "usageTerms": "Creative Commons Attribution-Share Alike 4.0"
+        }
+      ]
+    },
+    {
+      "idx": 900,
+      "name": "愛宕神社",
+      "prefecture": "東京都",
+      "qid": "Q2868748",
+      "linkConfidence": "high",
+      "files": [
+        {
+          "file": "Atago jinja Tokyo main building.JPG",
+          "width": 2592,
+          "height": 1944,
+          "mime": "image/jpeg",
+          "sha1": "0fa23fe863d70b983c8c27318f3c38ebed0f5ffa",
+          "url": "https://upload.wikimedia.org/wikipedia/commons/5/5c/Atago_jinja_Tokyo_main_building.JPG",
+          "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Atago_jinja_Tokyo_main_building.JPG",
+          "license": "CC BY-SA 3.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+          "artist": null,
+          "artistHtml": null,
+          "credit": null,
+          "creditHtml": null,
+          "attributionRequired": true,
+          "copyrighted": true,
+          "restrictions": "",
+          "usageTerms": "Creative Commons Attribution-Share Alike 3.0"
+        }
+      ]
+    },
+    {
+      "idx": 938,
+      "name": "戸越八幡神社",
+      "prefecture": "東京都",
+      "qid": "Q11496627",
+      "linkConfidence": "high",
+      "files": [
+        {
+          "file": "Togoshi hachiman.JPG",
+          "width": 1555,
+          "height": 2074,
+          "mime": "image/jpeg",
+          "sha1": "c49c54cdb1e4182d788b3998d73c01a8b33c0ae9",
+          "url": "https://upload.wikimedia.org/wikipedia/commons/c/cf/Togoshi_hachiman.JPG",
+          "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Togoshi_hachiman.JPG",
+          "license": "CC BY-SA 3.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+          "artist": "User:Kentin",
+          "artistHtml": "<a href=\"//commons.wikimedia.org/wiki/User:Kentin\" title=\"User:Kentin\">User:Kentin</a>",
+          "credit": "Own work",
+          "creditHtml": "<span class=\"int-own-work\" lang=\"en\">Own work</span>",
+          "attributionRequired": true,
+          "copyrighted": true,
+          "restrictions": "",
+          "usageTerms": "Creative Commons Attribution-Share Alike 3.0"
+        }
+      ]
+    },
+    {
+      "idx": 1007,
+      "name": "平等院",
+      "prefecture": "京都府",
+      "qid": "Q61094",
+      "linkConfidence": "high",
+      "files": [
+        {
+          "file": "Phoenix Hall, Byodo-in, November 2016 -01.jpg",
+          "width": 5377,
+          "height": 2812,
+          "mime": "image/jpeg",
+          "sha1": "9eab7dfec22b11f05a67f3252bd38a8e108fcbf0",
+          "url": "https://upload.wikimedia.org/wikipedia/commons/6/69/Phoenix_Hall%2C_Byodo-in%2C_November_2016_-01.jpg",
+          "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Phoenix_Hall,_Byodo-in,_November_2016_-01.jpg",
+          "license": "CC BY-SA 4.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+          "artist": "Martin Falbisoner",
+          "artistHtml": "<a href=\"//commons.wikimedia.org/wiki/User:Martin_Falbisoner\" title=\"User:Martin Falbisoner\">Martin Falbisoner</a>",
+          "credit": "Own work",
+          "creditHtml": "<span class=\"int-own-work\" lang=\"en\">Own work</span>",
+          "attributionRequired": true,
+          "copyrighted": true,
+          "restrictions": "",
+          "usageTerms": "Creative Commons Attribution-Share Alike 4.0"
+        }
+      ]
+    },
+    {
+      "idx": 1028,
+      "name": "金蛇水神社",
+      "prefecture": "宮城県",
+      "qid": "Q11647860",
+      "linkConfidence": "high",
+      "files": [
+        {
+          "file": "Haiden of Kanahebi-Suijinja shrine 1.JPG",
+          "width": 4032,
+          "height": 3024,
+          "mime": "image/jpeg",
+          "sha1": "ecabf0cb9c1192910b283e495515489c8343d403",
+          "url": "https://upload.wikimedia.org/wikipedia/commons/f/f3/Haiden_of_Kanahebi-Suijinja_shrine_1.JPG",
+          "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Haiden_of_Kanahebi-Suijinja_shrine_1.JPG",
+          "license": "CC BY-SA 3.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+          "artist": "Bachstelze",
+          "artistHtml": "<a href=\"//commons.wikimedia.org/w/index.php?title=User:Bachstelze&amp;action=edit&amp;redlink=1\" class=\"new\" title=\"User:Bachstelze (page does not exist)\">Bachstelze</a>",
+          "credit": "Own work",
+          "creditHtml": "<span class=\"int-own-work\" lang=\"en\">Own work</span>",
+          "attributionRequired": true,
+          "copyrighted": true,
+          "restrictions": "",
+          "usageTerms": "Creative Commons Attribution-Share Alike 3.0"
+        }
+      ]
+    },
+    {
+      "idx": 1036,
+      "name": "亀岡八幡宮",
+      "prefecture": "宮城県",
+      "qid": "Q48796229",
+      "linkConfidence": "high",
+      "files": [
+        {
+          "file": "Take ni Suzume.svg",
+          "width": 601,
+          "height": 506,
+          "mime": "image/svg+xml",
+          "sha1": "05aa1816ac3a3aa923c3a41c890ab07ad495938c",
+          "url": "https://upload.wikimedia.org/wikipedia/commons/d/da/Take_ni_Suzume.svg",
+          "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Take_ni_Suzume.svg",
+          "license": "Public domain",
+          "licenseUrl": null,
+          "artist": "Ash_Crow",
+          "artistHtml": "<a href=\"//commons.wikimedia.org/wiki/User:Ash_Crow\" title=\"User:Ash Crow\">Ash_Crow</a>",
+          "credit": "Own work",
+          "creditHtml": "<span class=\"int-own-work\" lang=\"en\">Own work</span>",
+          "attributionRequired": false,
+          "copyrighted": false,
+          "restrictions": "trademarked",
+          "usageTerms": "Public domain"
+        }
+      ]
+    }
+  ]
+}

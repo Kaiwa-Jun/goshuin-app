@@ -1,0 +1,8 @@
+決めた 733 / 733・採る 688（high 669・medium 19）・外す 45・まだ 0
+外した理由: person 4・other-place 7・not-spot 11・quality 17・other 6
+生成物は台帳と同じ（2 ファイル・688 件）
+取った 683 件 / キャッシュにあった 9 件 / 失敗 0 件（1433 秒）
+（fetch は S6 で採った 692 件について。そのあと AC-39 で 4 件を外した）
+  274073 supabase/migrations/20261004010000_spot_photos_302_batch1.sql
+  276682 supabase/validation/spot_photos_302_check.sql
+  550755 total

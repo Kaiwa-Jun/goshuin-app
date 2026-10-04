@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { TERMS_OF_SERVICE, PRIVACY_POLICY, LegalSection } from '@/constants/legal';
 
 describe('legal constants', () => {
@@ -201,8 +203,45 @@ describe('legal constants', () => {
       expect(body(PRIVACY_POLICY, 'データの保持と削除')).toContain('・参拝の予定');
     });
 
-    it('プライバシーポリシーの更新日は 2026-10-01', () => {
-      expect(PRIVACY_POLICY.lastUpdated).toBe('2026-10-01');
+    it('プライバシーポリシーの更新日は 2026-10-01 以降（#311 で更新した）', () => {
+      expect(PRIVACY_POLICY.lastUpdated >= '2026-10-01').toBe(true);
+    });
+  });
+
+  // Issue #311: 名前にも住所にも無い言葉は、国土地理院の地名検索に送る
+  describe('地名・駅名で探す（Issue #311）', () => {
+    const P1 =
+      '【地名・駅名で探す】\n検索欄に入れた言葉が神社・寺院の名前や住所に見つからないとき、その言葉を国土地理院の地名検索に送信し、駅や名所などの場所を調べます。位置情報やアカウントの情報は送信しません。';
+    const P2 =
+      '【国土地理院】\n地名・駅名で探すとき、検索欄に入れた言葉を国土地理院の地名検索に送信します。位置情報やアカウントの情報は送信しません。';
+    const body = (title: string) =>
+      PRIVACY_POLICY.sections.find((s: LegalSection) => s.title === title)!.body;
+    const html = fs.readFileSync(path.join(__dirname, '../../../docs/legal/privacy.html'), 'utf8');
+
+    it('AC-39: 情報の利用目的に P-1。【スポットの追加】の後・【御朱印の公開表示】の前', () => {
+      const purpose = body('情報の利用目的');
+      expect(purpose).toContain(P1);
+      expect(purpose.indexOf(P1)).toBeGreaterThan(purpose.indexOf('【スポットの追加】'));
+      expect(purpose.indexOf(P1)).toBeLessThan(purpose.indexOf('【御朱印の公開表示】'));
+    });
+
+    it('AC-39: 第三者提供に P-2。【Anthropic】の後・【他のユーザー】の前', () => {
+      const thirdParty = body('第三者提供');
+      expect(thirdParty).toContain(P2);
+      expect(thirdParty.indexOf(P2)).toBeGreaterThan(thirdParty.indexOf('【Anthropic】'));
+      expect(thirdParty.indexOf(P2)).toBeLessThan(thirdParty.indexOf('【他のユーザー】'));
+    });
+
+    it('AC-39: 更新日は 2026-10-01 より後', () => {
+      expect(PRIVACY_POLICY.lastUpdated > '2026-10-01').toBe(true);
+      expect(PRIVACY_POLICY.lastUpdated).toBe('2026-10-04');
+    });
+
+    it('AC-39: 公開ページにも P-1・P-2 があり、最終更新日がアプリの中と同じ日', () => {
+      expect(html).toContain(P1);
+      expect(html).toContain(P2);
+      const [y, m, d] = PRIVACY_POLICY.lastUpdated.split('-').map(Number);
+      expect(html).toContain(`最終更新日: ${y}年${m}月${d}日`);
     });
   });
 });

@@ -292,6 +292,45 @@ describe('Theme', () => {
       expect(colors.gray[100]).toBe('#F3F4F6');
       expect(colors.primary[500]).toBe('#f27f0d');
     });
+
+    // Issue #293: 地図のシートの帯（和紙の筋・紙の縁・白いぼかし）
+    it('シートの帯の色を持ち、使い回す色は今の値のまま（Issue #293 AC-7）', () => {
+      expect(colors.spotHero).toEqual({
+        grain: '#6B5B4A',
+        pageEdge: '#E6DFD0',
+        fadeClear: 'rgba(255, 255, 255, 0)',
+        fadeMid: 'rgba(255, 255, 255, 0.92)',
+      });
+      expect(colors.washi).toBe('#EFEAE0');
+      expect(colors.washiSub).toBe('#6B6356');
+      expect(colors.washiShade).toBe('#D9D2C3');
+      expect(colors.seal).toBe('#C2342B');
+      expect(colors.tileBack.edge).toBe('#E6DFD0');
+      expect(colors.gray[300]).toBe('#D1D5DB');
+      expect(shadows.md).toEqual({
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+      });
+    });
+
+    // Issue #302: 帯の写真の上のつまみと ⓘ の丸（試作の .hdl・.credit・.credit.on）
+    it('帯の写真の上の色を持ち、帯の色とつまみの灰色は今の値のまま（Issue #302 AC-26）', () => {
+      expect(colors.spotHeroPhoto).toEqual({
+        handle: 'rgba(255, 255, 255, 0.92)',
+        credit: 'rgba(17, 24, 39, 0.42)',
+        creditOn: 'rgba(17, 24, 39, 0.62)',
+      });
+      expect(colors.spotHero).toEqual({
+        grain: '#6B5B4A',
+        pageEdge: '#E6DFD0',
+        fadeClear: 'rgba(255, 255, 255, 0)',
+        fadeMid: 'rgba(255, 255, 255, 0.92)',
+      });
+      expect(colors.gray[300]).toBe('#D1D5DB');
+    });
   });
 
   describe('typography', () => {

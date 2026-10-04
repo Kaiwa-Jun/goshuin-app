@@ -1,0 +1,393 @@
+{
+  "schemaVersion": 1,
+  "issue": 302,
+  "counts": {
+    "spots": 15,
+    "files": 18,
+    "high": 14,
+    "medium": 1
+  },
+  "entries": [
+    {
+      "idx": 1,
+      "name": "北海道神宮",
+      "prefecture": "北海道",
+      "address": "北海道札幌市中央区宮ヶ丘474",
+      "qid": "Q710826",
+      "label": "北海道神宮",
+      "linkConfidence": "high",
+      "files": [
+        {
+          "file": "Hokkaido Jingu.JPG",
+          "sha1": "28fde091d042a897a436d04e38d321dad4697329",
+          "mime": "image/jpeg",
+          "width": 1280,
+          "height": 960,
+          "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/a/a9/Hokkaido_Jingu.JPG",
+          "author": "Daigaku2051",
+          "license": "CC BY-SA 3.0",
+          "licenseUrl": "http://creativecommons.org/licenses/by-sa/3.0/",
+          "sourceUrl": "https://commons.wikimedia.org/wiki/File:Hokkaido_Jingu.JPG"
+        }
+      ]
+    },
+    {
+      "idx": 4,
+      "name": "北海道神宮頓宮",
+      "prefecture": "北海道",
+      "address": "北海道札幌市中央区南2条東3丁目10",
+      "qid": "Q21654596",
+      "label": "北海道神宮頓宮",
+      "linkConfidence": "medium",
+      "files": [
+        {
+          "file": "Hokkaido Jingu Tongu.JPG",
+          "sha1": "884eb021c8e904229ae6e1e16021617d334bc42c",
+          "mime": "image/jpeg",
+          "width": 4320,
+          "height": 3240,
+          "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cd/Hokkaido_Jingu_Tongu.JPG/1280px-Hokkaido_Jingu_Tongu.JPG",
+          "author": "禁樹なずな",
+          "license": "CC BY-SA 4.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+          "sourceUrl": "https://commons.wikimedia.org/wiki/File:Hokkaido_Jingu_Tongu.JPG"
+        }
+      ]
+    },
+    {
+      "idx": 41,
+      "name": "中尊寺",
+      "prefecture": "岩手県",
+      "address": "岩手県西磐井郡平泉町平泉衣関202",
+      "qid": "Q2660144",
+      "label": "中尊寺",
+      "linkConfidence": "high",
+      "files": [
+        {
+          "file": "230728 Chusonji Hiraizumi Iwate pref Japan01s3.jpg",
+          "sha1": "672e15434a31d8934bfbe9ba8d90da03ced98617",
+          "mime": "image/jpeg",
+          "width": 5472,
+          "height": 3648,
+          "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/230728_Chusonji_Hiraizumi_Iwate_pref_Japan01s3.jpg/1280px-230728_Chusonji_Hiraizumi_Iwate_pref_Japan01s3.jpg",
+          "author": "663highland",
+          "license": "CC BY-SA 4.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+          "sourceUrl": "https://commons.wikimedia.org/wiki/File:230728_Chusonji_Hiraizumi_Iwate_pref_Japan01s3.jpg"
+        }
+      ]
+    },
+    {
+      "idx": 51,
+      "name": "中尊寺金色堂",
+      "prefecture": "岩手県",
+      "address": "岩手県西磐井郡平泉町平泉衣関202",
+      "qid": "Q11363889",
+      "label": "中尊寺金色堂",
+      "linkConfidence": "high",
+      "files": [
+        {
+          "file": "230728 Chusonji Hiraizumi Iwate pref Japan01s3.jpg",
+          "sha1": "672e15434a31d8934bfbe9ba8d90da03ced98617",
+          "mime": "image/jpeg",
+          "width": 5472,
+          "height": 3648,
+          "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/230728_Chusonji_Hiraizumi_Iwate_pref_Japan01s3.jpg/1280px-230728_Chusonji_Hiraizumi_Iwate_pref_Japan01s3.jpg",
+          "author": "663highland",
+          "license": "CC BY-SA 4.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+          "sourceUrl": "https://commons.wikimedia.org/wiki/File:230728_Chusonji_Hiraizumi_Iwate_pref_Japan01s3.jpg"
+        }
+      ]
+    },
+    {
+      "idx": 138,
+      "name": "筑波山大御堂",
+      "prefecture": "茨城県",
+      "address": "茨城県つくば市筑波748",
+      "qid": "Q11435427",
+      "label": "大御堂",
+      "linkConfidence": "high",
+      "files": [
+        {
+          "file": "Omido,Tsukuba city,Japan.jpg",
+          "sha1": "68993918141059632047704b5b3b2895616bfcf9",
+          "mime": "image/jpeg",
+          "width": 2992,
+          "height": 2000,
+          "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5a/Omido%2CTsukuba_city%2CJapan.jpg/1280px-Omido%2CTsukuba_city%2CJapan.jpg",
+          "author": "Katorisi",
+          "license": "CC BY-SA 4.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+          "sourceUrl": "https://commons.wikimedia.org/wiki/File:Omido,Tsukuba_city,Japan.jpg"
+        },
+        {
+          "file": "筑波山大御堂.JPG",
+          "sha1": "c129474615019dba3e63efd31b31218b6f9dd815",
+          "mime": "image/jpeg",
+          "width": 3456,
+          "height": 2304,
+          "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/%E7%AD%91%E6%B3%A2%E5%B1%B1%E5%A4%A7%E5%BE%A1%E5%A0%82.JPG/1280px-%E7%AD%91%E6%B3%A2%E5%B1%B1%E5%A4%A7%E5%BE%A1%E5%A0%82.JPG",
+          "author": "小池 隆",
+          "license": "CC BY 4.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
+          "sourceUrl": "https://commons.wikimedia.org/wiki/File:%E7%AD%91%E6%B3%A2%E5%B1%B1%E5%A4%A7%E5%BE%A1%E5%A0%82.JPG"
+        }
+      ]
+    },
+    {
+      "idx": 141,
+      "name": "日光東照宮",
+      "prefecture": "栃木県",
+      "address": "栃木県日光市山内2301",
+      "qid": "Q696641",
+      "label": "日光東照宮",
+      "linkConfidence": "high",
+      "files": [
+        {
+          "file": "Nikko Toshogu Yomeimon Gate 2024.jpg",
+          "sha1": "68fad4b1ac1b5bf02ec7cd095e850ea4a56159bb",
+          "mime": "image/jpeg",
+          "width": 4080,
+          "height": 3072,
+          "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Nikko_Toshogu_Yomeimon_Gate_2024.jpg/1280px-Nikko_Toshogu_Yomeimon_Gate_2024.jpg",
+          "author": "Jpatokal",
+          "license": "CC BY-SA 4.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+          "sourceUrl": "https://commons.wikimedia.org/wiki/File:Nikko_Toshogu_Yomeimon_Gate_2024.jpg"
+        },
+        {
+          "file": "Nikko toshogu shrine.jpg",
+          "sha1": "8515231e92fb6f67e0be01343a9eff15e594732d",
+          "mime": "image/jpeg",
+          "width": 6000,
+          "height": 4000,
+          "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/Nikko_toshogu_shrine.jpg/1280px-Nikko_toshogu_shrine.jpg",
+          "author": "Koichi Sato",
+          "license": "CC BY-SA 4.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+          "sourceUrl": "https://commons.wikimedia.org/wiki/File:Nikko_toshogu_shrine.jpg"
+        },
+        {
+          "file": "170825 Nikko Tosho-gu Nikko Japan30s3.jpg",
+          "sha1": "24b1d240cfeae5f7c427530a9c30bd343594aec1",
+          "mime": "image/jpeg",
+          "width": 6000,
+          "height": 4000,
+          "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f5/170825_Nikko_Tosho-gu_Nikko_Japan30s3.jpg/1280px-170825_Nikko_Tosho-gu_Nikko_Japan30s3.jpg",
+          "author": "663highland",
+          "license": "CC BY-SA 4.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+          "sourceUrl": "https://commons.wikimedia.org/wiki/File:170825_Nikko_Tosho-gu_Nikko_Japan30s3.jpg"
+        }
+      ]
+    },
+    {
+      "idx": 144,
+      "name": "輪王寺",
+      "prefecture": "栃木県",
+      "address": "栃木県日光市山内2300",
+      "qid": "Q1348249",
+      "label": "輪王寺",
+      "linkConfidence": "high",
+      "files": [
+        {
+          "file": "NikkoRinnoji5390.jpg",
+          "sha1": "1bfec532e55565a740ebeb5913c077a40d8a689a",
+          "mime": "image/jpeg",
+          "width": 1350,
+          "height": 900,
+          "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/NikkoRinnoji5390.jpg/1280px-NikkoRinnoji5390.jpg",
+          "author": null,
+          "license": "Public domain",
+          "licenseUrl": null,
+          "sourceUrl": "https://commons.wikimedia.org/wiki/File:NikkoRinnoji5390.jpg"
+        }
+      ]
+    },
+    {
+      "idx": 154,
+      "name": "中禅寺（立木観音）",
+      "prefecture": "栃木県",
+      "address": "栃木県日光市中禅寺歌ケ浜2578",
+      "qid": "Q11366837",
+      "label": "中禅寺",
+      "linkConfidence": "high",
+      "files": [
+        {
+          "file": "Nikkō Chūzen-ji 2026.jpg",
+          "sha1": "e4c80b3504e37150f170463763d74f47a708d3ac",
+          "mime": "image/jpeg",
+          "width": 6695,
+          "height": 3032,
+          "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Nikk%C5%8D_Ch%C5%ABzen-ji_2026.jpg/1280px-Nikk%C5%8D_Ch%C5%ABzen-ji_2026.jpg",
+          "author": "Adrian Tync",
+          "license": "CC BY-SA 4.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+          "sourceUrl": "https://commons.wikimedia.org/wiki/File:Nikk%C5%8D_Ch%C5%ABzen-ji_2026.jpg"
+        }
+      ]
+    },
+    {
+      "idx": 239,
+      "name": "大山阿夫利神社",
+      "prefecture": "神奈川県",
+      "address": "神奈川県伊勢原市大山355",
+      "qid": "Q11434713",
+      "label": "大山阿夫利神社",
+      "linkConfidence": "high",
+      "files": [
+        {
+          "file": "Ōyama Aburi Shrine, Kanagawa, Japan - April 2008.jpg",
+          "sha1": "f3729eb5a2a0c4f88e25f73bd397fae96f18bfbc",
+          "mime": "image/jpeg",
+          "width": 3888,
+          "height": 2592,
+          "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/70/%C5%8Cyama_Aburi_Shrine%2C_Kanagawa%2C_Japan_-_April_2008.jpg/1280px-%C5%8Cyama_Aburi_Shrine%2C_Kanagawa%2C_Japan_-_April_2008.jpg",
+          "author": "Σ64",
+          "license": "CC BY-SA 3.0",
+          "licenseUrl": "http://creativecommons.org/licenses/by-sa/3.0/",
+          "sourceUrl": "https://commons.wikimedia.org/wiki/File:%C5%8Cyama_Aburi_Shrine,_Kanagawa,_Japan_-_April_2008.jpg"
+        }
+      ]
+    },
+    {
+      "idx": 243,
+      "name": "新潟縣護國神社",
+      "prefecture": "新潟県",
+      "address": "新潟県新潟市中央区西船見町5932-300",
+      "qid": "Q11503581",
+      "label": "新潟縣護國神社",
+      "linkConfidence": "high",
+      "files": [
+        {
+          "file": "Niigata Gokoku Shrine 20070815.png",
+          "sha1": "f378d2ef28910a556ad0fccd5f2b35fe62c15b46",
+          "mime": "image/png",
+          "width": 2048,
+          "height": 1536,
+          "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/29/Niigata_Gokoku_Shrine_20070815.png/1280px-Niigata_Gokoku_Shrine_20070815.png",
+          "author": "Rosemary org",
+          "license": "CC BY-SA 3.0",
+          "licenseUrl": "http://creativecommons.org/licenses/by-sa/3.0/",
+          "sourceUrl": "https://commons.wikimedia.org/wiki/File:Niigata_Gokoku_Shrine_20070815.png"
+        }
+      ]
+    },
+    {
+      "idx": 256,
+      "name": "宝徳山稲荷大社",
+      "prefecture": "新潟県",
+      "address": "新潟県長岡市飯塚870",
+      "qid": "Q11452556",
+      "label": "宝徳山稲荷大社",
+      "linkConfidence": "high",
+      "files": [
+        {
+          "file": "Houtokuinari Nagaoka.jpg",
+          "sha1": "9931353c4c615abb10bad899938a86cf933d83ae",
+          "mime": "image/jpeg",
+          "width": 2400,
+          "height": 1200,
+          "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b7/Houtokuinari_Nagaoka.jpg/1280px-Houtokuinari_Nagaoka.jpg",
+          "author": "Triglav",
+          "license": "CC BY-SA 3.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+          "sourceUrl": "https://commons.wikimedia.org/wiki/File:Houtokuinari_Nagaoka.jpg"
+        }
+      ]
+    },
+    {
+      "idx": 660,
+      "name": "井戸寺",
+      "prefecture": "徳島県",
+      "address": "徳島県徳島市国府町井戸北屋敷80-1",
+      "qid": "Q11373550",
+      "label": "井戸寺",
+      "linkConfidence": "high",
+      "files": [
+        {
+          "file": "Idozi02.jpg",
+          "sha1": "17ef32448d559bb315fb90fb198d0a8ba1485b8e",
+          "mime": "image/jpeg",
+          "width": 1280,
+          "height": 665,
+          "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/a/af/Idozi02.jpg",
+          "author": "Dokudami",
+          "license": "CC BY-SA 3.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+          "sourceUrl": "https://commons.wikimedia.org/wiki/File:Idozi02.jpg"
+        }
+      ]
+    },
+    {
+      "idx": 884,
+      "name": "靖國神社",
+      "prefecture": "東京都",
+      "address": "東京都千代田区九段北3-1-1",
+      "qid": "Q242803",
+      "label": "靖国神社",
+      "linkConfidence": "high",
+      "files": [
+        {
+          "file": "2018 Haiden (Yasukuni Shrine).jpg",
+          "sha1": "8b72b909552e91ad9255e9ff93b2c8c7c686ede0",
+          "mime": "image/jpeg",
+          "width": 2500,
+          "height": 1691,
+          "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/df/2018_Haiden_%28Yasukuni_Shrine%29.jpg/1280px-2018_Haiden_%28Yasukuni_Shrine%29.jpg",
+          "author": "Kakidai",
+          "license": "CC BY-SA 4.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+          "sourceUrl": "https://commons.wikimedia.org/wiki/File:2018_Haiden_(Yasukuni_Shrine).jpg"
+        }
+      ]
+    },
+    {
+      "idx": 1007,
+      "name": "平等院",
+      "prefecture": "京都府",
+      "address": "京都府宇治市宇治蓮華116",
+      "qid": "Q61094",
+      "label": "平等院",
+      "linkConfidence": "high",
+      "files": [
+        {
+          "file": "Phoenix Hall, Byodo-in, November 2016 -01.jpg",
+          "sha1": "9eab7dfec22b11f05a67f3252bd38a8e108fcbf0",
+          "mime": "image/jpeg",
+          "width": 5377,
+          "height": 2812,
+          "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Phoenix_Hall%2C_Byodo-in%2C_November_2016_-01.jpg/1280px-Phoenix_Hall%2C_Byodo-in%2C_November_2016_-01.jpg",
+          "author": "Martin Falbisoner",
+          "license": "CC BY-SA 4.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+          "sourceUrl": "https://commons.wikimedia.org/wiki/File:Phoenix_Hall,_Byodo-in,_November_2016_-01.jpg"
+        }
+      ]
+    },
+    {
+      "idx": 1028,
+      "name": "金蛇水神社",
+      "prefecture": "宮城県",
+      "address": "宮城県岩沼市三色吉字水神7",
+      "qid": "Q11647860",
+      "label": "金蛇水神社",
+      "linkConfidence": "high",
+      "files": [
+        {
+          "file": "Haiden of Kanahebi-Suijinja shrine 1.JPG",
+          "sha1": "ecabf0cb9c1192910b283e495515489c8343d403",
+          "mime": "image/jpeg",
+          "width": 4032,
+          "height": 3024,
+          "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/Haiden_of_Kanahebi-Suijinja_shrine_1.JPG/1280px-Haiden_of_Kanahebi-Suijinja_shrine_1.JPG",
+          "author": "Bachstelze",
+          "license": "CC BY-SA 3.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+          "sourceUrl": "https://commons.wikimedia.org/wiki/File:Haiden_of_Kanahebi-Suijinja_shrine_1.JPG"
+        }
+      ]
+    }
+  ]
+}

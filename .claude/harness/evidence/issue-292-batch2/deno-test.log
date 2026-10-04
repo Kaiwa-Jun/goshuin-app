@@ -1,0 +1,483 @@
+[0m[38;5;245mrunning 51 tests from ./supabase/functions/_shared/crawl_test.ts[0m
+isServiceRoleAuthorized: 正しい Bearer キーで true ... [0m[32mok[0m [0m[38;5;245m(256µs)[0m
+isServiceRoleAuthorized: 異なるキーで false ... [0m[32mok[0m [0m[38;5;245m(16µs)[0m
+isServiceRoleAuthorized: ヘッダ無しで false ... [0m[32mok[0m [0m[38;5;245m(28µs)[0m
+isServiceRoleAuthorized: サービスキーが空文字なら常に false ... [0m[32mok[0m [0m[38;5;245m(14µs)[0m
+isAllowedSourceUrl: https は true ... [0m[32mok[0m [0m[38;5;245m(233µs)[0m
+isAllowedSourceUrl: http は false ... [0m[32mok[0m [0m[38;5;245m(32µs)[0m
+isAllowedSourceUrl: file スキームは false ... [0m[32mok[0m [0m[38;5;245m(39µs)[0m
+isAllowedSourceUrl: localhost は false ... [0m[32mok[0m [0m[38;5;245m(39µs)[0m
+isAllowedSourceUrl: 127.0.0.1 は false ... [0m[32mok[0m [0m[38;5;245m(27µs)[0m
+isAllowedSourceUrl: プライベート IP は false ... [0m[32mok[0m [0m[38;5;245m(72µs)[0m
+isAllowedSourceUrl: 172.32.* はプライベートでないので true ... [0m[32mok[0m [0m[38;5;245m(28µs)[0m
+isAllowedSourceUrl: パース不能な文字列は false ... [0m[32mok[0m [0m[38;5;245m(123µs)[0m
+isCrawlableContentType: text/html + charset は true ... [0m[32mok[0m [0m[38;5;245m(26µs)[0m
+isCrawlableContentType: 大文字混在でも true ... [0m[32mok[0m [0m[38;5;245m(27µs)[0m
+isCrawlableContentType: RSS/Atom/XML 系は true ... [0m[32mok[0m [0m[38;5;245m(17µs)[0m
+isCrawlableContentType: PDF は false ... [0m[32mok[0m [0m[38;5;245m(9µs)[0m
+isCrawlableContentType: null は false ... [0m[32mok[0m [0m[38;5;245m(10µs)[0m
+htmlToText: script/style を除去し閉じタグを改行にする ... [0m[32mok[0m [0m[38;5;245m(308µs)[0m
+htmlToText: 実体参照の復元と空白の畳み込み ... [0m[32mok[0m [0m[38;5;245m(168µs)[0m
+htmlToText: maxChars で切り詰める ... [0m[32mok[0m [0m[38;5;245m(15µs)[0m
+htmlToText: HTML コメントを除去する ... [0m[32mok[0m [0m[38;5;245m(20µs)[0m
+htmlToText: 空行を除去して連結する ... [0m[32mok[0m [0m[38;5;245m(20µs)[0m
+sha256Hex: 同一入力は同一ハッシュ・64桁小文字16進 ... [0m[32mok[0m [0m[38;5;245m(361µs)[0m
+sha256Hex: 1文字違えば異なるハッシュ ... [0m[32mok[0m [0m[38;5;245m(66µs)[0m
+parseClaudeJson: コードフェンス付き JSON をパースできる ... [0m[32mok[0m [0m[38;5;245m(102µs)[0m
+parseClaudeJson: 素の JSON をパースできる ... [0m[32mok[0m [0m[38;5;245m(39µs)[0m
+parseClaudeJson: 壊れた JSON は空 items ... [0m[32mok[0m [0m[38;5;245m(47µs)[0m
+parseClaudeJson: items が非配列なら空 items ... [0m[32mok[0m [0m[38;5;245m(22µs)[0m
+normalizeItems: name 欠落・空の要素を破棄する ... [0m[32mok[0m [0m[38;5;245m(77µs)[0m
+normalizeItems: source_url と fetched_at を引数値で上書きする（Claude の値を採用しない） ... [0m[32mok[0m [0m[38;5;245m(27µs)[0m
+normalizeItems: 不正形式の period_end は null ... [0m[32mok[0m [0m[38;5;245m(20µs)[0m
+normalizeItems: 正しい形式の period_start/period_end は保持 ... [0m[32mok[0m [0m[38;5;245m(24µs)[0m
+normalizeItems: maxItems で件数を切る ... [0m[32mok[0m [0m[38;5;245m(22µs)[0m
+normalizeItems: 授与品（朱印/集印の言及なし）を破棄する ... [0m[32mok[0m [0m[38;5;245m(34µs)[0m
+normalizeItems: 御朱印帳・挟み紙は name に朱印を含んでも破棄する ... [0m[32mok[0m [0m[38;5;245m(20µs)[0m
+normalizeItems: name に朱印が無くても description の言及で残す ... [0m[32mok[0m [0m[38;5;245m(29µs)[0m
+normalizeItems: period が非文字列なら null、文字列なら trim ... [0m[32mok[0m [0m[38;5;245m(19µs)[0m
+mergeLimitedGoshuinItems: 同一 source_url の既存要素だけ置き換え、他ソースは保持 ... [0m[32mok[0m [0m[38;5;245m(39µs)[0m
+mergeLimitedGoshuinItems: 入力配列を破壊しない ... [0m[32mok[0m [0m[38;5;245m(19µs)[0m
+mergeLimitedGoshuinItems: incoming が空なら該当ソースの要素が消える ... [0m[32mok[0m [0m[38;5;245m(26µs)[0m
+isPastDeadline: 予算ちょうどで true ... [0m[32mok[0m [0m[38;5;245m(11µs)[0m
+isPastDeadline: 予算未満で false ... [0m[32mok[0m [0m[38;5;245m(11µs)[0m
+normalizeGoshuinItem: name 欠落なら null ... [0m[32mok[0m [0m[38;5;245m(13µs)[0m
+normalizeGoshuinItem: 御朱印らしくない要素（授与品）は null ... [0m[32mok[0m [0m[38;5;245m(10µs)[0m
+normalizeGoshuinItem: オブジェクトでない要素は null ... [0m[32mok[0m [0m[38;5;245m(11µs)[0m
+normalizeGoshuinItem: 正常時は source_url / fetched_at が引数値で埋まる ... [0m[32mok[0m [0m[38;5;245m(19µs)[0m
+normalizeGoshuinItem: 戻り値に source_key キーを含まない ... [0m[32mok[0m [0m[38;5;245m(12µs)[0m
+mergeItemsBySourceKey: 同一 source_key の既存要素だけを置き換える ... [0m[32mok[0m [0m[38;5;245m(39µs)[0m
+mergeItemsBySourceKey: source_key を持たない要素（web 由来）は常に保持される ... [0m[32mok[0m [0m[38;5;245m(21µs)[0m
+mergeItemsBySourceKey: incoming が空なら該当 source_key の要素だけが消える ... [0m[32mok[0m [0m[38;5;245m(32µs)[0m
+mergeItemsBySourceKey: 入力配列を破壊しない ... [0m[32mok[0m [0m[38;5;245m(23µs)[0m
+[0m[38;5;245mrunning 41 tests from ./supabase/functions/_shared/instagram_test.ts[0m
+parseInstagramUsername: 末尾スラッシュあり・なしの両方を解決する (H-2) ... [0m[32mok[0m [0m[38;5;245m(466µs)[0m
+parseInstagramUsername: ピリオドを含む username を解決する (H-3) ... [0m[32mok[0m [0m[38;5;245m(28µs)[0m
+parseInstagramUsername: 大文字は小文字化される (H-4) ... [0m[32mok[0m [0m[38;5;245m(35µs)[0m
+parseInstagramUsername: 先頭の @ を除去する (H-4) ... [0m[32mok[0m [0m[38;5;245m(28µs)[0m
+parseInstagramUsername: クエリ・フラグメントを無視する (H-5) ... [0m[32mok[0m [0m[38;5;245m(57µs)[0m
+parseInstagramUsername: www なし・m. サブドメインも解決する (H-6) ... [0m[32mok[0m [0m[38;5;245m(55µs)[0m
+parseInstagramUsername: 投稿 URL は null (H-7) ... [0m[32mok[0m [0m[38;5;245m(28µs)[0m
+parseInstagramUsername: 予約語パスは null (H-7) ... [0m[32mok[0m [0m[38;5;245m(27µs)[0m
+parseInstagramUsername: パスセグメント 0 個は null (H-7) ... [0m[32mok[0m [0m[38;5;245m(22µs)[0m
+parseInstagramUsername: instagram.com 以外のホストは null (H-8) ... [0m[32mok[0m [0m[38;5;245m(22µs)[0m
+parseInstagramUsername: http とパース不能文字列は null (H-8) ... [0m[32mok[0m [0m[38;5;245m(149µs)[0m
+buildBusinessDiscoveryUrl: v26.0 の business_discovery URL を組み立てる (H-9) ... [0m[32mok[0m [0m[38;5;245m(115µs)[0m
+buildBusinessDiscoveryUrl: access_token を含まない (H-10) ... [0m[32mok[0m [0m[38;5;245m(24µs)[0m
+classifyGraphApiError: code 110 は not_business (H-11) ... [0m[32mok[0m [0m[38;5;245m(24µs)[0m
+classifyGraphApiError: code 190 / 102 は token_invalid (H-12) ... [0m[32mok[0m [0m[38;5;245m(16µs)[0m
+classifyGraphApiError: code 4/17/32/613 と HTTP 429 は rate_limited (H-13) ... [0m[32mok[0m [0m[38;5;245m(18µs)[0m
+classifyGraphApiError: 未知の code・パース不能は other (H-14) ... [0m[32mok[0m [0m[38;5;245m(16µs)[0m
+parseBusinessDiscoveryPosts: レスポンス順どおりに返す (H-15) ... [0m[32mok[0m [0m[38;5;245m(110µs)[0m
+parseBusinessDiscoveryPosts: 不正な permalink / timestamp の要素を破棄する (H-16) ... [0m[32mok[0m [0m[38;5;245m(45µs)[0m
+parseBusinessDiscoveryPosts: caption 欠落は空文字で残す (H-17) ... [0m[32mok[0m [0m[38;5;245m(32µs)[0m
+parseBusinessDiscoveryPosts: 構造欠落・null は空配列 (H-18) ... [0m[32mok[0m [0m[38;5;245m(32µs)[0m
+filterRecentPosts: 60日窓の内側を残し外側を除外する (H-19) ... [0m[32mok[0m [0m[38;5;245m(46µs)[0m
+filterRecentPosts: パース不能な timestamp の投稿を破棄する ... [0m[32mok[0m [0m[38;5;245m(23µs)[0m
+filterRecentPosts: 入力配列を破壊せず順序を保つ (H-20) ... [0m[32mok[0m [0m[38;5;245m(25µs)[0m
+toJstDate: UTC 15:30 は JST 翌日 (H-21) ... [0m[32mok[0m [0m[38;5;245m(668µs)[0m
+toJstDate: UTC 09:00 は JST 同日 (H-21) ... [0m[32mok[0m [0m[38;5;245m(18µs)[0m
+toJstDate: パース不能は空文字 (H-21) ... [0m[32mok[0m [0m[38;5;245m(15µs)[0m
+buildInstagramContentKey: 順序が違っても同一文字列 (H-22) ... [0m[32mok[0m [0m[38;5;245m(39µs)[0m
+buildInstagramContentKey: caption 1文字違いで異なる文字列 (H-23) ... [0m[32mok[0m [0m[38;5;245m(28µs)[0m
+buildInstagramContentKey: 空配列は空文字 (H-23) ... [0m[32mok[0m [0m[38;5;245m(15µs)[0m
+buildInstagramContentKey: 入力配列の順序を破壊しない ... [0m[32mok[0m [0m[38;5;245m(26µs)[0m
+buildInstagramUserMessage: ヘッダと投稿ブロックの固定書式 (H-24) ... [0m[32mok[0m [0m[38;5;245m(50µs)[0m
+buildInstagramUserMessage: 空 caption は（本文なし）になる (H-25) ... [0m[32mok[0m [0m[38;5;245m(21µs)[0m
+buildInstagramUserMessage: caption を maxCaptionChars で切り詰める (H-26) ... [0m[32mok[0m [0m[38;5;245m(15µs)[0m
+buildInstagramUserMessage: maxTotalChars 超過は末尾の投稿から落ちる (H-27) ... [0m[32mok[0m [0m[38;5;245m(35µs)[0m
+buildInstagramUserMessage: 【投稿数】は切り詰め前の posts.length を書く (H-27) ... [0m[32mok[0m [0m[38;5;245m(17µs)[0m
+normalizeInstagramItems: post_index から permalink を出典にする (H-28) ... [0m[32mok[0m [0m[38;5;245m(84µs)[0m
+normalizeInstagramItems: Claude の source_url / source_key を採用しない (H-29) ... [0m[32mok[0m [0m[38;5;245m(43µs)[0m
+normalizeInstagramItems: post_index が範囲外・非整数・欠落の item を破棄する (H-30) ... [0m[32mok[0m [0m[38;5;245m(22µs)[0m
+normalizeInstagramItems: isLikelyGoshuin ガードで授与品を破棄する (H-31) ... [0m[32mok[0m [0m[38;5;245m(22µs)[0m
+normalizeInstagramItems: maxItems で件数を切る (H-32) ... [0m[32mok[0m [0m[38;5;245m(26µs)[0m
+[0m[38;5;245mrunning 12 tests from ./supabase/functions/_shared/spotRules_test.ts[0m
+似た名前の表（Jest と共用） ... [0m[32mok[0m [0m[38;5;245m(417µs)[0m
+P-1: 独立したドメインを数える ... [0m[32mok[0m [0m[38;5;245m(382µs)[0m
+P-2: 都道府県の範囲（validate_spots.sql と同じ値） ... [0m[32mok[0m [0m[38;5;245m(73µs)[0m
+P-3: 300m 以内の似た名前の active ... [0m[32mok[0m [0m[38;5;245m(76µs)[0m
+見えない文字を混ぜても、同じ名前として扱う ... [0m[32mok[0m [0m[38;5;245m(63µs)[0m
+括弧だけの名前も空にせず比べる ... [0m[32mok[0m [0m[38;5;245m(40µs)[0m
+P-4 は括弧の中も見る ... [0m[32mok[0m [0m[38;5;245m(107µs)[0m
+cleanSpotName は見えない文字を落とし、1〜50 文字だけ通す ... [0m[32mok[0m [0m[38;5;245m(30µs)[0m
+P-4: 名前と種別の矛盾 ... [0m[32mok[0m [0m[38;5;245m(32µs)[0m
+judgePublish: すべて合格なら active ... [0m[32mok[0m [0m[38;5;245m(70µs)[0m
+judgePublish: 1つ欠けると pending で、その番号 ... [0m[32mok[0m [0m[38;5;245m(109µs)[0m
+judgePublish: 手入力は常に pending ... [0m[32mok[0m [0m[38;5;245m(19µs)[0m
+[0m[38;5;245mrunning 8 tests from ./supabase/functions/add-spot/addSpot_test.ts[0m
+AC-11: トークンが無い・無効なら 401 で何も書かない ... [0m[32mok[0m [0m[38;5;245m(324µs)[0m
+AC-12: 他人の・60分より前の・範囲外の候補は 404 ... [0m[32mok[0m [0m[38;5;245m(102µs)[0m
+AC-13: 本文の住所・座標・情報源は使わず、保存した候補の値で入れる ... [0m[32mok[0m [0m[38;5;245m(371µs)[0m
+AC-14: 基準を満たせば active・rank 1・本人、公式サイトを official で入れる ... [0m[32mok[0m [0m[38;5;245m(114µs)[0m
+AC-14: 1つ欠ければ pending で、official は入れない ... [0m[32mok[0m [0m[38;5;245m(67µs)[0m
+AC-15: 手入力は pending・住所なし。範囲外の座標や名前は 400 ... [0m[32mok[0m [0m[38;5;245m(102µs)[0m
+AC-16: 同じ名前の active か本人の pending が 300m 以内にあれば、入れずにそれを返す ... [0m[32mok[0m [0m[38;5;245m(171µs)[0m
+AC-17: 応答は spot だけで、落ちた基準を含まない ... [0m[32mok[0m [0m[38;5;245m(47µs)[0m
+[0m[38;5;245mrunning 26 tests from ./supabase/functions/delete-account/deleteAccount_test.ts[0m
+extractBearerToken: Bearer 付きヘッダからトークンを取り出す ... [0m[32mok[0m [0m[38;5;245m(228µs)[0m
+extractBearerToken: 大文字小文字を問わない ... [0m[32mok[0m [0m[38;5;245m(33µs)[0m
+extractBearerToken: ヘッダが無いとき null ... [0m[32mok[0m [0m[38;5;245m(23µs)[0m
+extractBearerToken: Bearer が付いていないとき null ... [0m[32mok[0m [0m[38;5;245m(18µs)[0m
+extractBearerToken: Bearer だけでトークンが空のとき null ... [0m[32mok[0m [0m[38;5;245m(22µs)[0m
+deleteAccountForUser: 画像 → spots → auth ユーザーの順で消す ... [0m[32mok[0m [0m[38;5;245m(155µs)[0m
+deleteAccountForUser: 画像が 0 件のとき remove を呼ばない ... [0m[32mok[0m [0m[38;5;245m(40µs)[0m
+deleteAccountForUser: remove には <userId>/<name> を渡す ... [0m[32mok[0m [0m[38;5;245m(41µs)[0m
+deleteAccountForUser: deleteUser には呼び出し元の user_id を渡す ... [0m[32mok[0m [0m[38;5;245m(37µs)[0m
+deleteAccountForUser: 成功したら 200 と success: true ... [0m[32mok[0m [0m[38;5;245m(36µs)[0m
+deleteAccountForUser: list に失敗しても deleteUser は実行し warnings に載せる ... [0m[32mok[0m [0m[38;5;245m(41µs)[0m
+deleteAccountForUser: list が途中で失敗しても取得済みの分は remove する ... [0m[32mok[0m [0m[38;5;245m(33µs)[0m
+deleteAccountForUser: remove に失敗しても deleteUser は実行し warnings に載せる ... [0m[32mok[0m [0m[38;5;245m(30µs)[0m
+deleteAccountForUser: 画像の削除で例外が飛んでも deleteUser は実行する ... [0m[32mok[0m [0m[38;5;245m(138µs)[0m
+deleteAccountForUser: spots の更新に失敗したら 500 で deleteUser を呼ばない ... [0m[32mok[0m [0m[38;5;245m(38µs)[0m
+deleteAccountForUser: deleteUser に失敗したら 500 ... [0m[32mok[0m [0m[38;5;245m(31µs)[0m
+collectImageNames: サブフォルダの中まで降りて、ユーザー起点の相対パスで返す ... [0m[32mok[0m [0m[38;5;245m(85µs)[0m
+collectImageNames: フォルダ名そのものは削除対象に入れない ... [0m[32mok[0m [0m[38;5;245m(33µs)[0m
+collectImageNames: ページサイズに達している間は offset を進めて読み切る ... [0m[32mok[0m [0m[38;5;245m(44µs)[0m
+collectImageNames: サブフォルダの一覧に失敗しても、集めた分と error を返す ... [0m[32mok[0m [0m[38;5;245m(28µs)[0m
+deleteAccountForUser: 1000件を超える画像は1000件ずつに分けて消す ... [0m[32mok[0m [0m[38;5;245m(183µs)[0m
+deleteAccountForUser: R2 の削除に失敗しても deleteUser は実行し warnings に載せる ... [0m[32mok[0m [0m[38;5;245m(29µs)[0m
+deleteAccountForUser: R2 の削除で例外が飛んでも deleteUser は実行する ... [0m[32mok[0m [0m[38;5;245m(37µs)[0m
+deleteR2Prefix: ページをまたいで、prefix 配下を全部消す ... [0m[32mok[0m [0m[38;5;245m(126µs)[0m
+deleteR2Prefix: 1件の削除に失敗しても残りは消し、error を返す ... [0m[32mok[0m [0m[38;5;245m(47µs)[0m
+deleteR2Prefix: prefix が <userId>/ の形でなければ何もしない ... [0m[32mok[0m [0m[38;5;245m(25µs)[0m
+[0m[38;5;245mrunning 24 tests from ./supabase/functions/growth-metrics/metrics_test.ts[0m
+定数: schemaVersion 1・伏せる閾値 3・7日・4週・6か月 ... [0m[32mok[0m [0m[38;5;245m(238µs)[0m
+AC-10: 2026-09-28（月）09:00 JST の境目 ... [0m[32mok[0m [0m[38;5;245m(183µs)[0m
+toRpcParams: SQL の引数名で境目を渡す ... [0m[32mok[0m [0m[38;5;245m(67µs)[0m
+AC-11: 日本時間の日曜 23:59:59.999 はまだ前の週・前の日 ... [0m[32mok[0m [0m[38;5;245m(38µs)[0m
+AC-11: 日本時間の月曜 0:00 で新しい週・新しい日 ... [0m[32mok[0m [0m[38;5;245m(38µs)[0m
+AC-11: 日本時間 10/1 0:00 で月が進む ... [0m[32mok[0m [0m[38;5;245m(58µs)[0m
+AC-11: 年をまたぐ（2027-01-04） ... [0m[32mok[0m [0m[38;5;245m(40µs)[0m
+AC-12: 欠けた週・月は 0 で埋め、labels に無いものは捨てる。complete は D-7 / D-8 のとおり ... [0m[32mok[0m [0m[38;5;245m(245µs)[0m
+AC-12: rate は小数3桁に丸める（2/3 → 0.667、1/4 → 0.25） ... [0m[32mok[0m [0m[38;5;245m(65µs)[0m
+AC-12: complete の境目（週は月曜 0 時 + 14日、月は翌々月の1日 0 時） ... [0m[32mok[0m [0m[38;5;245m(171µs)[0m
+AC-13: 分母が 1・2 なら内訳と rate を null、3 なら実数と割合、0 なら 0 と null ... [0m[32mok[0m [0m[38;5;245m(91µs)[0m
+AC-13: 全体の数は 1 でも伏せない ... [0m[32mok[0m [0m[38;5;245m(43µs)[0m
+AC-14: 本文は「返す JSON」とキーの集合・順序・値まで一致する ... [0m[32mok[0m [0m[38;5;245m(100µs)[0m
+AC-14: 生の数に個人の値が混ざっていても、本文は変わらない ... [0m[32mok[0m [0m[38;5;245m(128µs)[0m
+AC-14: 配列の要素に余計なキーがあっても出さない ... [0m[32mok[0m [0m[38;5;245m(49µs)[0m
+AC-15: 生の数の形が合わなければ throw する ... [0m[32mok[0m [0m[38;5;245m(585µs)[0m
+AC-17: GET 以外は合言葉が正しくても 405・Allow: GET で、数えない ... [0m[32mok[0m [0m[38;5;245m(153µs)[0m
+AC-18 / AC-21: 合言葉が無い・違う・Bearer でない・Basic は 401 で、数えない ... [0m[32mok[0m [0m[38;5;245m(306µs)[0m
+AC-18 / AC-21: 関数側の合言葉が未設定・空・31 文字なら、同じ値が来ても 401（token not configured） ... [0m[32mok[0m [0m[38;5;245m(58µs)[0m
+AC-19 / AC-21: 合言葉が合うと 200。1回だけ数え、引数は toRpcParams(metricWindows(now)) ... [0m[32mok[0m [0m[38;5;245m(143µs)[0m
+AC-17〜AC-20: どの応答にも CORS のヘッダーを付けない ... [0m[32mok[0m [0m[38;5;245m(101µs)[0m
+AC-20 / AC-21: 数えるのに失敗したら 500。本文は internal error だけで、エラーの文は返さない ... [0m[32mok[0m [0m[38;5;245m(197µs)[0m
+AC-20 / AC-21: 生の数の形が合わなければ 500（failed: invalid counts） ... [0m[32mok[0m [0m[38;5;245m(168µs)[0m
+AC-21: Error でない値が throw されても 500 で、決まった書き出しのログ ... [0m[32mok[0m [0m[38;5;245m(59µs)[0m
+[0m[38;5;245mrunning 11 tests from ./supabase/functions/growth-metrics/sql_test.ts[0m
+AC-1: LANGUAGE sql / STABLE / SECURITY DEFINER / search_path 空 / auth.users を読む ... [0m[32mok[0m [0m[38;5;245m(650ms)[0m
+AC-2: REVOKE（PUBLIC, anon, authenticated）と GRANT（service_role）があり、書き込み・定義変更の語が無い ... [0m[32mok[0m [0m[38;5;245m(493µs)[0m
+AC-3: migration が通り、authenticated と anon は permission denied、service_role は呼べる ... [0m[32mok[0m [0m[38;5;245m(416ms)[0m
+AC-4: この7日は始まりちょうどを数え、1ミリ秒前と終わりちょうどを数えない。2件の人は1人 ... [0m[32mok[0m [0m[38;5;245m(653ms)[0m
+AC-5: 167時間59分後の記録は活性化、168時間ちょうどは活性化しない。週は日本時間の月曜はじまり ... [0m[32mok[0m [0m[38;5;245m(753ms)[0m
+AC-6: 翌月にも記録した人が retained。日本時間の月で分け、今月はラベルに出ない ... [0m[32mok[0m [0m[38;5;245m(530ms)[0m
+AC-7: 足した寺社は NULL と merged を除き active / pending で分ける。調べた回数は期間の中だけ ... [0m[32mok[0m [0m[38;5;245m(457ms)[0m
+AC-8: TimeZone が UTC でも America/New_York でも同じ JSONB を返す ... [0m[32mok[0m [0m[38;5;245m(448ms)[0m
+AC-9: 最上位のキーはちょうど12個。activation / retention の要素のキーも決まったものだけ ... [0m[32mok[0m [0m[38;5;245m(499ms)[0m
+H-3 の確認 SQL は PGlite でも期待値の RESULT で終わる（数は出さない） ... [0m[32mok[0m [0m[38;5;245m(437ms)[0m
+AC-24: metricWindows → growth_metrics_counts（toRpcParams のキーで名前付き）→ buildMetrics ... [0m[32mok[0m [0m[38;5;245m(326ms)[0m
+[0m[38;5;245mrunning 6 tests from ./supabase/functions/growth-metrics/token_test.ts[0m
+extractBearerToken: Bearer のあとの値を前後の空白を除いて取り出す（大文字小文字は問わない） ... [0m[32mok[0m [0m[38;5;245m(373µs)[0m
+extractBearerToken: 無い・Bearer で始まらない・中身が空なら null ... [0m[32mok[0m [0m[38;5;245m(54µs)[0m
+AC-16: 同じ 64 文字なら true ... [0m[32mok[0m [0m[38;5;245m(321µs)[0m
+AC-16: 先頭・最後の1文字が違う、1文字長い・短い、空、null なら false ... [0m[32mok[0m [0m[38;5;245m(158µs)[0m
+AC-16: 関数側が未設定・空・31 文字なら、同じ文字列が来ても false ... [0m[32mok[0m [0m[38;5;245m(98µs)[0m
+AC-16: SHA-256 にしてから比べる（途中で抜けない XOR の集め方） ... [0m[32mok[0m [0m[38;5;245m(460µs)[0m
+[0m[38;5;245mrunning 24 tests from ./supabase/functions/research-spot/research_test.ts[0m
+トークンが無い・無効なら 401 で、外には何も問い合わせない ... [0m[32mok[0m [0m[38;5;245m(398µs)[0m
+今日（日本時間）すでに10回なら 429 で、問い合わせも記録もしない ... [0m[32mok[0m [0m[38;5;245m(175µs)[0m
+9回なら受け付けて、先に1行記録してから調べる ...
+[0m[38;5;245m------- post-test output -------[0m
+[research-spot] {"stopReason":"end_turn","blockTypes":{"text":2,"server_tool_use":1,"web_search_tool_result":1},"searchResults":3,"searchErrors":[],"parsed":1,"schemaDropped":0,"geocodeDropped":0}
+[0m[38;5;245m----- post-test output end -----[0m
+9回なら受け付けて、先に1行記録してから調べる ... [0m[32mok[0m [0m[38;5;245m(3ms)[0m
+「今日」は日本時間の 0 時から（前日 23:59 JST の行は数えない） ...
+[0m[38;5;245m------- post-test output -------[0m
+[research-spot] {"stopReason":"end_turn","blockTypes":{"text":2,"server_tool_use":1,"web_search_tool_result":1},"searchResults":3,"searchErrors":[],"parsed":1,"schemaDropped":0,"geocodeDropped":0}
+[0m[38;5;245m----- post-test output end -----[0m
+「今日」は日本時間の 0 時から（前日 23:59 JST の行は数えない） ... [0m[32mok[0m [0m[38;5;245m(269µs)[0m
+Anthropic に位置情報を送らない。model と web search ツール ...
+[0m[38;5;245m------- post-test output -------[0m
+[research-spot] {"stopReason":"end_turn","blockTypes":{"text":2,"server_tool_use":1,"web_search_tool_result":1},"searchResults":3,"searchErrors":[],"parsed":1,"schemaDropped":0,"geocodeDropped":0}
+[0m[38;5;245m----- post-test output end -----[0m
+Anthropic に位置情報を送らない。model と web search ツール ... [0m[32mok[0m [0m[38;5;245m(281µs)[0m
+記録する行に手がかりを入れない ...
+[0m[38;5;245m------- post-test output -------[0m
+[research-spot] {"stopReason":"end_turn","blockTypes":{"text":2,"server_tool_use":1,"web_search_tool_result":1},"searchResults":3,"searchErrors":[],"parsed":1,"schemaDropped":0,"geocodeDropped":0}
+[0m[38;5;245m----- post-test output end -----[0m
+記録する行に手がかりを入れない ... [0m[32mok[0m [0m[38;5;245m(251µs)[0m
+候補を返し、保存する（座標は国土地理院、ラベルは検索結果の title を30文字で） ...
+[0m[38;5;245m------- post-test output -------[0m
+[research-spot] {"stopReason":"end_turn","blockTypes":{"text":2,"server_tool_use":1,"web_search_tool_result":1},"searchResults":3,"searchErrors":[],"parsed":1,"schemaDropped":0,"geocodeDropped":0}
+[0m[38;5;245m----- post-test output end -----[0m
+候補を返し、保存する（座標は国土地理院、ラベルは検索結果の title を30文字で） ... [0m[32mok[0m [0m[38;5;245m(216µs)[0m
+公式サイトと同じ URL のラベルは「公式サイト」 ...
+[0m[38;5;245m------- post-test output -------[0m
+[research-spot] {"stopReason":"end_turn","blockTypes":{"text":2,"server_tool_use":1,"web_search_tool_result":1},"searchResults":3,"searchErrors":[],"parsed":1,"schemaDropped":0,"geocodeDropped":0}
+[0m[38;5;245m----- post-test output end -----[0m
+公式サイトと同じ URL のラベルは「公式サイト」 ... [0m[32mok[0m [0m[38;5;245m(133µs)[0m
+モデルの出力が JSON でない・candidates が配列でないなら候補 0 件で 200 ...
+[0m[38;5;245m------- post-test output -------[0m
+[research-spot] {"stopReason":"end_turn","blockTypes":{"text":2,"server_tool_use":1,"web_search_tool_result":1},"searchResults":3,"searchErrors":[],"parsed":0,"schemaDropped":0,"geocodeDropped":0}
+[research-spot] {"stopReason":"end_turn","blockTypes":{"text":2,"server_tool_use":1,"web_search_tool_result":1},"searchResults":3,"searchErrors":[],"parsed":0,"schemaDropped":0,"geocodeDropped":0}
+[research-spot] {"stopReason":"end_turn","blockTypes":{"text":2,"server_tool_use":1,"web_search_tool_result":1},"searchResults":3,"searchErrors":[],"parsed":0,"schemaDropped":0,"geocodeDropped":0}
+[0m[38;5;245m----- post-test output end -----[0m
+モデルの出力が JSON でない・candidates が配列でないなら候補 0 件で 200 ... [0m[32mok[0m [0m[38;5;245m(311µs)[0m
+コードフェンスで囲まれた JSON も読む ...
+[0m[38;5;245m------- post-test output -------[0m
+[research-spot] {"stopReason":"end_turn","blockTypes":{"text":2,"server_tool_use":1,"web_search_tool_result":1},"searchResults":3,"searchErrors":[],"parsed":1,"schemaDropped":0,"geocodeDropped":0}
+[0m[38;5;245m----- post-test output end -----[0m
+コードフェンスで囲まれた JSON も読む ... [0m[32mok[0m [0m[38;5;245m(139µs)[0m
+スキーマに合わない候補は捨て、3件で打ち切る ...
+[0m[38;5;245m------- post-test output -------[0m
+[research-spot] {"stopReason":"end_turn","blockTypes":{"text":2,"server_tool_use":1,"web_search_tool_result":1},"searchResults":3,"searchErrors":[],"parsed":8,"schemaDropped":0,"geocodeDropped":0}
+[0m[38;5;245m----- post-test output end -----[0m
+スキーマに合わない候補は捨て、3件で打ち切る ... [0m[32mok[0m [0m[38;5;245m(257µs)[0m
+検索結果に無い URL は情報源に入れない（モデルの文字を信用しない） ...
+[0m[38;5;245m------- post-test output -------[0m
+[research-spot] {"stopReason":"end_turn","blockTypes":{"text":2,"server_tool_use":1,"web_search_tool_result":1},"searchResults":3,"searchErrors":[],"parsed":1,"schemaDropped":0,"geocodeDropped":0}
+[0m[38;5;245m----- post-test output end -----[0m
+検索結果に無い URL は情報源に入れない（モデルの文字を信用しない） ... [0m[32mok[0m [0m[38;5;245m(162µs)[0m
+検索結果にあっても https でない URL は入れない ...
+[0m[38;5;245m------- post-test output -------[0m
+[research-spot] {"stopReason":"end_turn","blockTypes":{"text":2,"server_tool_use":1,"web_search_tool_result":1},"searchResults":4,"searchErrors":[],"parsed":1,"schemaDropped":0,"geocodeDropped":0}
+[0m[38;5;245m----- post-test output end -----[0m
+検索結果にあっても https でない URL は入れない ... [0m[32mok[0m [0m[38;5;245m(105µs)[0m
+ウェブ検索がエラーを返しても落ちない（情報源 0） ...
+[0m[38;5;245m------- post-test output -------[0m
+[research-spot] {"stopReason":"end_turn","blockTypes":{"text":2,"server_tool_use":1,"web_search_tool_result":1},"searchResults":0,"searchErrors":["unavailable"],"parsed":1,"schemaDropped":0,"geocodeDropped":0}
+[0m[38;5;245m----- post-test output end -----[0m
+ウェブ検索がエラーを返しても落ちない（情報源 0） ... [0m[32mok[0m [0m[38;5;245m(120µs)[0m
+座標は国土地理院の値（[lng, lat] を入れ替える）。モデルの lat/lng は使わない ...
+[0m[38;5;245m------- post-test output -------[0m
+[research-spot] {"stopReason":"end_turn","blockTypes":{"text":2,"server_tool_use":1,"web_search_tool_result":1},"searchResults":3,"searchErrors":[],"parsed":1,"schemaDropped":0,"geocodeDropped":0}
+[0m[38;5;245m----- post-test output end -----[0m
+座標は国土地理院の値（[lng, lat] を入れ替える）。モデルの lat/lng は使わない ... [0m[32mok[0m [0m[38;5;245m(120µs)[0m
+国土地理院で見つからない・別の県・形が違う候補は捨てる ...
+[0m[38;5;245m------- post-test output -------[0m
+[research-spot] {"stopReason":"end_turn","blockTypes":{"text":2,"server_tool_use":1,"web_search_tool_result":1},"searchResults":3,"searchErrors":[],"parsed":1,"schemaDropped":0,"geocodeDropped":1}
+[research-spot] {"stopReason":"end_turn","blockTypes":{"text":2,"server_tool_use":1,"web_search_tool_result":1},"searchResults":3,"searchErrors":[],"parsed":1,"schemaDropped":0,"geocodeDropped":1}
+[research-spot] {"stopReason":"end_turn","blockTypes":{"text":2,"server_tool_use":1,"web_search_tool_result":1},"searchResults":3,"searchErrors":[],"parsed":1,"schemaDropped":0,"geocodeDropped":1}
+[0m[38;5;245m----- post-test output end -----[0m
+国土地理院で見つからない・別の県・形が違う候補は捨てる ... [0m[32mok[0m [0m[38;5;245m(211µs)[0m
+Claude が時間内に返らなければ 504 ... [0m[32mok[0m [0m[38;5;245m(650µs)[0m
+Claude が失敗したら 502（回数には数える） ...
+[0m[38;5;245m------- post-test output -------[0m
+[research-spot] claude HTTP 500 boom
+[0m[38;5;245m----- post-test output end -----[0m
+Claude が失敗したら 502（回数には数える） ... [0m[32mok[0m [0m[38;5;245m(297µs)[0m
+名前が空・51文字以上・文字列でないなら 400 ... [0m[32mok[0m [0m[38;5;245m(87µs)[0m
+47 に無い県・市区町村の形でない手がかりは捨て、プロンプトに入れない ...
+[0m[38;5;245m------- post-test output -------[0m
+[research-spot] {"stopReason":"end_turn","blockTypes":{"text":2,"server_tool_use":1,"web_search_tool_result":1},"searchResults":3,"searchErrors":[],"parsed":1,"schemaDropped":0,"geocodeDropped":0}
+[0m[38;5;245m----- post-test output end -----[0m
+47 に無い県・市区町村の形でない手がかりは捨て、プロンプトに入れない ... [0m[32mok[0m [0m[38;5;245m(103µs)[0m
+名前の山括弧は落として、<query> から抜け出させない ...
+[0m[38;5;245m------- post-test output -------[0m
+[research-spot] {"stopReason":"end_turn","blockTypes":{"text":2,"server_tool_use":1,"web_search_tool_result":1},"searchResults":3,"searchErrors":[],"parsed":1,"schemaDropped":0,"geocodeDropped":0}
+[0m[38;5;245m----- post-test output end -----[0m
+名前の山括弧は落として、<query> から抜け出させない ... [0m[32mok[0m [0m[38;5;245m(155µs)[0m
+モデルが返した名前・住所の見えない文字は落として保存する ...
+[0m[38;5;245m------- post-test output -------[0m
+[research-spot] {"stopReason":"end_turn","blockTypes":{"text":2,"server_tool_use":1,"web_search_tool_result":1},"searchResults":3,"searchErrors":[],"parsed":1,"schemaDropped":0,"geocodeDropped":0}
+[0m[38;5;245m----- post-test output end -----[0m
+モデルが返した名前・住所の見えない文字は落として保存する ... [0m[32mok[0m [0m[38;5;245m(103µs)[0m
+候補が0件でも理由を追えるよう、応答の形だけを残す（本文・手がかりは残さない） ...
+[0m[38;5;245m------- post-test output -------[0m
+[research-spot] {"stopReason":"end_turn","blockTypes":{"text":2,"server_tool_use":1,"web_search_tool_result":1},"searchResults":0,"searchErrors":["unavailable"],"parsed":1,"schemaDropped":1,"geocodeDropped":0}
+[0m[38;5;245m----- post-test output end -----[0m
+候補が0件でも理由を追えるよう、応答の形だけを残す（本文・手がかりは残さない） ... [0m[32mok[0m [0m[38;5;245m(328µs)[0m
+手がかりは並べ順だけに使い、その地域に無くても外さないようプロンプトで伝える ...
+[0m[38;5;245m------- post-test output -------[0m
+[research-spot] {"stopReason":"end_turn","blockTypes":{"text":2,"server_tool_use":1,"web_search_tool_result":1},"searchResults":3,"searchErrors":[],"parsed":1,"schemaDropped":0,"geocodeDropped":0}
+[0m[38;5;245m----- post-test output end -----[0m
+手がかりは並べ順だけに使い、その地域に無くても外さないようプロンプトで伝える ... [0m[32mok[0m [0m[38;5;245m(96µs)[0m
+[0m[38;5;245mrunning 2 tests from ./supabase/functions/sign-stamp-upload/presign_test.ts[0m
+署名に Content-Type と Content-Length が含まれる（別の形式・大きさでは PUT できない） ... [0m[32mok[0m [0m[38;5;245m(5ms)[0m
+有効期限は 300 秒で、キーはそのままパスになる ... [0m[32mok[0m [0m[38;5;245m(364µs)[0m
+[0m[38;5;245mrunning 13 tests from ./supabase/functions/sign-stamp-upload/signUpload_test.ts[0m
+トークンが無いと 401 で、署名もしない ... [0m[32mok[0m [0m[38;5;245m(397µs)[0m
+無効なトークンは 401 で、署名もしない ... [0m[32mok[0m [0m[38;5;245m(51µs)[0m
+アップロード: キーは関数が決め、本人のフォルダの下になる ... [0m[32mok[0m [0m[38;5;245m(146µs)[0m
+アップロード: リクエストでパスを指定しても無視する（他人のフォルダを選ばせない） ... [0m[32mok[0m [0m[38;5;245m(38µs)[0m
+アップロード: 5MB を超える大きさは 400 で、署名しない ... [0m[32mok[0m [0m[38;5;245m(38µs)[0m
+アップロード: ちょうど 5MB は通る ... [0m[32mok[0m [0m[38;5;245m(43µs)[0m
+アップロード: 大きさが正の整数でなければ 400 ... [0m[32mok[0m [0m[38;5;245m(86µs)[0m
+削除: 本人のフォルダの下なら消す ... [0m[32mok[0m [0m[38;5;245m(113µs)[0m
+削除: 1つでも他人のフォルダが混ざっていたら 403 で、何も消さない ... [0m[32mok[0m [0m[38;5;245m(44µs)[0m
+削除: フォルダ名で始まるだけの他人のパスや、.. を含むパスは 403 ... [0m[32mok[0m [0m[38;5;245m(68µs)[0m
+削除: paths が空・配列でない・文字列でない要素を含むときは 400 ... [0m[32mok[0m [0m[38;5;245m(69µs)[0m
+削除: R2 の削除に失敗したら 500 ... [0m[32mok[0m [0m[38;5;245m(26µs)[0m
+action が不明なら 400 ... [0m[32mok[0m [0m[38;5;245m(26µs)[0m
+[0m[38;5;245mrunning 5 tests from ./supabase/scripts/judge-pending/judgePending_test.ts[0m
+AC-42: 既定は dry-run で、判定を出すだけで書き換えない ... [0m[32mok[0m [0m[38;5;245m(957µs)[0m
+AC-42: --apply のときだけ active と判定した行を更新する ... [0m[32mok[0m [0m[38;5;245m(134µs)[0m
+AC-43: 行の名前と住所から作った手がかりで調べ、同じ名前・同じ県の候補を使う ... [0m[32mok[0m [0m[38;5;245m(124µs)[0m
+AC-43: 一致する候補が無ければ pending のまま ... [0m[32mok[0m [0m[38;5;245m(89µs)[0m
+AC-43: 基準で落ちれば pending（情報源が1つ） ... [0m[32mok[0m [0m[38;5;245m(82µs)[0m
+[0m[38;5;245mrunning 4 tests from ./supabase/scripts/r2-copy/plan_test.ts[0m
+R2 に無い原本だけをコピー対象にする ... [0m[32mok[0m [0m[38;5;245m(422µs)[0m
+縮小版や形の違うパスはコピーしない（R2 には原本だけ置く） ... [0m[32mok[0m [0m[38;5;245m(44µs)[0m
+同じパスが重複していても1回だけコピーする ... [0m[32mok[0m [0m[38;5;245m(36µs)[0m
+2回目（全部 R2 にある）はコピー 0 件 ... [0m[32mok[0m [0m[38;5;245m(42µs)[0m
+[0m[38;5;245mrunning 31 tests from ./supabase/scripts/spot-coords/coords_test.ts[0m
+AC-1: 第1弾に選ばれるのは fix の wikidata/osm と、check_decided の 高 の wd/osm/wdc/osmc だけ ... [0m[32mok[0m [0m[38;5;245m(246µs)[0m
+AC-2: 下書きの1行を台帳の1行にする（old は prod_match、new は小数6桁） ... [0m[32mok[0m [0m[38;5;245m(262µs)[0m
+AC-2: wd と wdc6 は wikidata、osmc0 は osm にそろえる ... [0m[32mok[0m [0m[38;5;245m(50µs)[0m
+AC-2: source_ref が無い行は、その寺社の名前を含めて止める ... [0m[32mok[0m [0m[38;5;245m(179µs)[0m
+AC-3: オーナーが seed を選んだ行は取り込まない（null） ... [0m[32mok[0m [0m[38;5;245m(68µs)[0m
+AC-3: 国土地理院（gsi）と知らない choice は止める ... [0m[32mok[0m [0m[38;5;245m(103µs)[0m
+AC-3: wd → wikidata、osm → osm、custom → owner（ref は null）。old は書き出しの seed ... [0m[32mok[0m [0m[38;5;245m(90µs)[0m
+第2弾: 書き出しに ref（Q-ID・OSM の要素）があれば台帳に残す（#301 の画面の書き出し） ... [0m[32mok[0m [0m[38;5;245m(66µs)[0m
+第2弾: ref の形が出どころに合わなければ止める ... [0m[32mok[0m [0m[38;5;245m(99µs)[0m
+AC-3: resolveSeedPath はファイル名を seed のパスに直し、知らない名前は止める ... [0m[32mok[0m [0m[38;5;245m(78µs)[0m
+AC-4: 正しい台帳は通り、JSON の文字からも読める ... [0m[32mok[0m [0m[38;5;245m(308µs)[0m
+AC-4: (name, prefecture) と idx の重なりで止める ... [0m[32mok[0m [0m[38;5;245m(434µs)[0m
+AC-4: 出どころと ref の決まりを守らない行で止める ... [0m[32mok[0m [0m[38;5;245m(206µs)[0m
+AC-4: 座標の決まり（小数6桁・10m〜100km・日本の範囲）と名前の $ で止める ... [0m[32mok[0m [0m[38;5;245m(179µs)[0m
+AC-4: OSM 由来は 99 件まで（100 件で止める） ... [0m[32mok[0m [0m[38;5;245m(793µs)[0m
+台帳を書き出すと (batch, seedFile, seedLine) の順で、末尾に改行が1つ ... [0m[32mok[0m [0m[38;5;245m(108µs)[0m
+AC-5: 旧座標の行は2・3番目の数だけが新座標（小数6桁）になり、ほかの文字は同じ ... [0m[32mok[0m [0m[38;5;245m(206µs)[0m
+AC-5: すぐ次の行の「座標: 」から行末を出典の文にする（wikidata / osm / owner） ... [0m[32mok[0m [0m[38;5;245m(48µs)[0m
+AC-5: コメントの無い行（宮城の形）は、その1行だけが替わる ... [0m[32mok[0m [0m[38;5;245m(64µs)[0m
+AC-5: 2回かけても同じ（2回目は changed 0・already に数える） ... [0m[32mok[0m [0m[38;5;245m(53µs)[0m
+AC-5: ほかのファイルの行は見ない ... [0m[32mok[0m [0m[38;5;245m(21µs)[0m
+AC-5: 名前・都道府県・座標が合わない行は <ファイル>:<行> <名前> を出して止める ... [0m[32mok[0m [0m[38;5;245m(200µs)[0m
+AC-5: どの場合も、出力の行数が入力と同じ ... [0m[32mok[0m [0m[38;5;245m(74µs)[0m
+countSeedRows は寺社の行だけを数える ... [0m[32mok[0m [0m[38;5;245m(120µs)[0m
+coordText は小数6桁、distanceMeters はハバーサイン ... [0m[32mok[0m [0m[38;5;245m(24µs)[0m
+AC-6: migration は DO ブロック1つで、台帳の1件が1行 ... [0m[32mok[0m [0m[38;5;245m(186µs)[0m
+AC-6: revert は各行の old と new が入れ替わる ... [0m[32mok[0m [0m[38;5;245m(135µs)[0m
+buildCheckSql は読むだけで、先頭のコメントに弾ごとの前・後の期待値がある ... [0m[32mok[0m [0m[38;5;245m(233µs)[0m
+AC-11: 台帳は検査を通り、第1弾 458 件（wikidata 403・osm 55）、全件 high で ref がある ... [0m[32mok[0m [0m[38;5;245m(1ms)[0m
+第2弾: 台帳に 46 件（wikidata 38・osm 8）。全件 ref があり、OSM 由来は全部の弾で 99 件まで ... [0m[32mok[0m [0m[38;5;245m(1ms)[0m
+AC-13: Issue の標本が入り、第2弾に回すものは入っていない ... [0m[32mok[0m [0m[38;5;245m(1ms)[0m
+[0m[38;5;245mrunning 10 tests from ./supabase/scripts/spot-coords/main_test.ts[0m
+AC-10: import-draft --dry-run は台帳を標準出力に出すだけで、ファイルを書かない ... [0m[32mok[0m [0m[38;5;245m(5ms)[0m
+AC-10: import-draft は台帳を書き、同じ寺社をもう一度入れると止まって台帳は変わらない ... [0m[32mok[0m [0m[38;5;245m(3ms)[0m
+AC-10: import-owner --dry-run はファイルを書かず、seed を選んだ行は入れない ... [0m[32mok[0m [0m[38;5;245m(3ms)[0m
+AC-10: import-owner は台帳にある寺社が来たら止まり、台帳は変わらない ... [0m[32mok[0m [0m[38;5;245m(2ms)[0m
+AC-10: import-owner は国土地理院の選択で止まる ... [0m[32mok[0m [0m[38;5;245m(2ms)[0m
+AC-10: generate --check は、生成物が無い・1バイト違うと 1 で名前を出し、書かない。同じなら 0 ... [0m[32mok[0m [0m[38;5;245m(6ms)[0m
+generate: 台帳に無い弾・版の形が違う・seed が合わないときは 1 で止まる ... [0m[32mok[0m [0m[38;5;245m(3ms)[0m
+revert は戻す SQL を標準出力に出すだけで、ファイルを書かない ... [0m[32mok[0m [0m[38;5;245m(2ms)[0m
+知らないサブコマンド・引数は 1 で止まる ... [0m[32mok[0m [0m[38;5;245m(2ms)[0m
+AC-14: リポジトリの migration（第1弾・第2弾）・確かめる SQL・seed 9 本は、台帳からの生成物と同じ ... [0m[32mok[0m [0m[38;5;245m(11ms)[0m
+[0m[38;5;245mrunning 16 tests from ./supabase/scripts/spot-coords/sql_test.ts[0m
+AC-7: 全件が旧座標なら3件を直し、台帳に無い寺社は座標も updated_at も変えない ... [0m[32mok[0m [0m[38;5;245m(960ms)[0m
+AC-7: 続けてもう1回流しても例外にならず、座標も updated_at も変わらない ... [0m[32mok[0m [0m[38;5;245m(469ms)[0m
+AC-7: 1件が旧でも新でもないと、その名前で例外になり、ほかも旧座標のまま ... [0m[32mok[0m [0m[38;5;245m(722ms)[0m
+AC-7: 同じ名前・都道府県の作成者なしの行が2行あると例外（2 行）で、何も変わらない ... [0m[32mok[0m [0m[38;5;245m(517ms)[0m
+AC-7: 利用者が足した同じ名前・旧座標の行は例外にならず、旧座標のまま ... [0m[32mok[0m [0m[38;5;245m(498ms)[0m
+AC-7: spots が空なら例外にならず、行は0のまま ... [0m[32mok[0m [0m[38;5;245m(392ms)[0m
+AC-7: 利用者が足した寺社しか無い DB でも何もしない ... [0m[32mok[0m [0m[38;5;245m(318ms)[0m
+AC-7: 2件が新座標・1件が旧座標だと例外（混ざっている）で、何も変わらない ... [0m[32mok[0m [0m[38;5;245m(308ms)[0m
+AC-8: 流す前は at_old=3、流した後は at_new=3 の RESULT で終わる ... [0m[32mok[0m [0m[38;5;245m(282ms)[0m
+AC-8: merged の行は inactive、旧でも新でもない行は neither、絞れない行は not_one に数える ... [0m[32mok[0m [0m[38;5;245m(265ms)[0m
+AC-8: 確かめる SQL は読むだけ（前と後で全行の座標と updated_at が同じ） ... [0m[32mok[0m [0m[38;5;245m(304ms)[0m
+AC-8: 最後の文が RAISE EXCEPTION 'RESULT で、書き換える語を含まない ... [0m[32mok[0m [0m[38;5;245m(222µs)[0m
+AC-9: 直したあと戻すと全行の座標が元に戻り、戻すのを2回流しても例外にならない ... [0m[32mok[0m [0m[38;5;245m(288ms)[0m
+AC-9: まだ直していない DB で戻すのを流しても何もしない ... [0m[32mok[0m [0m[38;5;245m(281ms)[0m
+migration は1つの文なので、途中の例外で前の UPDATE も戻る（GET DIAGNOSTICS の確かめ） ... [0m[32mok[0m [0m[38;5;245m(287ms)[0m
+AC-16: 本物の seed に、ファイルの migration（第1弾 → 第2弾）と確かめる SQL を流す（本番の再現・2回流す） ... [0m[32mok[0m [0m[38;5;245m(1s)[0m
+[0m[38;5;245mrunning 6 tests from ./supabase/scripts/spot-wikidata/data_test.ts[0m
+AC-20: 対応表は parseMapping を通り 1,109 件。名前と都道府県の組が seed の 1,109 行と同じ ... [0m[32mok[0m [0m[38;5;245m(21ms)[0m
+AC-21: 台帳の第1弾の wikidata 403 件すべてで、qid が台帳の ref・high・ledger ... [0m[32mok[0m [0m[38;5;245m(20ms)[0m
+AC-22: 標本（尊永寺ほか・姉倉比賣神社は 舟倉 の Q135194979・同じ県の同名 6 組は同じ qid にならない） ... [0m[32mok[0m [0m[38;5;245m(14ms)[0m
+AC-23: 写真の候補は parsePhotos を通り、high / medium の行の p18 だけ。姉倉比賣神社（呉羽の写真）は入らない ... [0m[32mok[0m [0m[38;5;245m(14ms)[0m
+AC-24: 公開のファイルに OSM と地理院の値が無い ... [0m[32mok[0m [0m[38;5;245m(14ms)[0m
+AC-25: 公開のファイルにホームのパス・作業フォルダ・日付が無い ... [0m[32mok[0m [0m[38;5;245m(21ms)[0m
+[0m[38;5;245mrunning 12 tests from ./supabase/scripts/spot-wikidata/fetchers_test.ts[0m
+AC-12: Nominatim は 1,100ms・地理院の住所は 1,000ms・タイルは 200ms 以上あける ... [0m[32mok[0m [0m[38;5;245m(3ms)[0m
+AC-12: 429 の Retry-After: 7 のあとは 7 秒待って取り直す ... [0m[32mok[0m [0m[38;5;245m(354µs)[0m
+AC-12: Retry-After が無い 503 は 60 秒、長くても 300 秒待つ ... [0m[32mok[0m [0m[38;5;245m(113µs)[0m
+AC-12: 3回続けて 503 なら止める（続きから再開できる） ... [0m[32mok[0m [0m[38;5;245m(209µs)[0m
+AC-12: maxlag の応答（200 の error）は待って取り直す ... [0m[32mok[0m [0m[38;5;245m(85µs)[0m
+AC-12: 403 など、取り直しても変わらない応答はすぐ止める ... [0m[32mok[0m [0m[38;5;245m(133µs)[0m
+AC-12: 404 は返す（キャッシュしてよい応答） ... [0m[32mok[0m [0m[38;5;245m(85µs)[0m
+AC-14: WDQS は 503・429・時間切れなら、待たずに null を返す（その回は使わない） ... [0m[32mok[0m [0m[38;5;245m(170µs)[0m
+AC-12: 時間切れ（WDQS 以外）は取り直し、3回続けば止める ... [0m[32mok[0m [0m[38;5;245m(82µs)[0m
+AC-13: どの呼び出しにも User-Agent に連絡先が入る ... [0m[32mok[0m [0m[38;5;245m(99µs)[0m
+AC-13: 連絡先が空なら Client を作れない ... [0m[32mok[0m [0m[38;5;245m(459µs)[0m
+--limit: 決めた数だけ呼んだら LimitError ... [0m[32mok[0m [0m[38;5;245m(127µs)[0m
+[0m[38;5;245mrunning 16 tests from ./supabase/scripts/spot-wikidata/main_test.ts[0m
+AC-11: fetch wikidata を2回走らせると、2回目の fetch の呼び出しは 0 回 ... [0m[32mok[0m [0m[38;5;245m(23ms)[0m
+AC-11: 503 の応答はキャッシュされず、次の回で取り直す ... [0m[32mok[0m [0m[38;5;245m(8ms)[0m
+AC-11: --limit で止めても、打ち直せば続きから取って、同じものを2度取らない ... [0m[32mok[0m [0m[38;5;245m(40ms)[0m
+AC-12: fetch all の間隔（Nominatim 1,100ms・住所 1,000ms・タイル 200ms）と、Wikimedia は1つずつ・maxlag=5 ... [0m[32mok[0m [0m[38;5;245m(34ms)[0m
+AC-12: 429 Retry-After: 7 のあとは 7 秒待って取り直す（CLI） ... [0m[32mok[0m [0m[38;5;245m(5ms)[0m
+AC-12: 3回続けて 503 なら終了コード 1 で、標準エラーに 続きから再開できます ... [0m[32mok[0m [0m[38;5;245m(3ms)[0m
+AC-13: どの呼び出しも User-Agent が goshuin-spot-wikidata/1 (<連絡先>) ... [0m[32mok[0m [0m[38;5;245m(34ms)[0m
+AC-13: SPOT_WIKIDATA_CONTACT が無いと、fetch を1回も呼ばずに終了コード 1 ... [0m[32mok[0m [0m[38;5;245m(2ms)[0m
+AC-14: WDQS が 503 か時間切れでも fetch wikidata は検索で続け、build は WDQS を使わないときと同じ ... [0m[32mok[0m [0m[38;5;245m(101ms)[0m
+AC-14: 台帳の第1弾 wikidata の寺社には検索を呼ばない（WDQS にも入れない） ... [0m[32mok[0m [0m[38;5;245m(9ms)[0m
+AC-15: keep 2・suggest 1・owner 1・investigate 1 の5寺社で、Nominatim は owner と investigate の2回 ... [0m[32mok[0m [0m[38;5;245m(31ms)[0m
+AC-16: build はキャッシュから2つのファイルを作り、2回目は変わるものは無い・--check は同じなら 0 ... [0m[32mok[0m [0m[38;5;245m(48ms)[0m
+AC-16: キャッシュに残りがあると、残りの数を出して終了コード 1（何も書かない） ... [0m[32mok[0m [0m[38;5;245m(9ms)[0m
+status: 段ごとに 要る数・取った数・残りを出す（取る前は、後の段は前の段のあと） ... [0m[32mok[0m [0m[38;5;245m(3ms)[0m
+AC-17: review-data は --work の review/review-data.json だけを書き、--root に何も書かない ... [0m[32mok[0m [0m[38;5;245m(39ms)[0m
+build: 同名の別の寺社の注記が、その項目の P625 のすぐ近くにあっても、seed の近くの項目を選ぶ ... [0m[32mok[0m [0m[38;5;245m(13ms)[0m
+[0m[38;5;245mrunning 49 tests from ./supabase/scripts/spot-wikidata/match_test.ts[0m
+AC-1: 本物の seed は 1,109 行・idx は 1〜1109・台帳（第1弾 458 件と以降の弾）と名前とファイルと行が合う ... [0m[32mok[0m [0m[38;5;245m(11ms)[0m
+AC-1: readSeedRows は '' を ' に戻し、寺社の行でない行を数えない ... [0m[32mok[0m [0m[38;5;245m(222µs)[0m
+AC-2: normalizeName は旧字体・空白・括弧をそろえる ... [0m[32mok[0m [0m[38;5;245m(195µs)[0m
+AC-2: isSpotLikeName ... [0m[32mok[0m [0m[38;5;245m(79µs)[0m
+AC-2: nameMatch の partial は短い方が3文字以上 ... [0m[32mok[0m [0m[38;5;245m(44µs)[0m
+AC-3: parseEntity は D-6 のとおりに値を取る（P625 は最初の normal・小数6桁） ... [0m[32mok[0m [0m[38;5;245m(511µs)[0m
+AC-3: parseEntity は preferred を先に、deprecated を除く ... [0m[32mok[0m [0m[38;5;245m(77µs)[0m
+AC-3: 台帳の第1弾 wikidata の寺社は、seed に近い別の候補があっても台帳の Q-ID ... [0m[32mok[0m [0m[38;5;245m(110µs)[0m
+AC-3: 姉倉比賣神社は 舟倉 の Q135194979（括弧が住所に合う・地理院の住所から 40m） ... [0m[32mok[0m [0m[38;5;245m(474µs)[0m
+AC-3: 地理院の住所が無くても、括弧が合うので Q135194979・high ... [0m[32mok[0m [0m[38;5;245m(171µs)[0m
+AC-4: P131 をたどって別の県に着く候補は外れ、令制国で止まる候補は残る ... [0m[32mok[0m [0m[38;5;245m(101µs)[0m
+AC-4: P131 が同じ県に着く候補は残る（5段まで、値が複数でも） ... [0m[32mok[0m [0m[38;5;245m(62µs)[0m
+AC-4: どの基準点からも 100.1km の候補は外れ、99.9km なら残る ... [0m[32mok[0m [0m[38;5;245m(90µs)[0m
+AC-4: 候補1つが seed だけから 250m → high、400m → medium ... [0m[32mok[0m [0m[38;5;245m(95µs)[0m
+AC-4: seed だけに支えられた候補が1つで、ほかにも候補があれば medium ... [0m[32mok[0m [0m[38;5;245m(84µs)[0m
+AC-4: 候補2つがどちらも支えられない → 決めない・candidates に2つ ... [0m[32mok[0m [0m[38;5;245m(46µs)[0m
+AC-4: 地理院の点に支えられた候補が2つで、括弧で決まらない → 決めない ... [0m[32mok[0m [0m[38;5;245m(41µs)[0m
+AC-4: partial の候補1つが地理院の注記から 100m → low ... [0m[32mok[0m [0m[38;5;245m(45µs)[0m
+AC-4: partial の候補が支えられない → 決めない ... [0m[32mok[0m [0m[38;5;245m(27µs)[0m
+AC-4: 候補 0 → 決めない・candidates は空 ... [0m[32mok[0m [0m[38;5;245m(36µs)[0m
+AC-4: 川崎大師（平間寺）は括弧の 平間寺 でも探す（seed から 100m → high） ... [0m[32mok[0m [0m[38;5;245m(65µs)[0m
+AC-5: 都々古別神社（八槻）/（馬場）は、それぞれ住所の合う項目を選ぶ ... [0m[32mok[0m [0m[38;5;245m(152µs)[0m
+AC-5: 満願寺 と 満願寺（宝光院）に候補が1つなら 満願寺 に残る ... [0m[32mok[0m [0m[38;5;245m(87µs)[0m
+AC-5: dedupeLinks は確かさ → 括弧が合う → seed に括弧が無い の順で1行に残し、並んだら全部決めない ... [0m[32mok[0m [0m[38;5;245m(113µs)[0m
+AC-5: 台帳の行どうしが同じ Q-ID なら両方残し、規則の行は台帳の行に負ける ... [0m[32mok[0m [0m[38;5;245m(53µs)[0m
+AC-6: addressHitLevel ... [0m[32mok[0m [0m[38;5;245m(255µs)[0m
+AC-6: normalizeAddress ... [0m[32mok[0m [0m[38;5;245m(44µs)[0m
+AC-7: parseGsiTile は 661・662 の注記と 3231・3232 の記号だけを、緯度経度にして返す ... [0m[32mok[0m [0m[38;5;245m(1ms)[0m
+AC-7: parseGsiTile は層が無いタイル・空のタイルで空を返す ... [0m[32mok[0m [0m[38;5;245m(116µs)[0m
+AC-7: gsiPointFor は注記から 150m 以内の記号に寄せる（120m なら記号、160m なら注記） ... [0m[32mok[0m [0m[38;5;245m(111µs)[0m
+AC-7: gsiPointFor は名前の合う注記のうち near にいちばん近いものを選ぶ ... [0m[32mok[0m [0m[38;5;245m(76µs)[0m
+gsiPointFor: seed・住所から 300m 以内に名前の合う注記があれば、候補の P625 により近い注記より先に選ぶ ... [0m[32mok[0m [0m[38;5;245m(68µs)[0m
+gsiPointFor: seed・住所の 300m 以内に無ければ、今までどおり候補の P625 にいちばん近い注記（seed がずれている寺社） ... [0m[32mok[0m [0m[38;5;245m(40µs)[0m
+AC-8: wd が 800m・gsi が wd から 100m・seed のまわりに点なし → suggest（wd） ... [0m[32mok[0m [0m[38;5;245m(96µs)[0m
+AC-8: wd なし・osm が 600m・addr が osm から 120m → suggest（osm） ... [0m[32mok[0m [0m[38;5;245m(36µs)[0m
+AC-8: wd が 1.2km・gsi と addr が seed から 80m → keep ... [0m[32mok[0m [0m[38;5;245m(32µs)[0m
+AC-8: wd が 900m で osm と 100m で合う・addr が seed から 50m → owner（食い違い） ... [0m[32mok[0m [0m[38;5;245m(34µs)[0m
+AC-8: gsi と addr だけが seed から 500m で合う → owner ... [0m[32mok[0m [0m[38;5;245m(23µs)[0m
+AC-8: 点が無い → investigate ... [0m[32mok[0m [0m[38;5;245m(19µs)[0m
+AC-8: 同じ家族の点どうし（gsi と addr）は提案の裏付けにならない ... [0m[32mok[0m [0m[38;5;245m(51µs)[0m
+AC-9: parseImageInfo は HTML を外し、真偽にし、missing を数える ... [0m[32mok[0m [0m[38;5;245m(514µs)[0m
+AC-9: parseMapping は正しい対応表を通す（台帳の行どうしの同じ Q-ID は許す） ... [0m[32mok[0m [0m[38;5;245m(360µs)[0m
+AC-9: parseMapping は決めたキー以外・確かさと qid の食い違い・重なり・順・座標・basis で止まる ... [0m[32mok[0m [0m[38;5;245m(682µs)[0m
+AC-9: parsePhotos は正しい写真の候補を通し、対応表と食い違えば止まる ... [0m[32mok[0m [0m[38;5;245m(414µs)[0m
+AC-9: parsePhotos は決めたキー以外・重なり・順・空のファイルで止まる ... [0m[32mok[0m [0m[38;5;245m(330µs)[0m
+serializeJson は2字下げと改行1つ ... [0m[32mok[0m [0m[38;5;245m(21µs)[0m
+AC-10: 正しい書き出しは通り、spot-coords の ownerItemToEntry と mergeEntries も通る ... [0m[32mok[0m [0m[38;5;245m(6ms)[0m
+AC-10: 書き出しの検査は、その寺社の名前を含む文で止まる ... [0m[32mok[0m [0m[38;5;245m(8ms)[0m
+AC-10: 台帳の OSM 由来に osm を足して 99 件を超えると止まり、99 件までなら通る ... [0m[32mok[0m [0m[38;5;245m(6ms)[0m
+[0m[38;5;245mrunning 8 tests from ./supabase/scripts/spot-wikidata/server_test.ts[0m
+AC-18: serve は 127.0.0.1 で待ち、画面の3つと API は 200、ほかは 404 ... [0m[32mok[0m [0m[38;5;245m(30ms)[0m
+AC-18: 画面は MapLibre GL JS を版の固定と integrity 付きで読み、データを持たない ... [0m[32mok[0m [0m[38;5;245m(958µs)[0m
+AC-19: PUT /api/choices は保存し、GET で同じものが返る（サーバーが座標と ref を埋める） ... [0m[32mok[0m [0m[38;5;245m(9ms)[0m
+AC-19: 保存済みの osm が 44 件で台帳 55 件のとき、45 件目の osm は 400（名前を返し、保存しない） ... [0m[32mok[0m [0m[38;5;245m(32ms)[0m
+AC-19: だめな選択は 400 と寺社の名前（地理院の点・10m 未満・メール・画面に無い行） ... [0m[32mok[0m [0m[38;5;245m(5ms)[0m
+AC-19: POST /api/export は書き出し、2回目は前のものを .prev に残す。check-export と import-owner --dry-run が通る ... [0m[32mok[0m [0m[38;5;245m(8ms)[0m
+check-export: だめな書き出しは名前を出して終了コード 1 ... [0m[32mok[0m [0m[38;5;245m(5ms)[0m
+fixtures/work の画面のデータは、本物の seed と台帳に合う（作り物の点で選んで書き出せる） ... [0m[32mok[0m [0m[38;5;245m(4ms)[0m
+
+[0m[32mok[0m | 375 passed | 0 failed [0m[38;5;245m(13s)[0m
+

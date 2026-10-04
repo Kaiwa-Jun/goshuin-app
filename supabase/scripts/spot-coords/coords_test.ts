@@ -239,6 +239,28 @@ Deno.test(
   }
 );
 
+Deno.test(
+  '第2弾: 書き出しに ref（Q-ID・OSM の要素）があれば台帳に残す（#301 の画面の書き出し）',
+  () => {
+    const wd = ownerItemToEntry(owner({ choice: 'wd', ref: 'Q135194979' }), 2)!;
+    assertEquals(wd.ref, 'Q135194979');
+    const osm = ownerItemToEntry(owner({ choice: 'osm', ref: 'way/123456' }), 2)!;
+    assertEquals(osm.ref, 'way/123456');
+    // ref が無い書き出し（review-owner.html の形）は今までどおり null
+    assertEquals(ownerItemToEntry(owner({ choice: 'wd', ref: null }), 2)!.ref, null);
+    assertEquals(ownerItemToEntry(owner({ choice: 'wd' }), 2)!.ref, null);
+    // 地図で置いた点は出どころの ID を持たない
+    assertEquals(ownerItemToEntry(owner({ choice: 'custom', ref: null }), 2)!.ref, null);
+  }
+);
+
+Deno.test('第2弾: ref の形が出どころに合わなければ止める', () => {
+  const bad = assertThrows(() => ownerItemToEntry(owner({ choice: 'wd', ref: 'node/1' }), 2));
+  assertMatch((bad as Error).message, /姉倉比賣神社.*ref/);
+  assertThrows(() => ownerItemToEntry(owner({ choice: 'osm', ref: 'Q1' }), 2));
+  assertThrows(() => ownerItemToEntry(owner({ choice: 'custom', ref: 'Q1' }), 2));
+});
+
 Deno.test('AC-3: resolveSeedPath はファイル名を seed のパスに直し、知らない名前は止める', () => {
   assertEquals(resolveSeedPath('03_chubu.sql'), CHUBU);
   assertEquals(resolveSeedPath('seed_miyagi_spots_and_pilgrimages.sql'), MIYAGI);
@@ -523,13 +545,44 @@ Deno.test(
   'AC-11: 台帳は検査を通り、第1弾 458 件（wikidata 403・osm 55）、全件 high で ref がある',
   async () => {
     const l = await realLedger();
-    assertEquals(l.entries.length, 458);
-    assert(l.entries.every(e => e.batch === 1));
-    assert(l.entries.every(e => e.confidence === 'high'));
-    assert(l.entries.every(e => e.ref !== null));
-    assertEquals(l.entries.filter(e => e.source === 'wikidata').length, 403);
-    assertEquals(l.entries.filter(e => e.source === 'osm').length, 55);
-    assertEquals(l.entries.filter(e => e.source === 'owner').length, 0);
+    const first = l.entries.filter(e => e.batch === 1);
+    assertEquals(first.length, 458);
+    assert(first.every(e => e.confidence === 'high'));
+    assert(first.every(e => e.ref !== null));
+    assertEquals(first.filter(e => e.source === 'wikidata').length, 403);
+    assertEquals(first.filter(e => e.source === 'osm').length, 55);
+    assertEquals(first.filter(e => e.source === 'owner').length, 0);
+  }
+);
+
+Deno.test(
+  '第2弾: 台帳に 46 件（wikidata 38・osm 8）。全件 ref があり、OSM 由来は全部の弾で 99 件まで',
+  async () => {
+    const l = await realLedger();
+    assertEquals(
+      l.entries.every(e => e.batch === 1 || e.batch === 2),
+      true
+    );
+    const second = l.entries.filter(e => e.batch === 2);
+    assertEquals(second.length, 46);
+    assert(second.every(e => e.confidence === 'high'));
+    assert(second.every(e => e.ref !== null));
+    assertEquals(second.filter(e => e.source === 'wikidata').length, 38);
+    assertEquals(second.filter(e => e.source === 'osm').length, 8);
+    assertEquals(second.filter(e => e.source === 'owner').length, 0);
+    assertEquals(l.entries.filter(e => e.source === 'osm').length, 63);
+    // 既知の誤りの提案と、住所と食い違う提案は入れていない（#301 の申し送り）
+    for (const [name, pref] of [
+      ['龍泉寺（埼玉厄除け開運大師）', '埼玉県'],
+      ['八坂神社（長崎）', '長崎県'],
+      ['大御神社', '宮崎県'],
+    ]) {
+      assertEquals(
+        l.entries.find(e => e.name === name && e.prefecture === pref),
+        undefined,
+        name
+      );
+    }
   }
 );
 

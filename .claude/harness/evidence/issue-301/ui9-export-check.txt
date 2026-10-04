@@ -1,0 +1,3 @@
+書き出しは通った（4 件。import-owner で台帳に足すのは 2 件）
+check-export exit 0
+（import-owner --dry-run が出した台帳の全文 9,213 行は省いた。台帳は supabase/data/spot-coords-292.json と同じ形）
