@@ -210,3 +210,5 @@
   - 📌 Expo Web の UI-1〜6 とシミュレータの UI-7〜10 は未（この worktree に `.env` が無く、実装の側では Expo を起こせない）。一時的な書き換えは `~/goshuin-work/spot-photos/temp-web-photos.patch`（`git apply` で入れ、`git checkout -- src/components/spot-detail/SpotBottomSheet.tsx` で戻す。型の検査は通る）。Expo は 8081 でなく 8088 などで起こす
 - 2026-10-04: **#302 evaluator の AC-39（抜き取り）FAIL を受けた決め直し**（リーダーの決定）。北海道神宮頓宮（4。電柱・電線が主）・月讀神社（壱岐）（772。社が見えない）・射楯兵主神社（鹿児島）（852。桟橋が主）・平河天満宮（914。半分の帯では石柱と木だけ）を外した。**採る 688（high 669・medium 19）・外す 45**（person 4・other-place 7・not-spot 11・quality 17・other 6）。migration 274,073 バイト・確かめる SQL 276,682 バイト。外すだけなので fetch は打ち直していない（`upload --dry-run` は偽の R2 で `キャッシュに無い 0 件`）
   - 例外として残す（建物が主でない）: 稲佐の浜（575）＝浜と弁天島の岩そのものがこの場所の顔・雲昌寺（77）＝あじさいの寺として知られ、あじさいが主の写真がこの寺らしい
+- 2026-10-04: **#302 を本番に反映**（H-1〜H-5 はオーナーが R2 に 688 枚、H-6〜H-14 はオーナーの依頼でリーダーが DB に `spot_photos` と 688 件）。約 277KB の SQL も `db query --linked` で通った。H-15 はオーナーが iPhone で確認
+  - キーチェーンのモーダルがまた何度も出た件: 「すべてのアプリに許可」とは別に、項目の partition list（cdhash）で許可が要る。今の `~/.local/bin/supabase` の cdhash（`cf253bcb…`）が一覧に入ってからは出ない（オーナーが確認）
