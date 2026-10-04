@@ -36,6 +36,18 @@ describe('useStampDetail', () => {
     jest.clearAllMocks();
   });
 
+  it('ID が空なら問い合わせず、読み込み中を解く（#319）', async () => {
+    const { result } = renderHook(() => useStampDetail(''));
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(mockFetchStampById).not.toHaveBeenCalled();
+    expect(result.current.stamp).toBeNull();
+    expect(result.current.error).toBeNull();
+  });
+
   it('初期ロード時に isLoading が true になり、データ取得後に false になる', async () => {
     mockFetchStampById.mockResolvedValue(fakeStamp);
 

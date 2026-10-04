@@ -32,6 +32,12 @@ export function useStampDetail(stampId: string): UseStampDetailReturn {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
+    // 御朱印を選んでいない御朱印帳は空の ID で呼ぶ。問い合わせると 400 が返るだけなので読まない（#319）
+    if (!stampId) {
+      setIsLoading(false);
+      return;
+    }
+
     let cancelled = false;
 
     (async () => {

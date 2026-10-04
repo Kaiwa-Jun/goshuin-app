@@ -14,6 +14,13 @@ export function useSpotDetail(spotId: string): UseSpotDetailReturn {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // 寺社を選んでいないシートは空の ID で呼ぶ。問い合わせると 400 が返るだけなので読まない。
+    // 閉じる動きの間に名前が消えないよう、前の寺社は残す（#319）
+    if (!spotId) {
+      setIsLoading(false);
+      return;
+    }
+
     let cancelled = false;
 
     (async () => {
