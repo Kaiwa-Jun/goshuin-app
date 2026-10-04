@@ -23,7 +23,10 @@ export type SealMark =
   /* 作法・旅のしかたは字をやめて紋にする。軸が違うものは見た目も違っていい */
   | 'mangan'
   | 'shiki'
-  | 'mitsu';
+  | 'mitsu'
+  /* 寺社そのものの印。地図のシートの帯に大きく押す（Issue #293） */
+  | 'torii'
+  | 'dou';
 
 /**
  * 枠。手彫りなので直線でも左右対称でもない。
@@ -55,6 +58,8 @@ const FRAME_OF: Record<SealMark, 0 | 1 | 2> = {
   sanjuu: 2,
   gojuu: 0,
   hyaku: 1,
+  torii: 1,
+  dou: 2,
 };
 
 /* ── 1文字ぶんの字。100×100 に彫る ── */
@@ -160,6 +165,34 @@ const MITSU = (
   </>
 );
 
+/* ── 寺社の印（Issue #293）。図形は docs/design/mockups/2026-09-spot-sheet-hero-v2.html の TORII・DOU ── */
+
+/** 鳥居。反った笠木・島木・額束・貫と、少し開いた2本の柱 */
+const TORII = (
+  <>
+    <Path d="M17 22 Q50 30 83 22 L81.5 30 Q50 36.5 18.5 30 Z" />
+    <Rect x={23} y={33} width={54} height={5} />
+    <Rect x={46.5} y={38} width={7} height={11} />
+    <Rect x={20} y={48} width={60} height={6.5} />
+    <Polygon points="32,38 39,38 37,82 29,82" />
+    <Polygon points="61,38 68,38 71,82 63,82" />
+  </>
+);
+
+/** お堂。宝珠・反った屋根・3本の柱と台 */
+const DOU = (
+  <>
+    <Circle cx={50} cy={20.5} r={4.2} />
+    <Rect x={48.6} y={23.5} width={2.8} height={4.5} />
+    <Path d="M47.5 27.5 L52.5 27.5 Q60 42 84 45.5 L82.5 51 Q50 56 17.5 51 L16 45.5 Q40 42 47.5 27.5 Z" />
+    <Rect x={24} y={57} width={52} height={5} />
+    <Rect x={27} y={57} width={6} height={21} />
+    <Rect x={47} y={57} width={6} height={21} />
+    <Rect x={67} y={57} width={6} height={21} />
+    <Rect x={20} y={78} width={60} height={6} />
+  </>
+);
+
 const MARKS: Record<SealMark, React.ReactNode> = {
   ichi: ICHI,
   go: GO,
@@ -170,6 +203,8 @@ const MARKS: Record<SealMark, React.ReactNode> = {
   mangan: MANGAN,
   shiki: SHIKI,
   mitsu: MITSU,
+  torii: TORII,
+  dou: DOU,
 };
 
 interface Props {
@@ -191,6 +226,31 @@ export function Seal({ mark, earned, size, opacity }: Props) {
         {MARKS[mark]}
       </G>
     </Svg>
+  );
+}
+
+interface GlyphProps {
+  mark: SealMark;
+  fill: string;
+  opacity?: number;
+  /** 右下へのずらし（100 × 100 の単位）。空押しの陰と光に使う */
+  offset?: number;
+}
+
+/**
+ * 枠と図形だけ。`viewBox="0 0 100 100"` の `Svg` の中に置いて、重ねて使う
+ * （地図のシートの帯の空押し・朱。Issue #293）。渡されていない props は付けない
+ */
+export function SealGlyph({ mark, fill, opacity, offset }: GlyphProps) {
+  return (
+    <G
+      fill={fill}
+      {...(opacity !== undefined ? { opacity } : {})}
+      {...(offset !== undefined ? { x: offset, y: offset } : {})}
+    >
+      <Path d={SEAL_FRAMES[FRAME_OF[mark]]} fillRule="evenodd" />
+      {MARKS[mark]}
+    </G>
   );
 }
 

@@ -69,7 +69,7 @@ const FAB_CLOSE_MS = 110;
 export function MapScreen({ navigation, route }: Props) {
   const { isAuthenticated } = useAuth();
   const { location, permissionStatus, refreshLocation } = useLocation();
-  const { visitedSpotIds } = useUserStamps();
+  const { visitedSpotIds, isLoading: isVisitedLoading } = useUserStamps();
   const { wishlistSpotIds, toggleWishlist } = useWishlist();
   const [prefectureSpots, setPrefectureSpots] = useState<Spot[]>([]);
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
@@ -621,6 +621,7 @@ export function MapScreen({ navigation, route }: Props) {
         onRecord={handleBottomSheetRecord}
         wishlistSpotIds={wishlistSpotIds}
         onWishlistToggle={handleWishlistToggle}
+        visitedReady={!isVisitedLoading}
       />
 
       <LoginPromptModal

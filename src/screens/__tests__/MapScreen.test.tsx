@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, fireEvent, waitFor, act, within } from '@testing-library/react-native';
 import { MapScreen } from '@screens/MapScreen';
+import { SpotBottomSheet } from '@components/spot-detail/SpotBottomSheet';
 import { AccessibilityInfo, Animated, StyleSheet } from 'react-native';
 import { colors } from '@theme/colors';
 import { shadows } from '@theme/shadows';
@@ -165,11 +166,12 @@ jest.mock('@hooks/useSpots', () => ({
 // 既定は spot-1 が訪問済み。地域の表示（#311）のテストだけ空にする
 const DEFAULT_VISITED_SPOT_IDS = new Set(['spot-1']);
 let mockVisitedSpotIds = DEFAULT_VISITED_SPOT_IDS;
+let mockUserStampsLoading = false;
 
 jest.mock('@hooks/useUserStamps', () => ({
   useUserStamps: () => ({
     visitedSpotIds: mockVisitedSpotIds,
-    isLoading: false,
+    isLoading: mockUserStampsLoading,
   }),
 }));
 
@@ -915,6 +917,26 @@ describe('MapScreen', () => {
       });
     });
   });
+
+  // Issue #293 D-11: 起動直後、訪問済みを取れる前にピンを押しても、取れた瞬間に帯を動かさない
+  describe('訪問済みを取れたかをシートに渡す（Issue #293 AC-35）', () => {
+    afterEach(() => {
+      mockUserStampsLoading = false;
+    });
+
+    it('取れる前は visitedReady が false', () => {
+      mockUserStampsLoading = true;
+      const r = render(<MapScreen navigation={mockNavigation as never} route={mockRoute} />);
+      expect(r.UNSAFE_getByType(SpotBottomSheet).props.visitedReady).toBe(false);
+    });
+
+    it('取れたら visitedReady が true', () => {
+      mockUserStampsLoading = false;
+      const r = render(<MapScreen navigation={mockNavigation as never} route={mockRoute} />);
+      expect(r.UNSAFE_getByType(SpotBottomSheet).props.visitedReady).toBe(true);
+    });
+  });
+
   describe('focusRegion（#311）: 渡された地域に寄せ、その地域の寺社を全部出す', () => {
     const region = {
       label: '横浜',
