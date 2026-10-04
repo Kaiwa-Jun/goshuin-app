@@ -9,9 +9,13 @@
 //   deno run -A --node-modules-dir=none supabase/scripts/spot-photos/main.ts verify [--root <dir>]
 //   deno run -A --node-modules-dir=none supabase/scripts/spot-photos/main.ts generate [--check] [--root <dir>]
 //
+// 第2弾（#320）:
+//   SPOT_WIKIDATA_CONTACT=<連絡先> deno run -A --node-modules-dir=none supabase/scripts/spot-photos/main.ts manual-link [--root <dir>] [--work <dir>]
+//
 // --root の既定はカレントディレクトリ（リポジトリの直下で打つ）、--work の既定は $HOME/goshuin-work/spot-photos。
 // エラーは標準エラーに、寺社の名前・都道府県か無いファイルの名前を含めて出し、終了コード 1。
-// 契約書: docs/issues/issue-302-spot-photo-band.md（D-1・D-7・D-9・D-19・D-20・「CLI」）
+// 契約書: docs/issues/issue-302-spot-photo-band.md（D-1・D-7・D-9・D-19・D-20・「CLI」）、
+//         docs/issues/issue-320-spot-photos-batch2.md（D-2・D-3・D-12・「CLI」）
 import { SEED_FILES } from '../spot-coords/coords.ts';
 import {
   MAPPING_PATH,
@@ -23,6 +27,7 @@ import {
   type SeedRow,
   serializeJson,
 } from '../spot-wikidata/match.ts';
+import { BATCH2_DIR, MANUAL_PATH, manual320Of, parseManual320, targets320 } from './batch2.ts';
 import {
   fetchPhotos,
   type NetIo,
@@ -31,6 +36,7 @@ import {
   uploadPhotos,
   verifyPhotos,
 } from './fetchers.ts';
+import { manualLink, parseDraft } from './gather.ts';
 import {
   buildCandidates,
   buildCheckSql,
@@ -314,6 +320,77 @@ async function generate(io: CliIo, a: Args): Promise<number> {
   return 0;
 }
 
+// --- #320: 第2弾の対象（台帳の第1弾の行だけを見る） ---
+
+function isObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+
+/** 台帳の第1弾の行だけを読む（第2弾の行があっても、第2弾の候補なしで読める） */
+function ledgerBatch1(text: string, photos: Photos, rows: SeedRow[]): Ledger302 {
+  const raw = JSON.parse(text);
+  if (!isObject(raw) || !Array.isArray(raw.entries)) return parseLedger302(raw, photos, rows);
+  return parseLedger302(
+    { ...raw, entries: raw.entries.filter(e => isObject(e) && e.batch === 1) },
+    photos,
+    rows
+  );
+}
+
+async function loadTargets(io: CliIo, root: string) {
+  const mapping = parseMapping(await readRequired(io, joinPath(root, MAPPING_PATH)));
+  const photos = parsePhotos(await readRequired(io, joinPath(root, PHOTOS_PATH)), mapping);
+  const rows = await loadSeedRows(io, root);
+  const ledger1 = ledgerBatch1(await readRequired(io, joinPath(root, LEDGER_PATH)), photos, rows);
+  return { mapping, photos, rows, ledger1, targets: targets320(rows, ledger1) };
+}
+
+function requireContact(io: CliIo): string {
+  const contact = io.env('SPOT_WIKIDATA_CONTACT')?.trim();
+  if (!contact) {
+    throw new Error(
+      'SPOT_WIKIDATA_CONTACT が無い。Wikidata・Commons の User-Agent に入れる連絡先を環境変数で渡す（何も呼んでいない）'
+    );
+  }
+  return contact;
+}
+
+function seconds(io: CliIo, started: number): number {
+  return Math.round((io.now() - started) / 1000);
+}
+
+// --- manual-link（D-12） ---
+
+async function manualLinkCommand(io: CliIo, a: Args): Promise<number> {
+  const contact = requireContact(io);
+  const work = `${workDir(io, a)}/${BATCH2_DIR}`;
+  const draft = parseDraft(await readRequired(io, `${work}/manual-draft.json`));
+  const { mapping, rows, targets } = await loadTargets(io, a.root);
+  const started = io.now();
+  let r;
+  try {
+    r = await manualLink({ io, work, contact, draft, rows, ctx: { targets, mapping } });
+  } catch (e) {
+    if (e instanceof StopError) {
+      io.stderr(`エラー: ${e.message}。取れた項目はキャッシュに残る（同じコマンドで続きから）\n`);
+      return 1;
+    }
+    throw e;
+  }
+  const calls = `呼び出し ${r.calls} 回（${seconds(io, started)} 秒）`;
+  if (r.entries === null) {
+    for (const f of r.failures) io.stderr(`${f}\n`);
+    io.stderr(
+      `エラー: 規則を通らない行が ${r.failures.length} 行ある（${MANUAL_PATH} は書いていない。下書きを直して打ち直す）。${calls}\n`
+    );
+    return 1;
+  }
+  const manual = parseManual320(manual320Of(r.entries), rows, mapping, targets);
+  await io.writeTextFile(joinPath(a.root, MANUAL_PATH), serializeJson(manual));
+  io.stdout(`${MANUAL_PATH} を書いた（${manual.entries.length} 寺社）/ ${calls}\n`);
+  return 0;
+}
+
 // --- 入口 ---
 
 export type Command = (io: CliIo, a: Args) => Promise<number>;
@@ -327,6 +404,7 @@ const COMMANDS: Record<string, Command> = {
   upload,
   verify,
   generate,
+  'manual-link': manualLinkCommand,
 };
 
 export async function runCli(argv: string[], io: CliIo): Promise<number> {

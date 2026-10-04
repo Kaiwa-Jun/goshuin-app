@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "issue": 320,
+  "note": "#301 の対応表で結べなかった（none / low）rank 5 の寺社を、リーダーが Wikidata の項目と確かめて結んだもの。supabase/scripts/spot-photos/main.ts manual-link で作る。手で直さない",
+  "attribution": {
+    "wikidata": "Wikidata（CC0 1.0）https://www.wikidata.org/"
+  },
+  "entries": [
+    {
+      "idx": 347,
+      "name": "戸隠神社中社",
+      "prefecture": "長野県",
+      "qid": "Q135464157",
+      "label": "戸隠神社",
+      "matchedName": "戸隠神社",
+      "nameLevel": "partial",
+      "p625": {
+        "lat": 36.753,
+        "lng": 138.0736
+      },
+      "distanceKm": 1.6,
+      "p18": [],
+      "p373": "Togakushi Shrine",
+      "basis": "ラベル「戸隠神社」が seed の名前と一部が同じ。P625 は seed から 1.6 km"
+    },
+    {
+      "idx": 348,
+      "name": "戸隠神社奥社",
+      "prefecture": "長野県",
+      "qid": "Q135464157",
+      "label": "戸隠神社",
+      "matchedName": "戸隠神社",
+      "nameLevel": "partial",
+      "p625": {
+        "lat": 36.753,
+        "lng": 138.0736
+      },
+      "distanceKm": 1.5,
+      "p18": [],
+      "p373": "Togakushi Shrine",
+      "basis": "ラベル「戸隠神社」が seed の名前と一部が同じ。P625 は seed から 1.5 km"
+    },
+    {
+      "idx": 421,
+      "name": "伊勢神宮内宮（皇大神宮）",
+      "prefecture": "三重県",
+      "qid": "Q11581011",
+      "label": "皇大神宮",
+      "matchedName": "皇大神宮",
+      "nameLevel": "exact",
+      "p625": {
+        "lat": 34.454982,
+        "lng": 136.725163
+      },
+      "distanceKm": 0.5,
+      "p18": ["Tsurugaoka Hachimangu 001.jpg"],
+      "p373": "Naiku",
+      "basis": "ラベル「皇大神宮」が seed の名前と同じ。P625 は seed から 0.5 km"
+    }
+  ]
+}
