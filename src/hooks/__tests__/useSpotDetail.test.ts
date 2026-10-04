@@ -45,6 +45,37 @@ describe('useSpotDetail', () => {
     expect(mockFetchSpotById).toHaveBeenCalledWith('spot-1');
   });
 
+  it('ID が空なら問い合わせず、読み込み中を解く（#319）', async () => {
+    const { result } = renderHook(() => useSpotDetail(''));
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(mockFetchSpotById).not.toHaveBeenCalled();
+    expect(result.current.spot).toBeNull();
+    expect(result.current.error).toBeNull();
+  });
+
+  it('ID が空に変わっても、前の寺社を残したまま問い合わせない（#319）', async () => {
+    mockFetchSpotById.mockResolvedValue(fakeSpot);
+
+    const { result, rerender } = renderHook(({ id }) => useSpotDetail(id), {
+      initialProps: { id: 'spot-1' },
+    });
+    await waitFor(() => {
+      expect(result.current.spot).toEqual(fakeSpot);
+    });
+
+    rerender({ id: '' });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+    expect(mockFetchSpotById).toHaveBeenCalledTimes(1);
+    expect(result.current.spot).toEqual(fakeSpot);
+  });
+
   it('sets error when spot not found', async () => {
     mockFetchSpotById.mockResolvedValue(null);
 
