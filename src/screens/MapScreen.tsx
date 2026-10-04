@@ -26,14 +26,16 @@ import { LoginPromptModal } from '@components/common/LoginPromptModal';
 import { MAP_STYLE } from '@components/map/mapStyle';
 import { SpotMapLayers } from '@components/map/SpotMapLayers';
 import { CurrentLocationLayer } from '@components/map/CurrentLocationLayer';
+import { RegionSpotSheet } from '@components/map/RegionSpotSheet';
 import { SpotBottomSheet } from '@components/spot-detail/SpotBottomSheet';
 import { useAuth } from '@hooks/useAuth';
 import { useLocation } from '@hooks/useLocation';
 import { useMountTransition } from '@hooks/useMountTransition';
+import { useReduceMotion } from '@hooks/useReduceMotion';
 import { useSpots } from '@hooks/useSpots';
 import { useUserStamps } from '@hooks/useUserStamps';
 import { useWishlist } from '@hooks/useWishlist';
-import type { MapStackScreenProps } from '@/navigation/types';
+import type { FocusRegion, MapStackScreenProps } from '@/navigation/types';
 import type { Spot } from '@/types/supabase';
 import { buildSpotSources, spotFilterIds } from '@utils/spotGeoJson';
 import { colors } from '@theme/colors';
@@ -48,6 +50,10 @@ type FilterMode = 'all' | 'visited' | 'wishlist';
 const INITIAL_ZOOM = 14.5;
 /** スポットを選んだとき／検索から飛んだときの寄り */
 const FOCUS_ZOOM = 15.5;
+/** 地域（検索の場所の行）に寄せるときの余白。絞り込みで寄せるときと同じ */
+const REGION_PADDING = { top: 140, right: 60, bottom: 200, left: 60 };
+/** 地域を出していないとき。参照を固定して、ソースを作り直さない（Issue #311） */
+const NO_FOCUS_IDS = new Set<string>();
 /** 位置情報が取れないときの初期表示（東京駅） */
 const FALLBACK_CENTER: [number, number] = [139.7671, 35.6812];
 const FALLBACK_ZOOM = 9;
@@ -86,11 +92,28 @@ export function MapScreen({ navigation, route }: Props) {
     closeMs: FILTER_CLOSE_MS,
   });
   const [selectedSpotId, setSelectedSpotId] = useState<string | null>(null);
-  // FAB はスポットを選ぶと引っ込む。瞬時に消えると唐突なので出入りを描く
-  const { mounted: fabMounted, progress: fabAnim } = useMountTransition(!selectedSpotId, {
-    openMs: FAB_OPEN_MS,
-    closeMs: FAB_CLOSE_MS,
-  });
+  // 検索で寄せた地域（Issue #311）。その寺社を団子にせず・間引かずに出す。× と寺社の検索で消える
+  const [activeRegion, setActiveRegion] = useState<FocusRegion | null>(null);
+  // 地域の下の寺社の一覧。寺社を選ぶと閉じる（地域のピンは残す）
+  const [regionSheetOpen, setRegionSheetOpen] = useState(false);
+  const focusIds = useMemo(
+    () => (activeRegion ? new Set(activeRegion.spotIds) : NO_FOCUS_IDS),
+    [activeRegion]
+  );
+  // 一覧に出すのは地図にある寺社だけ（絞り込みで消えた寺社は数えない）
+  const regionSpots = useMemo(
+    () => (activeRegion ? displaySpots.filter(s => focusIds.has(s.id)) : []),
+    [activeRegion, displaySpots, focusIds]
+  );
+  const showRegionSheet = activeRegion !== null && regionSheetOpen && regionSpots.length > 0;
+  // FAB はスポットを選ぶと引っ込む（地域の一覧と重なるので、一覧が出ている間も）。
+  // 瞬時に消えると唐突なので出入りを描く
+  const { mounted: fabMounted, progress: fabAnim } = useMountTransition(
+    !selectedSpotId && !showRegionSheet,
+    { openMs: FAB_OPEN_MS, closeMs: FAB_CLOSE_MS }
+  );
+  // 地域の一覧は出たあとに mount されるので、一覧の中で読むと設定が間に合わない
+  const reduceMotion = useReduceMotion();
   // 検索バーに出す名前。検索・履歴から飛んできたときとピンをタップしたときに入る。
   // selectedSpotId とは別に持つ。シートを閉じても消さず、× で消す
   const [searchLabel, setSearchLabel] = useState<string | null>(null);
@@ -100,8 +123,8 @@ export function MapScreen({ navigation, route }: Props) {
 
   // 地図に渡す GeoJSON。件数の上限もビューポート絞り込みも掛けない
   const { clustered, pinned } = useMemo(
-    () => buildSpotSources({ spots: displaySpots, visitedSpotIds, wishlistSpotIds }),
-    [displaySpots, visitedSpotIds, wishlistSpotIds]
+    () => buildSpotSources({ spots: displaySpots, visitedSpotIds, wishlistSpotIds, focusIds }),
+    [displaySpots, visitedSpotIds, wishlistSpotIds, focusIds]
   );
 
   const searchRowTop = insets.top + spacing.xs;
@@ -172,7 +195,69 @@ export function MapScreen({ navigation, route }: Props) {
 
     setSelectedSpotId(focusSpotId);
     setSearchLabel(spot.name);
+    setActiveRegion(null);
+    setRegionSheetOpen(false);
   }, [route.params?.focusSpotId, displaySpots]);
+
+  // 検索の場所の行・エンターから来た地域（Issue #311）。参照が変わるたびに1回だけ寄せる。
+  // 範囲は検索画面で計算済みなので、focusSpotId と違って寺社の読み込みを待たない。
+  // 読み込み直しで寄せ直すと、利用者が動かした地図が戻される
+  const handledFocusRegionRef = useRef<FocusRegion | null>(null);
+  // 一覧の高さを測ってから、その分だけ下を空けて寄せ直す地域（1つの地域で1回だけ）
+  const refitRegionRef = useRef<FocusRegion | null>(null);
+
+  useEffect(() => {
+    const focusRegion = route.params?.focusRegion;
+    if (focusRegion) {
+      if (handledFocusRegionRef.current === focusRegion) return;
+      handledFocusRegionRef.current = focusRegion;
+
+      setSelectedSpotId(null);
+      setSearchLabel(focusRegion.label);
+      setActiveRegion(focusRegion);
+      setRegionSheetOpen(true);
+
+      const [west, south, east, north] = focusRegion.bounds;
+      // 1件だけだと矩形が潰れるので、fitBounds ではなく寄せる
+      if (west === east && south === north) {
+        refitRegionRef.current = null;
+        cameraRef.current?.flyTo({ center: [west, south], zoom: FOCUS_ZOOM, duration: 600 });
+      } else {
+        refitRegionRef.current = focusRegion;
+        cameraRef.current?.fitBounds(focusRegion.bounds, {
+          padding: REGION_PADDING,
+          duration: 600,
+        });
+      }
+      return;
+    }
+
+    if (!handledFocusRegionRef.current) return;
+    handledFocusRegionRef.current = null;
+    // 寺社の focusSpotId があれば、その処理が地域を消して名前を入れる。
+    // ここで文字を消すと、同じ描画で入った寺社の名前が消える
+    if (route.params?.focusSpotId) return;
+    // 記録の完了画面の「地図に戻る」は params なしで来る。地域は消すが、
+    // 寺社を選んでいれば、そのシートと名前は残す（シートだけ開いて検索バーが空にならないように）
+    refitRegionRef.current = null;
+    setActiveRegion(null);
+    setRegionSheetOpen(false);
+    if (!selectedSpotId) setSearchLabel(null);
+  }, [route.params?.focusRegion, route.params?.focusSpotId, selectedSpotId]);
+
+  // 一覧が REGION_PADDING.bottom より高ければ、一覧の高さのぶん下を空けて寄せ直す。
+  // 最初の fitBounds は一覧の高さが分かる前に打つので、ここで1回だけ直す
+  const handleRegionSheetLayout = useCallback((height: number) => {
+    const region = refitRegionRef.current;
+    if (!region) return;
+    refitRegionRef.current = null;
+    const bottom = height + spacing.lg;
+    if (bottom <= REGION_PADDING.bottom) return;
+    cameraRef.current?.fitBounds(region.bounds, {
+      padding: { ...REGION_PADDING, bottom },
+      duration: 600,
+    });
+  }, []);
 
   // フィルタを掛けたら、残ったピンが見える位置までカメラを寄せる。
   // 寄せないと、保存したスポットが今いる場所から遠いときに
@@ -252,9 +337,11 @@ export function MapScreen({ navigation, route }: Props) {
     navigateToRecord();
   };
 
+  // ピンを押したときも、地域の一覧の行を押したときもここ。一覧は閉じ、地域のピンは残す
   const handleSpotPress = useCallback(
     (spotId: string) => {
       setSelectedSpotId(spotId);
+      setRegionSheetOpen(false);
 
       const spot = displaySpots.find(s => s.id === spotId);
       if (spot) {
@@ -287,6 +374,9 @@ export function MapScreen({ navigation, route }: Props) {
   const handleSearchClear = useCallback(() => {
     setSearchLabel(null);
     setSelectedSpotId(null);
+    setActiveRegion(null);
+    setRegionSheetOpen(false);
+    refitRegionRef.current = null;
   }, []);
 
   const handleBottomSheetRecord = useCallback(
@@ -511,6 +601,17 @@ export function MapScreen({ navigation, route }: Props) {
         >
           <FABButton onPress={handleFABPress} />
         </Animated.View>
+      )}
+
+      {showRegionSheet && (
+        <RegionSpotSheet
+          label={activeRegion.label}
+          spots={regionSpots}
+          origin={permissionStatus === PermissionStatus.GRANTED ? location : null}
+          reduceMotion={reduceMotion}
+          onSelectSpot={handleSpotPress}
+          onLayout={handleRegionSheetLayout}
+        />
       )}
 
       <SpotBottomSheet

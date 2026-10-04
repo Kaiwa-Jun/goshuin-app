@@ -1,6 +1,14 @@
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
+import { ActivityIndicator, StyleSheet } from 'react-native';
+import { render, fireEvent, act, within } from '@testing-library/react-native';
 import { SearchScreen } from '@screens/SearchScreen';
+import type { Spot } from '@/types/supabase';
+import type { PlaceRow, SearchRow } from '@utils/placeSearch';
+import { buildSearchRows } from '@utils/placeSearch';
+import { SHIBUYA_STATION, TEST_SPOTS } from '@utils/__tests__/placeSearchFixtures';
+import { colors } from '@theme/colors';
+import { borderRadius } from '@theme/spacing';
+import { typography } from '@theme/typography';
 
 jest.mock('react-native-safe-area-context', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
@@ -14,7 +22,7 @@ jest.mock('react-native-safe-area-context', () => {
   };
 });
 
-const mockSpots = [
+const mockSpots: Spot[] = [
   {
     id: 'spot-1',
     name: '仙台東照宮',
@@ -24,6 +32,7 @@ const mockSpots = [
     status: 'active' as const,
     rank: 3,
     address: '仙台市青葉区東照宮1-6-1',
+    prefecture: null,
     created_by_user_id: null,
     merged_into_spot_id: null,
     created_at: '2024-01-01',
@@ -38,6 +47,7 @@ const mockSpots = [
     status: 'active' as const,
     rank: 3,
     address: '仙台市青葉区荒巻字青葉33-2',
+    prefecture: null,
     created_by_user_id: null,
     merged_into_spot_id: null,
     created_at: '2024-01-01',
@@ -49,16 +59,27 @@ const mockSetQuery = jest.fn();
 const mockSetFilterType = jest.fn();
 const mockClearSearch = jest.fn();
 
+const mockResolveSubmit = jest.fn(async (): Promise<SearchRow | null> => null);
+
 let mockUseSearchScreenReturn = {
   query: '',
   setQuery: mockSetQuery,
-  results: [] as { spot: (typeof mockSpots)[0]; distance: number }[],
+  rows: [] as SearchRow[],
+  showPlaceCredit: false,
+  isSearchingPlace: false,
+  isTyping: false,
+  resolveSubmit: mockResolveSubmit,
   filterType: 'all' as 'all' | 'shrine' | 'temple',
   setFilterType: mockSetFilterType,
   clearSearch: mockClearSearch,
-  suggestedSpots: [] as { spot: (typeof mockSpots)[0]; distance: number }[],
+  suggestedSpots: [] as { spot: Spot; distance: number }[],
   suggestionMode: 'nearby' as 'nearby' | 'popular',
 };
+
+/** 一覧の寺社の行（Issue #311 で results は rows になった） */
+function spotRow(spot: Spot, distance: number): SearchRow {
+  return { kind: 'spot', spot, distance };
+}
 
 jest.mock('@hooks/useSearchScreen', () => ({
   useSearchScreen: () => mockUseSearchScreenReturn,
@@ -110,7 +131,11 @@ describe('SearchScreen', () => {
     mockUseSearchScreenReturn = {
       query: '',
       setQuery: mockSetQuery,
-      results: [],
+      rows: [],
+      showPlaceCredit: false,
+      isSearchingPlace: false,
+      isTyping: false,
+      resolveSubmit: mockResolveSubmit,
       filterType: 'all',
       setFilterType: mockSetFilterType,
       clearSearch: mockClearSearch,
@@ -283,7 +308,7 @@ describe('SearchScreen', () => {
       mockUseSearchScreenReturn = {
         ...mockUseSearchScreenReturn,
         query: '仙台',
-        results: [{ spot: mockSpots[0], distance: 1.2 }],
+        rows: [spotRow(mockSpots[0], 1.2)],
         suggestedSpots: [{ spot: mockSpots[1], distance: 0.5 }],
         suggestionMode: 'nearby',
       };
@@ -301,7 +326,7 @@ describe('SearchScreen', () => {
       mockUseSearchScreenReturn = {
         ...mockUseSearchScreenReturn,
         query: '仙台',
-        results: [{ spot: mockSpots[0], distance: 1.2 }],
+        rows: [spotRow(mockSpots[0], 1.2)],
       };
 
       const { getByTestId } = render(
@@ -316,7 +341,7 @@ describe('SearchScreen', () => {
       mockUseSearchScreenReturn = {
         ...mockUseSearchScreenReturn,
         query: '仙台',
-        results: [{ spot: mockSpots[0], distance: 1.2 }],
+        rows: [spotRow(mockSpots[0], 1.2)],
       };
 
       const { getByTestId } = render(
@@ -330,10 +355,7 @@ describe('SearchScreen', () => {
       mockUseSearchScreenReturn = {
         ...mockUseSearchScreenReturn,
         query: '仙台',
-        results: [
-          { spot: mockSpots[0], distance: 1.2 },
-          { spot: mockSpots[1], distance: 3.5 },
-        ],
+        rows: [spotRow(mockSpots[0], 1.2), spotRow(mockSpots[1], 3.5)],
       };
 
       const { getByText } = render(
@@ -346,7 +368,7 @@ describe('SearchScreen', () => {
       mockUseSearchScreenReturn = {
         ...mockUseSearchScreenReturn,
         query: 'xxxxxx',
-        results: [],
+        rows: [],
       };
 
       const { getByText } = render(
@@ -359,7 +381,7 @@ describe('SearchScreen', () => {
       mockUseSearchScreenReturn = {
         ...mockUseSearchScreenReturn,
         query: '仙台',
-        results: [{ spot: mockSpots[0], distance: 1.2 }],
+        rows: [spotRow(mockSpots[0], 1.2)],
       };
 
       const { getAllByTestId } = render(
@@ -386,7 +408,7 @@ describe('SearchScreen', () => {
     mockUseSearchScreenReturn = {
       ...mockUseSearchScreenReturn,
       query: '仙台',
-      results: [{ spot: mockSpots[0], distance: 1.2 }],
+      rows: [spotRow(mockSpots[0], 1.2)],
     };
 
     const { getByTestId } = render(
@@ -394,5 +416,226 @@ describe('SearchScreen', () => {
     );
     fireEvent.press(getByTestId('search-clear-button'));
     expect(mockClearSearch).toHaveBeenCalled();
+  });
+
+  describe('場所の帯とエンター（Issue #311）', () => {
+    const rowsFor = (query: string) =>
+      buildSearchRows({ query, spots: TEST_SPOTS, filterType: 'all', order: 'nearby' });
+    const spotById = (id: string) => TEST_SPOTS.find(s => s.spot.id === id)!.spot;
+    const renderScreen = () =>
+      render(<SearchScreen navigation={mockNavigation as never} route={mockRoute} />);
+
+    /** 描いた順（host 要素の深さ優先の並び）での位置 */
+    type Rendered = ReturnType<typeof render>;
+    type Node = ReturnType<Rendered['getByTestId']>;
+    function positionOf(r: Rendered, node: Node): number {
+      return r.UNSAFE_root.findAll((n: Node) => typeof n.type === 'string').indexOf(node);
+    }
+
+    function show(query: string, rows: SearchRow[]) {
+      mockUseSearchScreenReturn = { ...mockUseSearchScreenReturn, query, rows };
+    }
+
+    async function submit(r: ReturnType<typeof render>) {
+      await act(async () => {
+        fireEvent(r.getByTestId('search-input'), 'submitEditing');
+      });
+    }
+
+    it('UI-1: 帯は「検索結果」と最初の寺社の行より上に出る', () => {
+      show('横浜', rowsFor('横浜'));
+      const r = renderScreen();
+
+      const band = r.getByTestId('search-place-row-0');
+      expect(within(band).getByText('横浜のあたり')).toBeTruthy();
+      expect(within(band).getByText('神奈川県・寺社 3')).toBeTruthy();
+      expect(within(band).getByText('地図で見る')).toBeTruthy();
+
+      const cards = r.getAllByTestId('search-result-card');
+      expect(cards).toHaveLength(3);
+      expect(positionOf(r, band)).toBeLessThan(positionOf(r, r.getByText('検索結果')));
+      expect(positionOf(r, r.getByText('検索結果'))).toBeLessThan(positionOf(r, cards[0]));
+    });
+
+    it('UI-2: 帯の色・角丸・アイコン・「地図で見る」の色', () => {
+      show('横浜', rowsFor('横浜'));
+      const r = renderScreen();
+      const band = r.getByTestId('search-place-row-0');
+
+      expect(StyleSheet.flatten(band.props.style)).toMatchObject({
+        backgroundColor: colors.primary[50],
+        borderRadius: borderRadius.lg,
+      });
+      const icon = within(band).getByText('map');
+      expect(icon.props).toMatchObject({ name: 'map', size: 24, color: colors.primary[500] });
+      expect(StyleSheet.flatten(within(band).getByText('地図で見る').props.style).color).toBe(
+        colors.primary[600]
+      );
+    });
+
+    it('AC-41: 場所が上でない言葉（「八坂」）でも、帯は一覧のいちばん上', () => {
+      show('八坂', rowsFor('八坂'));
+      const r = renderScreen();
+
+      const band = r.getByTestId('search-place-row-0');
+      expect(within(band).getByText('静岡県・寺社 1')).toBeTruthy();
+      expect(positionOf(r, band)).toBeLessThan(
+        positionOf(r, r.getAllByTestId('search-result-card')[0])
+      );
+    });
+
+    it('UI-4: 「靖國」は寺社の行だけで、帯は出ない', () => {
+      show('靖國', rowsFor('靖國'));
+      const r = renderScreen();
+
+      expect(within(r.getAllByTestId('search-result-card')[0]).getByText('靖國神社')).toBeTruthy();
+      expect(r.queryByTestId('search-place-row-0')).toBeNull();
+    });
+
+    it('UI-5: 言葉があって行が無いときは「見つかりませんでした」', () => {
+      show('あいうえおかきくけこ', []);
+      expect(renderScreen().getByText('見つかりませんでした')).toBeTruthy();
+    });
+
+    it('AC-25: 検索欄の確定キーは「検索」で、押してもキーボードを閉じない', () => {
+      const input = renderScreen().getByTestId('search-input');
+      expect(input.props.returnKeyType).toBe('search');
+      expect(input.props.submitBehavior).toBe('submit');
+    });
+
+    it('AC-22: エンターで寺社の行が返ると、行を押したのと同じく履歴に残して地図へ', async () => {
+      const t1 = spotById('t1');
+      show('明治神宮', [spotRow(t1, 5)]);
+      mockResolveSubmit.mockResolvedValueOnce(spotRow(t1, 5));
+      const r = renderScreen();
+
+      await submit(r);
+
+      expect(mockAddHistory).toHaveBeenCalledTimes(1);
+      expect(mockAddHistory).toHaveBeenCalledWith({ spotId: 't1', spotName: '明治神宮' });
+      expect(mockNavigation.navigate).toHaveBeenCalledTimes(1);
+      expect(mockNavigation.navigate).toHaveBeenCalledWith('Map', { focusSpotId: 't1' });
+      const bySubmit = [mockAddHistory.mock.calls, mockNavigation.navigate.mock.calls];
+
+      jest.clearAllMocks();
+      fireEvent.press(r.getAllByTestId('search-result-card')[0]);
+      expect([mockAddHistory.mock.calls, mockNavigation.navigate.mock.calls]).toEqual(bySubmit);
+    });
+
+    it('AC-23: エンターで場所の行が返ると、その地域を地図に渡す。履歴には残さない', async () => {
+      const rows = rowsFor('横浜');
+      const place = rows[0] as PlaceRow;
+      show('横浜', rows);
+      mockResolveSubmit.mockResolvedValueOnce(place);
+      const r = renderScreen();
+
+      await submit(r);
+
+      expect(mockNavigation.navigate).toHaveBeenCalledTimes(1);
+      expect(mockNavigation.navigate).toHaveBeenCalledWith('Map', { focusRegion: place.region });
+      expect(mockAddHistory).not.toHaveBeenCalled();
+
+      jest.clearAllMocks();
+      fireEvent.press(r.getByTestId('search-place-row-0'));
+      expect(mockNavigation.navigate).toHaveBeenCalledTimes(1);
+      expect(mockNavigation.navigate).toHaveBeenCalledWith('Map', { focusRegion: place.region });
+      expect(mockAddHistory).not.toHaveBeenCalled();
+    });
+
+    it('UI-3: 外の地名検索の場所があるときだけ、一覧のいちばん下に「出典：国土地理院」', () => {
+      const rows = buildSearchRows({
+        query: '渋谷駅',
+        spots: TEST_SPOTS,
+        filterType: 'all',
+        order: 'nearby',
+        gsiFeatures: SHIBUYA_STATION,
+      });
+      mockUseSearchScreenReturn = {
+        ...mockUseSearchScreenReturn,
+        query: '渋谷駅',
+        rows,
+        showPlaceCredit: true,
+      };
+      const r = renderScreen();
+
+      const credit = r.getByTestId('search-place-credit');
+      expect(credit.props.children).toBe('出典：国土地理院');
+      expect(StyleSheet.flatten(credit.props.style)).toMatchObject({
+        color: colors.gray[400],
+        fontSize: typography.caption.fontSize,
+      });
+      const cards = r.getAllByTestId('search-result-card');
+      expect(positionOf(r, credit)).toBeGreaterThan(positionOf(r, cards[cards.length - 1]));
+    });
+
+    it('UI-3: 端末の中で当たった場所だけなら、出典は出さない', () => {
+      show('横浜', rowsFor('横浜'));
+      expect(renderScreen().queryByTestId('search-place-credit')).toBeNull();
+    });
+
+    it('打っている途中・300ms の待ちの間は、「探しています」も「見つかりませんでした」も出さない', () => {
+      mockUseSearchScreenReturn = {
+        ...mockUseSearchScreenReturn,
+        query: '東京タワー',
+        rows: [],
+        isTyping: true,
+      };
+      const r = renderScreen();
+      expect(r.queryByTestId('search-place-searching')).toBeNull();
+      expect(r.queryByText('見つかりませんでした')).toBeNull();
+
+      // 前の言葉を問い合わせている途中に打ち足したときも
+      mockUseSearchScreenReturn = { ...mockUseSearchScreenReturn, isSearchingPlace: true };
+      r.rerender(<SearchScreen navigation={mockNavigation as never} route={mockRoute} />);
+      expect(r.queryByTestId('search-place-searching')).toBeNull();
+      expect(r.queryByText('見つかりませんでした')).toBeNull();
+    });
+
+    it('打っている途中でも、前の言葉の一覧は残す（今の動き）', () => {
+      mockUseSearchScreenReturn = {
+        ...mockUseSearchScreenReturn,
+        query: '靖國神',
+        rows: rowsFor('靖國'),
+        isTyping: true,
+      };
+      expect(renderScreen().getAllByTestId('search-result-card')).toHaveLength(1);
+    });
+
+    it('第2段の答えを待つ間は「探しています」。「見つかりませんでした」は出さない', () => {
+      mockUseSearchScreenReturn = {
+        ...mockUseSearchScreenReturn,
+        query: '渋谷駅',
+        rows: [],
+        isSearchingPlace: true,
+      };
+      const r = renderScreen();
+
+      const searching = r.getByTestId('search-place-searching');
+      expect(within(searching).getByText('探しています')).toBeTruthy();
+      expect(r.UNSAFE_getByType(ActivityIndicator).props.color).toBe(colors.gray[400]);
+      expect(r.queryByText('見つかりませんでした')).toBeNull();
+      // 字の大きさは「見つかりませんでした」と同じ
+      expect(
+        StyleSheet.flatten(within(searching).getByText('探しています').props.style)
+      ).toMatchObject({ fontSize: typography.body.fontSize, color: colors.gray[400] });
+    });
+
+    it('答えが来て 0 件なら「見つかりませんでした」（探していますは出さない）', () => {
+      show('渋谷駅', []);
+      const r = renderScreen();
+
+      expect(r.getByText('見つかりませんでした')).toBeTruthy();
+      expect(r.queryByTestId('search-place-searching')).toBeNull();
+    });
+
+    it('AC-24: エンターで何も返らなければ、何もしない', async () => {
+      show('あいうえおかきくけこ', []);
+      const r = renderScreen();
+
+      await submit(r);
+
+      expect(mockNavigation.navigate).not.toHaveBeenCalled();
+      expect(mockAddHistory).not.toHaveBeenCalled();
+    });
   });
 });

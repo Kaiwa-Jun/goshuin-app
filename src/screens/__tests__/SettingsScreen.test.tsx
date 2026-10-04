@@ -219,6 +219,71 @@ describe('SettingsScreen', () => {
     });
   });
 
+  describe('ログアウトと削除は画面の一番下（Issue #310）', () => {
+    const SECTION = /^settings-section-/;
+
+    beforeEach(() => {
+      mockUseAuthReturn = {
+        ...mockUseAuthReturn,
+        isAuthenticated: true,
+        user: {
+          id: 'user-123',
+          email: 'test@example.com',
+          user_metadata: { full_name: 'テストユーザー' },
+        },
+      };
+    });
+
+    it('AC-1: 一番上の「アカウント」には名前とメールだけがあり、ログアウトと削除は無い', () => {
+      const r = render(<SettingsScreen navigation={mockNavigation} route={mockRoute} />);
+      const account = within(r.getByTestId('settings-section-account'));
+
+      expect(account.getByText('テストユーザー')).toBeTruthy();
+      expect(account.getByText('test@example.com')).toBeTruthy();
+      expect(account.queryByText('ログアウト')).toBeNull();
+      expect(account.queryByTestId('delete-account-row')).toBeNull();
+    });
+
+    it('AC-2: ログアウトと削除の枠が、設定のいちばん最後のセクション', () => {
+      const r = render(<SettingsScreen navigation={mockNavigation} route={mockRoute} />);
+      const ids = r.getAllByTestId(SECTION).map(n => n.props.testID as string);
+
+      expect(ids[ids.length - 1]).toBe('settings-section-account-actions');
+      expect(ids.indexOf('settings-section-app-info')).toBeLessThan(ids.length - 1);
+    });
+
+    it('AC-3: 枠の中は ログアウト → アカウントを削除 の順で、削除が最後', () => {
+      const r = render(<SettingsScreen navigation={mockNavigation} route={mockRoute} />);
+      const actions = within(r.getByTestId('settings-section-account-actions'));
+      const buttons = actions.getAllByRole('button');
+
+      expect(buttons).toHaveLength(2);
+      expect(within(buttons[0]).getByText('ログアウト')).toBeTruthy();
+      expect(buttons[1].props.testID).toBe('delete-account-row');
+    });
+
+    it('AC-4: 未ログインのときは枠を出さず、「ログイン」は一番上の「アカウント」にある', () => {
+      mockUseAuthReturn = { ...mockUseAuthReturn, isAuthenticated: false, user: null };
+      const r = render(<SettingsScreen navigation={mockNavigation} route={mockRoute} />);
+
+      expect(r.queryByTestId('settings-section-account-actions')).toBeNull();
+      expect(within(r.getByTestId('settings-section-account')).getByText('ログイン')).toBeTruthy();
+    });
+
+    it('AC-5: 枠の余白はほかのセクションと同じ入れ物の決まり（gap・個別の margin なし）', () => {
+      const r = render(<SettingsScreen navigation={mockNavigation} route={mockRoute} />);
+      const style = StyleSheet.flatten(
+        r.getByTestId('settings-section-account-actions').props.style
+      ) as Record<string, unknown>;
+      const account = StyleSheet.flatten(
+        r.getByTestId('settings-section-account').props.style
+      ) as Record<string, unknown>;
+
+      expect(style.gap).toBe(account.gap);
+      expect(style.marginBottom).toBeUndefined();
+    });
+  });
+
   describe('アカウント削除の導線（Issue #134）', () => {
     it('未ログイン時は表示されない', () => {
       mockUseAuthReturn = { ...mockUseAuthReturn, isAuthenticated: false, user: null };
