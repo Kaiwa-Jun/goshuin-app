@@ -2,7 +2,7 @@ import { File } from 'expo-file-system';
 
 import { supabase } from '@services/supabase';
 import { describeSupabaseError } from '@/utils/supabaseError';
-import { stampVariantPath, THUMB_DIR, VIEW_DIR } from '@/utils/stampThumb';
+import { stampTransformUrl, stampVariantPath, THUMB_DIR, VIEW_DIR } from '@/utils/stampThumb';
 import { toUploadableJpeg } from '@/utils/toUploadableJpeg';
 import type { Stamp, StampWithSpot, PublicStampWithUser } from '@/types/supabase';
 
@@ -261,39 +261,23 @@ export async function fetchPublicStampsBySpotId(spotId: string): Promise<PublicS
 }
 
 /**
- * 一覧で使う小さい方の URL（Issue #194）。
+ * 一覧で使う小さい方の URL（Issue #194 → #227 S4a で R2 の変換に切り替え）。
  *
- * まだ焼かれていなければ 404 になる。呼び出し側は onError で元の写真に
- * 落として表示を続け、裏で焼かせること
+ * R2 に原本が無い（旧バージョンのアプリが Supabase にだけ上げた）ときは 404 になる。
+ * 呼び出し側は onError で getStampImageUrl（Supabase の原本）に落として表示を続けること
  */
 export function getStampThumbUrl(imagePath: string): string {
-  return getStampImageUrl(stampVariantPath(imagePath, THUMB_DIR));
+  return stampTransformUrl(imagePath, 400, 70);
 }
 
 /**
- * 詳細・Web で使う方の URL（Issue #196）。
+ * 詳細・Web で使う方の URL（Issue #196 → #227 S4a で R2 の変換に切り替え）。
  *
- * 元は iPhone の HEIC がそのまま上がっていて、Safari 以外では表示できない。
- * こちらは JPEG なのでどこでも出る。まだ焼かれていなければ 404 になるので、
+ * 原本が HEIC でも変換を通せば表示できる形式で返る。R2 に無ければ 404 になるので、
  * 呼び出し側は元の写真に落として表示を続けること
  */
 export function getStampViewUrl(imagePath: string): string {
-  return getStampImageUrl(stampVariantPath(imagePath, VIEW_DIR));
-}
-
-/**
- * 足りない縮小版を焼かせる。表示を止めないよう投げっぱなしで呼ぶ（Issue #194）
- */
-export async function ensureStampVariants(imagePaths: string[]): Promise<void> {
-  if (imagePaths.length === 0) return;
-
-  const { error } = await supabase.functions.invoke('make-stamp-thumbnail', {
-    body: { image_paths: imagePaths },
-  });
-
-  if (error) {
-    console.warn('Failed to make stamp variants:', error.message);
-  }
+  return stampTransformUrl(imagePath, 1200, 78);
 }
 
 export async function deleteStampImage(imagePath: string): Promise<void> {

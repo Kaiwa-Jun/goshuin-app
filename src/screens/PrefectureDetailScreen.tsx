@@ -127,7 +127,7 @@ export function PrefectureDetailScreen({ navigation, route }: Props) {
                   }}
                   style={styles.image}
                   resizeMode="cover"
-                  // 小さい方がまだ焼かれていない。元の写真に落として表示は続ける
+                  // R2 に原本が無い（旧バージョンから Supabase にだけ上がった）。元の写真に落として表示を続ける
                   onError={() => markThumbMissing(stamp.id)}
                   testID={`prefecture-stamp-image-${stamp.id}`}
                 />

@@ -23,3 +23,20 @@ export function stampVariantPath(imagePath: string, dir: string): string {
   if (slash < 0) return `${dir}/${imagePath}`;
   return `${imagePath.slice(0, slash)}/${dir}/${imagePath.slice(slash + 1)}`;
 }
+
+/**
+ * 御朱印の写真を配る独自ドメイン（R2 のカスタムドメイン、Issue #227）。
+ * 変換（/cdn-cgi/image/）はこのゾーンでしか効かない
+ */
+export const STAMP_IMAGE_ORIGIN = 'https://img.goshuinsanpo.com';
+
+/**
+ * R2 の原本を、幅と品質を指定して配ってもらう URL（Issue #227 S4a）。
+ *
+ * 焼いて置いておくのをやめ、大きさは URL で頼む。無い大きさを待つことが無くなる。
+ * ⚠ format=webp でも `Accept` に image/webp が無いクライアントには JPEG が返る
+ *   （表示できない形式は返らない。契約書「S1 の記録」）
+ */
+export function stampTransformUrl(imagePath: string, width: number, quality: number): string {
+  return `${STAMP_IMAGE_ORIGIN}/cdn-cgi/image/width=${width},quality=${quality},format=webp/${imagePath}`;
+}

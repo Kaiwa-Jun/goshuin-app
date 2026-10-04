@@ -12,6 +12,8 @@ jest
 
 jest.mock('@services/stamps', () => ({
   getStampImageUrl: (path: string) => `https://example.com/${path}`,
+  getStampThumbUrl: (path: string) => `https://r2.example/width=400/${path}`,
+  getStampViewUrl: (path: string) => `https://r2.example/width=1200/${path}`,
 }));
 
 const mockSpot: Spot = {
@@ -99,6 +101,47 @@ describe('SpotDetailContent - みんなの御朱印', () => {
     );
     fireEvent.press(getByTestId('public-stamp-image-ps-1'));
     expect(getByTestId('gallery-image')).toBeTruthy();
+  });
+});
+
+/*
+ * 並びは一覧のタイルと同じ大きさなので R2 の 400、開く全画面は 1200。R2 に無い写真
+ * （旧バージョンのアプリが Supabase にだけ上げたもの）は元の写真に落とす（#227 S4a-2 AC-27）
+ */
+describe('SpotDetailContent - 写真の URL（#227 S4a-2）', () => {
+  const myStamp = { ...mockPublicStamps[0], id: 's-1', user_id: 'me', image_path: 'me/s1.jpg' };
+
+  it('自分の御朱印とみんなの御朱印の並びは小さい方。出せなければ元の写真', () => {
+    const { getByTestId } = render(
+      <SpotDetailContent {...defaultProps} stamps={[myStamp]} publicStamps={mockPublicStamps} />
+    );
+
+    const mine = getByTestId('stamp-photo-s-1');
+    expect(mine.props.source.uri).toBe('https://r2.example/width=400/me/s1.jpg');
+    fireEvent(mine, 'error');
+    expect(getByTestId('stamp-photo-s-1').props.source.uri).toBe('https://example.com/me/s1.jpg');
+
+    const theirs = getByTestId('public-stamp-photo-ps-1');
+    expect(theirs.props.source.uri).toBe('https://r2.example/width=400/other-user-1/stamp1.jpg');
+    fireEvent(theirs, 'error');
+    expect(getByTestId('public-stamp-photo-ps-1').props.source.uri).toBe(
+      'https://example.com/other-user-1/stamp1.jpg'
+    );
+  });
+
+  it('押して開く全画面は大きい方。出せなければ元の写真', () => {
+    const { getByTestId } = render(
+      <SpotDetailContent {...defaultProps} publicStamps={mockPublicStamps} />
+    );
+    fireEvent.press(getByTestId('public-stamp-image-ps-1'));
+
+    expect(getByTestId('gallery-image').props.source.uri).toBe(
+      'https://r2.example/width=1200/other-user-1/stamp1.jpg'
+    );
+    fireEvent(getByTestId('gallery-image'), 'error');
+    expect(getByTestId('gallery-image').props.source.uri).toBe(
+      'https://example.com/other-user-1/stamp1.jpg'
+    );
   });
 });
 

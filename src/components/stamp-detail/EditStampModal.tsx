@@ -6,12 +6,12 @@ import {
   TouchableOpacity,
   ScrollView,
   Platform,
-  Image,
   StyleSheet,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { FallbackImage } from '@components/common/FallbackImage';
 import { Modal } from '@components/common/Modal';
 import { Button } from '@components/common/Button';
 import { toLocalDateString } from '@utils/localDate';
@@ -32,6 +32,8 @@ interface EditStampModalProps {
   initialVisitedAt: string;
   initialMemo: string | null;
   initialImageUrl: string;
+  /** initialImageUrl（R2 の変換）が出せなかったときの元の写真（Issue #227 S4a-2） */
+  initialImageFallbackUrl?: string;
 }
 
 export function EditStampModal({
@@ -42,6 +44,7 @@ export function EditStampModal({
   initialVisitedAt,
   initialMemo,
   initialImageUrl,
+  initialImageFallbackUrl,
 }: EditStampModalProps) {
   const [visitedAt, setVisitedAt] = useState(initialVisitedAt);
   const [memo, setMemo] = useState(initialMemo ?? '');
@@ -110,8 +113,10 @@ export function EditStampModal({
             activeOpacity={0.7}
             testID="image-change-trigger"
           >
-            <Image
-              source={{ uri: newImageUri ?? initialImageUrl }}
+            <FallbackImage
+              uri={newImageUri ?? initialImageUrl}
+              // 今の写真が R2 に無ければ元の写真へ。選び直した手元の写真には落とす先は無い
+              fallbackUri={newImageUri ? undefined : initialImageFallbackUrl}
               style={styles.imageThumbnail}
               testID="edit-stamp-image"
             />

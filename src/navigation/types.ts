@@ -17,6 +17,8 @@ export type RootStackParamList = {
   RecordComplete:
     | {
         stampImageUrl?: string;
+        /** stampImageUrl（R2 の変換）が出せなかったときの元の写真（Issue #227 S4a-2） */
+        stampFallbackUrl?: string;
         /** まとめて登録した枚数。表示できるのは先頭の1枚だけなので数だけ添える */
         stampCount?: number;
         spotName?: string;

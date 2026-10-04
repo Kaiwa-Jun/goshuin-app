@@ -16,7 +16,8 @@ interface Props {
 
 /**
  * 年報の写真（Issue #274 D-14）。縮小版 → 元の写真 → 写真の枠 の順に落とす。
- * 古い記録は縮小版がまだ焼かれていないことがある。見本（imagePath が null）は最初から枠
+ * 縮小版は R2 の変換で配る。R2 に原本が無い写真（旧バージョンのアプリが Supabase にだけ
+ * 上げたもの）は元の写真に落ちる（Issue #227 S4a）。見本（imagePath が null）は最初から枠
  */
 export function ReportPhoto({ imagePath, variant, style }: Props) {
   const [stage, setStage] = useState<'variant' | 'original' | 'failed'>('variant');

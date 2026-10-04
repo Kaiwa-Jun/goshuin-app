@@ -136,6 +136,7 @@ jest.mock('@services/collection', () => ({
 
 jest.mock('@services/stamps', () => ({
   getStampImageUrl: (path: string) => `https://example.com/stamps/${path}`,
+  getStampViewUrl: (path: string) => `https://example.com/cdn-cgi/image/width=1200/${path}`,
   fetchVisitedSpotIds: (...args: unknown[]) => mockFetchVisitedSpotIds(...args),
 }));
 
@@ -1110,6 +1111,25 @@ describe('訪問済みスポットの取得に失敗したとき（Issue #133）
     expect(params.stampImageUrl).toBeDefined();
   });
 
+  // 完了画面の写真は R2 の 1200。R2 に無いときのために元の写真も渡す（#227 S4a-2 AC-26）
+  it('完了画面には R2 の大きい方の URL と、落とす先の元の写真を渡す', async () => {
+    mockSubmit.mockResolvedValue({ success: true, stamps: [fakeStamp], failedCount: 0 });
+    pressSave();
+
+    await waitFor(() => {
+      expect(mockNavigation.replace).toHaveBeenCalledWith('RecordComplete', expect.any(Object));
+    });
+
+    const params = mockNavigation.replace.mock.calls.find(
+      (call: unknown[]) => call[0] === 'RecordComplete'
+    )![1];
+
+    expect(params.stampImageUrl).toBe(
+      `https://example.com/cdn-cgi/image/width=1200/${fakeStamp.image_path}`
+    );
+    expect(params.stampFallbackUrl).toBe(`https://example.com/stamps/${fakeStamp.image_path}`);
+  });
+
   // B-8: 取得も保存も失敗したときの分岐は従来どおり
   it('保存も失敗したら従来どおりエラー画面へ原文を渡す', async () => {
     mockSubmit.mockResolvedValue({
@@ -1490,7 +1510,8 @@ describe('複数枚をまとめて登録する（Issue #180）', () => {
         'RecordComplete',
         expect.objectContaining({
           stampCount: 3,
-          stampImageUrl: 'https://example.com/stamps/user-1/s1.jpg',
+          // 先頭の1枚（R2 の大きい方。#227 S4a-2）
+          stampImageUrl: 'https://example.com/cdn-cgi/image/width=1200/user-1/s1.jpg',
         })
       );
     });

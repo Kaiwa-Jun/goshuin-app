@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
 import { NewBadgeRow } from '@components/record/NewBadgeRow';
 import { ManganNote, ManganSeal } from '@components/record/ManganSeal';
+import { FallbackImage } from '@components/common/FallbackImage';
 import { PressableScale } from '@components/common/PressableScale';
 import { SaveMapReveal } from '@components/record/SaveMapReveal';
 import { noteRecordCompleted } from '@services/storeReview';
@@ -52,6 +53,7 @@ const EXITS = {
  */
 export function RecordCompleteScreen({ navigation, route }: Props) {
   const stampImageUrl = route.params?.stampImageUrl;
+  const stampFallbackUrl = route.params?.stampFallbackUrl;
   const stampCount = route.params?.stampCount ?? 1;
   const spotName = route.params?.spotName;
   const spotType = route.params?.spotType;
@@ -185,12 +187,14 @@ export function RecordCompleteScreen({ navigation, route }: Props) {
             {/* 御朱印は主役。地から浮かせる（影は枠側に置く。Image に影は乗らない） */}
             <View style={[styles.stampFrame, { width: layout.stampWidth }]} testID="stamp-frame">
               {stampImageUrl && !imageError ? (
-                <Image
-                  source={{ uri: stampImageUrl }}
+                <FallbackImage
+                  uri={stampImageUrl}
+                  // R2 に無ければ元の写真へ1回だけ。元も出なければ写真の枠（Issue #227 S4a-2）
+                  fallbackUri={stampFallbackUrl}
                   style={styles.stampImage}
                   resizeMode="cover"
                   testID="stamp-image"
-                  onError={() => setImageError(true)}
+                  onFinalError={() => setImageError(true)}
                 />
               ) : (
                 <View style={styles.imagePlaceholder} testID="stamp-image-placeholder">

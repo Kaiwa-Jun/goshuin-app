@@ -125,7 +125,7 @@ export const GalleryGridTile = memo(function GalleryGridTile({
               reduceMotion={reduceMotion}
               // 読み込んだついでに縦横比を控える。飛ぶ先の高さがこれで決まる
               onLoad={(w, h) => onImageLoad(stamp.id, w, h)}
-              // 小さい方がまだ焼かれていない。元の写真に落として表示は続け、裏で焼かせる
+              // R2 に原本が無い（旧バージョンから Supabase にだけ上がった）。元の写真に落として表示を続ける
               onError={() => onThumbMissing(stamp)}
             />
           </View>

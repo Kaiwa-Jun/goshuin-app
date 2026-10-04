@@ -146,6 +146,28 @@ describe('EditStampModal', () => {
     expect(image.props.source.uri).toBe('https://example.com/image.jpg');
   });
 
+  /*
+   * 今の写真は R2 の変換で出す。R2 に無い写真（旧バージョンのアプリが Supabase にだけ
+   * 上げたもの）は元の写真に落とす（#227 S4a-2 AC-28）
+   */
+  it('今の写真が出せなければ元の写真に落とす', () => {
+    const { getByTestId } = render(
+      <EditStampModal
+        {...defaultProps}
+        initialImageUrl="https://img.example/cdn-cgi/image/width=1200/u/a.jpg"
+        initialImageFallbackUrl="https://supabase.example/u/a.jpg"
+      />
+    );
+
+    expect(getByTestId('edit-stamp-image').props.source.uri).toBe(
+      'https://img.example/cdn-cgi/image/width=1200/u/a.jpg'
+    );
+    fireEvent(getByTestId('edit-stamp-image'), 'error');
+    expect(getByTestId('edit-stamp-image').props.source.uri).toBe(
+      'https://supabase.example/u/a.jpg'
+    );
+  });
+
   it('画像変更トリガーをタップすると写真選択オプションが表示される', () => {
     const { getByTestId, queryByTestId } = render(<EditStampModal {...defaultProps} />);
     expect(queryByTestId('photo-options')).toBeNull();
