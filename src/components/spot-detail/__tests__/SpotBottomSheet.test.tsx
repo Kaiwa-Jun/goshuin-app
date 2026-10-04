@@ -580,7 +580,9 @@ describe('SpotBottomSheet — 並びが入れ替わらない（Issue #253）', (
             visited: true,
             visitedReady: true,
             pageCount: 2,
-            pageImageUri: 'https://example.com/user-1/s1.jpg',
+            // #227 S4a: 帯のページは小さいので R2 の 400 の変換。読めなければ原本に戻す
+            pageImageUri: 'https://example.com/width=400/user-1/s1.jpg',
+            pageFallbackUri: 'https://example.com/user-1/s1.jpg',
             reduceMotion: false,
           })
         );

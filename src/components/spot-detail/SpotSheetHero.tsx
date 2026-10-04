@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Dimensions, Easing, Image, Pressable, StyleSheet, View } from 'react-native';
 import { G, Rect, Svg } from 'react-native-svg';
 
+import { FallbackImage } from '@components/common/FallbackImage';
 import { SealGlyph, type SealMark } from '@components/common/Seal';
 import { colors } from '@theme/colors';
 import { borderRadius } from '@theme/spacing';
@@ -58,6 +59,8 @@ interface Props {
   pageCount: number;
   /** 表の紙の写真（自分のいちばん新しい御朱印）。無ければ和紙の紙 */
   pageImageUri: string | null;
+  /** 表の紙の写真が読めないときに1回だけ戻す先（原本。#227 S4a） */
+  pageFallbackUri?: string | null;
   /** 帯の開き。大きく 1・半分 0 */
   open: AnimatedNumber;
   onPress: () => void;
@@ -87,6 +90,7 @@ export function SpotSheetHero({
   reduceMotion,
   pageCount,
   pageImageUri,
+  pageFallbackUri = null,
   open,
   onPress,
   photo = null,
@@ -181,6 +185,7 @@ export function SpotSheetHero({
         windowWidth={windowWidth}
         pageCount={pageCount}
         pageImageUri={pageImageUri}
+        pageFallbackUri={pageFallbackUri}
         revealOpacity={moment.pagesOpacity}
         rect={photoReady ? TUCK_RECT : PAGE_RECT}
         onPhoto={photoReady}
@@ -344,6 +349,7 @@ interface PagesProps {
   windowWidth: number;
   pageCount: number;
   pageImageUri: string | null;
+  pageFallbackUri?: string | null;
   revealOpacity: Animated.Value;
   /** ページの置き場所。写真に挟まるときは TUCK_RECT（試作 `RECT.tuck`） */
   rect?: HeroRect;
@@ -357,6 +363,7 @@ function SpotHeroPages({
   windowWidth,
   pageCount,
   pageImageUri,
+  pageFallbackUri = null,
   revealOpacity,
   rect = PAGE_RECT,
   onPhoto = false,
@@ -403,9 +410,10 @@ function SpotHeroPages({
         >
           <View testID="spot-hero-page-top-clip" style={styles.pageClip}>
             {pageImageUri && (
-              <Image
+              <FallbackImage
                 testID="spot-hero-page-image"
-                source={{ uri: pageImageUri }}
+                uri={pageImageUri}
+                fallbackUri={pageFallbackUri ?? undefined}
                 resizeMode="cover"
                 style={StyleSheet.absoluteFill}
               />

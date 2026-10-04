@@ -42,7 +42,7 @@ import { useSpotStamps } from '@hooks/useSpotStamps';
 import { useSpotInfo } from '@hooks/useSpotInfo';
 import { useSpotPhoto } from '@hooks/useSpotPhoto';
 import { useReduceMotion } from '@hooks/useReduceMotion';
-import { getStampImageUrl } from '@services/stamps';
+import { getStampImageUrl, getStampThumbUrl } from '@services/stamps';
 import { colors } from '@theme/colors';
 import { borderRadius, spacing } from '@theme/spacing';
 import { shadows } from '@theme/shadows';
@@ -330,7 +330,10 @@ export function SpotBottomSheet({
     () => (spotId ? stamps.filter(stamp => stamp.spot_id === spotId) : []),
     [stamps, spotId]
   );
-  const pageImageUri = ownStamps[0] ? getStampImageUrl(ownStamps[0].image_path) : null;
+  // 帯のページは小さいので、一覧のタイルと同じ R2 の 400 の変換で読み、読めなければ原本に戻す（#227 S4a）
+  const pageImagePath = ownStamps[0]?.image_path ?? null;
+  const pageImageUri = pageImagePath ? getStampThumbUrl(pageImagePath) : null;
+  const pageFallbackUri = pageImagePath ? getStampImageUrl(pageImagePath) : null;
   const isWishlisted = spotId && wishlistSpotIds ? wishlistSpotIds.has(spotId) : false;
 
   const handleWishlistPress = useCallback(() => {
@@ -379,6 +382,7 @@ export function SpotBottomSheet({
           reduceMotion={reduceMotion}
           pageCount={pageCountOf(ownStamps.length)}
           pageImageUri={pageImageUri}
+          pageFallbackUri={pageFallbackUri}
           open={open}
           onPress={toggleMode}
           photo={photo}

@@ -218,6 +218,20 @@ describe('SpotSheetHero の形（Issue #293）', () => {
     expect(ui.queryByTestId('spot-hero-page-image')).toBeNull();
   });
 
+  it('#227 S4a: 表の紙の写真は R2 の変換で読み、読めなければ原本に1回だけ戻す', () => {
+    const ui = renderHero({
+      visited: true,
+      pageCount: 1,
+      pageImageUri: 'https://img.example/width=400/a.jpg',
+      pageFallbackUri: 'https://example.com/a.jpg',
+    });
+    const image = () => ui.getByTestId('spot-hero-page-image');
+    expect(image().props.source).toEqual({ uri: 'https://img.example/width=400/a.jpg' });
+
+    fireEvent(image(), 'error');
+    expect(image().props.source).toEqual({ uri: 'https://example.com/a.jpg' });
+  });
+
   it('行った寺社: 朱の跡とページの束。表の紙に自分の御朱印の写真（AC-20）', () => {
     const ui = renderHero({
       visited: true,
