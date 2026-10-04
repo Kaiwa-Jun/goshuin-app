@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>帯の写真を選ぶ（#302）</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="/review.css" />
+    <script type="module" src="/review.js"></script>
+  </head>
+  <body>
+    <header class="bar">
+      <h1>帯の写真を選ぶ（#302）</h1>
+      <span class="counter" data-testid="progress">決めた 0 / 0</span>
+      <span class="counter" data-testid="tally">採る 0・外す 0</span>
+      <div class="filters" role="group" aria-label="絞り込み">
+        <button type="button" data-filter="all" data-testid="filter-all" aria-pressed="true">
+          すべて
+        </button>
+        <button
+          type="button"
+          data-filter="pending"
+          data-testid="filter-pending"
+          aria-pressed="false"
+        >
+          まだ
+        </button>
+        <button
+          type="button"
+          data-filter="approve"
+          data-testid="filter-approve"
+          aria-pressed="false"
+        >
+          採る
+        </button>
+        <button type="button" data-filter="reject" data-testid="filter-reject" aria-pressed="false">
+          外す
+        </button>
+        <button type="button" data-filter="medium" data-testid="filter-medium" aria-pressed="false">
+          medium
+        </button>
+      </div>
+      <div class="pager">
+        <button type="button" data-testid="page-prev">前の 12 件</button>
+        <span data-testid="page">0 / 0</span>
+        <button type="button" data-testid="page-next">次の 12 件</button>
+      </div>
+    </header>
+    <p class="help">
+      帯の見え方（半分 390 × 80・大きく 390 ×
+      208。下の白い所はアプリの名前の行）を見て、つまみで建物が名前の行に隠れない所に置き、
+      「採る」か「外す」を押す。押すとすぐ作業フォルダに残る（閉じても続きから）。台帳は
+      <code>main.ts export</code>
+      で書く。外すのは、人が大きく写る・別の寺社や場所・寺社が写っていない・暗い/ぼけ/傾き。決めにくいものは外す。
+    </p>
+    <main class="cards" data-testid="cards"></main>
+  </body>
+</html>

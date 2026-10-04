@@ -1,7 +1,7 @@
 import React from 'react';
-import { render, fireEvent, within, waitFor } from '@testing-library/react-native';
+import { act, render, fireEvent, within, waitFor } from '@testing-library/react-native';
 import '@testing-library/react-native/extend-expect';
-import { AccessibilityInfo, Animated, Dimensions, StyleSheet } from 'react-native';
+import { AccessibilityInfo, Animated, Dimensions, StyleSheet, View } from 'react-native';
 import { BottomTabBarHeightContext } from '@react-navigation/bottom-tabs';
 import {
   SpotBottomSheet,
@@ -13,10 +13,11 @@ import {
   sumCompactParts,
 } from '../SpotBottomSheet';
 import { SpotSheetHero } from '../SpotSheetHero';
+import { SpotPhotoCredit } from '../SpotPhotoCredit';
 import { HERO_COMPACT_NAME_TOP } from '../spotHeroMotion';
 import { colors } from '@theme/colors';
 import { spacing } from '@theme/spacing';
-import type { Spot } from '@/types/supabase';
+import type { Spot, SpotPhoto } from '@/types/supabase';
 
 jest.mock('@react-navigation/bottom-tabs', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
@@ -71,6 +72,12 @@ jest.mock('@hooks/useSpotStamps', () => ({
     latestVisitDate: '2024-06-15',
     isLoading: false,
   }),
+}));
+
+// 帯の写真（Issue #302）。既定は写真なし（第1段の帯）
+let mockPhoto: SpotPhoto | null = null;
+jest.mock('@hooks/useSpotPhoto', () => ({
+  useSpotPhoto: () => ({ photo: mockPhoto }),
 }));
 
 jest.mock('@hooks/useSpotInfo', () => ({
@@ -648,5 +655,123 @@ describe('SpotBottomSheet — 並びが入れ替わらない（Issue #253）', (
         );
       });
     });
+  });
+});
+
+describe('SpotBottomSheet — 帯の写真（Issue #302）', () => {
+  const props = {
+    spotId: 'spot-1' as string | null,
+    visitedSpotIds: new Set(['spot-1']),
+    onDismiss: jest.fn(),
+    onRecord: jest.fn(),
+    wishlistSpotIds: new Set<string>(),
+    onWishlistToggle: jest.fn(),
+  };
+  const PHOTO: SpotPhoto = {
+    uri: 'https://example.com/p.jpg',
+    width: 1280,
+    height: 960,
+    focusY: 0.5,
+    author: 'Bachstelze',
+    license: 'CC BY-SA 3.0',
+    licenseUrl: 'https://creativecommons.org/licenses/by-sa/3.0',
+    sourceUrl: 'https://commons.wikimedia.org/wiki/File:A.jpg',
+    isCropped: true,
+  };
+  const hidden = { includeHiddenElements: true };
+  type JsonNode = { props: Record<string, unknown>; children: (JsonNode | string)[] | null };
+  const findNode = (node: unknown, id: string): JsonNode | null => {
+    if (!node || typeof node !== 'object') return null;
+    if (Array.isArray(node)) {
+      for (const child of node) {
+        const found = findNode(child, id);
+        if (found) return found;
+      }
+      return null;
+    }
+    const n = node as JsonNode;
+    if (n.props?.testID === id) return n;
+    return findNode(n.children, id);
+  };
+  const childIds = (node: JsonNode | null) =>
+    (node?.children ?? [])
+      .map(c => (typeof c === 'string' ? c : c.props.testID))
+      .filter(id => id !== undefined);
+  const flatten = (node: { props: { style?: unknown } }) =>
+    (StyleSheet.flatten(node.props.style) ?? {}) as Record<string, unknown>;
+  const heroProps = (ui: ReturnType<typeof render>) =>
+    ui.UNSAFE_getByType(SpotSheetHero).props as React.ComponentProps<typeof SpotSheetHero>;
+  /** つまみの棒 */
+  const bar = (ui: ReturnType<typeof render>) =>
+    within(ui.getByTestId('sheet-handle')).UNSAFE_getAllByType(View)[0];
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+    mockPhoto = null;
+  });
+
+  it('写真が無い・読めるまで・読めた・読めなかった で、帯・ⓘ・つまみが替わる（AC-33）', () => {
+    const none = render(<SpotBottomSheet {...props} />);
+    expect(heroProps(none)).toEqual(expect.objectContaining({ photo: null, photoReady: false }));
+    expect(none.queryByTestId('spot-photo-credit', hidden)).toBeNull();
+    expect(flatten(bar(none)).backgroundColor).toBe(colors.gray[300]);
+    expect(Object.values(flatten(bar(none)))).not.toContain(colors.spotHeroPhoto.handle);
+
+    mockPhoto = PHOTO;
+    const ui = render(<SpotBottomSheet {...props} />);
+    expect(heroProps(ui).photo).toBe(PHOTO);
+    expect(heroProps(ui).photoReady).toBe(false);
+    expect(ui.queryByTestId('spot-photo-credit', hidden)).toBeNull();
+
+    act(() => heroProps(ui).onPhotoLoad?.());
+    expect(heroProps(ui).photoReady).toBe(true);
+    const surface = ui.getByTestId('spot-sheet-surface');
+    expect(within(surface).getByTestId('spot-photo-credit')).toBeTruthy();
+    expect(childIds(findNode(ui.toJSON(), 'spot-sheet-surface'))).toEqual([
+      'spot-hero-fade',
+      'spot-sheet-ground',
+      'spot-sheet-content',
+      'spot-photo-credit',
+    ]);
+    expect(flatten(bar(ui))).toEqual(
+      expect.objectContaining({
+        backgroundColor: colors.spotHeroPhoto.handle,
+        shadowColor: colors.black,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.18,
+        shadowRadius: 2,
+      })
+    );
+
+    act(() => heroProps(ui).onPhotoError?.());
+    expect(heroProps(ui).photoReady).toBe(false);
+    expect(ui.queryByTestId('spot-photo-credit', hidden)).toBeNull();
+    expect(flatten(bar(ui)).backgroundColor).toBe(colors.gray[300]);
+  });
+
+  it('写真が替わると、新しい写真が読めるまで読めていない扱い（AC-34）', () => {
+    mockPhoto = PHOTO;
+    const ui = render(<SpotBottomSheet {...props} />);
+    act(() => heroProps(ui).onPhotoLoad?.());
+    expect(heroProps(ui).photoReady).toBe(true);
+
+    mockPhoto = { ...PHOTO, uri: 'https://example.com/q.jpg' };
+    ui.rerender(<SpotBottomSheet {...props} spotId="spot-2" />);
+    expect(heroProps(ui).photoReady).toBe(false);
+    expect(ui.queryByTestId('spot-photo-credit', hidden)).toBeNull();
+    act(() => heroProps(ui).onPhotoLoad?.());
+    expect(heroProps(ui).photoReady).toBe(true);
+  });
+
+  it('ⓘ の 視差効果を減らす は、帯と同じくシートで1回読んだ値（AC-34）', async () => {
+    jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
+    mockPhoto = PHOTO;
+    const ui = render(<SpotBottomSheet {...props} />);
+    act(() => heroProps(ui).onPhotoLoad?.());
+    await waitFor(() => {
+      expect(heroProps(ui).reduceMotion).toBe(true);
+      expect(ui.UNSAFE_getByType(SpotPhotoCredit).props.reduceMotion).toBe(true);
+    });
+    expect(ui.UNSAFE_getByType(SpotPhotoCredit).props.photo).toBe(PHOTO);
   });
 });

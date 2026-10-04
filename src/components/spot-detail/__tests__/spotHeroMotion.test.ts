@@ -31,6 +31,7 @@ import {
   PRESS_FROM_SCALE,
   SEAL_PRESS_MS,
   TOP_PAGE_TRANSFORM,
+  TUCK_RECT,
   bodyLiftOf,
   grainRects,
   heroMomentStyle,
@@ -258,5 +259,34 @@ describe('grainRects（AC-15）', () => {
     expect(rects[4]).toEqual({ x: 45.6, width: 5, height: 208 });
     expect(rects[5]).toEqual({ x: 57, width: 1.4, height: 208 });
     expect(grainRects(750)).toHaveLength(66);
+  });
+});
+
+describe('TUCK_RECT（写真に挟まるページ。Issue #302 / AC-13）', () => {
+  it('試作 RECT.tuck の値', () => {
+    expect(TUCK_RECT).toEqual({
+      compact: { x: 336, y: 12, width: 34 },
+      expanded: { x: 290, y: 88, width: 80 },
+      ratio: 4 / 3,
+    });
+  });
+
+  it('大きくの置き場所。幅の違う端末では右端に合わせる', () => {
+    const layout = heroRectLayout(TUCK_RECT, 390);
+    expect([layout.left, layout.top, layout.width]).toEqual([290, 88, 80]);
+    closeTo3(layout.height, 106.667);
+    expect(heroRectLayout(TUCK_RECT, 430).left).toBe(330);
+  });
+
+  it('半分では右上の小さな束（幅 34）、大きくで名前の上まで降りる（幅 80）', () => {
+    const open = new Animated.Value(0);
+    const m = heroRectMotion(open, TUCK_RECT);
+    closeTo3(read(m.translateX), 23);
+    closeTo3(read(m.translateY), -106.667);
+    closeTo3(read(m.scale), 0.425);
+    open.setValue(1);
+    closeTo3(read(m.translateX), 0);
+    closeTo3(read(m.translateY), 0);
+    closeTo3(read(m.scale), 1);
   });
 });

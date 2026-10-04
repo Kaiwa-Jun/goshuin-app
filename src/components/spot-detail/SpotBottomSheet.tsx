@@ -23,6 +23,7 @@ import { SpotInfoSection } from './SpotInfoSection';
 import { LimitedGoshuinSection } from './LimitedGoshuinSection';
 import { SpotTsukimairi } from './SpotTsukimairi';
 import { SpotSheetHero } from './SpotSheetHero';
+import { SpotPhotoCredit } from './SpotPhotoCredit';
 import {
   HERO_BODY_MIN_HEIGHT,
   HERO_BODY_TOP,
@@ -39,6 +40,7 @@ import { ImageGalleryModal } from '@components/common/ImageGalleryModal';
 import { useSpotDetail } from '@hooks/useSpotDetail';
 import { useSpotStamps } from '@hooks/useSpotStamps';
 import { useSpotInfo } from '@hooks/useSpotInfo';
+import { useSpotPhoto } from '@hooks/useSpotPhoto';
 import { useReduceMotion } from '@hooks/useReduceMotion';
 import { getStampImageUrl } from '@services/stamps';
 import { colors } from '@theme/colors';
@@ -128,6 +130,12 @@ export function SpotBottomSheet({
   const { spotInfo } = useSpotInfo(spotId ?? '');
   // 帯の中で読まず、ここで1回だけ読んで渡す（#275 D-16 と同じ）
   const reduceMotion = useReduceMotion();
+  // 帯の写真（Issue #302 D-13）。読めた写真の uri を覚え、写真が替わったら読めるまで出さない
+  const { photo } = useSpotPhoto(spotId ?? '');
+  const [loadedUri, setLoadedUri] = useState<string | null>(null);
+  const photoReady = !!photo && loadedUri === photo.uri;
+  const handlePhotoLoad = useCallback(() => setLoadedUri(photo?.uri ?? null), [photo]);
+  const handlePhotoError = useCallback(() => setLoadedUri(null), []);
 
   const [mode, setMode] = useState<SheetMode>('hidden');
   const [compactHeight, setCompactHeight] = useState(COMPACT_FALLBACK_HEIGHT);
@@ -373,6 +381,10 @@ export function SpotBottomSheet({
           pageImageUri={pageImageUri}
           open={open}
           onPress={toggleMode}
+          photo={photo}
+          photoReady={photoReady}
+          onPhotoLoad={handlePhotoLoad}
+          onPhotoError={handlePhotoError}
         />
 
         {/*
@@ -431,6 +443,8 @@ export function SpotBottomSheet({
                   <SpotTsukimairi stamps={stamps} />
                 </View>
               </View>
+              {/* 帯の左下の ⓘ。中身の後ろに置く（前に置くと、中身の余白に押すのを取られる） */}
+              {photo && photoReady && <SpotPhotoCredit photo={photo} reduceMotion={reduceMotion} />}
             </View>
           </ScrollView>
         </Animated.View>
@@ -442,7 +456,7 @@ export function SpotBottomSheet({
           activeOpacity={0.7}
           testID="sheet-handle"
         >
-          <View style={styles.handle} />
+          <View style={[styles.handle, photoReady && styles.handleOnPhoto]} />
         </TouchableOpacity>
       </Animated.View>
 
@@ -499,6 +513,14 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: borderRadius.sm,
     backgroundColor: colors.gray[300],
+  },
+  // 写真の上のつまみ（試作 `.hdl`）。白く、薄い影で写真から浮かせる
+  handleOnPhoto: {
+    backgroundColor: colors.spotHeroPhoto.handle,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.18,
+    shadowRadius: 2,
   },
   // 背景色を付けない（半分のとき、中身の上の端 24 から帯が透けて見える）
   body: {

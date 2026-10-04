@@ -6,9 +6,11 @@ import { SealGlyph, type SealMark } from '@components/common/Seal';
 import { colors } from '@theme/colors';
 import { borderRadius } from '@theme/spacing';
 import { shadows } from '@theme/shadows';
+import type { SpotPhoto } from '@/types/supabase';
 import {
   CREST_RECT,
   GRAIN_OPACITY,
+  HERO_COMPACT_HEIGHT,
   HERO_EXPANDED_HEIGHT,
   HERO_TILT_DEG,
   INK_OPACITY,
@@ -22,6 +24,7 @@ import {
   PAGE_REVEAL_MS,
   SEAL_PRESS_MS,
   TOP_PAGE_TRANSFORM,
+  TUCK_RECT,
   grainRects,
   heroMomentStyle,
   heroRectLayout,
@@ -29,6 +32,7 @@ import {
   pageLeafTransform,
   type HeroRect,
 } from './spotHeroMotion';
+import { photoGeometry } from './spotPhotoGeometry';
 
 type AnimatedNumber = Animated.Value | Animated.AnimatedInterpolation<number>;
 
@@ -40,6 +44,9 @@ const DECORATION = {
 };
 
 const CREST_TILT = [{ rotate: `${HERO_TILT_DEG}deg` }];
+
+/** 写真を置く帯の高さ（半分・大きく） */
+const PHOTO_BAND = { compact: HERO_COMPACT_HEIGHT, expanded: HERO_EXPANDED_HEIGHT };
 
 interface Props {
   spotType: 'shrine' | 'temple';
@@ -54,6 +61,12 @@ interface Props {
   /** 帯の開き。大きく 1・半分 0 */
   open: AnimatedNumber;
   onPress: () => void;
+  /** 寺社の写真（Issue #302）。無ければ空押しの地のまま */
+  photo?: SpotPhoto | null;
+  /** 写真が読めたか。読めるまで・読めなかったときは写真を透明にして、空押しの地を見せる */
+  photoReady?: boolean;
+  onPhotoLoad?: () => void;
+  onPhotoError?: () => void;
 }
 
 /**
@@ -76,6 +89,10 @@ export function SpotSheetHero({
   pageImageUri,
   open,
   onPress,
+  photo = null,
+  photoReady = false,
+  onPhotoLoad,
+  onPhotoError,
 }: Props) {
   const windowWidth = Dimensions.get('window').width;
   const mark: SealMark = spotType === 'shrine' ? 'torii' : 'dou';
@@ -148,12 +165,25 @@ export function SpotSheetHero({
         inkScale={moment.inkScale}
         madaOpacity={moment.madaOpacity}
       />
+      {photo && (
+        <SpotHeroPhoto
+          photo={photo}
+          ready={photoReady}
+          open={open}
+          windowWidth={windowWidth}
+          onLoad={onPhotoLoad}
+          onError={onPhotoError}
+        />
+      )}
+      {/* 写真が読めたら、ページは写真の右下に挟まる（試作 RECT.tuck） */}
       <SpotHeroPages
         open={open}
         windowWidth={windowWidth}
         pageCount={pageCount}
         pageImageUri={pageImageUri}
         revealOpacity={moment.pagesOpacity}
+        rect={photoReady ? TUCK_RECT : PAGE_RECT}
+        onPhoto={photoReady}
       />
     </Pressable>
   );
@@ -254,14 +284,71 @@ function SpotHeroWashiGround({
   );
 }
 
+interface PhotoProps {
+  photo: SpotPhoto;
+  ready: boolean;
+  open: AnimatedNumber;
+  windowWidth: number;
+  onLoad?: () => void;
+  onError?: () => void;
+}
+
+/**
+ * 帯の写真の地（Issue #302 D-12・試作 `SpotHeroPhoto`）。幅いっぱいに置き、見せたい所が名前の行に
+ * 隠れないように、半分 ↔ 大きく の開きに合わせて縦にずらす。読めるまでは透明にして、
+ * 下の空押しの地を見せる（ふわっと出す動きは無い）
+ */
+function SpotHeroPhoto({ photo, ready, open, windowWidth, onLoad, onError }: PhotoProps) {
+  const placed = useMemo(() => {
+    const geometry = photoGeometry(photo, windowWidth, PHOTO_BAND);
+    return {
+      geometry,
+      translateY: open.interpolate({
+        inputRange: [0, 1],
+        outputRange: [geometry.compactY, geometry.expandedY],
+      }),
+    };
+  }, [open, photo, windowWidth]);
+  const { geometry, translateY } = placed;
+
+  return (
+    <Animated.View
+      testID="spot-hero-photo"
+      style={[
+        styles.placed,
+        {
+          top: 0,
+          left: geometry.left,
+          width: geometry.width,
+          height: geometry.height,
+          opacity: ready ? 1 : 0,
+          transform: [{ translateY }],
+        },
+      ]}
+      {...DECORATION}
+    >
+      <Image
+        testID="spot-hero-photo-image"
+        source={{ uri: photo.uri }}
+        style={StyleSheet.absoluteFill}
+        resizeMode="cover"
+        onLoad={onLoad}
+        onError={onError}
+      />
+    </Animated.View>
+  );
+}
+
 interface PagesProps {
   open: AnimatedNumber;
   windowWidth: number;
   pageCount: number;
   pageImageUri: string | null;
   revealOpacity: Animated.Value;
-  /** ページの置き場所。第2段で写真に挟まるページ（試作 `RECT.tuck`）に替える所 */
+  /** ページの置き場所。写真に挟まるときは TUCK_RECT（試作 `RECT.tuck`） */
   rect?: HeroRect;
+  /** 写真に挟む（白い縁・濃い影。試作 `.gpage.onPhoto`） */
+  onPhoto?: boolean;
 }
 
 /** 自分の御朱印のページ。回数の分だけ後ろに紙が重なる（3枚まで） */
@@ -272,6 +359,7 @@ function SpotHeroPages({
   pageImageUri,
   revealOpacity,
   rect = PAGE_RECT,
+  onPhoto = false,
 }: PagesProps) {
   const motion = useMemo(() => heroRectMotion(open, rect), [open, rect]);
   const layout = heroRectLayout(rect, windowWidth);
@@ -301,11 +389,18 @@ function SpotHeroPages({
           <View
             key={i}
             testID={`spot-hero-page-leaf-${i}`}
-            style={[styles.page, { transform: pageLeafTransform(i) }]}
+            style={[
+              styles.page,
+              onPhoto && styles.pageOnPhoto,
+              { transform: pageLeafTransform(i) },
+            ]}
           />
         ))}
         {/* 影を持つ紙と、写真を角で切る枠を分ける（iOS は overflow: hidden で影が切れる） */}
-        <View testID="spot-hero-page-top" style={[styles.page, { transform: TOP_PAGE_TRANSFORM }]}>
+        <View
+          testID="spot-hero-page-top"
+          style={[styles.page, onPhoto && styles.pageOnPhoto, { transform: TOP_PAGE_TRANSFORM }]}
+        >
           <View testID="spot-hero-page-top-clip" style={styles.pageClip}>
             {pageImageUri && (
               <Image
@@ -348,6 +443,15 @@ const styles = StyleSheet.create({
     borderColor: colors.spotHero.pageEdge,
     backgroundColor: colors.washi,
     ...shadows.md,
+  },
+  // 写真の上の紙（試作 `.gpage.onPhoto`）。白い縁と濃い影で写真から浮かせる
+  pageOnPhoto: {
+    borderWidth: 2,
+    borderColor: colors.white,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.22,
+    shadowRadius: 6,
   },
   pageClip: {
     ...StyleSheet.absoluteFillObject,

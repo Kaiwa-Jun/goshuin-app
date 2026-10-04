@@ -59,6 +59,16 @@ export const PAGE_RECT: HeroRect = {
   ratio: 4 / 3,
 };
 
+/**
+ * 写真の帯に挟まる自分の御朱印のページ（Issue #302・試作 `RECT.tuck`）。
+ * 半分では右上の小さな束、大きく開くと名前の上まで降りてくる
+ */
+export const TUCK_RECT: HeroRect = {
+  compact: { x: 336, y: 12, width: 34 },
+  expanded: { x: 290, y: 88, width: 80 },
+  ratio: 4 / 3,
+};
+
 /** 印と表の紙の傾き（`.crestBox`・`pageInner()`） */
 export const HERO_TILT_DEG = -4;
 /** 後ろの紙の傾きとずらし。ずらしは紙の幅・高さに対する割合（`pageInner()` の `LEAF`） */
