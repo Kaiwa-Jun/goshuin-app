@@ -66,8 +66,8 @@ HTML 829（トップ 1・都道府県 47・寺社 777・法務 2・このサイ�
 
 ### App Store のバッジ
 
-- 取った日: （リーダーが取ったときに書く）
-- 元のページ: （リーダーが取ったときに書く。Apple の Marketing Tools / App Store のマーケティングのガイドライン）
+- 取った日: 2026-10-10
+- 元のページ: Apple の Marketing Tools（https://toolbox.marketingtools.apple.com/ の App Store のバッジ。日本語・黒。取ったファイルは `https://toolbox.marketingtools.apple.com/api/v2/badges/download-on-the-app-store/black/ja-jp` の SVG をそのまま）。使い方の決まりは https://developer.apple.com/app-store/marketing/guidelines/
 - 表示の高さ 48px・まわりの余白 12px 以上。SVG の `viewBox` から幅を計算して `width` を付ける
 - 無い間も `build` は止まらない（ページは同じパスを指す）。`check` が「リンクの先が無い」で止まる
 
