@@ -21,11 +21,17 @@ export function useSpots(
   const [allSpots, setAllSpots] = useState<Spot[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // いまの一覧がどの位置で読んだものか。位置が届いた（変わった）描画では、effect が
+  // 走るまでの 1 描画だけ前の一覧（位置が無いときの空の一覧）が isLoading:false で
+  // 残る。そこで「読み終えた」と見せると、地図のカードが県の名前なしで一瞬出る（Issue #327 D-9）
+  const locationKey = location ? `${location.latitude},${location.longitude}` : null;
+  const [settledKey, setSettledKey] = useState<string | null | undefined>(undefined);
 
   useEffect(() => {
     if (!location) {
       setAllSpots([]);
       setIsLoading(false);
+      setSettledKey(null);
       return;
     }
 
@@ -44,7 +50,10 @@ export function useSpots(
           setAllSpots([]);
         }
       } finally {
-        if (!cancelled) setIsLoading(false);
+        if (!cancelled) {
+          setIsLoading(false);
+          setSettledKey(locationKey);
+        }
       }
     })();
 
@@ -59,5 +68,5 @@ export function useSpots(
   const filterIds = spotFilterIds(filterMode, visitedSpotIds, wishlistSpotIds);
   const spots = filterIds ? allSpots.filter(s => filterIds.has(s.id)) : allSpots;
 
-  return { spots, allSpots, isLoading, error };
+  return { spots, allSpots, isLoading: isLoading || settledKey !== locationKey, error };
 }

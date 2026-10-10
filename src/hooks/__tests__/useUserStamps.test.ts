@@ -154,3 +154,140 @@ describe('useUserStamps', () => {
     });
   });
 });
+
+/* Issue #327: 「取れた 0 枚」と「失敗」「取り直し中」を見分ける（地図のカードを嘘で出さない） */
+describe('useUserStamps（#327 取れた・失敗・取り直し中）', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockIsAuthenticated = false;
+  });
+
+  it('AC-5: 戻り値は 4 つ。ゲストは取らずに 0 枚・どれも false', async () => {
+    const { result } = renderHook(() => useUserStamps());
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(Object.keys(result.current).sort()).toEqual(
+      ['isLoading', 'isRefreshing', 'loadFailed', 'visitedSpotIds'].sort()
+    );
+    expect(result.current.isRefreshing).toBe(false);
+    expect(result.current.loadFailed).toBe(false);
+    expect(result.current.visitedSpotIds.size).toBe(0);
+    expect(mockFetchVisitedSpotIds).toHaveBeenCalledTimes(0);
+  });
+
+  it('AC-6: 最初の取得が成功したら、どれも false で 2 件', async () => {
+    mockIsAuthenticated = true;
+    mockFetchVisitedSpotIds.mockResolvedValueOnce(new Set(['spot-1', 'spot-2']));
+    const { result } = renderHook(() => useUserStamps());
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.isRefreshing).toBe(false);
+    expect(result.current.loadFailed).toBe(false);
+    expect(result.current.visitedSpotIds.size).toBe(2);
+  });
+
+  it('AC-7: 最初の取得が失敗したら loadFailed。次に取れたら戻る（その最中は isLoading）', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    mockIsAuthenticated = true;
+    mockFetchVisitedSpotIds.mockRejectedValueOnce(new Error('Network error'));
+    const { result } = renderHook(() => useUserStamps());
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.loadFailed).toBe(true);
+    expect(result.current.isRefreshing).toBe(false);
+    expect(result.current.visitedSpotIds.size).toBe(0);
+
+    let resolveRetry: (ids: Set<string>) => void = () => {};
+    mockFetchVisitedSpotIds.mockReturnValueOnce(
+      new Promise<Set<string>>(resolve => {
+        resolveRetry = resolve;
+      })
+    );
+    act(() => {
+      mockFocusCallback?.();
+    });
+    expect(result.current.isLoading).toBe(true);
+
+    await act(async () => {
+      resolveRetry(new Set(['a']));
+    });
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.loadFailed).toBe(false);
+    expect(result.current.visitedSpotIds.size).toBe(1);
+    warn.mockRestore();
+  });
+
+  it('AC-8: 取り直しの最中だけ isRefreshing。失敗しても今の Set を残し loadFailed にしない', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    mockIsAuthenticated = true;
+    mockFetchVisitedSpotIds.mockResolvedValueOnce(new Set(['a']));
+    const { result } = renderHook(() => useUserStamps());
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    let resolveRefresh: (ids: Set<string>) => void = () => {};
+    mockFetchVisitedSpotIds.mockReturnValueOnce(
+      new Promise<Set<string>>(resolve => {
+        resolveRefresh = resolve;
+      })
+    );
+    act(() => {
+      mockFocusCallback?.();
+    });
+    expect(result.current.isRefreshing).toBe(true);
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.visitedSpotIds.has('a')).toBe(true);
+
+    await act(async () => {
+      resolveRefresh(new Set(['a', 'b']));
+    });
+    expect(result.current.isRefreshing).toBe(false);
+    expect(result.current.visitedSpotIds.size).toBe(2);
+
+    mockFetchVisitedSpotIds.mockRejectedValueOnce(new Error('Network error'));
+    await act(async () => {
+      mockFocusCallback?.();
+    });
+    expect(result.current.isRefreshing).toBe(false);
+    expect(result.current.visitedSpotIds.has('a')).toBe(true);
+    expect(result.current.loadFailed).toBe(false);
+    warn.mockRestore();
+  });
+
+  it('AC-9: ゲスト → ログインに切り替わったその描画から、取れるまで isLoading', async () => {
+    const seen: { auth: boolean; isLoading: boolean }[] = [];
+    const { result, rerender } = renderHook(() => {
+      const r = useUserStamps();
+      seen.push({ auth: mockIsAuthenticated, isLoading: r.isLoading });
+      return r;
+    });
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    let resolveFirst: (ids: Set<string>) => void = () => {};
+    mockFetchVisitedSpotIds.mockReturnValueOnce(
+      new Promise<Set<string>>(resolve => {
+        resolveFirst = resolve;
+      })
+    );
+    mockIsAuthenticated = true;
+    rerender({});
+
+    const before = seen.filter(s => s.auth);
+    expect(before.length).toBeGreaterThan(0);
+    expect(before.filter(s => !s.isLoading)).toEqual([]);
+
+    await act(async () => {
+      resolveFirst(new Set());
+    });
+    expect(result.current.isLoading).toBe(false);
+  });
+});
