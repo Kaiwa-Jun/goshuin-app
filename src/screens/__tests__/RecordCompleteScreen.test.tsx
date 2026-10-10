@@ -953,3 +953,31 @@ describe('レビュー依頼の印を置く（Issue #288）', () => {
     expect(takeRecordCompleted()).toBe(3);
   });
 });
+
+/* Issue #327: 記録全体の 1 枚目（まとめて登録した最初の記録も含む）だけ、空押しから色を差す */
+describe('1 枚目の保存直後（#327）', () => {
+  it.each([
+    [1, 1, true],
+    [5, 1, false],
+    [2, 2, true],
+  ])('AC-48: 全部で %i 枚・今回 %i 枚 → firstStamp は %s', (totalStampCount, stampCount, first) => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+    const { SaveMapReveal } = require('@components/record/SaveMapReveal');
+    const route = {
+      key: 'test',
+      name: 'RecordComplete' as const,
+      params: {
+        prefecture: '東京都',
+        stampCountByPrefecture: { 東京都: stampCount },
+        totalStampCount,
+        stampCount,
+        spotName: '湯島天満宮',
+      },
+    } as never;
+    const { UNSAFE_getByType } = render(
+      <RecordCompleteScreen navigation={mockNavigation} route={route} />
+    );
+
+    expect(UNSAFE_getByType(SaveMapReveal).props.firstStamp).toBe(first);
+  });
+});
