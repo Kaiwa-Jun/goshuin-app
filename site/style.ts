@@ -47,7 +47,7 @@ header .wrap{display:flex;align-items:center;min-height:56px}
 .brand{display:inline-flex;align-items:center;gap:var(--space-sm);padding:var(--space-sm) 0;color:var(--sumi);font-size:18px;font-weight:700;line-height:24px;text-decoration:none}
 .brand img{display:block;width:28px;height:28px;border-radius:6px}
 main{display:block;padding-bottom:var(--space-5xl)}
-h1{font-size:28px;font-weight:700;line-height:34px;margin:var(--space-lg) 0 var(--space-sm);text-wrap:balance}
+h1{font-size:28px;font-weight:700;line-height:34px;margin:var(--space-lg) 0 var(--space-sm);text-wrap:balance;word-break:keep-all;overflow-wrap:anywhere}
 h2{font-size:22px;font-weight:700;line-height:28px;margin:var(--space-3xl) 0 var(--space-md)}
 h3{font-size:18px;font-weight:600;line-height:24px;margin:var(--space-2xl) 0 var(--space-sm)}
 p{margin:0 0 var(--space-md)}
@@ -80,7 +80,8 @@ ul,ol{margin:0;padding:0;list-style:none}
 .shots{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-lg);margin:var(--space-lg) 0 0}
 .shots figure{margin:0}
 .shots img{display:block;width:100%;height:auto;aspect-ratio:1320/2868;border-radius:var(--radius-xl);background:var(--washi-shade)}
-.shots figcaption{margin-top:var(--space-sm);font-weight:600;line-height:24px}
+.shots figcaption{margin-top:var(--space-sm);font-weight:600;line-height:24px;word-break:keep-all;overflow-wrap:anywhere}
+.shots figcaption span{word-break:normal}
 .shots figcaption span{display:block;font-weight:400;font-size:14px;line-height:20px;color:var(--washi-sub);margin-top:var(--space-xs)}
 .chips{display:flex;flex-wrap:wrap;gap:var(--space-sm)}
 .chips a{display:inline-block;padding:var(--space-sm) var(--space-md);min-width:44px;background:var(--card);border:1px solid var(--washi-shade);border-radius:var(--radius-full);text-decoration:none;line-height:20px}

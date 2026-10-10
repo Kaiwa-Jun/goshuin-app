@@ -56,24 +56,24 @@ HTML 829（トップ 1・都道府県 47・寺社 777・法務 2・このサイ�
 
 ## 素材（`site/static/`）
 
-| ファイル                            | 中身                                                                                                                  | いま                     |
-| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------ |
-| `favicon.png`                       | `assets/favicon.png` の写し                                                                                           | ある                     |
-| `apple-touch-icon.png`              | `assets/icon.png` を 180×180 に縮めたもの（`sips -z 180 180 assets/icon.png --out site/static/apple-touch-icon.png`） | ある                     |
-| `img/app-store-badge-ja.svg`        | Apple の公式の日本語の黒い「App Store からダウンロード」のバッジ（変えない）                                          | **まだ無い**（リーダー） |
-| `img/screens/0<n>-<w>.webp`（8 枚） | スクショ（下）                                                                                                        | **まだ無い**（リーダー） |
-| `img/ogp.png`                       | OGP の画像（1200×630。寺社のページは写真を使う）                                                                      | **まだ無い**（リーダー） |
+| ファイル                            | 中身                                                                                                                  | いま |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ---- |
+| `favicon.png`                       | `assets/favicon.png` の写し                                                                                           | ある |
+| `apple-touch-icon.png`              | `assets/icon.png` を 180×180 に縮めたもの（`sips -z 180 180 assets/icon.png --out site/static/apple-touch-icon.png`） | ある |
+| `img/app-store-badge-ja.svg`        | Apple の公式の日本語の黒い「App Store からダウンロード」のバッジ（変えない）                                          | ある |
+| `img/screens/0<n>-<w>.webp`（8 枚） | スクショ（下）                                                                                                        | ある |
+| `img/ogp.png`                       | OGP の画像（1200×630。寺社のページは写真を使う）                                                                      | ある |
 
 ### App Store のバッジ
 
 - 取った日: 2026-10-10
 - 元のページ: Apple の Marketing Tools（https://toolbox.marketingtools.apple.com/ の App Store のバッジ。日本語・黒。取ったファイルは `https://toolbox.marketingtools.apple.com/api/v2/badges/download-on-the-app-store/black/ja-jp` の SVG をそのまま）。使い方の決まりは https://developer.apple.com/app-store/marketing/guidelines/
 - 表示の高さ 48px・まわりの余白 12px 以上。SVG の `viewBox` から幅を計算して `width` を付ける
-- 無い間も `build` は止まらない（ページは同じパスを指す）。`check` が「リンクの先が無い」で止まる
+- 2026-10-10 に入れた。無くした場合も `build` は止まらない（ページは同じパスを指す）が、`check` が「リンクの先が無い」で止まる
 
 ### スクショ
 
-App Store の 1.2.0 の 4 枚と同じ撮り方（`docs/project/store-metadata.md` の「撮り方」。シミュレータ `shots-16promax`・1320×2868）の**素の画面**（見出し・枠を合成しない）。並びは地図 → 保存直後 → あゆみの日本地図 → 御朱印帳。
+App Store の 1.2.0 の 4 枚と同じ撮り方（`docs/project/store-metadata.md` の「撮り方」。シミュレータ `shots-16promax`・1320×2868）の**素の画面**（見出し・枠を合成しない）。並びは地図 → 寺社の写真の帯（明治神宮のシート。ストアの「保存直後」の代わり）→ あゆみの日本地図 → 御朱印帳。2026-10-10 に今の develop をシミュレータで動かして撮った。
 
 - 元の画像（1320×2868 の PNG）は `~/goshuin-work/site-324/screens/01.png`〜`04.png` に置く（リポジトリには入れない。`/tmp` は 3 日で消える）
 - リポジトリに入れるのは Web 用に縮めた webp 8 枚だけ（幅 360・720、1 枚 150KB 以下）:
