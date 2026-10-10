@@ -299,3 +299,14 @@ deno test -A --node-modules-dir=none supabase/scripts/spot-photos/
 
 - **Wikimedia Commons**: ライセンスは写真ごと（`license`・`licenseUrl`）。帯の左下の ⓘ で、撮影者・ライセンス（リンク）・元のページ（リンク）・トリミングの注記を出す
 - これはリーダーの判断で、法的な確認ではない
+
+## 写真第2弾（#320）
+
+写真の無い rank 5 の対象150寺社。`spot-wikidata-manual-320.json` は24寺社を手で対応付けた台帳、`spot-photos-320.json` は99寺社・1,635枚の候補（結べない26、候補なし25、一覧打切り0）。採用89、除外10。第1弾688件はそのまま、`spot-photos-302.json` は合計777件。現在はローカル生成・検証段階で、本番未反映。
+
+- `manual-link`: Wikidata の名前一致（exact/partial）・P625とseedの距離 **3 km** 以内・既存high/mediumとの項目重複禁止を検査。
+- `gather`: P373カテゴリ直下と `haswbstatement:P180`、手動対応のP18から候補を集める。
+- 候補は(1)重複ファイルをまとめる、(2)第1弾で採用したSHA-1を除く、(3)同寺社の第1弾で不採用の候補を除く、(4)`screenFile`の横長・幅1280以上・形式・ライセンス等を通す、(5)面積順の上位30枚に絞る。
+- 作業フォルダは `~/goshuin-work/spot-photos/b2`。`pool --check` → `candidates --batch 2` → `serve --batch 2` → `status --batch 2` → `export --batch 2`。
+- `fetch`は全777件のキャッシュを取得し、`generate`は第1弾を変えず第2弾 `20261004020000_spot_photos_302_batch2.sql` と `spot_photos_302_batch2_check.sql` を生成。
+- 本番の手順と戻す方法は `docs/issues/issue-320-spot-photos-batch2.md`。本番への追加時点で1.2.0利用者にも89寺社の写真が出る。アプリの新ビルドは不要。

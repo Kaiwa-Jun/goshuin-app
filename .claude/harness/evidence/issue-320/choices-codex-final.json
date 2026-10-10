@@ -1,0 +1,679 @@
+{
+  "schemaVersion": 1,
+  "issue": 302,
+  "choices": [
+    {
+      "idx": 2,
+      "decision": "approve",
+      "file": "Sapporo Suwa shinto shrine - Apr 23, 2022.jpg",
+      "focusY": 0.5,
+      "linkChecked": true
+    },
+    {
+      "idx": 4,
+      "decision": "approve",
+      "file": "Hokkaido Shrine Tongu 3.jpg",
+      "focusY": 0.5,
+      "linkChecked": true
+    },
+    {
+      "idx": 22,
+      "decision": "approve",
+      "file": "Aomori, Part I - Aomori6942.jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 28,
+      "decision": "approve",
+      "file": "Hirosaki Saisyoin1.jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 41,
+      "decision": "approve",
+      "file": "Hiraizumi Chusonji Gate leading to the main hall.jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 64,
+      "decision": "approve",
+      "file": "Taiheizan Miyoshi Jinja Shaden.jpg",
+      "focusY": 0.5,
+      "linkChecked": true
+    },
+    {
+      "idx": 70,
+      "decision": "approve",
+      "file": "Koshiou Jinja 20220409a.jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 82,
+      "decision": "approve",
+      "file": "出羽三山神社20221015-IMG 4014.jpg",
+      "focusY": 0.5,
+      "linkChecked": true
+    },
+    {
+      "idx": 83,
+      "decision": "approve",
+      "file": "211029 Risshaku-ji Yamagata Yamagata pref Japan107s3.jpg",
+      "focusY": 0.5,
+      "linkChecked": true
+    },
+    {
+      "idx": 84,
+      "decision": "approve",
+      "file": "Kumanotaisha 2005.JPG",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 110,
+      "decision": "approve",
+      "file": "Onsen Jinja Iwaki 7.jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 124,
+      "decision": "approve",
+      "file": "Kasama Inari Shrine Otorii 2016.jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 125,
+      "decision": "approve",
+      "file": "酒列磯前神社 斎館.jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 127,
+      "decision": "approve",
+      "file": "Haiden of Oiwa-jinja (Hitachi).jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 129,
+      "decision": "approve",
+      "file": "The front shrine of Tokiwa Jinja.jpg",
+      "focusY": 0.5,
+      "linkChecked": true
+    },
+    {
+      "idx": 145,
+      "decision": "approve",
+      "file": "Ashikaga Orihime Shrine Shaden 1.JPG",
+      "focusY": 0.5,
+      "linkChecked": true
+    },
+    {
+      "idx": 146,
+      "decision": "reject",
+      "reason": "not-spot"
+    },
+    {
+      "idx": 161,
+      "decision": "approve",
+      "file": "Haruna Honden.JPG",
+      "focusY": 0.5,
+      "linkChecked": true
+    },
+    {
+      "idx": 169,
+      "decision": "reject",
+      "reason": "quality"
+    },
+    {
+      "idx": 182,
+      "decision": "approve",
+      "file": "Chichibu-jinja ac (10).jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 183,
+      "decision": "approve",
+      "file": "Kawagoe Hikawa Shrine, Kawagoe City; December 2019 (07).jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 185,
+      "decision": "approve",
+      "file": "熊野神社拝殿 川越市 2019-12-21.jpg",
+      "focusY": 0.5,
+      "linkChecked": true
+    },
+    {
+      "idx": 187,
+      "decision": "approve",
+      "file": "Kawagoe Hachimangu Shrine (43119441081).jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 190,
+      "decision": "approve",
+      "file": "Chichibu Imamiya-jinja ac (1).jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 222,
+      "decision": "approve",
+      "file": "Enoshima Shrine (13897760842).jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 225,
+      "decision": "approve",
+      "file": "伊勢山皇大神宮 拝殿.jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 226,
+      "decision": "approve",
+      "file": "230128 Kamakura Daibutsu Japan01s3.jpg",
+      "focusY": 0.4,
+      "linkChecked": true
+    },
+    {
+      "idx": 241,
+      "decision": "approve",
+      "file": "Iyahiko-jinja 1.JPG",
+      "focusY": 0.5,
+      "linkChecked": true
+    },
+    {
+      "idx": 267,
+      "decision": "approve",
+      "file": "Maedate-shadan Haiden.JPG",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 268,
+      "decision": "approve",
+      "file": "Chuuguu-kiganden Haiden.JPG",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 270,
+      "decision": "approve",
+      "file": "Oyama-jinja (Mine-honsha Shaden).jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 284,
+      "decision": "reject",
+      "reason": "other-place"
+    },
+    {
+      "idx": 306,
+      "decision": "approve",
+      "file": "101120 Wakasahime-jinja Obama Fukui pref Japan04s5.jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 309,
+      "decision": "approve",
+      "file": "Sakaenoyashiro Shrine, Fukui - Mar 10, 2012 (1).jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 310,
+      "decision": "approve",
+      "file": "Sanshimai-jinja in Shibata-jinja.jpeg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 341,
+      "decision": "approve",
+      "file": "Zenkōji Temple.JPG",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 342,
+      "decision": "approve",
+      "file": "Suwa taisha Kamisha Honmiya , 諏訪大社 上社 本宮 - panoramio (38).jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 343,
+      "decision": "reject",
+      "reason": "other-place"
+    },
+    {
+      "idx": 344,
+      "decision": "reject",
+      "reason": "other-place"
+    },
+    {
+      "idx": 345,
+      "decision": "reject",
+      "reason": "not-spot"
+    },
+    {
+      "idx": 347,
+      "decision": "approve",
+      "file": "160430 Togakushi-jinja Chusha Nagano Japan02n.jpg",
+      "focusY": 0.5,
+      "linkChecked": true
+    },
+    {
+      "idx": 350,
+      "decision": "reject",
+      "reason": "other-place"
+    },
+    {
+      "idx": 362,
+      "decision": "approve",
+      "file": "Inaba-jinja Gifu Japan06-rjpg.jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 388,
+      "decision": "approve",
+      "file": "Okunijinja-Haiden, Mori-machi Shuchi-gun Shizuoka Japan 2013.06.29.JPG",
+      "focusY": 0.5,
+      "linkChecked": true
+    },
+    {
+      "idx": 389,
+      "decision": "approve",
+      "file": "事任八幡宮 拝殿.jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 404,
+      "decision": "approve",
+      "file": "Banshoji.jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 409,
+      "decision": "approve",
+      "file": "Sugo shrine.jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 421,
+      "decision": "approve",
+      "file": "Ise Ise-jingu 20.jpg",
+      "focusY": 0.5,
+      "linkChecked": true
+    },
+    {
+      "idx": 422,
+      "decision": "approve",
+      "file": "Kujoden Hall of Toyouke Grand Shrine.jpg",
+      "focusY": 0.5,
+      "linkChecked": true
+    },
+    {
+      "idx": 423,
+      "decision": "approve",
+      "file": "Saruta hiko shrine , 猿田彦神社 - panoramio (2).jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 425,
+      "decision": "approve",
+      "file": "椿大神社 - 入口 石鳥居1.JPG",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 427,
+      "decision": "approve",
+      "file": "Shitennō-ji in Tsu.jpg",
+      "focusY": 0.5,
+      "linkChecked": true
+    },
+    {
+      "idx": 430,
+      "decision": "approve",
+      "file": "Tado Shrine (Gakuraden).jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 446,
+      "decision": "approve",
+      "file": "Takebe Taisha honden.jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 450,
+      "decision": "approve",
+      "file": "Himure Hachiman-gū Shrine 20220227 07.jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 484,
+      "decision": "approve",
+      "file": "Minatogawa Shrine Prayer Hall.jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 489,
+      "decision": "approve",
+      "file": "Haiden of Kitano Tenman Shrine in Kitano-cho, Kobe 01.jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 526,
+      "decision": "approve",
+      "file": "Nachikatsuura Kumano-Nachi-taisha Hiro-jinja 06.jpg",
+      "focusY": 0.35,
+      "linkChecked": false
+    },
+    {
+      "idx": 527,
+      "decision": "approve",
+      "file": "Kimiidera Wakayama11n4272.jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 528,
+      "decision": "reject",
+      "reason": "not-spot"
+    },
+    {
+      "idx": 541,
+      "decision": "approve",
+      "file": "白兎神社 - panoramio (1).jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 549,
+      "decision": "approve",
+      "file": "100724 Ouchidani-jinja Tottori Japan06s5.jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 604,
+      "decision": "approve",
+      "file": "Senkouji Temple, Onomichi City; November 2018 (05).jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 606,
+      "decision": "approve",
+      "file": "Daisho-in (Miyajima) - DSC02130.JPG",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 608,
+      "decision": "approve",
+      "file": "Haiden of Ushitora Shrine.jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 621,
+      "decision": "approve",
+      "file": "Ryuguden Hall of Akama Shrine.JPG",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 625,
+      "decision": "approve",
+      "file": "Haiden of Shoin Shrine 1.jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 630,
+      "decision": "approve",
+      "file": "Haiden of Kikko Shrine.jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 644,
+      "decision": "approve",
+      "file": "Gokuraku-ji, Main Gate 001.jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 649,
+      "decision": "approve",
+      "file": "Yakuo-ji, Main Hall 01.jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 668,
+      "decision": "approve",
+      "file": "Konzō-ji, Taishi-do Hall 001.jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 669,
+      "decision": "approve",
+      "file": "Kagawaken-gokoku-jinja.jpeg",
+      "focusY": 0.5,
+      "linkChecked": true
+    },
+    {
+      "idx": 683,
+      "decision": "approve",
+      "file": "Yu-jinja (Matsuyama), haiden.jpg",
+      "focusY": 0.5,
+      "linkChecked": true
+    },
+    {
+      "idx": 684,
+      "decision": "approve",
+      "file": "石鎚神社本殿.JPG",
+      "focusY": 0.5,
+      "linkChecked": true
+    },
+    {
+      "idx": 722,
+      "decision": "approve",
+      "file": "Haiden of Kushida Shrine 20230329.jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 724,
+      "decision": "approve",
+      "file": "Hakozaki-miya090806a.jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 730,
+      "decision": "approve",
+      "file": "Tōchō-ji the precinct 2-4 Gokushomachi Hakata-ku Fukuoka 20230720.jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 747,
+      "decision": "approve",
+      "file": "本福寺.jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 765,
+      "decision": "approve",
+      "file": "Sofuku-ji Temple in Nagasaki, 20240815 1250 3617.jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 767,
+      "decision": "reject",
+      "reason": "not-spot"
+    },
+    {
+      "idx": 769,
+      "decision": "approve",
+      "file": "Kofuku-ji temple, Nagasaki - Dec 31, 2009 (2).jpg",
+      "focusY": 0.2,
+      "linkChecked": false
+    },
+    {
+      "idx": 781,
+      "decision": "approve",
+      "file": "Aso-jinja (Aso, Kumamoto) Vlux5 hdsr ro02.jpg",
+      "focusY": 0.5,
+      "linkChecked": true
+    },
+    {
+      "idx": 784,
+      "decision": "approve",
+      "file": "上色見熊野座神社 (35456238636).jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 788,
+      "decision": "approve",
+      "file": "Kengun-jinja (Higashi-ku, Kumamoto) VLux5 hdsr ha06.jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 789,
+      "decision": "approve",
+      "file": "Kumamoto Daijingu Shrine (Chuo-ku, Kumamoto) VLux5 hdsr 07.jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 790,
+      "decision": "approve",
+      "file": "藤崎八旛宮 楼門.jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 801,
+      "decision": "approve",
+      "file": "Usa Shrine Nanchu Romon.JPG",
+      "focusY": 0.5,
+      "linkChecked": true
+    },
+    {
+      "idx": 821,
+      "decision": "approve",
+      "file": "高千穂神社の拝殿 - panoramio.jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 844,
+      "decision": "approve",
+      "file": "枚聞神社勅使殿.jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 846,
+      "decision": "reject",
+      "reason": "not-spot"
+    },
+    {
+      "idx": 850,
+      "decision": "approve",
+      "file": "Kamouhachiman-jinja, Aira 01.jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 865,
+      "decision": "approve",
+      "file": "Gokokuji, Naha.JPG",
+      "focusY": 0.5,
+      "linkChecked": true
+    },
+    {
+      "idx": 870,
+      "decision": "approve",
+      "file": "Shikina-gū 1st Gate.JPG",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 881,
+      "decision": "approve",
+      "file": "Cloudy Sensō-ji.jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 889,
+      "decision": "approve",
+      "file": "Karasumori-jinja-4.jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 890,
+      "decision": "approve",
+      "file": "At Tokyo 2024 593.jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 1003,
+      "decision": "approve",
+      "file": "KTO1910-042 (48891514998).jpg",
+      "focusY": 0.5,
+      "linkChecked": false
+    },
+    {
+      "idx": 1006,
+      "decision": "approve",
+      "file": "Chokugaku-Gomon Gate of Kitano Tenman-gū (inner) 202609.jpg",
+      "focusY": 0.5,
+      "linkChecked": true
+    },
+    {
+      "idx": 1027,
+      "decision": "approve",
+      "file": "Haiden of Takekoma-jinja shrine.JPG",
+      "focusY": 0.5,
+      "linkChecked": false
+    }
+  ]
+}
