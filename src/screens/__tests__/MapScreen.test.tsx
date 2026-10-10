@@ -1382,20 +1382,23 @@ describe('地図のカード（#327）', () => {
   });
 
   it('AC-32: ✕ はその回だけ。＋を押すとカードに戻り、開き直すとまた出る', async () => {
-    // native driver の動きは Jest では終わりの callback が来ない。畳む動き（280ms）を JS で動かす
-    const realTiming = Animated.timing;
-    const timing = jest
-      .spyOn(Animated, 'timing')
-      .mockImplementation((value, config) =>
-        realTiming(value, { ...config, useNativeDriver: false })
-      );
+    // native driver の動きは Jest では終わりの callback が来ない。ここで見たいのは畳んだあとの
+    // 出し分けなので、動きはその場で終わらせる（動きそのものは FirstStampCard.test.tsx の AC-21）
+    const timing = jest.spyOn(Animated, 'timing').mockImplementation(
+      (value, config) =>
+        ({
+          start: (cb?: Animated.EndCallback) => {
+            (value as Animated.Value).setValue(config.toValue as number);
+            cb?.({ finished: true });
+          },
+          stop: jest.fn(),
+          reset: jest.fn(),
+        }) as unknown as Animated.CompositeAnimation
+    );
     const r = renderMap();
 
     fireEvent.press(r.getByTestId('first-stamp-close'));
-    // JS で動かすとコマごとにカードを描き直すので、Jest では 280ms より遅れる
-    await waitFor(() => expect(r.queryByTestId('first-stamp-card')).toBeNull(), {
-      timeout: 5000,
-    });
+    await waitFor(() => expect(r.queryByTestId('first-stamp-card')).toBeNull());
     timing.mockRestore();
     await waitFor(() => expect(r.getByTestId('fab-button')).toBeTruthy());
 
