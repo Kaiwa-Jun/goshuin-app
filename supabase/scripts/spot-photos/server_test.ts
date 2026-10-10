@@ -4,7 +4,7 @@
 import { assert, assertEquals, assertStringIncludes } from 'jsr:@std/assert@1';
 
 import { serializeJson } from '../spot-wikidata/match.ts';
-import { fixtureCandidates } from './fixtures/load.ts';
+import { fixtureCandidates, fixtureCandidates320 } from './fixtures/load.ts';
 import { CANDIDATES_FILE, CHOICES_FILE, DEFAULT_PORT, startServer } from './server.ts';
 
 async function setup() {
@@ -235,6 +235,106 @@ Deno.test(
         focusY: 0.5,
       });
       assertEquals(moved.status, 200, await moved.text());
+    } finally {
+      await t.close();
+    }
+  }
+);
+
+// --- #320 AC-10: 第2弾の候補（serve --batch 2 は作業フォルダの b2/ を渡すだけ） ---
+
+async function setup320() {
+  const work = await Deno.makeTempDir({ prefix: 'spot-photos-server-' });
+  await Deno.mkdir(`${work}/review`, { recursive: true });
+  const candidates = await fixtureCandidates320();
+  await Deno.writeTextFile(`${work}/review/${CANDIDATES_FILE}`, serializeJson(candidates));
+  let port = 0;
+  const server = await startServer({ work, port: 0, onListen: p => (port = p) });
+  const put = (body: unknown) =>
+    fetch(`http://127.0.0.1:${port}/api/choices`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  const close = async () => {
+    await server.shutdown();
+    await Deno.remove(work, { recursive: true });
+  };
+  const of = (name: string) => candidates.entries.find(e => e.name === name)!;
+  return { work, put, close, of, base: () => `http://127.0.0.1:${port}` };
+}
+
+Deno.test(
+  'AC-10: 第2弾で manual の寺社は linkChecked なしで採れ、残った1件の linkChecked が true',
+  async () => {
+    const t = await setup320();
+    try {
+      const naiku = t.of('伊勢神宮内宮（皇大神宮）');
+      const res = await t.put({
+        idx: naiku.idx,
+        decision: 'approve',
+        file: naiku.files[1].file,
+        focusY: 0.45,
+      });
+      assertEquals(res.status, 200, await res.text());
+      const saved = await (await fetch(`${t.base()}/api/choices`)).json();
+      assertEquals(saved.choices, [
+        {
+          idx: naiku.idx,
+          decision: 'approve',
+          file: naiku.files[1].file,
+          focusY: 0.45,
+          linkChecked: true,
+        },
+      ]);
+      const data = await (await fetch(`${t.base()}/api/data`)).json();
+      assertEquals(data.batch, 2);
+    } finally {
+      await t.close();
+    }
+  }
+);
+
+Deno.test(
+  'AC-10: 第2弾でも medium は確かめないと 400。同じファイルを2つの寺社で採ると、後の方が 400 で先の寺社の名前',
+  async () => {
+    const t = await setup320();
+    try {
+      const kamochi = t.of('金持神社');
+      const bad = await t.put({
+        idx: kamochi.idx,
+        decision: 'approve',
+        file: kamochi.files[0].file,
+        focusY: 0.5,
+      });
+      assertEquals(bad.status, 400);
+      assertStringIncludes((await bad.json()).error, '金持神社');
+
+      const naka = t.of('戸隠神社中社');
+      const oku = t.of('戸隠神社奥社');
+      const first = await t.put({
+        idx: naka.idx,
+        decision: 'approve',
+        file: naka.files[0].file,
+        focusY: 0.5,
+      });
+      assertEquals(first.status, 200, await first.text());
+      const second = await t.put({
+        idx: oku.idx,
+        decision: 'approve',
+        file: oku.files[0].file,
+        focusY: 0.5,
+      });
+      assertEquals(second.status, 400);
+      assertStringIncludes((await second.json()).error, '戸隠神社中社');
+      // 別のファイルなら採れる
+      const other = await t.put({
+        idx: oku.idx,
+        decision: 'approve',
+        file: oku.files[1].file,
+        focusY: 0.5,
+      });
+      assertEquals(other.status, 200, await other.text());
     } finally {
       await t.close();
     }

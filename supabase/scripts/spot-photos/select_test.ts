@@ -12,8 +12,11 @@ import {
 } from '../spot-wikidata/match.ts';
 import {
   EVIL_AUTHORS,
+  fixtureCandidates320,
+  fixtureLedgerB2Json,
   fixtureLedgerJson,
   fixturePhotos,
+  fixturePool,
   readFixture,
   readRepo,
   realMapping,
@@ -24,10 +27,13 @@ import {
   buildCheckSql,
   buildMigrationSql,
   CHECK_SQL_PATH,
+  CHECK_SQL_PATH_BATCH2,
   COMMONS_INTERVAL_MS,
   commonsThumbUrl,
   LEDGER_PATH,
   MIGRATION_PATH,
+  MIGRATION_PATH_BATCH2,
+  parseChoice,
   parseLedger302,
   PHOTO_MIN_WIDTH,
   PHOTO_STORE_WIDTH,
@@ -403,5 +409,186 @@ Deno.test(
     const l = await fixtureLedger();
     l.entries[2].licenseUrl = 'javascript:alert(1)';
     assertThrows(() => parseLedger302(l, photos, fixtures.rows!), Error, '金蛇水神社');
+  }
+);
+
+// --- #320 AC-10: 第2弾の選んだ1件 ---
+
+Deno.test(
+  'AC-10: 第2弾の候補で、manual の寺社は linkChecked なしで採れて true が残る。medium は確かめないと採れない',
+  async () => {
+    const c = await fixtureCandidates320();
+    const of = (name: string) => c.entries.find(e => e.name === name)!;
+    const naiku = of('伊勢神宮内宮（皇大神宮）');
+    assertEquals(naiku.linkConfidence, 'manual');
+    const ok = parseChoice(
+      { idx: naiku.idx, decision: 'approve', file: naiku.files[0].file, focusY: 0.5 },
+      c,
+      []
+    );
+    assertEquals(ok, {
+      idx: naiku.idx,
+      decision: 'approve',
+      file: naiku.files[0].file,
+      focusY: 0.5,
+      linkChecked: true,
+    });
+    const kamochi = of('金持神社');
+    assertEquals(kamochi.linkConfidence, 'medium');
+    assertThrows(
+      () =>
+        parseChoice(
+          { idx: kamochi.idx, decision: 'approve', file: kamochi.files[0].file, focusY: 0.5 },
+          c,
+          []
+        ),
+      Error,
+      '金持神社（鳥取県）'
+    );
+    // 同じファイルを2つの寺社で採ろうとすると、後の方が先に採った寺社の名前で止まる
+    const naka = of('戸隠神社中社');
+    const oku = of('戸隠神社奥社');
+    assertEquals(naka.files[0].sha1, oku.files[0].sha1);
+    const first = parseChoice(
+      { idx: naka.idx, decision: 'approve', file: naka.files[0].file, focusY: 0.5 },
+      c,
+      []
+    );
+    assertThrows(
+      () =>
+        parseChoice(
+          { idx: oku.idx, decision: 'approve', file: oku.files[0].file, focusY: 0.5 },
+          c,
+          [first]
+        ),
+      Error,
+      '戸隠神社中社（長野県）'
+    );
+  }
+);
+
+// --- #320 AC-13: 第2弾の行のある台帳 ---
+
+type LedgerB2 = Awaited<ReturnType<typeof fixtureLedgerB2Json>>;
+
+Deno.test('AC-13: 第2弾の行のある台帳は、第2弾の候補つきで通る', async () => {
+  const ledger = parseLedger302(
+    await fixtureLedgerB2Json(),
+    fixtures.photos!,
+    fixtures.rows!,
+    await fixturePool()
+  );
+  assertEquals(
+    ledger.entries.map(e => [e.batch, e.idx, e.name, e.linkConfidence, e.linkChecked]),
+    [
+      [1, 4, '北海道神宮頓宮', 'medium', true],
+      [1, 144, '輪王寺', 'high', false],
+      [1, 1028, '金蛇水神社', 'high', false],
+      [2, 41, '中尊寺', 'high', false],
+      [2, 421, '伊勢神宮内宮（皇大神宮）', 'manual', true],
+    ]
+  );
+});
+
+const BAD_B2: [string, string, (l: LedgerB2) => void][] = [
+  ['第2弾の行の file が候補に無い', '中尊寺', l => (l.entries[3].file = 'Nope.jpg')],
+  [
+    'author が候補の artist と1字違う',
+    '中尊寺',
+    l => (l.entries[3].author = `${l.entries[3].author}x`),
+  ],
+  ['sha1 が候補と違う', '中尊寺', l => (l.entries[3].sha1 = 'f'.repeat(40))],
+  ['width が候補と違う', '中尊寺', l => (l.entries[3].width = 1)],
+  ['manual で linkChecked が false', '伊勢神宮内宮', l => (l.entries[4].linkChecked = false)],
+  ['manual の qid が候補と違う', '伊勢神宮内宮', l => (l.entries[4].qid = 'Q1')],
+  ['batch: 1 の行が manual', '輪王寺', l => (l.entries[1].linkConfidence = 'manual')],
+  ['第1弾の行と同じ idx の第2弾の行', '輪王寺', l => l.entries.push({ ...l.entries[1], batch: 2 })],
+  ['第1弾の行と同じ sha1 の第2弾の行', '中尊寺', l => (l.entries[3].sha1 = l.entries[2].sha1)],
+  ['第2弾の行が第1弾の行より前', '中尊寺', l => l.entries.unshift(...l.entries.splice(3, 1))],
+  ['batch: 3 の行', '中尊寺', l => (l.entries[3].batch = 3)],
+];
+
+for (const [why, who, mutate] of BAD_B2) {
+  Deno.test(`AC-13: ${why} なら、寺社の名前で止める`, async () => {
+    const l = await fixtureLedgerB2Json();
+    mutate(l);
+    const pool = await fixturePool();
+    assertThrows(() => parseLedger302(l, fixtures.photos!, fixtures.rows!, pool), Error, who);
+  });
+}
+
+Deno.test('AC-13: 第2弾の行があるのに候補を渡さないと、寺社の名前で止める', async () => {
+  const l = await fixtureLedgerB2Json();
+  assertThrows(
+    () => parseLedger302(l, fixtures.photos!, fixtures.rows!),
+    Error,
+    '中尊寺（岩手県）'
+  );
+  // 第2弾の行の無い台帳は、今と同じ引数（候補なし）で通る
+  parseLedger302(await fixtureLedgerJson(), fixtures.photos!, fixtures.rows!);
+});
+
+// --- #320 S4: 弾ごとの SQL ---
+
+Deno.test('定数（#320）: 第2弾の migration と確かめる SQL のパス', () => {
+  assertEquals(
+    MIGRATION_PATH_BATCH2,
+    'supabase/migrations/20261004020000_spot_photos_302_batch2.sql'
+  );
+  assertEquals(CHECK_SQL_PATH_BATCH2, 'supabase/validation/spot_photos_302_batch2_check.sql');
+});
+
+Deno.test(
+  '本番の SQL（第2弾）: 撮影者に $ があっても、$photos$[ と ]$photos$ の間に $ を残さない',
+  async () => {
+    const pool = await fixturePool();
+    const ledger = parseLedger302(
+      await fixtureLedgerB2Json(),
+      fixtures.photos!,
+      fixtures.rows!,
+      pool
+    );
+    const evil = {
+      ...ledger,
+      entries: ledger.entries.map((e, i) =>
+        e.batch === 2 ? { ...e, author: EVIL_AUTHORS[i - 3] } : e
+      ),
+    };
+    const b2 = evil.entries.filter(e => e.batch === 2);
+    for (const sql of [buildMigrationSql(b2, 2), buildCheckSql(evil, 1109, 2)]) {
+      const start = sql.indexOf('$photos$[');
+      const end = sql.indexOf(']$photos$');
+      assert(start > 0 && end > start);
+      const body = sql.slice(start + '$photos$['.length, end);
+      assertEquals(body.includes('$'), false, body);
+      const rows = JSON.parse(`[${body}]`) as { author: string }[];
+      assertEquals(
+        rows.map(r => r.author),
+        EVIL_AUTHORS.slice(0, 2)
+      );
+      const tag = sql.includes('$spot_photos_302_batch2_check$')
+        ? '$spot_photos_302_batch2_check$'
+        : '$spot_photos_302_batch2$';
+      assertEquals(sql.split(tag).length - 1, 2, tag);
+    }
+  }
+);
+
+Deno.test(
+  '本番の SQL（第2弾）: 第1弾の行を第2弾の migration に入れようとすると、寺社の名前で止める',
+  async () => {
+    const pool = await fixturePool();
+    const ledger = parseLedger302(
+      await fixtureLedgerB2Json(),
+      fixtures.photos!,
+      fixtures.rows!,
+      pool
+    );
+    assertThrows(() => buildMigrationSql(ledger.entries, 2), Error, '北海道神宮頓宮');
+    assertThrows(
+      () => buildMigrationSql(ledger.entries.filter(e => e.batch === 2)),
+      Error,
+      '中尊寺'
+    );
   }
 );

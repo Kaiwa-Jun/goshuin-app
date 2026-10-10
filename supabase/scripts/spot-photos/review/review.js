@@ -1,11 +1,15 @@
 // 帯の写真を選ぶ画面（Issue #302 D-7）。データは持たず、ローカルのサーバーの API から読む。
 // 選ぶたびにサーバーへ保存する（作業フォルダの review/choices.json）。写真は Commons の縮小版を直接読む。
+// 第2弾（#320 D-7）: データの batch が 2 なら、題・手で結んだ寺社の札と根拠・ファイルの格子・絞り込み「手で結んだ」を出す。
 import { PHOTO_NAME_HEIGHT, photoGeometry } from './geometry.js';
 
 /** アプリの帯（試作の画面の幅 390・半分 80・大きく 208） */
 const BAND_WIDTH = 390;
 const BAND = { compact: 80, expanded: 208 };
 const PAGE_SIZE = 12;
+const TITLE_BATCH2 = '帯の写真を選ぶ（#320 第2弾）';
+/** ファイルの出どころの札（P18 → カテゴリ → P180） */
+const SOURCE_LABELS = { p18: 'P18', p373: 'カテゴリ', p180: 'P180' };
 const REASONS = [
   ['person', '人が大きく写る'],
   ['other-place', '別の寺社・別の場所'],
@@ -15,6 +19,8 @@ const REASONS = [
 ];
 
 const state = {
+  /** 第1弾は 1、第2弾（#320）は 2 */
+  batch: 1,
   entries: [],
   /** idx → 保存した1件 */
   choices: new Map(),
@@ -70,6 +76,8 @@ function visibleEntries() {
         return c?.decision === 'reject';
       case 'medium':
         return e.linkConfidence === 'medium';
+      case 'manual':
+        return e.linkConfidence === 'manual';
       default:
         return true;
     }
@@ -218,6 +226,19 @@ function card(entry) {
       ])
     );
   }
+  // 手で結んだ寺社（#320）: 手で結ぶ台帳がしるしなので、確かめたチェックは出さない
+  if (entry.linkConfidence === 'manual') {
+    meta.append(
+      el('div', { class: 'manual' }, [
+        el('span', {
+          class: 'badge manual',
+          testid: 'link-manual',
+          text: '結びつき: 手で確かめた',
+        }),
+        el('span', { class: 'basis', testid: 'link-basis', text: entry.basis ?? '' }),
+      ])
+    );
+  }
 
   const options =
     entry.files.length > 1
@@ -322,7 +343,8 @@ function card(entry) {
   const parts = [
     head,
     meta,
-    options,
+    // 第2弾（#320）はファイルの格子
+    options && state.batch === 2 ? fileGrid(entry, file, d) : options,
     previews,
     credit(file),
     el('div', { class: 'file-name', text: file.file }),
@@ -331,6 +353,44 @@ function card(entry) {
   ];
   node.append(...parts.filter(Boolean));
   return node;
+}
+
+/** 第2弾（#320）: ファイルの格子（一覧の小さな写真・出どころ・幅 × 高さ） */
+function fileGrid(entry, file, d) {
+  return el(
+    'div',
+    { class: 'files grid' },
+    entry.files.map(f =>
+      el(
+        'button',
+        {
+          type: 'button',
+          testid: 'file-option',
+          'aria-pressed': String(f.file === file.file),
+          title: f.file,
+          onclick: () => {
+            d.file = f.file;
+            render();
+          },
+        },
+        [
+          el('img', {
+            src: f.gridUrl,
+            alt: '',
+            loading: 'lazy',
+            referrerpolicy: 'no-referrer',
+            draggable: 'false',
+          }),
+          el('span', {
+            class: 'file-source',
+            testid: 'file-source',
+            text: (f.sources ?? []).map(s => SOURCE_LABELS[s] ?? s).join('・'),
+          }),
+          el('span', { class: 'file-size', text: `${f.width} × ${f.height}` }),
+        ]
+      )
+    )
+  );
 }
 
 function render() {
@@ -351,6 +411,12 @@ async function main() {
     fetch('/api/choices').then(r => r.json()),
   ]);
   state.entries = data.entries;
+  state.batch = data.batch === 2 ? 2 : 1;
+  if (state.batch === 2) {
+    document.title = TITLE_BATCH2;
+    document.querySelector('h1').textContent = TITLE_BATCH2;
+    byTestId('filter-manual').hidden = false;
+  }
   state.choices = new Map((saved.choices ?? []).map(c => [c.idx, c]));
   for (const b of document.querySelectorAll('[data-filter]')) {
     b.addEventListener('click', () => {

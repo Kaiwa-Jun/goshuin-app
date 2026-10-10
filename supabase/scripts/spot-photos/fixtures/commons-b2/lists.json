@@ -1,0 +1,39 @@
+{
+  "categorymembers": {
+    "Chusonji": {
+      "files": [
+        "230728 Chusonji Hiraizumi Iwate pref Japan01s3.jpg",
+        "Chuson-ji Noh Stage 03.jpg",
+        "Haiden of Kanahebi-Suijinja shrine 1.JPG",
+        "Togoshi hachiman.JPG",
+        "Ooyama afurijinjya.jpg",
+        "Yakushiji Nara06s3s4440.jpg"
+      ]
+    },
+    "Togakushi Shrine": {
+      "files": [
+        "Torinoko Sanjo Shrine 11.jpg",
+        "Torinoko Sanjo Shrine 05.jpg",
+        "Musashino Hachiman-gū (Musashino) 01.jpg"
+      ]
+    },
+    "Naiku": {
+      "files": ["Tsurugaoka Hachimangu 001.jpg", "Masumida Shrine Haiden.jpg"]
+    },
+    "Kamochi-jinja": {
+      "files": ["Kamochi Jinja.jpg", "Sakae-no-yashiro.jpeg", "Shibata jinja.jpeg"]
+    },
+    "Zōjō-ji": {
+      "files": ["Zojoji frontal steps.jpg"],
+      "continue": true
+    }
+  },
+  "search": {
+    "Q2660144": {
+      "files": ["Chuson-ji Noh Stage 03.jpg", "Miyajima, daisho-in, 05.jpg"]
+    },
+    "Q11581011": {
+      "files": ["Oarai Isosaki Shrine 04.jpg", "Gone file.jpg"]
+    }
+  }
+}

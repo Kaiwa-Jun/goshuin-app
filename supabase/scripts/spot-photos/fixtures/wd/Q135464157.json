@@ -1,0 +1,75 @@
+{
+  "type": "item",
+  "id": "Q135464157",
+  "labels": {
+    "ja": {
+      "language": "ja",
+      "value": "戸隠神社"
+    }
+  },
+  "aliases": {},
+  "claims": {
+    "P625": [
+      {
+        "mainsnak": {
+          "snaktype": "value",
+          "datavalue": {
+            "value": {
+              "latitude": 36.753,
+              "longitude": 138.0736,
+              "altitude": null,
+              "precision": 0.0001,
+              "globe": "http://www.wikidata.org/entity/Q2"
+            },
+            "type": "globecoordinate"
+          }
+        },
+        "rank": "normal"
+      }
+    ],
+    "P373": [
+      {
+        "mainsnak": {
+          "snaktype": "value",
+          "datavalue": {
+            "value": "Togakushi Shrine",
+            "type": "string"
+          }
+        },
+        "rank": "normal"
+      }
+    ],
+    "P131": [
+      {
+        "mainsnak": {
+          "snaktype": "value",
+          "datavalue": {
+            "value": {
+              "entity-type": "item",
+              "numeric-id": 540312,
+              "id": "Q540312"
+            },
+            "type": "wikibase-entityid"
+          }
+        },
+        "rank": "normal"
+      }
+    ],
+    "P31": [
+      {
+        "mainsnak": {
+          "snaktype": "value",
+          "datavalue": {
+            "value": {
+              "entity-type": "item",
+              "numeric-id": 845945,
+              "id": "Q845945"
+            },
+            "type": "wikibase-entityid"
+          }
+        },
+        "rank": "normal"
+      }
+    ]
+  }
+}

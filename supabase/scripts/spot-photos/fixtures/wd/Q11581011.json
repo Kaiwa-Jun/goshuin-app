@@ -1,0 +1,220 @@
+{
+  "type": "item",
+  "id": "Q11581011",
+  "labels": {
+    "ja": {
+      "language": "ja",
+      "value": "皇大神宮"
+    }
+  },
+  "aliases": {
+    "ja": [
+      {
+        "language": "ja",
+        "value": "内宮"
+      },
+      {
+        "language": "ja",
+        "value": "神宮内宮"
+      },
+      {
+        "language": "ja",
+        "value": "伊勢神宮内宮"
+      },
+      {
+        "language": "ja",
+        "value": "伊勢皇大神宮"
+      },
+      {
+        "language": "ja",
+        "value": "皇太神宮"
+      },
+      {
+        "language": "ja",
+        "value": "こうたいじんぐう"
+      },
+      {
+        "language": "ja",
+        "value": "大神宮"
+      },
+      {
+        "language": "ja",
+        "value": "皇大神宮(内宮)"
+      }
+    ]
+  },
+  "claims": {
+    "P625": [
+      {
+        "mainsnak": {
+          "snaktype": "value",
+          "datavalue": {
+            "value": {
+              "latitude": 34.454982,
+              "longitude": 136.725163,
+              "altitude": null,
+              "precision": 0.0001,
+              "globe": "http://www.wikidata.org/entity/Q2"
+            },
+            "type": "globecoordinate"
+          }
+        },
+        "rank": "normal"
+      }
+    ],
+    "P18": [
+      {
+        "mainsnak": {
+          "snaktype": "value",
+          "datavalue": {
+            "value": "Tsurugaoka Hachimangu 001.jpg",
+            "type": "string"
+          }
+        },
+        "rank": "normal"
+      }
+    ],
+    "P373": [
+      {
+        "mainsnak": {
+          "snaktype": "value",
+          "datavalue": {
+            "value": "Naiku",
+            "type": "string"
+          }
+        },
+        "rank": "normal"
+      }
+    ],
+    "P131": [
+      {
+        "mainsnak": {
+          "snaktype": "value",
+          "datavalue": {
+            "value": {
+              "entity-type": "item",
+              "numeric-id": 328067,
+              "id": "Q328067"
+            },
+            "type": "wikibase-entityid"
+          }
+        },
+        "rank": "normal"
+      },
+      {
+        "mainsnak": {
+          "snaktype": "value",
+          "datavalue": {
+            "value": {
+              "entity-type": "item",
+              "numeric-id": 864166,
+              "id": "Q864166"
+            },
+            "type": "wikibase-entityid"
+          }
+        },
+        "rank": "normal"
+      },
+      {
+        "mainsnak": {
+          "snaktype": "value",
+          "datavalue": {
+            "value": {
+              "entity-type": "item",
+              "numeric-id": 1131032,
+              "id": "Q1131032"
+            },
+            "type": "wikibase-entityid"
+          }
+        },
+        "rank": "normal"
+      }
+    ],
+    "P31": [
+      {
+        "mainsnak": {
+          "snaktype": "value",
+          "datavalue": {
+            "value": {
+              "entity-type": "item",
+              "numeric-id": 120680118,
+              "id": "Q120680118"
+            },
+            "type": "wikibase-entityid"
+          }
+        },
+        "rank": "normal"
+      },
+      {
+        "mainsnak": {
+          "snaktype": "value",
+          "datavalue": {
+            "value": {
+              "entity-type": "item",
+              "numeric-id": 134917286,
+              "id": "Q134917286"
+            },
+            "type": "wikibase-entityid"
+          }
+        },
+        "rank": "normal"
+      },
+      {
+        "mainsnak": {
+          "snaktype": "value",
+          "datavalue": {
+            "value": {
+              "entity-type": "item",
+              "numeric-id": 135009132,
+              "id": "Q135009132"
+            },
+            "type": "wikibase-entityid"
+          }
+        },
+        "rank": "normal"
+      },
+      {
+        "mainsnak": {
+          "snaktype": "value",
+          "datavalue": {
+            "value": {
+              "entity-type": "item",
+              "numeric-id": 845945,
+              "id": "Q845945"
+            },
+            "type": "wikibase-entityid"
+          }
+        },
+        "rank": "normal"
+      },
+      {
+        "mainsnak": {
+          "snaktype": "value",
+          "datavalue": {
+            "value": {
+              "entity-type": "item",
+              "numeric-id": 135419779,
+              "id": "Q135419779"
+            },
+            "type": "wikibase-entityid"
+          }
+        },
+        "rank": "normal"
+      },
+      {
+        "mainsnak": {
+          "snaktype": "value",
+          "datavalue": {
+            "value": {
+              "entity-type": "item",
+              "numeric-id": 135100459,
+              "id": "Q135100459"
+            },
+            "type": "wikibase-entityid"
+          }
+        },
+        "rank": "normal"
+      }
+    ]
+  }
+}

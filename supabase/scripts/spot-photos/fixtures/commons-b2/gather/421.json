@@ -1,0 +1,73 @@
+{
+  "idx": 421,
+  "name": "伊勢神宮内宮（皇大神宮）",
+  "prefecture": "三重県",
+  "qid": "Q11581011",
+  "p373": "Naiku",
+  "p18": ["Tsurugaoka Hachimangu 001.jpg"],
+  "lists": {
+    "p373": ["Tsurugaoka Hachimangu 001.jpg", "Masumida Shrine Haiden.jpg"],
+    "p180": ["Oarai Isosaki Shrine 04.jpg", "Gone file.jpg"]
+  },
+  "truncated": [],
+  "files": [
+    {
+      "file": "Tsurugaoka Hachimangu 001.jpg",
+      "width": 4282,
+      "height": 2839,
+      "mime": "image/jpeg",
+      "sha1": "2996e1b55a77dbf1d45325c9cb8c8414d3d56ba2",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/5/59/Tsurugaoka_Hachimangu_001.jpg",
+      "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Tsurugaoka_Hachimangu_001.jpg",
+      "license": "CC0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+      "artist": "Ocdp",
+      "artistHtml": "<a href=\"//commons.wikimedia.org/wiki/User:Ocdp\" title=\"User:Ocdp\">Ocdp</a>",
+      "credit": "Own work",
+      "creditHtml": "<span class=\"int-own-work\" lang=\"en\">Own work</span>",
+      "attributionRequired": false,
+      "copyrighted": true,
+      "restrictions": "",
+      "usageTerms": "Creative Commons Zero, Public Domain Dedication"
+    },
+    {
+      "file": "Masumida Shrine Haiden.jpg",
+      "width": 5953,
+      "height": 3974,
+      "mime": "image/jpeg",
+      "sha1": "74535e6d5be999e4f14113951869476806a07fb0",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/c/c0/Masumida_Shrine_Haiden.jpg",
+      "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Masumida_Shrine_Haiden.jpg",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+      "artist": "Bariston",
+      "artistHtml": "<a href=\"//commons.wikimedia.org/w/index.php?title=User:Bariston&amp;action=edit&amp;redlink=1\" class=\"new\" title=\"User:Bariston (page does not exist)\">Bariston</a>",
+      "credit": "Own work",
+      "creditHtml": "<span class=\"int-own-work\" lang=\"en\">Own work</span>",
+      "attributionRequired": true,
+      "copyrighted": true,
+      "restrictions": "",
+      "usageTerms": "Creative Commons Attribution-Share Alike 4.0"
+    },
+    {
+      "file": "Oarai Isosaki Shrine 04.jpg",
+      "width": 3888,
+      "height": 2592,
+      "mime": "image/jpeg",
+      "sha1": "7fded91a0037bcd4e486d7ae90f8b27c804acc2b",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/b/bd/Oarai_Isosaki_Shrine_04.jpg",
+      "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Oarai_Isosaki_Shrine_04.jpg",
+      "license": "CC BY 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
+      "artist": "Σ64",
+      "artistHtml": "<a href=\"https://ja.wikipedia.org/wiki/user:%CE%A364\" class=\"extiw\" title=\"ja:user:Σ64\">Σ64</a>",
+      "credit": "Own work",
+      "creditHtml": "<span class=\"int-own-work\" lang=\"en\">Own work</span>",
+      "attributionRequired": true,
+      "copyrighted": true,
+      "restrictions": "",
+      "usageTerms": "Creative Commons Attribution 3.0"
+    }
+  ],
+  "missing": ["Gone file.jpg"]
+}

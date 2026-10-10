@@ -1,7 +1,9 @@
 // 帯の写真（Issue #302）。候補の規則・台帳の形を決める純関数（ネット・ファイルに出ない）。
 // CLI は main.ts、選ぶ画面のサーバーは server.ts、Commons と R2 は fetchers.ts。
-// 契約書: docs/issues/issue-302-spot-photo-band.md（D-3〜D-9・D-19）
+// 契約書: docs/issues/issue-302-spot-photo-band.md（D-3〜D-9・D-19）、
+//         docs/issues/issue-320-spot-photos-batch2.md（D-7〜D-9。第2弾の行・manual・弾ごとの SQL）
 import type { Mapping, PhotoFile, Photos, SeedRow } from '../spot-wikidata/match.ts';
+import type { Pool320, PoolEntry320 } from './batch2.ts';
 
 // --- 定数（値を変えるのはリーダーの判断。契約書の表とテストと README を一緒に直す） ---
 
@@ -17,6 +19,10 @@ export const COMMONS_INTERVAL_MS = 1000;
 export const LEDGER_PATH = 'supabase/data/spot-photos-302.json';
 export const MIGRATION_PATH = 'supabase/migrations/20261004010000_spot_photos_302_batch1.sql';
 export const CHECK_SQL_PATH = 'supabase/validation/spot_photos_302_check.sql';
+/** 第2弾（#320 D-9）の migration と確かめる SQL（第2弾の行だけから作る） */
+export const MIGRATION_PATH_BATCH2 =
+  'supabase/migrations/20261004020000_spot_photos_302_batch2.sql';
+export const CHECK_SQL_PATH_BATCH2 = 'supabase/validation/spot_photos_302_batch2_check.sql';
 
 export const LEDGER_NOTE =
   '帯に出す寺社の写真（承認したものだけ）。supabase/scripts/spot-photos/main.ts export で作る。本番の SQL はここから generate で作る。手で直さない';
@@ -72,7 +78,8 @@ export interface LedgerEntry302 {
   name: string;
   prefecture: string;
   qid: string;
-  linkConfidence: 'high' | 'medium';
+  /** manual は第2弾（#320）で手で Wikidata に結んだ寺社（batch 2 から・linkChecked はいつも true） */
+  linkConfidence: 'high' | 'medium' | 'manual';
   linkChecked: boolean;
   file: string;
   sha1: string;
@@ -130,7 +137,12 @@ export function isFocusY(v: unknown): v is number {
  * 候補にするファイル: ① 横長 ② 幅 1280 以上 ③ ライセンスがあり GFDL で始まらない
  * ④ restrictions が空 ⑤ JPEG か PNG ⑥ 撮影者が無いなら、帰属の表示が要らないもの
  */
-export function screenFile(f: PhotoFile): boolean {
+export function screenFile(
+  f: Pick<
+    PhotoFile,
+    'width' | 'height' | 'license' | 'restrictions' | 'mime' | 'artist' | 'attributionRequired'
+  >
+): boolean {
   return (
     f.width > f.height &&
     f.width >= PHOTO_MIN_WIDTH &&
@@ -174,7 +186,22 @@ function seedRowOf(
   return row;
 }
 
-function candidateFile(f: PhotoFile): CandidateFile {
+/** 選ぶ画面の1ファイル（第2弾の候補のファイルにも使う） */
+export function candidateFile(
+  f: Pick<
+    PhotoFile,
+    | 'file'
+    | 'sha1'
+    | 'mime'
+    | 'width'
+    | 'height'
+    | 'url'
+    | 'artist'
+    | 'license'
+    | 'licenseUrl'
+    | 'descriptionUrl'
+  >
+): CandidateFile {
   return {
     file: f.file,
     sha1: f.sha1,
@@ -267,8 +294,12 @@ function parseEntry(raw: unknown, i: number): LedgerEntry302 {
   if (!isInt(e.batch, 1)) throw new Error(`${who}: batch が 1 以上の整数でない`);
   if (!isInt(e.idx, 1)) throw new Error(`${who}: idx が 1 以上の整数でない`);
   if (typeof e.qid !== 'string' || !/^Q\d+$/.test(e.qid)) throw new Error(`${who}: qid の形が違う`);
-  if (e.linkConfidence !== 'high' && e.linkConfidence !== 'medium') {
-    throw new Error(`${who}: linkConfidence が high / medium でない`);
+  if (
+    e.linkConfidence !== 'high' &&
+    e.linkConfidence !== 'medium' &&
+    e.linkConfidence !== 'manual'
+  ) {
+    throw new Error(`${who}: linkConfidence が high / medium / manual でない`);
   }
   if (typeof e.linkChecked !== 'boolean') throw new Error(`${who}: linkChecked が真偽でない`);
   if (typeof e.file !== 'string' || e.file === '') throw new Error(`${who}: file が無い`);
@@ -332,11 +363,53 @@ function checkAgainst301(e: LedgerEntry302, photos: Map<number, Photos['entries'
   if (e.r2Key !== r2KeyOf(f)) throw new Error(`${who}: r2Key が ${r2KeyOf(f)} でない: ${e.r2Key}`);
 }
 
+/** 第2弾（#320）の行が、第2弾の候補（spot-photos-320.json）の同じ寺社のファイルと同じか */
+function checkAgainst320(e: LedgerEntry302, pool: Map<number, PoolEntry320>): void {
+  const who = label(e);
+  const p = pool.get(e.idx);
+  if (!p || p.name !== e.name || p.prefecture !== e.prefecture) {
+    throw new Error(`${who}: 第2弾の候補に idx ${e.idx} の同じ寺社が無い`);
+  }
+  if (p.qid !== e.qid) throw new Error(`${who}: qid ${e.qid} が第2弾の候補（${p.qid}）と違う`);
+  if (p.linkConfidence !== e.linkConfidence) {
+    throw new Error(
+      `${who}: linkConfidence ${e.linkConfidence} が第2弾の候補（${p.linkConfidence}）と違う`
+    );
+  }
+  const f = p.files.find(x => x.file === e.file);
+  if (!f) throw new Error(`${who}: ${e.file} が第2弾の候補に無い`);
+  const expected: Partial<Record<keyof LedgerEntry302, unknown>> = {
+    sha1: f.sha1,
+    width: f.width,
+    height: f.height,
+    author: f.artist,
+    license: f.license,
+    licenseUrl: f.licenseUrl,
+    sourceUrl: f.descriptionUrl,
+  };
+  for (const [k, v] of Object.entries(expected)) {
+    if (e[k as keyof LedgerEntry302] !== v) {
+      throw new Error(
+        `${who}: ${k} が第2弾の候補と違う（台帳 ${JSON.stringify(e[k as keyof LedgerEntry302])}・候補 ${JSON.stringify(v)}）`
+      );
+    }
+  }
+  if (!screenFile(f)) throw new Error(`${who}: ${e.file} は候補の規則（D-5）を通らない`);
+  if (e.r2Key !== r2KeyOf(f)) throw new Error(`${who}: r2Key が ${r2KeyOf(f)} でない: ${e.r2Key}`);
+}
+
 /**
  * 公開の台帳の検査（JSON の文字でも、読んだ値でもよい）。決めたキーのほかがある・#301 と合わない・
- * 規則を通らない・重なる・順でない、のどれでも寺社の名前を含む文で止める
+ * 規則を通らない・重なる・順でない、のどれでも寺社の名前を含む文で止める。
+ * batch: 1 の行は #301 の写真の候補と、batch: 2 の行は第2弾の候補（batch2。#320）と突き合わせる。
+ * 第2弾の行があるのに batch2 を渡さなければ止める
  */
-export function parseLedger302(json: unknown, photos: Photos, rows: SeedRow[]): Ledger302 {
+export function parseLedger302(
+  json: unknown,
+  photos: Photos,
+  rows: SeedRow[],
+  batch2?: Pool320
+): Ledger302 {
   const raw = typeof json === 'string' ? JSON.parse(json) : json;
   if (!isObject(raw)) throw new Error('台帳がオブジェクトでない');
   exactKeys(raw, TOP_KEYS, '台帳');
@@ -351,6 +424,7 @@ export function parseLedger302(json: unknown, photos: Photos, rows: SeedRow[]): 
 
   const seed = new Map(rows.map(r => [r.idx, r]));
   const byIdx = new Map(photos.entries.map(p => [p.idx, p]));
+  const poolByIdx = new Map(batch2?.entries.map(p => [p.idx, p]));
   const entries = raw.entries.map(parseEntry);
   const seenIdx = new Map<number, LedgerEntry302>();
   const seenName = new Map<string, LedgerEntry302>();
@@ -368,9 +442,23 @@ export function parseLedger302(json: unknown, photos: Photos, rows: SeedRow[]): 
     if (last && (e.batch < last.batch || (e.batch === last.batch && e.idx < last.idx))) {
       throw new Error(`${who}: (batch, idx) の順でない（前は ${label(last)}）`);
     }
-    checkAgainst301(e, byIdx);
+    if (e.linkConfidence === 'manual' && e.batch < 2) {
+      throw new Error(`${who}: 結びつきの manual は第2弾（batch 2）からの行だけ`);
+    }
+    if (e.batch === 1) checkAgainst301(e, byIdx);
+    else if (e.batch === 2) {
+      if (!batch2) {
+        throw new Error(
+          `${who}: 第2弾の行があるのに、第2弾の候補（spot-photos-320.json）を渡していない`
+        );
+      }
+      checkAgainst320(e, poolByIdx);
+    } else throw new Error(`${who}: batch ${e.batch} の行は読めない（1 か 2）`);
     if (e.linkConfidence === 'medium' && e.linkChecked !== true) {
       throw new Error(`${who}: 結びつきが medium なのに linkChecked が true でない`);
+    }
+    if (e.linkConfidence === 'manual' && e.linkChecked !== true) {
+      throw new Error(`${who}: 結びつきが manual なのに linkChecked が true でない`);
     }
     seenIdx.set(e.idx, e);
     seenName.set(who, e);
@@ -398,11 +486,23 @@ export type Choice =
 
 const CHOICE_KEYS = ['idx', 'decision', 'file', 'focusY', 'linkChecked', 'reason'];
 
+/** 選んだ1件を確かめるのに要る、選ぶ画面のデータ（第1弾の Candidates と第2弾の Candidates320） */
+export interface ChoiceSource {
+  entries: readonly {
+    idx: number;
+    name: string;
+    prefecture: string;
+    linkConfidence: 'high' | 'medium' | 'manual';
+    files: readonly { file: string; sha1: string }[];
+  }[];
+}
+
 /**
  * 選ぶ画面から届いた1件を確かめる（サーバーが保存する前と export）。others は保存してある分で、
- * 同じ idx の行は置き換えるので見ない。だめなら寺社の名前を含む文で止める
+ * 同じ idx の行は置き換えるので見ない。だめなら寺社の名前を含む文で止める。
+ * 手で結んだ寺社（manual）は、手で結ぶ台帳がしるしなので linkChecked を送らなくても true で残す
  */
-export function parseChoice(body: unknown, candidates: Candidates, others: Choice[]): Choice {
+export function parseChoice(body: unknown, candidates: ChoiceSource, others: Choice[]): Choice {
   if (!isObject(body)) throw new Error('選んだ1件がオブジェクトでない');
   const entry = candidates.entries.find(e => e.idx === body.idx);
   if (!entry) throw new Error(`idx ${String(body.idx)} は候補の寺社ではない`);
@@ -429,7 +529,7 @@ export function parseChoice(body: unknown, candidates: Candidates, others: Choic
   if (body.linkChecked !== undefined && typeof body.linkChecked !== 'boolean') {
     throw new Error(`${who}: linkChecked が真偽でない`);
   }
-  const linkChecked = body.linkChecked === true;
+  const linkChecked = entry.linkConfidence === 'manual' || body.linkChecked === true;
   if (entry.linkConfidence === 'medium' && !linkChecked) {
     throw new Error(
       `${who}: 結びつきが「中」なので、Wikidata の項目がこの寺社だと確かめてから採る`
@@ -447,7 +547,7 @@ export function parseChoice(body: unknown, candidates: Candidates, others: Choic
 }
 
 /** choices.json の全部を確かめる（idx の順・1 idx 1 行）。だめなら寺社の名前で止める */
-export function parseChoices(json: unknown, candidates: Candidates): Choice[] {
+export function parseChoices(json: unknown, candidates: ChoiceSource): Choice[] {
   const raw = typeof json === 'string' ? JSON.parse(json) : json;
   if (!isObject(raw) || !Array.isArray(raw.choices))
     throw new Error('choices.json に choices が無い');
@@ -464,8 +564,74 @@ export function parseChoices(json: unknown, candidates: Candidates): Choice[] {
 /** 1 回目の承認の弾 */
 export const BATCH = 1;
 
-/** 採った寺社だけを台帳にする（(batch, idx) の順）。#301 の値をそのまま写し、parseLedger302 を通す */
-export function buildLedger(choices: Choice[], photos: Photos, rows: SeedRow[]): Ledger302 {
+/** 採った寺社の第2弾（#320）の行。第2弾の候補の値をそのまま写す */
+function entriesFrom320(choices: Choice[], pool: Pool320): LedgerEntry302[] {
+  const byIdx = new Map(pool.entries.map(p => [p.idx, p]));
+  const entries: LedgerEntry302[] = [];
+  for (const c of [...choices].sort((a, b) => a.idx - b.idx)) {
+    if (c.decision !== 'approve') continue;
+    const p = byIdx.get(c.idx);
+    const f = p?.files.find(x => x.file === c.file);
+    if (!p || !f || p.qid === null || p.linkConfidence === null) {
+      throw new Error(`idx ${c.idx}: 第2弾の候補に ${c.file} が無い`);
+    }
+    entries.push({
+      batch: 2,
+      idx: p.idx,
+      name: p.name,
+      prefecture: p.prefecture,
+      qid: p.qid,
+      linkConfidence: p.linkConfidence,
+      linkChecked: p.linkConfidence === 'manual' ? true : c.linkChecked,
+      file: f.file,
+      sha1: f.sha1,
+      r2Key: r2KeyOf(f),
+      width: f.width,
+      height: f.height,
+      focusY: c.focusY,
+      author: f.artist,
+      license: f.license as string,
+      licenseUrl: f.licenseUrl,
+      sourceUrl: f.descriptionUrl,
+      isCropped: true,
+      status: 'approved',
+    });
+  }
+  return entries;
+}
+
+/**
+ * 採った寺社だけを台帳にする（(batch, idx) の順）。候補の値をそのまま写し、parseLedger302 を通す。
+ * opts.batch（既定 1）の行だけを選んだものに置き換え、opts.base（いまの台帳）のほかの弾の行と
+ * 上のキー（schemaVersion・issue・note・attribution）はそのまま残す。第2弾は opts.pool の値を写す
+ */
+export function buildLedger(
+  choices: Choice[],
+  photos: Photos,
+  rows: SeedRow[],
+  opts: { batch?: 1 | 2; pool?: Pool320; base?: Ledger302 | null } = {}
+): Ledger302 {
+  const batch = opts.batch ?? BATCH;
+  let fresh: LedgerEntry302[];
+  if (batch === 2) {
+    if (!opts.pool)
+      throw new Error('第2弾の台帳の行には、第2弾の候補（spot-photos-320.json）が要る');
+    fresh = entriesFrom320(choices, opts.pool);
+  } else fresh = entriesFrom301(choices, photos);
+  const others = (opts.base?.entries ?? []).filter(e => e.batch !== batch);
+  const entries = [...others, ...fresh].sort((a, b) => a.batch - b.batch || a.idx - b.idx);
+  const ledger: Ledger302 = {
+    schemaVersion: 1,
+    issue: 302,
+    note: opts.base?.note ?? LEDGER_NOTE,
+    attribution: opts.base?.attribution ?? LEDGER_ATTRIBUTION,
+    entries,
+  };
+  return parseLedger302(ledger, photos, rows, opts.pool);
+}
+
+/** 採った寺社の第1弾の行。#301 の値をそのまま写す */
+function entriesFrom301(choices: Choice[], photos: Photos): LedgerEntry302[] {
   const byIdx = new Map(photos.entries.map(p => [p.idx, p]));
   const entries: LedgerEntry302[] = [];
   for (const c of [...choices].sort((a, b) => a.idx - b.idx)) {
@@ -495,19 +661,21 @@ export function buildLedger(choices: Choice[], photos: Photos, rows: SeedRow[]):
       status: 'approved',
     });
   }
-  const ledger: Ledger302 = {
-    schemaVersion: 1,
-    issue: 302,
-    note: LEDGER_NOTE,
-    attribution: LEDGER_ATTRIBUTION,
-    entries,
-  };
-  return parseLedger302(ledger, photos, rows);
+  return entries;
 }
 
 // --- D-19: 本番の SQL（台帳から作る生成物） ---
 
 const SQL_TAG = 'spot_photos_302 batch1';
+const SQL_TAG_BATCH2 = 'spot_photos_302 batch2';
+
+/** 弾の行だけか（ほかの弾の行が混じれば寺社の名前で止める） */
+function onlyBatch(entries: LedgerEntry302[], batch: 1 | 2, what: string): void {
+  const other = entries.find(e => e.batch !== batch);
+  if (other) {
+    throw new Error(`${label(other)}: batch ${other.batch} の行は第${batch}弾の${what}に入れない`);
+  }
+}
 
 /** jsonb の1行（表の列の名前で） */
 function photoRow(e: LedgerEntry302): string {
@@ -545,17 +713,26 @@ const SAME_SPOT =
   's.name = f.name AND s.prefecture = f.prefecture AND s.created_by_user_id IS NULL';
 
 /**
- * 台帳の全部の行を spot_photos に入れる migration（DO ブロック1つ）。1件ずつ「名前・都道府県・作成者なし」で
- * ちょうど1行の寺社に絞り（0 行・2 行以上なら例外で全体を止める）、spot_id で upsert する
+ * 台帳の弾（batch。既定 1）の行を spot_photos に入れる migration（DO ブロック1つ）。1件ずつ「名前・都道府県・作成者なし」で
+ * ちょうど1行の寺社に絞り（0 行・2 行以上なら例外で全体を止める）、spot_id で upsert する。
+ * 第2弾（#320）は見出しと例外の頭だけが違う（第1弾の出力は変えない）
  */
-export function buildMigrationSql(entries: LedgerEntry302[]): string {
+export function buildMigrationSql(entries: LedgerEntry302[], batch: 1 | 2 = 1): string {
   if (entries.length === 0) throw new Error('台帳に行が無い');
-  return `-- Issue #302 第1弾: 地図のピンのシートの帯に出す寺社の写真 ${entries.length} 件を spot_photos に入れる。
--- 生成物。手で直さない。台帳 supabase/data/spot-photos-302.json から次で作る:
+  onlyBatch(entries, batch, ' migration ');
+  const tag = batch === 1 ? SQL_TAG : SQL_TAG_BATCH2;
+  const block = batch === 1 ? 'spot_photos_302' : 'spot_photos_302_batch2';
+  const head =
+    batch === 1
+      ? `-- Issue #302 第1弾: 地図のピンのシートの帯に出す寺社の写真 ${entries.length} 件を spot_photos に入れる。
+-- 生成物。手で直さない。台帳 supabase/data/spot-photos-302.json から次で作る:`
+      : `-- Issue #320（#302 第2弾）: 地図のピンのシートの帯に出す寺社の写真 ${entries.length} 件を spot_photos に入れる（第1弾の行は変えない）。
+-- 生成物。手で直さない。台帳 supabase/data/spot-photos-302.json の batch: 2 の行から次で作る:`;
+  return `${head}
 --   deno run -A --node-modules-dir=none supabase/scripts/spot-photos/main.ts generate
 -- 1件ずつ「名前・都道府県・作成者なし」でちょうど1行の寺社に絞り（0 行・2 行以上なら例外で全体を止める）、
 -- spot_id で upsert する（何度流しても同じ中身）。マスタの寺社が1件も無い DB（seed を入れる前）では何もしない。
-DO $spot_photos_302$
+DO $${block}$
 DECLARE
   photos CONSTANT jsonb := $photos$[
 ${photoRows(entries)}
@@ -565,7 +742,7 @@ ${photoRows(entries)}
   sid uuid;
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.spots WHERE created_by_user_id IS NULL) THEN
-    RAISE NOTICE '${SQL_TAG}: マスタの寺社が無いので何もしない';
+    RAISE NOTICE '${tag}: マスタの寺社が無いので何もしない';
     RETURN;
   END IF;
 
@@ -575,7 +752,7 @@ BEGIN
       FROM public.spots s
      WHERE ${SAME_SPOT};
     IF n <> 1 THEN
-      RAISE EXCEPTION '${SQL_TAG}: %（%）: 名前と都道府県で % 行（1 行のはず）', f.name, f.prefecture, n;
+      RAISE EXCEPTION '${tag}: %（%）: 名前と都道府県で % 行（1 行のはず）', f.name, f.prefecture, n;
     END IF;
     INSERT INTO public.spot_photos
       (spot_id, r2_key, width, height, focus_y, author, license, license_url, source_url, is_cropped, status)
@@ -594,11 +771,11 @@ BEGIN
       status = EXCLUDED.status;
     GET DIAGNOSTICS n = ROW_COUNT;
     IF n <> 1 THEN
-      RAISE EXCEPTION '${SQL_TAG}: %（%）: 入ったのが % 行（1 行のはず）', f.name, f.prefecture, n;
+      RAISE EXCEPTION '${tag}: %（%）: 入ったのが % 行（1 行のはず）', f.name, f.prefecture, n;
     END IF;
   END LOOP;
 END
-$spot_photos_302$;
+$${block}$;
 `;
 }
 
@@ -620,9 +797,13 @@ export function checkResultLine(v: Record<(typeof CHECK_KEYS)[number], string | 
   return `RESULT ${CHECK_KEYS.map(k => `${k}=${v[k]}`).join(' ')}`;
 }
 
-/** 本番の spot_photos が台帳と合うかを読むだけの SQL。最後に RAISE EXCEPTION 'RESULT …' で全部戻す */
-export function buildCheckSql(ledger: Ledger302, seedRowCount: number): string {
-  const entries = ledger.entries;
+/**
+ * 本番の spot_photos が台帳と合うかを読むだけの SQL。最後に RAISE EXCEPTION 'RESULT …' で全部戻す。
+ * 弾（batch。既定 1）の行だけを埋める。第2弾（#320）は extra の代わりに others を出す
+ */
+export function buildCheckSql(ledger: Ledger302, seedRowCount: number, batch: 1 | 2 = 1): string {
+  if (batch === 2) return buildCheckSqlBatch2(ledger, seedRowCount);
+  const entries = ledger.entries.filter(e => e.batch === 1);
   const listed = entries.filter(e => e.status === 'approved').length;
   const n = entries.length;
   const base = {
@@ -642,9 +823,6 @@ export function buildCheckSql(ledger: Ledger302, seedRowCount: number): string {
     missing: 0,
     anon_select: listed,
   });
-  const format = CHECK_KEYS.filter(k => k !== 'table')
-    .map(k => `${k}=%`)
-    .join(' ');
   return `-- ============================================================
 -- 帯の写真: 本番の spot_photos が台帳と合うか（Issue #302 / H-7・H-10・H-13）
 --
@@ -672,7 +850,19 @@ export function buildCheckSql(ledger: Ledger302, seedRowCount: number): string {
 -- supabase/scripts/spot-photos/main.ts generate で作る
 -- ============================================================
 
-DO $spot_photos_302_check$
+${checkBlock(entries, { block: 'spot_photos_302_check', count: 'extra', keys: CHECK_KEYS })}`;
+}
+
+/** 確かめる SQL の DO ブロック（第1弾と第2弾で同じ作り。数える変数の名前と RESULT のキーだけが違う） */
+function checkBlock(
+  entries: LedgerEntry302[],
+  o: { block: string; count: 'extra' | 'others'; keys: readonly string[] }
+): string {
+  const format = o.keys
+    .filter(k => k !== 'table')
+    .map(k => `${k}=%`)
+    .join(' ');
+  return `DO $${o.block}$
 DECLARE
   photos CONSTANT jsonb := $photos$[
 ${photoRows(entries)}
@@ -689,7 +879,7 @@ ${photoRows(entries)}
   present int := 0;
   differ int := 0;
   missing int := 0;
-  extra int;
+  ${o.count} int;
   anon_select int;
   anon_insert text := 'allowed';
 BEGIN
@@ -736,7 +926,7 @@ BEGIN
     END IF;
   END LOOP;
 
-  SELECT count(*) INTO extra FROM public.spot_photos p WHERE NOT (p.spot_id = ANY (matched));
+  SELECT count(*) INTO ${o.count} FROM public.spot_photos p WHERE NOT (p.spot_id = ANY (matched));
   SELECT s.id INTO any_spot FROM public.spots s ORDER BY s.id LIMIT 1;
 
   -- ここから anon のロール（このトランザクションの間だけ）
@@ -752,8 +942,93 @@ BEGIN
   RESET ROLE;
 
   RAISE EXCEPTION 'RESULT table=present ${format}',
-    rls, total, listed, not_one, present, differ, missing, extra, anon_select, anon_insert;
+    rls, total, listed, not_one, present, differ, missing, ${o.count}, anon_select, anon_insert;
 END
-$spot_photos_302_check$;
+$${o.block}$;
 `;
+}
+
+/** 第2弾の確かめる SQL の RESULT のキー（第1弾の extra の代わりに others） */
+export const CHECK_KEYS_BATCH2 = [
+  'table',
+  'rls',
+  'total',
+  'listed',
+  'not_one',
+  'present',
+  'differ',
+  'missing',
+  'others',
+  'anon_select',
+  'anon_insert',
+] as const;
+
+export function checkResultLine2(
+  v: Record<(typeof CHECK_KEYS_BATCH2)[number], string | number>
+): string {
+  return `RESULT ${CHECK_KEYS_BATCH2.map(k => `${k}=${v[k]}`).join(' ')}`;
+}
+
+/**
+ * 第2弾（#320 D-9）の確かめる SQL。台帳の第2弾の行だけを埋め、others（第2弾のどの寺社でもない行の数。
+ * 期待値は台帳の第1弾の行の数）を出す。期待値の数を出すので台帳の全部を受け取る
+ */
+function buildCheckSqlBatch2(ledger: Ledger302, seedRowCount: number): string {
+  const entries = ledger.entries.filter(e => e.batch === 2);
+  if (entries.length === 0) throw new Error('台帳に第2弾の行が無い');
+  const batch1 = ledger.entries.filter(e => e.batch === 1);
+  const seen1 = batch1.filter(e => e.status === 'approved').length;
+  const listed = entries.filter(e => e.status === 'approved').length;
+  const n = entries.length;
+  const base = {
+    table: 'present',
+    rls: 'on',
+    total: seedRowCount,
+    listed,
+    not_one: 0,
+    others: batch1.length,
+    anon_insert: 'denied',
+  };
+  const before = checkResultLine2({
+    ...base,
+    present: 0,
+    differ: 0,
+    missing: n,
+    anon_select: seen1,
+  });
+  const after = checkResultLine2({
+    ...base,
+    present: n,
+    differ: 0,
+    missing: 0,
+    anon_select: seen1 + listed,
+  });
+  return `-- ============================================================
+-- 帯の写真の第2弾: 本番の spot_photos が台帳の第2弾の行と合うか（Issue #320 / H-7・H-11）
+--
+-- 実行: supabase db query --linked -f ${CHECK_SQL_PATH_BATCH2}
+--
+-- ⚠ 必ずエラーで終わる。それで正しい。最後に RAISE EXCEPTION して、何も残さない（読むだけ）。
+--   期待値:
+--   H-7（第2弾を入れる前）: ${before}
+--   H-11（第2弾を入れたあと）: ${after}
+--   第1弾の行がこの migration で変わらないことは、第1弾の確かめる SQL（${CHECK_SQL_PATH}）も流して見る（H-8・H-12）
+--
+-- table       = 表 public.spot_photos があるか（absent ならほかは出さない）
+-- rls         = 表の RLS が有効なら on
+-- total       = 作成者なし（created_by_user_id IS NULL）の spots の数（期待値は seed の寺社の行の数）
+-- listed      = 台帳の第2弾の status: approved の件数
+-- not_one     = 台帳の第2弾の行のうち、名前・都道府県・作成者なしで 0 行か 2 行以上だった件数
+-- present     = 1 行に絞れて、その寺社の写真の行があり、全部の列が台帳と同じ件数
+-- differ      = 1 行に絞れて、行はあるが列が台帳と違う件数
+-- missing     = 1 行に絞れて、行が無い件数
+-- others      = spot_photos の行のうち、第2弾のどの寺社（1 行に絞れたもの）でもない件数（期待値は台帳の第1弾の行の数）
+-- anon_select = anon のロールで数えた行の数（承認済みだけが見える）
+-- anon_insert = anon のロールで1行入れようとして断られたら denied（下のサブブロックで試し、最後の例外で戻す）
+--
+-- 生成物。手で直さない。台帳 supabase/data/spot-photos-302.json の batch: 2 の行から
+-- supabase/scripts/spot-photos/main.ts generate で作る
+-- ============================================================
+
+${checkBlock(entries, { block: 'spot_photos_302_batch2_check', count: 'others', keys: CHECK_KEYS_BATCH2 })}`;
 }
