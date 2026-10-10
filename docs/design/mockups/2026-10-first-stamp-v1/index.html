@@ -1,0 +1,791 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>はじめの1枚の試作</title>
+<!--
+  #327「はじめての人を、最初の1枚の記録まで連れていく」の試作。
+  素材はアプリと同じもの:
+   - 地図の背景・記録の画面・タブバー = シミュレータ（shots-16promax）で撮った実際の画面
+     （地図の記録済みのピン3本だけ、記録0枚の見え方＝未訪問の色 #FB923C に塗り替えた）
+   - 日本地図 = src/constants/japanMap.ts の県境（JapanMap・SaveMapReveal と同じ）
+   - アイコン = アプリが積んでいる MaterialIcons.ttf のグリフ
+   - 御朱印 = GoshuinArt（描いたもの。写真ではない）／印 = Seal／ピン = MapPin／本 = LoadingBook
+   - 色・余白・文字の大きさ = src/theme/ の値。文字はシステムフォント（web フォントは読まない）
+  画面は 440×956pt（iPhone 16 Pro Max）で描き、窓に合わせて縮める。
+-->
+<style>
+:root{
+  --p50:#FFF7ED;--p100:#FFEDD5;--p300:#FDBA74;--p400:#FB923C;--p500:#f27f0d;--p600:#EA580C;--p700:#C2410C;
+  --g100:#F3F4F6;--g200:#E5E7EB;--g300:#D1D5DB;--g400:#9CA3AF;--g500:#6B7280;--g600:#4B5563;--g700:#374151;--g800:#1F2937;--g900:#111827;
+  --grouped:#F2F2F7;--shrine100:#FEE2E2;--shrine600:#DC2626;--temple100:#F3E8FF;--temple600:#9333EA;
+  --washi:#EFEAE0;--paper:#FBF8F1;--seal:#C2342B;
+  --ui:#1f2329;--ui2:#2a2f37;--uitext:#E5E7EB;--uisub:#9CA3AF;--uiacc:#FDBA74;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{background:var(--ui);color:var(--uitext)}
+body{font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+  min-height:100vh;padding:16px 16px 48px}
+button{font:inherit}
+
+/* ── ページの枠（試作の道具。アプリの外） ── */
+.top{max-width:1180px;margin:0 auto 14px}
+.top h1{font-size:18px;font-weight:700;line-height:1.5}
+.top p{font-size:13px;color:var(--uisub);line-height:1.7;margin-top:2px}
+.tabs{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.tabs button{border:none;cursor:pointer;background:var(--ui2);color:#D1D5DB;font-size:13px;font-weight:700;
+  padding:8px 14px;border-radius:999px}
+.tabs button.on{background:var(--uiacc);color:#7C2D12}
+.layout{max-width:1180px;margin:0 auto;display:flex;gap:28px;align-items:flex-start}
+.stage{flex:none;width:calc(440px*var(--s,.8) + 60px);max-width:100%;display:flex;flex-direction:column;align-items:center;gap:10px}
+.phone-box{position:relative;width:calc(440px*var(--s,.8));height:calc(956px*var(--s,.8))}
+.phone{position:absolute;left:0;top:0;width:440px;height:956px;transform:scale(var(--s,.8));transform-origin:0 0;
+  border-radius:56px;overflow:hidden;background:#000;box-shadow:0 0 0 7px #0b0c0e,0 20px 60px rgba(0,0,0,.5)}
+.ctrl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;max-width:calc(440px*var(--s,.8) + 60px)}
+.ctrl button{border:none;cursor:pointer;background:var(--ui2);color:#D1D5DB;font-size:12px;font-weight:700;padding:7px 12px;border-radius:999px}
+.ctrl label{font-size:12px;color:var(--uisub);display:flex;align-items:center;gap:4px;cursor:pointer}
+.hint{font-size:13px;color:#F3F4F6;text-align:center;line-height:1.6;min-height:42px;max-width:calc(440px*var(--s,.8) + 60px)}
+.hint b{color:var(--uiacc)}
+.notes{flex:1;min-width:0;font-size:14px;line-height:1.8;color:#D1D5DB}
+.notes h2{font-size:17px;color:#fff;margin-bottom:6px;line-height:1.5}
+.notes h3{font-size:13px;color:var(--uiacc);margin:16px 0 4px;letter-spacing:.04em}
+.notes ul,.notes ol{padding-left:1.3em}
+.notes li{margin:2px 0}
+.notes .q{background:var(--ui2);border-radius:10px;padding:10px 12px;margin-top:6px}
+.notes .say{color:#fff;font-weight:700}
+.notes table{border-collapse:collapse;width:100%;font-size:13px;margin-top:4px;display:block;overflow-x:auto}
+.notes td,.notes th{border-top:1px solid #3a404a;padding:6px 6px;vertical-align:top;text-align:left}
+.notes th{color:var(--uisub);font-weight:700;white-space:nowrap}
+.notes code{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:#E5E7EB;background:#2f343c;padding:1px 4px;border-radius:4px}
+.tag{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:1px 7px;margin-right:4px}
+.tag.good{background:#14532d;color:#bbf7d0}.tag.warn{background:#713f12;color:#fde68a}.tag.size{background:#1e3a8a;color:#bfdbfe}
+@media (max-width:960px){.layout{flex-direction:column;align-items:center}.notes{max-width:640px;width:100%}}
+
+/* ── ここから下はアプリの画面（pt = px） ── */
+.scr{position:absolute;inset:0;overflow:hidden;background:#fff;color:var(--g900);
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif}
+.bg{position:absolute;left:0;top:0;width:440px;height:956px;display:block}
+.abs{position:absolute}
+.hot{cursor:pointer}
+.show-hot .hot.next{outline:2.5px solid rgba(59,130,246,.9);outline-offset:3px}
+.ic{display:inline-block;vertical-align:middle;flex:none}
+
+/* 地図の上の検索バー（ログイン前は絞り込みボタンが無いぶん横に伸びる） */
+.search{position:absolute;left:16px;width:408px;top:74px;height:48px;border-radius:16px;background:#fff;
+  box-shadow:0 2px 4px rgba(0,0,0,.1);display:flex;align-items:center;gap:8px;padding:0 16px;font-size:16px;color:var(--g400)}
+
+/* ボタン（Button の primary / outline） */
+.btn{display:flex;align-items:center;justify-content:center;gap:6px;min-height:44px;border-radius:12px;
+  font-size:16px;font-weight:600;line-height:24px;padding:0 12px;flex:1;white-space:nowrap}
+.btn-fill{background:var(--p500);color:#fff}
+.btn-line{border:1px solid var(--p500);color:var(--p500);background:#fff}
+.btn-line.on{background:var(--p50);color:var(--p700)}
+.row2{display:flex;gap:8px}
+
+/* 案① 地図のカード */
+.cardA{position:absolute;left:16px;right:16px;bottom:99px;background:#fff;border-radius:16px;padding:14px;
+  box-shadow:0 3px 6px rgba(0,0,0,.22);transform-origin:94% 92%}
+.cardA .head{display:flex;gap:12px;align-items:center}
+.cardA .tx{flex:1;min-width:0}
+.cardA .t{font-size:17px;font-weight:700;line-height:24px;color:var(--g900)}
+.cardA .s{font-size:14px;line-height:20px;color:var(--g600);margin-top:4px}
+.cardA .x{position:absolute;right:8px;top:8px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:16px}
+.cardA .row2{margin-top:12px}
+.win{position:relative;overflow:hidden;border-radius:12px;background:var(--grouped);flex:none}
+.win .zoom{position:absolute;left:0;top:0;transform-origin:50% 50%}
+.win svg{display:block}
+
+/* 下から出る一覧（RegionSpotSheet） */
+.sheet{position:absolute;left:0;right:0;bottom:83px;background:#fff;border-radius:16px 16px 0 0;
+  box-shadow:0 -4px 12px rgba(0,0,0,.12);padding-bottom:16px}
+.handle{width:40px;height:4px;border-radius:4px;background:var(--g300);margin:8px auto}
+.sheet .title{font-size:16px;font-weight:600;color:var(--g800);padding:0 16px 8px;line-height:24px}
+.srow{display:flex;align-items:center;gap:12px;padding:8px 16px}
+.srow .ib{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex:none}
+.srow .nm{font-size:16px;line-height:24px;color:var(--g800)}
+.srow .ad{font-size:14px;line-height:20px;color:var(--g500);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.srow .km{font-size:13px;color:var(--g500);flex:none}
+.srow .inf{flex:1;min-width:0}
+
+/* 寺社のシート（写真の無い寺社の帯） */
+.spot{height:296px;padding-bottom:0;overflow:hidden}
+.hero{position:relative;height:132px;background:var(--washi);overflow:hidden;border-radius:16px 16px 0 0}
+.hero .handle{position:absolute;left:50%;margin-left:-20px;top:0;background:rgba(255,255,255,.92);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.spot .body{padding:12px 16px 0}
+.spot .nm{display:flex;align-items:center;gap:8px;font-size:22px;font-weight:700;line-height:28px}
+.chip{font-size:12px;font-weight:600;border-radius:999px;padding:3px 10px;line-height:16px}
+.chip.shrine{background:var(--shrine100);color:var(--shrine600)}
+.spot .ad{display:flex;align-items:center;gap:4px;margin-top:6px;font-size:14px;color:var(--g600)}
+.spot .row2{position:absolute;left:16px;right:16px;bottom:16px}
+
+/* 中央のモーダル（LoginPromptModal） */
+.dim{position:absolute;inset:0;background:rgba(0,0,0,.45)}
+.modal{position:absolute;left:28px;right:28px;top:50%;transform:translateY(-50%);background:#fff;border-radius:20px;
+  padding:24px;display:flex;flex-direction:column;align-items:center}
+.modal .mi{width:64px;height:64px;border-radius:20px;background:var(--p50);display:flex;align-items:center;justify-content:center;margin-bottom:16px}
+.modal .mt{font-size:18px;font-weight:600;line-height:24px;color:var(--g800);margin-bottom:8px}
+.modal .md{font-size:16px;line-height:24px;color:var(--g500);text-align:center;margin-bottom:20px}
+.apple{width:100%;height:48px;border-radius:12px;background:#000;color:#fff;display:flex;align-items:center;justify-content:center;
+  gap:6px;font-size:17px;font-weight:600;margin-bottom:12px}
+.google{width:100%;height:48px;border-radius:12px;border:1px solid var(--g300);display:flex;align-items:center;justify-content:center;
+  gap:8px;font-size:16px;font-weight:600;color:var(--g700);box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.google b{font-size:20px}
+.later{font-size:16px;color:var(--g500);margin-top:16px;padding:4px 12px}
+
+/* 案② 登録の直後のシート */
+.first{padding:0 16px 20px}
+.first .art{height:150px;display:flex;align-items:center;justify-content:center}
+.first .t{font-size:20px;font-weight:700;line-height:28px;text-align:center;margin:2px 0 16px}
+.choice{display:flex;align-items:center;gap:12px;border:1px solid var(--g200);border-radius:12px;padding:12px 12px 12px 14px;margin-bottom:10px;background:#fff}
+.choice .ib{width:40px;height:40px;border-radius:10px;background:var(--p50);display:flex;align-items:center;justify-content:center;flex:none}
+.choice .c1{font-size:16px;font-weight:600;line-height:22px;color:var(--g900)}
+.choice .c2{font-size:14px;line-height:20px;color:var(--g500)}
+.choice .inf{flex:1}
+.first .later{display:block;text-align:center;margin:6px auto 0;width:max-content}
+
+/* 本（LoadingBook を 1.5 倍） */
+.book{position:relative;width:128px;height:88px;transform:scale(1.5);perspective:420px}
+.book .cover{position:absolute;top:3px;left:0;right:0;bottom:0;border-radius:6px;background:linear-gradient(#C2410C,#A83A0E)}
+.book .edge{position:absolute;top:5px;bottom:4px;width:4px;border-radius:2px;
+  background:repeating-linear-gradient(#EDE6D8 0 1px,#FBF8F1 1px 3px)}
+.book .el{left:3px}.book .er{right:3px}
+.book .page{position:absolute;top:0;bottom:6px;width:58px;background:var(--paper);overflow:hidden}
+.book .pl{left:6px;border-radius:4px 1px 1px 4px}
+.book .pr{right:6px;border-radius:1px 4px 4px 1px}
+.book .gl{position:absolute;top:0;bottom:0;right:0;width:14px;background:linear-gradient(90deg,rgba(90,60,30,0),rgba(90,60,30,.14))}
+.book .gr{position:absolute;top:0;bottom:0;left:0;width:14px;background:linear-gradient(90deg,rgba(90,60,30,.14),rgba(90,60,30,0))}
+.book .cast{position:absolute;right:6px;top:0;bottom:6px;width:58px;border-radius:1px 4px 4px 1px;opacity:0;
+  background:linear-gradient(90deg,rgba(60,40,20,.28),rgba(60,40,20,0) 70%)}
+.book .leaf{position:absolute;right:6px;top:0;bottom:6px;width:58px;background:var(--paper);backface-visibility:hidden;
+  -webkit-backface-visibility:hidden;transform-origin:50% 50%;overflow:hidden}
+/* 綴じ目（左の辺）を軸に回す。LoadingBook と同じく、軸を左の辺に寄せて回して戻す。裏は自分の中心でもう半回転 */
+.book .front{border-radius:1px 4px 4px 1px;transform:translateX(-29px) rotateY(0deg) translateX(29px)}
+.book .back{border-radius:4px 1px 1px 4px;transform:translateX(-29px) rotateY(0deg) translateX(29px) rotateY(180deg)}
+.book .shade{position:absolute;inset:0;background:linear-gradient(90deg,rgba(90,60,30,.22),rgba(90,60,30,.04));opacity:0}
+.book .slot{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.book.open .front{transform:translateX(-29px) rotateY(-180deg) translateX(29px)}
+.book.open .back{transform:translateX(-29px) rotateY(-180deg) translateX(29px) rotateY(180deg)}
+.book .front,.book .back{transition:transform .7s cubic-bezier(.45,0,.25,1)}
+.book.open .cast{animation:cast .7s ease-in-out}
+@keyframes cast{0%{opacity:0}40%{opacity:1}100%{opacity:0}}
+
+/* 保存直後（RecordComplete） */
+.complete{background:linear-gradient(#FB923C,#f27f0d 50%,#C2410C)}
+.complete .status{position:absolute;left:0;top:0;width:440px;mix-blend-mode:multiply}
+.cc-card{position:absolute;left:16px;right:16px;top:78px;bottom:182px;background:#fff;border-radius:24px;padding:24px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:11px}
+.stampf{width:150px;height:200px;border-radius:8px;overflow:hidden;box-shadow:0 4px 8px rgba(0,0,0,.15);background:var(--g100)}
+.count{display:flex;align-items:baseline}
+.count .n{font-size:36px;font-weight:900;line-height:44px}
+.count .u{font-size:18px;font-weight:600;margin-left:2px}
+.newchip{background:rgba(220,38,38,.1);border-radius:999px;padding:8px 16px;font-size:14px;font-weight:700;color:var(--shrine600);line-height:20px}
+.sp{text-align:center}.sp .a{font-size:18px;font-weight:600;line-height:24px}.sp .b{font-size:14px;color:var(--g600);margin-top:2px}
+.badge{width:76px;display:flex;flex-direction:column;align-items:center}
+.badge .bn{font-size:10px;font-weight:700;color:var(--g600);margin-top:4px;white-space:nowrap}
+.cc-actions{position:absolute;left:16px;right:16px;bottom:34px;display:flex;flex-direction:column;gap:12px;padding:16px 0}
+.cc-btn{height:52px;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:16px;font-weight:600}
+.cc-btn.w{background:#fff;color:var(--p700)}
+.cc-btn.o{border:1.5px solid rgba(255,255,255,.65);color:#fff}
+.mpin{position:absolute;opacity:0;transform:translateY(-90px)}
+.mpin.drop{transition:transform .52s cubic-bezier(.3,1.45,.6,1),opacity .52s ease-out;opacity:1;transform:none}
+
+/* あゆみ */
+.ayumi{background:var(--grouped)}
+.ayumi .head{position:absolute;left:0;top:0;width:440px}
+.ay-content{position:absolute;left:16px;right:16px;top:114px}
+.ay-card{background:#fff;border-radius:16px;padding:14px;margin-bottom:12px;box-shadow:0 2px 4px rgba(0,0,0,.1)}
+.ay-h{display:flex;align-items:baseline;justify-content:space-between;min-height:34px}
+.ay-big{font-size:34px;font-weight:900;line-height:36px}
+.ay-of{font-size:13px;color:var(--g400);margin-left:4px}
+.ay-num{font-size:20px;font-weight:900}.ay-unit{font-size:13px;color:var(--g600);margin-left:2px}
+.legend{display:flex;gap:12px;margin-top:12px;padding-top:11px;border-top:1px solid var(--g200)}
+.legend span{display:flex;align-items:center;font-size:11px;color:var(--g600)}
+.legend i{width:9px;height:9px;border-radius:2px;margin-right:4px;display:inline-block}
+.ay-invite{margin-top:12px;padding-top:12px;border-top:1px solid var(--g200)}
+.ay-invite .l{font-size:15px;line-height:22px;color:var(--g700);text-align:center;margin-bottom:12px}
+.seal-card .sh{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
+.seal-card .st{font-size:18px;font-weight:600;color:var(--g800)}
+.seal-card .sc{font-size:12px;color:var(--g400)}
+.axis{font-size:12px;font-weight:700;color:var(--g400);letter-spacing:.6px;margin-bottom:8px}
+.sgrid{display:flex;flex-wrap:wrap;row-gap:16px}
+.sitem{width:33.33%;display:flex;flex-direction:column;align-items:center}
+.sitem .sn{font-size:11px;color:var(--g400);margin-top:4px}
+.recent .rh{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+.recent .rt{font-size:16px;font-weight:700;color:var(--g800)}
+.recent .ra{font-size:13px;color:var(--p500)}
+.recent .rr{display:flex;align-items:center;gap:10px;font-size:15px}
+.recent .dot{width:9px;height:9px;border-radius:5px;background:var(--shrine600)}
+.recent .dt{margin-left:auto;font-size:13px;color:var(--g500)}
+.tabbar{position:absolute;left:0;top:873px;width:440px;height:83px}
+
+/* 記録の画面（スクショの上に重ねる） */
+.photo{position:absolute;left:16px;top:293px;width:408px;height:400px;border-radius:12px;overflow:hidden}
+.photo .rm{position:absolute;right:4px;top:4px;width:24px;height:24px;border-radius:12px;background:rgba(0,0,0,.5);
+  display:flex;align-items:center;justify-content:center}
+
+/* 出入りの動き。行き過ぎ・弾みは入れない */
+.rise{animation:rise .3s cubic-bezier(.215,.61,.355,1) both}
+@keyframes rise{from{transform:translateY(16px);opacity:0}to{transform:none;opacity:1}}
+.sheet-in{animation:sheetIn .3s cubic-bezier(.215,.61,.355,1) both}
+@keyframes sheetIn{from{transform:translateY(100%)}to{transform:none}}
+.fade-in{animation:fadeIn .2s ease-out both}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.pop{animation:pop .22s cubic-bezier(.215,.61,.355,1) both}
+@keyframes pop{from{opacity:0;transform:translateY(-50%) scale(.96)}to{opacity:1;transform:translateY(-50%)}}
+.fold{transition:transform .28s cubic-bezier(.55,0,.75,.4),opacity .28s ease-in;transform:scale(.12);opacity:0}
+.emboss{opacity:0;transition:opacity .6s ease-out}
+.emboss.on{opacity:1}
+.tint{opacity:0}
+.tint.on{opacity:1;transition:opacity .6s cubic-bezier(.215,.61,.355,1)}
+.tint.snap{opacity:1}
+.press{opacity:0;transition:opacity .45s ease-out}
+.press.on{opacity:1}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>はじめての人を、最初の1枚の記録まで（#327）の試作</h1>
+  <p>アプリの画面と同じ素材（シミュレータのスクショ・アプリの日本地図とアイコン・描いた御朱印）で作った、押して進める試作です。押す所は青い枠で示します。</p>
+  <nav class="tabs" id="tabs"></nav>
+</header>
+<main class="layout">
+  <section class="stage">
+    <div class="phone-box"><div class="phone show-hot" id="phone"></div></div>
+    <div class="hint" id="hint"></div>
+    <div class="ctrl">
+      <button id="back">ひとつ戻る</button>
+      <button id="replay">もう一度動かす</button>
+      <button id="restart">最初から</button>
+      <label><input type="checkbox" id="showhot" checked>押す所を示す</label>
+    </div>
+  </section>
+  <aside class="notes" id="notes"></aside>
+</main>
+
+<script src="assets.js"></script>
+<script>
+'use strict';
+const A = window.ASSETS;
+const C = {
+  p50:'#FFF7ED',p500:'#f27f0d',p600:'#EA580C',p700:'#C2410C',
+  g300:'#D1D5DB',g400:'#9CA3AF',g500:'#6B7280',g600:'#4B5563',g800:'#1F2937',
+  empty:'#E3E4E8',tier1:'#FDBA74',tier2:'#f27f0d',tier3:'#C2410C',
+  shrine100:'#FEE2E2',shrine600:'#DC2626',temple100:'#F3E8FF',temple600:'#9333EA',
+  wish:'#0D9488',seal:'#C2342B',sealEmpty:'#D3D6DC',washi:'#EFEAE0',washiSub:'#6B6356',
+  washiShade:'#D9D2C3',sumi:'#2B2622',grain:'#6B5B4A',paperEdge:'#EDE6D8',
+};
+const PREF = '京都府';   // 近くの寺社（八坂神社）の県。アプリでは nearbySpots[0].spot.prefecture
+
+/* ── アイコン（MaterialIcons.ttf のグリフ） ── */
+const ic = (n, s = 20, c = 'currentColor') =>
+  `<svg class="ic" width="${s}" height="${s}" viewBox="0 0 24 24" aria-hidden="true"><path d="${A.icons[n]}" fill="${c}"/></svg>`;
+
+/* ── 日本地図（src/constants/japanMap.ts と src/utils/japanMapZoom.ts） ── */
+const MW = 1000, MH = 1132, NAMES = Object.keys(A.paths);
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+function zoomTo(pref, w, fixed = 0) {
+  const b = A.boxes[pref], h = (w * MH) / MW, k = w / MW;
+  const span = Math.max(b.width, b.height) * 5.5;
+  const scale = fixed || Math.max(1.8, MW / span);
+  const px = (b.x + b.width / 2) * k, py = (b.y + b.height / 2) * k;
+  const lx = ((scale - 1) * w) / 2, ly = ((scale - 1) * h) / 2;
+  return { scale, tx: clamp(-scale * (px - w / 2), -lx, lx), ty: clamp(-scale * (py - h / 2), -ly, ly) };
+}
+function prefPoint(pref, w) {
+  const b = A.boxes[pref], h = (w * MH) / MW, k = w / MW, z = zoomTo(pref, w);
+  const px = (b.x + b.width / 2) * k, py = (b.y + b.height / 2) * k;
+  return { x: z.scale * (px - w / 2) + z.tx + w / 2, y: z.scale * (py - h / 2) + z.ty + h / 2 };
+}
+/**
+ * 47県。emboss = 空押しの県（Seal の空押しと同じ重ね方: 左上に影・右下に光・上に「まだ」の色）、
+ * tint = その県の色の層（不透明度で差す。PrefectureMap と同じ作り）
+ */
+function japan({ w, fill = () => C.empty, stroke = 2, emboss = null, off = 3, shadeOp = .26, tint = null, tintColor = C.tier1, embossOn = false, tintClass = '' }) {
+  let s = `<svg width="${w}" height="${(w * MH) / MW}" viewBox="0 0 ${MW} ${MH}" aria-hidden="true">`;
+  for (const n of NAMES) s += `<path d="${A.paths[n]}" fill="${fill(n)}" stroke="#fff" stroke-width="${stroke}"/>`;
+  if (emboss) {
+    const d = A.paths[emboss];
+    s += `<g class="emboss${embossOn ? ' on' : ''}">` +
+      `<path d="${d}" fill="${C.g600}" opacity="${shadeOp}" transform="translate(${-off} ${-off})"/>` +
+      `<path d="${d}" fill="#fff" opacity=".9" transform="translate(${off} ${off})"/>` +
+      `<path d="${d}" fill="${C.sealEmpty}"/></g>`;
+  }
+  if (tint) s += `<path class="tint ${tintClass}" d="${A.paths[tint]}" fill="${tintColor}" stroke="#fff" stroke-width="${stroke}"/>`;
+  return s + '</svg>';
+}
+/** 寄った窓（SaveMapReveal の寄り終わり）。zoomed=false なら全国から */
+function mapWindow({ w, pref = PREF, zoomed = true, id = '', scale = 0, bg = '', ...rest }) {
+  const h = (w * MH) / MW, z = zoomTo(pref, w, scale);
+  const tr = zoomed ? `translate(${z.tx}px,${z.ty}px) scale(${z.scale})` : 'none';
+  return `<div class="win" ${id ? `id="${id}"` : ''} style="width:${w}px;height:${h}px${bg ? `;background:${bg}` : ''}">` +
+    `<div class="zoom" style="transform:${tr}">${japan({ w, ...rest })}</div></div>`;
+}
+
+/* ── ピン（MapPin / SaveMapReveal と同じ形） ── */
+const pinSvg = (c, w) =>
+  `<svg width="${w}" height="${(w * 120) / 84}" viewBox="0 0 84 120" style="overflow:visible" aria-hidden="true">` +
+  `<polygon points="15.5,54 68.5,54 42,124" fill="#fff"/><circle cx="42" cy="44" r="41.5" fill="#fff"/>` +
+  `<polygon points="23,54 61,54 42,112" fill="${c}"/><circle cx="42" cy="44" r="34" fill="${c}"/></svg>`;
+/** 地図のスクショのピンの上に重ねる（八坂神社の先端は 203,433pt。描画は 0.294 倍） */
+const pinOn = (c, x = 203, y = 433, s = 0.294) =>
+  `<div class="abs" style="left:${x - 42 * s}px;top:${y - 112 * s}px">${pinSvg(c, 84 * s)}</div>`;
+
+/* ── 御朱印（GoshuinArt の移植。読める字にはしない） ── */
+function nib(p0, p1, p2, p3, wIn, wOut, n = 26) {
+  const at = t => { const u = 1 - t; return [u*u*u*p0[0]+3*u*u*t*p1[0]+3*u*t*t*p2[0]+t*t*t*p3[0], u*u*u*p0[1]+3*u*u*t*p1[1]+3*u*t*t*p2[1]+t*t*t*p3[1]]; };
+  const tan = t => { const u = 1 - t; return [3*u*u*(p1[0]-p0[0])+6*u*t*(p2[0]-p1[0])+3*t*t*(p3[0]-p2[0]), 3*u*u*(p1[1]-p0[1])+6*u*t*(p2[1]-p1[1])+3*t*t*(p3[1]-p2[1])]; };
+  const wAt = t => wOut + (wIn - wOut) * Math.pow(1 - t, 0.75);
+  const L = [], R = [];
+  for (let i = 0; i <= n; i++) {
+    const t = i / n, [x, y] = at(t), [dx, dy] = tan(t), len = Math.hypot(dx, dy) || 1, h = wAt(t) / 2;
+    L.push([x + (-dy / len) * h, y + (dx / len) * h]); R.push([x - (-dy / len) * h, y - (dx / len) * h]);
+  }
+  const pt = ([x, y]) => `${x.toFixed(1)} ${y.toFixed(1)}`;
+  return 'M' + pt(L[0]) + L.slice(1).map(q => 'L' + pt(q)).join('') + R.reverse().map(q => 'L' + pt(q)).join('') + 'Z';
+}
+const tick = (x, y, dx, dy, w) => nib([x, y], [x + dx * .3, y + dy * .3], [x + dx * .7, y + dy * .7], [x + dx, y + dy], w, w * .45, 10);
+const SUMI = [
+  nib([195,38],[209,42],[199,45],[215,44],3.2,3.6), nib([207,43],[198,55],[209,60],[200,70],4.4,1.8),
+  nib([197,80],[212,84],[201,87],[216,86],3.0,3.4), nib([209,85],[201,98],[212,103],[203,113],4.2,1.7),
+  nib([118,58],[136,108],[98,158],[110,246],13.0,3.4), nib([88,92],[124,78],[146,112],[172,102],8.5,2.8),
+  nib([152,138],[140,176],[126,182],[104,218],9.0,2.6), tick(156,76,9,16,5.0),
+  ...Array.from({ length: 4 }, (_, i) => [tick(38, 72 + i * 30, 12, 3, 2.8), nib([44,78+i*30],[47,86+i*30],[42,92+i*30],[46,98+i*30],3.0,1.6)]).flat(),
+];
+const FRAMES = [
+  'M4.0 5.2 L50 3.4 L96.0 5.0 L97.4 50 L95.8 96.2 L50 97.4 L4.6 95.6 L3.0 50 ZM11.6 12.4 L50 10.8 L88.8 12.6 L90.4 50 L88.6 88.2 L50 90.6 L11.2 88.6 L9.8 50 Z',
+  'M3.2 4.0 L50 5.0 L96.8 3.6 L97.2 24 L93.4 29 L97.0 34 L96.2 96.4 L50 95.2 L4.4 96.8 L3.6 50 ZM10.2 11.0 L50 12.4 L89.4 10.6 L90.8 50 L89.0 89.6 L50 87.8 L11.4 90.2 L12.6 50 Z',
+  'M4.8 3.6 L50 4.8 L95.2 3.2 L96.8 50 L95.0 95.0 L50 96.8 L4.2 95.4 L3.4 50 ZM10.6 12.8 L34 10.2 L40 13.8 L50 10.0 L89.8 11.4 L88.4 50 L90.6 89.0 L50 91.0 L12.0 88.8 L10.8 50 Z',
+];
+const ring = r => Array.from({ length: 12 }, (_, i) => { const a = -Math.PI / 2 + (i * Math.PI) / 6; return `<circle cx="${(50 + 25.5 * Math.cos(a)).toFixed(2)}" cy="${(50 + 25.5 * Math.sin(a)).toFixed(2)}" r="${r}"/>`; }).join('');
+function goshuin(w, extra = '') {
+  const grain = Array.from({ length: 22 }, (_, i) => `<rect x="${(i * 11.4).toFixed(1)}" y="0" width="${(1.4 + (i % 5) * 0.9).toFixed(1)}" height="320"/>`).join('');
+  const stamp = (x, y, size, rot, dot) => `<g transform="translate(${x} ${y}) rotate(${rot} ${size / 2} ${size / 2}) scale(${size / 100})" fill="${C.seal}" opacity=".88"><path fill-rule="evenodd" d="${FRAMES[0]}"/>${ring(dot)}</g>`;
+  return `<svg width="${w}" height="${(w * 320) / 240}" viewBox="0 0 240 320" ${extra} aria-hidden="true"><rect width="240" height="320" fill="${C.washi}"/>` +
+    `<g opacity=".025" fill="${C.grain}">${grain}</g><g fill="${C.sumi}" opacity=".92">${SUMI.map(d => `<path d="${d}"/>`).join('')}</g>` +
+    stamp(66, 150, 108, -6, 6.6) + stamp(190, 24, 36, 5, 7.6) + '</svg>';
+}
+/* ── 印（Seal）。字も紋も彫った図形 ── */
+const MARKS = {
+  ichi: '<rect x="22" y="44" width="56" height="12"/>',
+  mangan: ring(6.6),
+  torii: '<path d="M17 22 Q50 30 83 22 L81.5 30 Q50 36.5 18.5 30 Z"/><rect x="23" y="33" width="54" height="5"/><rect x="46.5" y="38" width="7" height="11"/><rect x="20" y="48" width="60" height="6.5"/><polygon points="32,38 39,38 37,82 29,82"/><polygon points="61,38 68,38 71,82 63,82"/>',
+  shiki: '<circle cx="50" cy="32.5" r="19"/><circle cx="50" cy="67.5" r="19"/><circle cx="32.5" cy="50" r="19"/><circle cx="67.5" cy="50" r="19"/>',
+};
+const FRAME_OF = { ichi: 1, mangan: 0, torii: 1, shiki: 1 };
+const glyph = (mark, fill, op = 1, off = 0) =>
+  `<g fill="${fill}" opacity="${op}" transform="translate(${off} ${off})"><path fill-rule="evenodd" d="${FRAMES[FRAME_OF[mark]]}"/>${MARKS[mark]}</g>`;
+const seal = (mark, size, color) => `<svg width="${size}" height="${size}" viewBox="0 0 100 100" aria-hidden="true">${glyph(mark, color)}</svg>`;
+/** 空押し（SpotSheetHero の重ね方: 影 washiSub .26 を左上、光 白 .9 を右下、上に washiShade） */
+const karaoshi = (mark, size) => `<svg width="${size}" height="${size}" viewBox="0 0 100 100" aria-hidden="true">` +
+  glyph(mark, C.washiSub, .26, -1) + glyph(mark, '#fff', .9, .9) + glyph(mark, C.washiShade) + '</svg>';
+
+/* ── 部品 ── */
+const hot = (go, next, extra = '') => `hot${next ? ' next' : ''}" data-go="${go}" ${extra}`;
+const box = (go, l, t, w, h, r = 12, next = true) =>
+  `<div class="abs ${hot(go, next)} style="left:${l}px;top:${t}px;width:${w}px;height:${h}px;border-radius:${r}px"></div>`;
+const tab = (i, go, next = false) => box(go, i * 88, 876, 88, 54, 12, next);
+const guestSearch = () => `<div class="search">${ic('search', 20, C.g400)}神社・寺院を検索</div>`;
+
+function loginModal(goOk, goLater) {
+  return `<div class="dim fade-in"></div><div class="modal pop">
+    <div class="mi">${ic('camera-alt', 32, C.p500)}</div>
+    <div class="mt">ログインが必要です</div>
+    <div class="md">御朱印を記録するには<br>ログインしてください</div>
+    <div class="apple ${hot(goOk, true)}><span style="font-size:19px;margin-top:-2px">&#63743;</span>Appleでサインイン</div>
+    <div class="google"><b>G</b>Google でログイン</div>
+    <div class="later ${hot(goLater, false)}>あとにする</div></div>`;
+}
+
+const NEAR = [
+  ['八坂神社', 'shrine', '0.1 km', '京都府京都市東山区祇園町北側625'],
+  ['建仁寺', 'temple', '0.6 km', '京都府京都市東山区小松町584'],
+  ['六波羅蜜寺', 'temple', '0.8 km', '京都府京都市東山区ロクロ町81-1'],
+  ['清水寺', 'temple', '1.1 km', '京都府京都市東山区清水1丁目294'],
+  ['平安神宮', 'shrine', '1.5 km', '京都府京都市左京区岡崎西天王町97'],
+];
+function nearSheet(goSpot) {
+  return `<div class="sheet sheet-in"><div class="handle"></div><div class="title">近くの寺社（${NEAR.length}）</div>` +
+    NEAR.map(([n, t, km, ad], i) => {
+      const s = t === 'shrine';
+      return `<div class="srow ${i === 0 ? hot(goSpot, true) : '"'}>
+        <div class="ib" style="background:${s ? C.shrine100 : C.temple100}">${ic(s ? 'temple-hindu' : 'temple-buddhist', 20, s ? C.shrine600 : C.temple600)}</div>
+        <div class="inf"><div class="nm">${n}</div><div class="ad">${ad}</div></div><div class="km">${km}</div></div>`;
+    }).join('') + '</div>';
+}
+function spotSheet({ wished = false, goWish = null, goRecord = null, goClose = null }) {
+  const grain = Array.from({ length: 40 }, (_, i) => `<rect x="${i * 11.4}" y="0" width="${1.4 + (i % 5) * .9}" height="140"/>`).join('');
+  return `<div class="sheet spot sheet-in">
+    <div class="hero"><svg width="440" height="132" style="position:absolute;inset:0" aria-hidden="true"><g opacity=".025" fill="${C.grain}">${grain}</g></svg>
+      <div class="abs" style="left:170px;top:16px">${karaoshi('torii', 100)}</div><div class="handle"></div></div>
+    <div class="body"><div class="nm">八坂神社<span class="chip shrine">神社</span></div>
+      <div class="ad">${ic('place', 16, C.g400)}京都府京都市東山区祇園町北側625</div></div>
+    <div class="row2">
+      <div class="btn btn-line${wished ? ' on' : ''} ${goWish ? hot(goWish, !wished) : '"'}>${ic(wished ? 'bookmark' : 'bookmark-border', 18, wished ? C.p700 : C.p500)}行きたい</div>
+      <div class="btn btn-fill ${goRecord ? hot(goRecord, false) : '"'}>${ic('photo-camera', 18, '#fff')}記録する</div>
+    </div></div>` + (goClose ? box(goClose, 0, 140, 440, 420, 0, wished) : '');
+}
+
+/** 地図のタブ。スクショ（記録0枚の見え方）の上に重ねる */
+function mapScreen(o = {}) {
+  return `<div class="scr"><img class="bg" src="img/map.jpg" alt="">
+    ${o.guest ? guestSearch() : ''}
+    ${o.pin ? pinOn(o.pin) : ''}
+    ${o.fab ? box(o.fab, 364, 797, 56, 56, 18, o.fabNext !== false) : ''}
+    ${o.body || ''}</div>`;
+}
+
+/* 案① 地図のカード */
+function cardA({ goShoot, goNear, goClose, next = 'shoot' }) {
+  return `<div class="cardA rise" id="cardA">
+    <div class="head">${mapWindow({ w: 84, scale: 1.8, emboss: PREF, off: 8, shadeOp: .45, stroke: 3, id: 'miniwin', bg: '#fff' })}
+      <div class="tx"><div class="t">参拝したら、写真1枚で<br>日本地図に。</div><div class="s">撮ると、${PREF}に色が差します</div></div></div>
+    <div class="x ${hot(goClose, next === 'close')}>${ic('close', 20, C.g400)}</div>
+    <div class="row2">
+      <div class="btn btn-fill ${hot(goShoot, next === 'shoot')}>${ic('photo-camera', 18, '#fff')}御朱印を撮る</div>
+      <div class="btn btn-line ${hot(goNear, next === 'near')}>${ic('near-me', 18, C.p500)}近くの寺社を見る</div>
+    </div></div>`;
+}
+
+/* 案② 登録の直後のシート */
+function bookArt() {
+  return `<div class="book" id="book">
+    <div class="cover"></div><div class="edge el"></div><div class="edge er"></div>
+    <div class="page pl"><div class="gl"></div></div>
+    <div class="page pr"><div class="slot press" id="press">${karaoshi('ichi', 30)}</div><div class="gr"></div></div>
+    <div class="cast"></div>
+    <div class="leaf back"><div class="shade"></div></div>
+    <div class="leaf front"></div></div>`;
+}
+function firstSheet({ goShoot, goNear, goLater, next = 'shoot' }) {
+  return `<div class="dim fade-in" style="bottom:83px"></div><div class="sheet first sheet-in">
+    <div class="handle"></div><div class="art">${bookArt()}</div>
+    <div class="t">参拝したら、写真1枚で日本地図に。</div>
+    <div class="choice ${hot(goShoot, next === 'shoot')}><div class="ib">${ic('photo-camera', 22, C.p500)}</div>
+      <div class="inf"><div class="c1">手元に御朱印がある</div><div class="c2">撮って、最初の1枚にする</div></div>${ic('chevron-right', 24, C.g400)}</div>
+    <div class="choice ${hot(goNear, next === 'near')}><div class="ib">${ic('near-me', 22, C.p500)}</div>
+      <div class="inf"><div class="c1">これから参拝する</div><div class="c2">近くの寺社を見ておく</div></div>${ic('chevron-right', 24, C.g400)}</div>
+    <div class="later ${hot(goLater, next === 'later')}>あとで</div></div>`;
+}
+
+/* 記録の画面（スクショ。スポット名だけ八坂神社に差し替え） */
+function recordScreen({ photo = false, goPhoto, goSave, goClose, nextClose = false }) {
+  const spot = `<div class="abs" style="left:30px;top:194px;width:150px;height:30px;background:#fff"></div>
+    <div class="abs" style="left:33px;top:196px;font-size:18px;line-height:26px;font-weight:500;color:${C.g800}">八坂神社</div>`;
+  const filled = photo ? `<div class="abs" style="left:0;top:290px;width:440px;height:585px;background:#fff"></div>
+    <div class="abs" style="left:0;top:693px;width:440px;height:182px;background:url(img/record.jpg) 0 -447px/440px 956px no-repeat"></div>
+    <div class="photo">${goshuin(408, 'preserveAspectRatio="xMidYMid slice" style="width:408px;height:400px"')}<div class="rm">${ic('close', 16, '#fff')}</div></div>` : '';
+  return `<div class="scr"><img class="bg" src="img/record.jpg" alt="">${spot}${filled}
+    ${photo ? '' : box(goPhoto, 16, 293, 408, 154, 12, !nextClose)}
+    ${goClose ? box(goClose, 14, 71, 44, 44, 22, nextClose) : ''}
+    ${photo ? box(goSave, 16, 892, 408, 46, 12, true) : ''}</div>`;
+}
+
+/* 保存直後 */
+function completeScreen({ variant = 'new', exit = 'map', goExit }) {
+  const w = 170, h = (w * MH) / MW, p = prefPoint(PREF, w), ps = 0.34;
+  const exitLabel = exit === 'ayumi' ? ['timeline', 'あゆみに戻る'] : ['explore', '地図に戻る'];
+  return `<div class="scr complete"><img class="status" src="img/status-white.jpg" alt="">
+    <div class="cc-card">
+      <div class="stampf">${goshuin(150)}</div>
+      <div class="count"><span class="n" id="cnt">0</span><span class="u">枚目</span></div>
+      <div class="newchip">🗾 ${PREF}、はじめて</div>
+      <div class="win" style="width:${w}px;height:${h}px">
+        <div class="zoom" id="cz">${japan({ w, emboss: variant === 'new' ? PREF : null, off: 2.5, tint: PREF })}</div>
+        <div class="mpin" id="cpin" style="left:${p.x - (84 * ps) / 2}px;top:${p.y - 120 * ps}px">${pinSvg(C.shrine600, 84 * ps)}</div>
+      </div>
+      <div class="sp"><div class="a">八坂神社</div><div class="b">令和8年10月10日</div></div>
+      <div class="badge" id="cbadge" style="opacity:0;transform:scale(.6);transition:opacity .35s ease-out,transform .35s cubic-bezier(.215,.61,.355,1)">${seal('ichi', 50, C.seal)}<div class="bn">初めての御朱印</div></div>
+    </div>
+    <div class="cc-actions">
+      <div class="cc-btn w">${ic('add-a-photo', 20, C.p700)}もう1枚記録する</div>
+      <div class="cc-btn o ${goExit ? hot(goExit, true) : '"'}>${ic(exitLabel[0], 20, '#fff')}${exitLabel[1]}</div>
+    </div></div>`;
+}
+function playComplete(root, variant) {
+  const cz = root.querySelector('#cz'), pin = root.querySelector('#cpin'), cnt = root.querySelector('#cnt');
+  const emb = cz.querySelector('.emboss'), tint = cz.querySelector('.tint'), badge = root.querySelector('#cbadge');
+  const z = zoomTo(PREF, 170);
+  later(() => { badge.style.opacity = 1; badge.style.transform = 'none'; }, 120);
+  // 全国を見せる 560ms → 寄る 1100ms → ピン 520ms（SaveMapReveal の HOLD / ZOOM / PIN）
+  later(() => { cz.style.transition = 'transform 1.1s cubic-bezier(.215,.61,.355,1)'; cz.style.transform = `translate(${z.tx}px,${z.ty}px) scale(${z.scale})`; }, 560);
+  if (variant === 'new' && emb) later(() => emb.classList.add('on'), 560 + 600);
+  later(() => pin.classList.add('drop'), 1660);
+  later(() => {
+    if (variant === 'new') { tint.classList.add('on'); if (emb) emb.classList.remove('on'); }
+    else tint.classList.add('snap');
+    cnt.textContent = '1';
+  }, 2180);
+}
+
+/* あゆみ */
+function ayumiScreen({ mode, goShoot, goNear, goMapTab }) {
+  const w = 380, painted = mode === 'after';
+  const map = japan({ w, emboss: mode === 'new0' || mode === 'after' ? PREF : null, off: 3, tint: painted ? PREF : null, embossOn: mode === 'after' });
+  const legend = `<div class="legend"><span><i style="background:${C.empty}"></i>まだ ${painted ? 46 : 47}</span><span><i style="background:${C.tier1}"></i>1〜2枚</span><span><i style="background:${C.tier2}"></i>3〜5枚</span><span><i style="background:${C.tier3}"></i>6枚〜</span></div>`;
+  const invite = `<div class="ay-invite"><div class="l">最初の1枚で、${PREF}に色が差します。</div><div class="row2">
+      <div class="btn btn-fill ${hot(goShoot, true)}>${ic('photo-camera', 18, '#fff')}御朱印を撮る</div>
+      <div class="btn btn-line ${hot(goNear, false)}>${ic('near-me', 18, C.p500)}近くの寺社を見る</div></div></div>`;
+  const sealCard = `<div class="ay-card seal-card"><div class="sh"><span class="st">印</span><span class="sc">0 / 9</span></div>
+      <div class="axis">作法</div><div class="sgrid"><div class="sitem">${seal('mangan', 58, C.sealEmpty)}<div class="sn">満願</div></div></div></div>`;
+  const recent = `<div class="ay-card recent"><div class="rh"><span class="rt">最近の参拝</span><span class="ra">すべて見る ›</span></div>
+      <div class="rr"><span class="dot"></span>八坂神社<span class="dt">10/10</span></div></div>`;
+  return `<div class="scr ayumi"><img class="head" src="img/ayumi-head.jpg" alt="">
+    <div class="ay-content"><div class="ay-card">
+      <div class="ay-h"><div><span class="ay-big">${painted ? 1 : 0}</span><span class="ay-of">/ 47 都道府県</span></div><div><span class="ay-num">${painted ? 1 : 0}</span><span class="ay-unit">枚</span></div></div>
+      <div style="margin-top:8px" id="aymap">${map}</div>
+      ${mode === 'new0' ? invite : legend}</div>
+      ${painted ? recent : sealCard}</div>
+    <img class="tabbar" src="img/tab-ayumi.jpg" alt="">${goMapTab ? tab(0, goMapTab, false) : ''}</div>`;
+}
+
+/* ── 流れ ── */
+let timers = [];
+const later = (f, ms) => timers.push(setTimeout(f, ms));
+
+const STEPS = {
+  /* 今の道のり */
+  n1: { s: () => mapScreen({ guest: true, fab: 'n2' }), h: 'オンボーディングを終えると、ここに着きます（まだログインしていない）。記録0枚の人への案内は無く、右下の <b>＋</b> だけ。' },
+  n2: { s: () => mapScreen({ guest: true, body: loginModal('n3', 'n1') }), h: '＋を押すと「ログインが必要です」。<b>Appleでサインイン</b>（アカウントができる＝「登録」）。' },
+  n3: { s: () => recordScreen({ goPhoto: 'n3x', goClose: 'n4', nextClose: true }), h: 'ログインすると、そのまま記録の画面に入ります。<b>手元に御朱印が無い人は ✕ で閉じるしかない</b>（左上の ✕）。' },
+  n3x: { s: () => recordScreen({ goPhoto: 'n3x', goClose: 'n4', nextClose: true }), h: '（写真の枠を押すとカメラが開きます。手元に御朱印が無いと撮るものがありません）左上の <b>✕</b> で閉じる。' },
+  n4: { s: () => mapScreen({ fab: 'n3', fabNext: false, body: tab(3, 'n5', true) }), h: '閉じた先の地図は、何も変わっていません。<b>あゆみ</b> のタブも見てみる。' },
+  n5: { s: () => ayumiScreen({ mode: 'now0', goMapTab: 'n4' }), h: 'あゆみは灰色の日本地図「0 / 47」と、まだ押されていない印だけ。次に何をすればいいかは書いていません。' },
+
+  /* 案① */
+  a1: { s: () => mapScreen({ guest: true, body: cardA({ goShoot: 'a2', goNear: 'an1', goClose: 'ax' }) }),
+    h: '記録0枚の間だけ、地図の下に小さなカード（＋の代わり）。いる県が空押しでうっすら浮きます。<b>御朱印を撮る</b>へ。<br>（「近くの寺社を見る」「✕」も押せます）',
+    play: r => later(() => r.querySelector('#miniwin .emboss').classList.add('on'), 320) },
+  ax: { s: () => mapScreen({ guest: true, fab: 'a1', body: cardA({ goShoot: 'a2', goNear: 'an1', goClose: 'ax', next: 'none' }).replace('rise', '') }),
+    h: '✕ で閉じると、カードは右下の＋へ畳まれます。<b>＋</b>を押すとカードに戻ります（次に開いたときにまた出す／もう出さない、はオーナーが決める）。',
+    play: r => { r.querySelector('#miniwin .emboss').classList.add('on'); later(() => r.querySelector('#cardA').classList.add('fold'), 60); later(() => { const c = r.querySelector('#cardA'); if (c) c.style.visibility = 'hidden'; }, 360); } },
+  a2: { s: () => mapScreen({ guest: true, body: cardA({ goShoot: 'a2', goNear: 'an1', goClose: 'ax', next: 'none' }).replace('rise', '') + loginModal('a3', 'a1') }),
+    h: 'ログインしていない人には、いまと同じログイン。<b>Appleでサインイン</b>。',
+    play: r => r.querySelector('#miniwin .emboss').classList.add('on') },
+  a3: { s: () => recordScreen({ goPhoto: 'a4', goClose: 'a1' }), h: '記録の画面（いまのまま）。写真の枠を押して撮る。' },
+  a4: { s: () => recordScreen({ photo: true, goSave: 'a5' }), h: '撮れたら <b>この内容で記録する</b>。' },
+  a5: { s: () => completeScreen({ goExit: 'a6' }), h: '保存直後。全国 → 京都府へ寄り、カードで見た空押しの県に、ピンと一緒に<b>色が差す</b>。<b>地図に戻る</b>。',
+    play: r => playComplete(r, 'new') },
+  a6: { s: () => mapScreen({ pin: C.shrine600, fab: 'a3', fabNext: false }), h: '1枚目のあとはカードが消え、いつもの＋に戻ります。八坂神社のピンは記録済みの色に。（おわり。「最初から」で戻る）' },
+  an1: { s: () => mapScreen({ guest: true, body: nearSheet('an2') }), h: '「近くの寺社を見る」: 近い順の一覧（いまある地域の一覧を、距離の順・距離つきで使う）。<b>八坂神社</b>を押す。' },
+  an2: { s: () => mapScreen({ guest: true, body: spotSheet({ goWish: 'an3', goRecord: 'a2' }) }), h: 'いつもの寺社のシート。手元に御朱印が無い人は <b>行きたい</b> へ（参拝したら、ここから記録する）。' },
+  an3: { s: () => mapScreen({ guest: true, body: spotSheet({}) + loginModal('an4', 'an2') }), h: '行きたいも、ログインしていなければ今と同じログイン。<b>Appleでサインイン</b>。' },
+  an4: { s: () => mapScreen({ body: spotSheet({ wished: true, goClose: 'an5' }) }), h: '行きたいに入りました。地図（シートの上）を押して閉じる。' },
+  an5: { s: () => mapScreen({ pin: C.wish, body: cardA({ goShoot: 'a3', goNear: 'an1', goClose: 'ax', next: 'none' }) }),
+    h: '八坂神社は「行きたい」の色に。記録はまだ0枚なので、カードはそのまま（参拝したら、ここから撮る）。（おわり）',
+    play: r => later(() => r.querySelector('#miniwin .emboss').classList.add('on'), 320) },
+
+  /* 案② */
+  b1: { s: () => mapScreen({ guest: true, fab: 'b2' }), h: '地図はいまのまま（＋だけ）。<b>＋</b>を押す。' },
+  b2: { s: () => mapScreen({ guest: true, body: loginModal('b3', 'b1') }), h: 'いまと同じログイン。<b>Appleでサインイン</b>。' },
+  b3: { s: () => mapScreen({ body: firstSheet({ goShoot: 'b4', goNear: 'bn1', goLater: 'bl' }) }),
+    h: '登録の直後、記録0枚なら記録の画面に直行せず、このシート。御朱印帳が1枚めくれて、最初のページに「一」が空押しで浮きます。<b>手元に御朱印がある</b>へ。（ほかの2つも押せます）',
+    play: r => { later(() => r.querySelector('#book').classList.add('open'), 380); later(() => r.querySelector('#press').classList.add('on'), 380 + 700); } },
+  bl: { s: () => mapScreen({ fab: 'b4', fabNext: false }), h: '「あとで」: いまと同じ地図に戻ります。<b>このシートは一度きり</b>なので、以後の案内はありません。（おわり）' },
+  b4: { s: () => recordScreen({ goPhoto: 'b5', goClose: 'b3' }), h: '記録の画面（いまのまま）。写真の枠を押して撮る。' },
+  b5: { s: () => recordScreen({ photo: true, goSave: 'b6' }), h: '<b>この内容で記録する</b>。' },
+  b6: { s: () => completeScreen({ goExit: 'b7' }), h: '保存直後（どの案でも同じ足し）。<b>地図に戻る</b>。', play: r => playComplete(r, 'new') },
+  b7: { s: () => mapScreen({ pin: C.shrine600, fab: 'b4', fabNext: false }), h: '地図に戻る。（おわり）' },
+  bn1: { s: () => mapScreen({ body: nearSheet('bn2') }), h: '「近くの寺社を見ておく」: 近い順の一覧。<b>八坂神社</b>を押す。' },
+  bn2: { s: () => mapScreen({ body: spotSheet({ goWish: 'bn3', goRecord: 'b4' }) }), h: 'ログイン済みなので、<b>行きたい</b> はそのまま入ります。' },
+  bn3: { s: () => mapScreen({ body: spotSheet({ wished: true, goClose: 'bn4' }) }), h: '入りました。地図を押して閉じる。' },
+  bn4: { s: () => mapScreen({ pin: C.wish, fab: 'b4', fabNext: false }), h: '行きたいの色のピン。地図には、ほかの案内は出ません（いまと同じ）。（おわり）' },
+
+  /* 案③ */
+  c0: { s: () => ayumiScreen({ mode: 'now0' }) + box('c1', 0, 114, 440, 760, 0, true), h: 'これは<b>いまの</b>あゆみ（記録0枚）。押すと案に切り替わります。' },
+  c1: { s: () => ayumiScreen({ mode: 'new0', goShoot: 'c2', goNear: 'cn1' }), h: '案: 灰色の地図の中で、いる県だけ空押しで浮き、その下に一言とボタン。<b>御朱印を撮る</b>へ。',
+    play: r => later(() => r.querySelector('#aymap .emboss').classList.add('on'), 300) },
+  c2: { s: () => recordScreen({ goPhoto: 'c3', goClose: 'c1' }), h: '記録の画面（いまのまま）。写真の枠を押して撮る。' },
+  c3: { s: () => recordScreen({ photo: true, goSave: 'c4' }), h: '<b>この内容で記録する</b>。' },
+  c4: { s: () => completeScreen({ exit: 'ayumi', goExit: 'c5' }), h: '保存直後。出口に <b>あゆみに戻る</b> を足す（いまは地図と御朱印帳だけ）。', play: r => playComplete(r, 'new') },
+  c5: { s: () => ayumiScreen({ mode: 'after' }), h: '戻ると、空押しだった京都府に色が差して「1 / 47」。（おわり）',
+    play: r => later(() => { r.querySelector('#aymap .tint').classList.add('on'); r.querySelector('#aymap .emboss').classList.remove('on'); }, 450) },
+  cn1: { s: () => mapScreen({ body: nearSheet('cn2') }), h: '「近くの寺社を見る」は地図のタブへ移って、近い順の一覧。<b>八坂神社</b>。' },
+  cn2: { s: () => mapScreen({ body: spotSheet({ goWish: 'cn3', goRecord: 'c2' }) }), h: '<b>行きたい</b>。' },
+  cn3: { s: () => mapScreen({ pin: C.wish, body: spotSheet({ wished: true }) }), h: '入りました。（おわり）' },
+
+  /* 保存直後（共通） */
+  k1: { s: () => completeScreen({ variant: 'now' }) + box('k2', 16, 78, 408, 696, 24, true), h: '<b>いま</b>: 寄り終わってピンが落ちた瞬間に、県の色が切り替わる。押すと案へ。', play: r => playComplete(r, 'now') },
+  k2: { s: () => completeScreen({ variant: 'new' }) + box('k1', 16, 78, 408, 696, 24, true), h: '<b>案</b>: 寄る間に県が空押しで浮き、ピンが落ちたら 0.6 秒で色が差す（点滅なし）。押すと「いま」へ。', play: r => playComplete(r, 'new') },
+};
+
+const FLOWS = [
+  { id: 'now', label: 'いまの道のり', start: 'n1', notes: 'notes-now' },
+  { id: 'a', label: '案① 地図のカード', start: 'a1', notes: 'notes-a' },
+  { id: 'b', label: '案② 登録の直後のシート', start: 'b1', notes: 'notes-b' },
+  { id: 'c', label: '案③ あゆみの空の地図', start: 'c0', notes: 'notes-c' },
+  { id: 'k', label: '1枚目の保存直後（共通）', start: 'k1', notes: 'notes-k' },
+];
+
+const phone = document.getElementById('phone');
+let flow = FLOWS[1], cur = flow.start, hist = [], renderGen = 0;
+function render() {
+  timers.forEach(clearTimeout); timers = [];
+  const st = STEPS[cur];
+  phone.innerHTML = st.s();
+  document.getElementById('hint').innerHTML = st.h;
+  const id = cur, gen = ++renderGen;
+  if (st.play) requestAnimationFrame(() => requestAnimationFrame(() => { if (cur === id && gen === renderGen) st.play(phone); }));
+}
+function go(id) { hist.push(cur); cur = id; render(); }
+window.__go = go; window.__cur = () => cur;
+phone.addEventListener('click', e => { const el = e.target.closest('[data-go]'); if (el) go(el.dataset.go); });
+document.getElementById('back').onclick = () => { if (hist.length) { cur = hist.pop(); render(); } };
+document.getElementById('replay').onclick = render;
+document.getElementById('restart').onclick = () => { hist = []; cur = flow.start; render(); };
+document.getElementById('showhot').onchange = e => phone.classList.toggle('show-hot', e.target.checked);
+function pick(f) {
+  flow = f; hist = []; cur = f.start;
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.id === f.id));
+  document.getElementById('notes').innerHTML = document.getElementById(f.notes).innerHTML;
+  try { localStorage.setItem('proto327-flow', f.id); } catch (_) {}
+  render();
+}
+const tabsEl = document.getElementById('tabs');
+FLOWS.forEach(f => { const b = document.createElement('button'); b.textContent = f.label; b.dataset.id = f.id; b.onclick = () => pick(f); tabsEl.appendChild(b); });
+function fit() {
+  const wide = innerWidth > 960;
+  const byH = (innerHeight - (wide ? 210 : 230)) / 956;
+  const byW = (Math.min(innerWidth, 1180) - 32) / 440;
+  const force = parseFloat(new URLSearchParams(location.search).get('s'));
+  const s = force > 0 ? force : clamp(Math.min(byH, byW, 1), 0.45, 1);
+  document.documentElement.style.setProperty('--s', s.toFixed(3));
+}
+addEventListener('resize', fit); fit();
+let saved = null; try { saved = localStorage.getItem('proto327-flow'); } catch (_) {}
+const qs = new URLSearchParams(location.search).get('flow');
+addEventListener('DOMContentLoaded', () => pick(FLOWS.find(f => f.id === (qs || saved)) || FLOWS[0]));
+</script>
+
+<!-- ── 右の説明（タブごと） ── -->
+<template id="notes-now"><div>
+  <h2>いまの道のり — 記録0枚の人が見ているもの</h2>
+  <ol>
+    <li>はじめて開くと、オンボーディング4枚 →「続ける」で位置情報の許可 → <b>地図</b>。<b>この時点ではまだ登録（ログイン）していない</b>。</li>
+    <li>地図にあるのは、近くの寺社のピンと右下の <b>＋</b> だけ。＋には言葉が無い（読み上げ用のラベルだけ）。記録0枚の人に向けた案内は、地図・あゆみ・御朱印帳のどこにも無い。</li>
+    <li>登録が起きるのは、＋・寺社のシートの「記録する」「行きたい」を押したとき（「ログインが必要です」）か、あゆみ・御朱印帳・予定・設定の「ログインして始める」。</li>
+    <li><b>＋から登録した人は、そのまま記録の画面に入る</b>（<code>MapScreen.handleLoginSuccess</code> → 記録）。スポット・写真・訪問日のフォームで、<b>手元に御朱印が無いと ✕ で閉じるしかない</b>。閉じた先の地図は何も変わらない。登録して1枚も記録しなかった2人が離れたのは、ここが有力（推測。どこで離れたかのデータは無い）。</li>
+    <li>あゆみ・御朱印帳から登録した人は、もとのタブに戻る（<code>LoginScreen</code> は goBack）。あゆみは灰色の「0 / 47」と、まだ押されていない印。御朱印帳は「御朱印がまだありません／御朱印を記録して、<b>コレクション</b>を始めましょう」（使わない言葉）。めくり表示の白紙は「ここに御朱印を<b>追加する</b>」（作る側の言葉）。</li>
+    <li>1枚目の保存直後は、もう「全国 → その県へ寄る → ピン → 県が色づく」「1枚目」「京都府、はじめて」「初めての御朱印」の印が出る。<b>Issue の3つ目（県が色づく瞬間）は、ほぼできている</b>。足りないのは、色がピンと同時に一瞬で切り替わるだけで、1枚目のいちばん薄い色（#FDBA74）だと気づきにくいこと。</li>
+  </ol>
+  <h3>案を比べる軸</h3>
+  <table>
+    <tr><th></th><th>登録前（オンボーディングのあと）</th><th>＋から登録 → 記録を閉じた</th><th>あゆみ等から登録</th><th>あとで開き直した</th></tr>
+    <tr><th>案①</th><td>届く</td><td>届く</td><td>地図に来れば届く</td><td>届く</td></tr>
+    <tr><th>案②</th><td>—</td><td>届く（記録の前に受け止める）</td><td>出し方次第</td><td>—（1回きり）</td></tr>
+    <tr><th>案③</th><td>—（あゆみを開けば）</td><td>あゆみを開けば</td><td>届く</td><td>あゆみを開けば</td></tr>
+  </table>
+</div></template>
+
+<template id="notes-a"><div>
+  <h2>案① 地図の上に、記録0枚の間だけ出るカード</h2>
+  <h3>見せる順</h3>
+  <ol>
+    <li>地図を開く（記録0枚。ログイン前も後も）→ 下に小さなカード。＋はカードの間は隠す（同じ役目なので）。</li>
+    <li>「御朱印を撮る」→（ログイン前ならいまのログイン）→ 記録 → 保存直後 → 地図に戻るとカードは消え、＋に戻る。</li>
+    <li>「近くの寺社を見る」→ 近い順の一覧 → 寺社のシート →「行きたい」。行きたいのピンになり、カードは残る。</li>
+    <li>✕ → カードが＋へ畳まれる。</li>
+  </ol>
+  <h3>言葉</h3>
+  <div class="q"><span class="say">参拝したら、写真1枚で日本地図に。</span><br>撮ると、京都府に色が差します<br>［御朱印を撮る］［近くの寺社を見る］／ 一覧「近くの寺社（5）」</div>
+  <p style="margin-top:6px">県は近くの寺社の県（<code>nearbySpots[0].spot.prefecture</code>）。位置情報が無いときは「撮ると、その県に色が差します」。</p>
+  <h3>動き</h3>
+  <ul>
+    <li>カードは下から 0.3 秒で静かに出る（地域の一覧と同じ出方。弾まない）。</li>
+    <li>中の小さな地図で、いる県が「空押し」でうっすら浮く（0.6 秒・1回だけ。止まらない動きは無い）。保存直後にその県へ色が差すので、案内と結果がつながる。</li>
+    <li>✕ で、カードが＋の位置へ縮んで畳まれる（0.28 秒）。</li>
+  </ul>
+  <h3>変えるところ <span class="tag size">S〜M</span></h3>
+  <ul>
+    <li><code>MapScreen</code>: 記録0枚のときだけカードを出し、＋を隠す。0枚は <code>useUserStamps</code> の <code>visitedSpotIds.size</code> と <code>isLoading</code> で分かる（新しい取得なし。ログイン前は常に0枚）。ピンを選んだら隠す（＋と同じ）。</li>
+    <li>新しい部品 <code>FirstStampCard</code>（小さな地図は <code>SaveMapReveal</code> の寄りと県境をそのまま使う）。</li>
+    <li>「近くの寺社を見る」: いまある <code>RegionSpotSheet</code> を、距離の順・距離つきで出す（いまは rank の順で距離が無い）。寺社は <code>useSpots</code> で読んでいるものから近い5つ。</li>
+    <li>✕ の扱いを覚えるなら AsyncStorage に1つ（オーナーが決めること）。</li>
+  </ul>
+  <h3>よい所と心配な所</h3>
+  <ul>
+    <li><span class="tag good">よい</span>入口を選ばない。登録前の人にも、＋から登録して記録を閉じた人にも、開き直した人にも、記録0枚の間はずっと同じ所にある。</li>
+    <li><span class="tag good">よい</span>手元に御朱印が無い人の行き先がある（近くの寺社 → 行きたい）。利用者の記録は4枚に3枚が参拝から1週間以内なので、「次の参拝」につなぐのが本筋。</li>
+    <li><span class="tag good">よい</span>画面もタップも増やさない。</li>
+    <li><span class="tag warn">心配</span>地図の下の 1/5 ほどが隠れる。</li>
+    <li><span class="tag warn">心配</span>毎回出ると催促に感じるかも。<b>決めること</b>: ✕ は「その回だけ畳む」か「もう出さない」か。<b>決めること</b>: ログイン前の人にも出すか（出さないなら <code>isAuthenticated</code> で絞る）。</li>
+  </ul>
+</div></template>
+
+<template id="notes-b"><div>
+  <h2>案② 登録の直後に1回だけ出るシート</h2>
+  <h3>見せる順</h3>
+  <ol>
+    <li>地図はいまのまま。＋ → いまのログイン。</li>
+    <li>ログインできて記録0枚なら、<b>記録の画面に直行せず</b>、地図の上にシートが上がる。御朱印帳が1枚めくれて、最初のページに「一」が空押しで浮く。</li>
+    <li>「手元に御朱印がある」→ 記録へ。「これから参拝する」→ 近くの寺社の一覧 → 行きたい。「あとで」→ 地図。</li>
+  </ol>
+  <h3>言葉</h3>
+  <div class="q"><span class="say">参拝したら、写真1枚で日本地図に。</span><br>手元に御朱印がある ― 撮って、最初の1枚にする<br>これから参拝する ― 近くの寺社を見ておく<br>あとで</div>
+  <h3>動き</h3>
+  <ul>
+    <li>シートは下から 0.3 秒（地域の一覧と同じ）。</li>
+    <li>御朱印帳は、御朱印帳の読み込み中の本（#275 の <code>LoadingBook</code>）をそのまま大きくし、<b>1枚だけめくる</b>（0.7 秒・行き過ぎなし）。めくれた先の白いページに「一」の印が空押しで浮く（0.45 秒）。</li>
+  </ul>
+  <h3>変えるところ <span class="tag size">S〜M</span></h3>
+  <ul>
+    <li><code>MapScreen.handleLoginSuccess</code>: 記録0枚ならシートを出す（いまは記録の画面へ直行）。寺社のシートの「記録する」からのログインも同じ。</li>
+    <li>新しい部品 <code>FirstPageSheet</code>（本は <code>LoadingBook</code> を流用、印は <code>SealGlyph</code> の空押し）。</li>
+    <li>あゆみ・御朱印帳・設定の「ログインして始める」からも出すなら、地図のタブへ移してから出す（ひと手間）。</li>
+    <li>近くの寺社の一覧は①と同じ。</li>
+  </ul>
+  <h3>よい所と心配な所</h3>
+  <ul>
+    <li><span class="tag good">よい</span>「登録したその日」にいちばん効く所で、手元に無い人を記録の画面に入れる前に受け止める。</li>
+    <li><span class="tag good">よい</span>1回きりなので催促にならない。</li>
+    <li><span class="tag warn">心配</span>撮るつもりで＋を押した人には1タップ増える。</li>
+    <li><span class="tag warn">心配</span>登録前の人・「あとで」を押した人・開き直した人には何も出ない（届くのは登録の瞬間だけ）。</li>
+  </ul>
+</div></template>
+
+<template id="notes-c"><div>
+  <h2>案③ あゆみの空の日本地図から誘う</h2>
+  <h3>見せる順</h3>
+  <ol>
+    <li>あゆみ（記録0枚）→ 灰色の地図の中で、いる県だけ空押しで浮く → 一言とボタン。</li>
+    <li>「御朱印を撮る」→ 記録 → 保存直後 →「あゆみに戻る」→ 京都府に色が差して「1 / 47」。</li>
+    <li>「近くの寺社を見る」→ 地図のタブへ移って近い順の一覧。</li>
+  </ol>
+  <h3>言葉</h3>
+  <div class="q"><span class="say">最初の1枚で、京都府に色が差します。</span><br>［御朱印を撮る］［近くの寺社を見る］<br>0枚の間は凡例（まだ 47 …）を出さない</div>
+  <p style="margin-top:6px">ついでに直す言葉（どの案でも）: 御朱印帳の空「御朱印を記録して、<b>コレクション</b>を始めましょう」→ 例「参拝したら、ここに1枚ずつ並びます」。めくり表示の白紙「ここに御朱印を<b>追加する</b>」→ 例「最初の1枚を撮る」。</p>
+  <h3>動き</h3>
+  <ul>
+    <li>あゆみを開くと、その県だけ空押しで浮く（0.6 秒・1回）。</li>
+    <li>1枚目のあとに戻ると、その県に色が差す（同じ 0.6 秒）。</li>
+  </ul>
+  <h3>変えるところ <span class="tag size">S</span></h3>
+  <ul>
+    <li><code>CollectionScreen</code>: 0枚のとき、地図カードの下を凡例から一言とボタンに替える。</li>
+    <li><code>JapanMap</code>: 空押しの県を1つ描けるようにする。</li>
+    <li><code>RecordCompleteScreen</code>: 出口に「あゆみに戻る」を足す（いまは地図と御朱印帳だけ）。</li>
+    <li><code>GalleryScreen</code>・<code>GoshuinchoPage</code> の言葉。</li>
+  </ul>
+  <h3>よい所と心配な所</h3>
+  <ul>
+    <li><span class="tag good">よい</span>「集めるたび、地図があなたの旅になる」を、空の地図のまま見せられる。安い。ほかの案と重ねられる。</li>
+    <li><span class="tag warn">心配</span>はじめに着くのは地図のタブなので、<b>届く人が少ない</b>。これだけでは足りない。</li>
+  </ul>
+</div></template>
+
+<template id="notes-k"><div>
+  <h2>1枚目の保存直後 — どの案にも足す小さな変更</h2>
+  <p>保存直後の画面は、もう「全国 → その県へ寄る → ピン → 県が色づく」になっている。足すのは<b>色の入り方だけ</b>。</p>
+  <table>
+    <tr><th>いま</th><td>寄り終わってピンが落ちた瞬間に、県の色が切り替わる（#FDBA74）。</td></tr>
+    <tr><th>案</th><td>寄る間に、その県が空押しでうっすら浮く → ピンが落ちたら 0.6 秒で色が差す。点滅は入れない（#209 で入れないと決めた）。予定タブのアイコンで選ばれた「空押しから色が差す」（#305）と同じ考え方。</td></tr>
+  </table>
+  <h3>変えるところ <span class="tag size">S</span></h3>
+  <ul>
+    <li><code>SaveMapReveal</code>: その県の色を、上に重ねた1枚の不透明度で入れる（<code>PrefectureMap</code> と同じ作り。SVG の fill は native driver で動かせないため）。空押しは <code>SealGlyph</code> と同じ重ね方。</li>
+    <li>①・③の案内で見せた空押しの県と同じ絵なので、「案内で見た県に、本当に色が差した」とつながる。</li>
+  </ul>
+  <p style="margin-top:8px">画面の中を押すと「いま」と「案」が入れ替わります。「もう一度動かす」で最初から。</p>
+</div></template>
+</body>
+</html>
