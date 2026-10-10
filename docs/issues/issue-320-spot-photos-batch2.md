@@ -366,16 +366,18 @@ UI-1・UI-2 は「本番」のあと（PR を作ったあと）に確かめ、`p
 
 ### 本番の記録（H のあとに書く）
 
-| 手順       | 結果 |
-| ---------- | ---- |
-| H-0〜H-5   |      |
-| H-6        |      |
-| H-7・H-8   |      |
-| H-9・H-10  |      |
-| H-11・H-12 |      |
-| H-13       |      |
-| L-1・UI-1  |      |
-| H-14       |      |
+時刻は 2026-10-10 の JST。
+
+| 手順       | 結果                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| H-0〜H-5   | オーナー。H-3 `台帳 777 件 / R2 に既にある 688 件 / 置く 89 件 / キャッシュに無い 0 件`。H-4 `置いた 89 件 / 失敗 0 件 / R2 にある台帳の写真 777 / 777`。H-5（`unset` とトークンの削除）は、この記録の時点でリーダーは確かめていない                                                                                                                                                                                                                                                                                            |
+| H-6        | 23:38 `777/777 件 200`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| H-7・H-8   | H-7 `RESULT table=present rls=on total=1109 listed=89 not_one=0 present=0 differ=0 missing=89 others=688 anon_select=688 anon_insert=denied`。H-8 `RESULT table=present rls=on total=1109 listed=688 not_one=0 present=688 differ=0 missing=0 extra=0 anon_select=688 anon_insert=denied`                                                                                                                                                                                                                                       |
+| H-9・H-10  | H-9 exit 0。H-10 済み                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| H-11・H-12 | H-11 `RESULT table=present rls=on total=1109 listed=89 not_one=0 present=89 differ=0 missing=0 others=688 anon_select=777 anon_insert=denied`。H-12 `RESULT table=present rls=on total=1109 listed=688 not_one=0 present=688 differ=0 missing=0 extra=89 anon_select=777 anon_insert=denied`                                                                                                                                                                                                                                    |
+| H-13       | `20261004020000` が local・remote の両方にある                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| L-1・UI-1  | L-1 `200 image/webp`。UI-1（23:55。Expo Web・本番の DB と R2）: 台帳の第2弾の high の先頭 **善知鳥神社**（青森県）→ `spot-hero-photo` の `opacity` 1・画像 `…/format=webp/spot-photos/1091cbd08553ddcf2122238ad1551903ddc6b4e8.jpg`・表記に `lumoplank` と `CC0`。手で結んだ先頭 **札幌諏訪神社**（北海道）→ `opacity` 1・`…/spot-photos/ee95c85b7e51da9e9a191aaa668a731906f6dcc8.jpg`・`MIKI Yoshihito` と `CC BY 2.0`。スクショは `evidence/issue-320/ui1-*-prod.png`。画面の幅は 375（Playwright の窓が 390 にならなかった） |
+| H-14       | まだ（オーナー）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 
 ### 戻すとき（リーダーが決めたときだけ）
 

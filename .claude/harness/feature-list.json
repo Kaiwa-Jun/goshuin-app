@@ -230,14 +230,14 @@
     {
       "id": "ISSUE-320",
       "title": "写真の無いrank 5寺社に帯の写真を足す（第2弾）",
-      "note": "契約書 docs/issues/issue-320-spot-photos-batch2.md。手で結んだ 24・候補 99 寺社/1,635 枚・採る 89（high 66・medium 2・manual 21）・外す 10。台帳 777（第1弾 688 はそのまま）と第2弾の migration・確かめる SQL。UI-S1〜5 PASS（evaluator）。AC-23 は構図を evaluator（35 枚）、その寺社の写真かをリーダーが Commons のカテゴリで 34/34 確かめた。結べない 26 の個別の理由は progress.md。本番（R2・spot_photos）と UI-1・UI-2 はまだ。passes は本番のあと",
-      "passes": false
+      "note": "契約書 docs/issues/issue-320-spot-photos-batch2.md。手で結んだ 24・候補 99 寺社/1,635 枚・採る 89（high 66・medium 2・manual 21）・外す 10。台帳 777（第1弾 688 はそのまま）と第2弾の migration・確かめる SQL。UI-S1〜5 PASS（evaluator）。AC-23 は構図を evaluator（35 枚）、その寺社の写真かをリーダーが Commons のカテゴリで 34/34 確かめた。結べない 26 の個別の理由は progress.md。本番は 2026-10-10 に反映（R2 に 777/777・spot_photos の第2弾 89 件・第1弾 688 件はそのまま）。UI-1 は本番の値でリーダーが Expo Web で確かめた（善知鳥神社・札幌諏訪神社）。未確認: UI-2（オーナーの iPhone）",
+      "passes": true
     },
     {
       "id": "ISSUE-324",
       "title": "ホームページ goshuinsanpo.com（アプリの紹介と寺社ごとのページ）",
-      "note": "契約書 docs/issues/issue-324-homepage.md。site/ の Deno の生成器（S1〜S5）。HTML 829（寺社 777・都道府県 47）・sitemap 828・robots・llms.txt・JSON-LD・check・serve・site.yml。deno test 77 通過（素材の 3 つは ignored）。スクショ 8 枚・ogp.png・App Store のバッジはリーダーが入れる（無い間 check はバッジで止まる）。APP_STORE_PT・CF_BEACON_TOKEN は H-0。evaluator（UI-1〜12）・H（本番）はまだ。passes は本番のあと",
-      "passes": false
+      "note": "契約書 docs/issues/issue-324-homepage.md。site/ の Deno の生成器（S1〜S5）。HTML 829（寺社 777・都道府県 47）・sitemap 828・robots・llms.txt・JSON-LD・check・serve・site.yml。deno test 77 通過（素材の 3 つは ignored）。スクショ 8 枚・ogp.png・App Store のバッジはリーダーが入れる（無い間 check はバッジで止まる）。APP_STORE_PT・CF_BEACON_TOKEN は H-0。goshuin-evaluator PASS（AC-1〜39・UI-1〜12）。PR #326。本番は 2026-10-10 に https://goshuinsanpo.com/ で公開（HTTPS・旧 URL の 301・beacon・Search Console の確認とサイトマップの送信まで。H の記録は契約書）。未確認: サイトマップの読み込み（送った直後は「取得できませんでした」）・UI-13（オーナーの iPhone で App Store が開くか）・H-13（Bing。任意）",
+      "passes": true
     }
   ]
 }
