@@ -16,5 +16,13 @@
     }
   },
   "include": ["**/*.ts", "**/*.tsx"],
-  "exclude": ["node_modules", "dist", "build", "coverage", "supabase/functions", "supabase/scripts"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "build",
+    "coverage",
+    "supabase/functions",
+    "supabase/scripts",
+    "site"
+  ]
 }
