@@ -1,0 +1,50 @@
+{
+  "x.json": {
+    "url": "http://127.0.0.1:8324/",
+    "scores": {
+      "performance": 98,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 100
+    },
+    "metrics": {
+      "first-contentful-paint": "0.7 s",
+      "largest-contentful-paint": "0.8 s",
+      "total-blocking-time": "0 ms",
+      "cumulative-layout-shift": "0"
+    },
+    "failedAudits": [["speed-index", "Speed Index", 0.75]]
+  },
+  "xprefectures_tokyo_.json": {
+    "url": "http://127.0.0.1:8324/prefectures/tokyo/",
+    "scores": {
+      "performance": 100,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 100
+    },
+    "metrics": {
+      "first-contentful-paint": "0.9 s",
+      "largest-contentful-paint": "0.9 s",
+      "total-blocking-time": "0 ms",
+      "cumulative-layout-shift": "0"
+    },
+    "failedAudits": []
+  },
+  "xspots_tokyo_002_.json": {
+    "url": "http://127.0.0.1:8324/spots/tokyo-002/",
+    "scores": {
+      "performance": 98,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 100
+    },
+    "metrics": {
+      "first-contentful-paint": "0.7 s",
+      "largest-contentful-paint": "2.3 s",
+      "total-blocking-time": "0 ms",
+      "cumulative-layout-shift": "0"
+    },
+    "failedAudits": [["largest-contentful-paint", "Largest Contentful Paint", 0.92]]
+  }
+}
