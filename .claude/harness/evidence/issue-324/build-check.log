@@ -1,0 +1,17 @@
+site/dist を作った: HTML 829（寺社 777・都道府県 47）・ほか 3・素材 2
+まだ無い: スクショ（site/static/img/screens/ の 8 枚）が無いので、トップのスクショの節を出さない
+まだ無い: site/static/img/app-store-badge-ja.svg が無い（ページはこのパスを指す。check が止まる）
+まだ無い: site/static/img/ogp.png が無い
+--- diff -r（2回作った差）
+差なし
+--- 数
+HTML 829・spots 777・prefectures 47・sitemap の loc 828・CNAME 0
+--- AC-29
+0
+--- check（素材が無いまま）
+img/app-store-badge-ja.svg: リンクの先が無い（778 ファイルから。例: index.html）
+検査に通らない: 1 件（site/dist）
+exit 1
+--- check（scratchpad の写しにだけ仮のバッジを置いたとき）
+検査に通った: site/dist（HTML 829）
+exit 0

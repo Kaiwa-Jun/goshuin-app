@@ -232,6 +232,12 @@
       "title": "写真の無いrank 5寺社に帯の写真を足す（第2弾）",
       "note": "契約書 docs/issues/issue-320-spot-photos-batch2.md。手で結んだ 24・候補 99 寺社/1,635 枚・採る 89（high 66・medium 2・manual 21）・外す 10。台帳 777（第1弾 688 はそのまま）と第2弾の migration・確かめる SQL。UI-S1〜5 PASS（evaluator）。AC-23 は構図を evaluator（35 枚）、その寺社の写真かをリーダーが Commons のカテゴリで 34/34 確かめた。結べない 26 の個別の理由は progress.md。本番（R2・spot_photos）と UI-1・UI-2 はまだ。passes は本番のあと",
       "passes": false
+    },
+    {
+      "id": "ISSUE-324",
+      "title": "ホームページ goshuinsanpo.com（アプリの紹介と寺社ごとのページ）",
+      "note": "契約書 docs/issues/issue-324-homepage.md。site/ の Deno の生成器（S1〜S5）。HTML 829（寺社 777・都道府県 47）・sitemap 828・robots・llms.txt・JSON-LD・check・serve・site.yml。deno test 77 通過（素材の 3 つは ignored）。スクショ 8 枚・ogp.png・App Store のバッジはリーダーが入れる（無い間 check はバッジで止まる）。APP_STORE_PT・CF_BEACON_TOKEN は H-0。evaluator（UI-1〜12）・H（本番）はまだ。passes は本番のあと",
+      "passes": false
     }
   ]
 }

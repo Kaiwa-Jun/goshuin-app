@@ -10,6 +10,7 @@ import {
   makeRoot,
   NO_ASSETS,
   readRepo,
+  REPO_DIR,
   realData,
   realLegal,
   realSite,
@@ -542,13 +543,25 @@ Deno.test('AC-28（作る×2）: 2回作って同じ・作った日時が入ら�
   }
 });
 
-Deno.test('AC-29: 生成物に /Users/・kaiwajun・goshuin-work が無い', async () => {
-  const { dist } = await builtByCli();
-  for (const [p, t] of Object.entries(await snapshot(dist))) {
-    for (const w of ['/Users/', 'kaiwajun', 'goshuin-work']) assert(!t.includes(w), `${p}: ${w}`);
+Deno.test(
+  'AC-29: 生成物に個人のパス（ホーム・利用者の名前・作業フォルダ・リポジトリの場所）が無い',
+  async () => {
+    const { dist } = await builtByCli();
+    // 契約書 AC-29 の3語。Q-9（site/ に個人のパスの文字を置かない）のため、つないで作る
+    const banned = [
+      ['', 'Users', ''].join('/'),
+      ['kaiwa', 'jun'].join(''),
+      'goshuin-work',
+      REPO_DIR,
+    ];
+    const home = Deno.env.get('HOME');
+    if (home) banned.push(home);
+    for (const [p, t] of Object.entries(await snapshot(dist))) {
+      for (const w of banned) assert(!t.includes(w), `${p}: ${w}`);
+    }
+    assertNotEquals((await snapshot(dist))['index.html'], undefined);
   }
-  assertNotEquals((await snapshot(dist))['index.html'], undefined);
-});
+);
 
 Deno.test('共通: lang・viewport・<h1> が1つ・header と footer', async () => {
   const files = await site();

@@ -305,3 +305,5 @@
     | 828 | 天安河原宮（宮崎県）                 | Wikidata に項目が見つからない（天岩戸神社は別の寺社の項目）                                     |
     | 845 | 龍宮神社（鹿児島県）                 | 曖昧さ回避のページだけ                                                                          |
     | 849 | 月讀神社（桜島）（鹿児島県）         | 項目（Q135433633「月読神社」）に P625 が無い・字が違う（讀／読）                                |
+
+- 2026-10-10: **#324 ホームページ goshuinsanpo.com の生成器**（`site/`・Deno）を S1〜S5 で実装（push 前）。契約書 docs/issues/issue-324-homepage.md。HTML 829（トップ・都道府県 47・寺社 777・法務 2・このサイトのプライバシー・404）・sitemap 828・robots・llms.txt・JSON-LD・`check`・`serve`・`.github/workflows/site.yml`。`deno test site/` 77 通過（素材の 3 つは ignored）・`supabase/scripts/` 336・jest 2,601・lint・typecheck 通過。2回作って `diff -r` 差なし。**まだ無いもの**: スクショ 8 枚・`img/ogp.png`・App Store のバッジ（リーダーが入れる。無い間 `check` はバッジの1件で止まる）、`APP_STORE_PT`・`CF_BEACON_TOKEN`（H-0）。契約書と違えた所: 撮影者「ブルーノ・プラス」（菊名神社 kanagawa-015）の名前は出さない語の検査から除く（ライセンスの表記）。evaluator（UI-1〜12）・本番（H）はまだ。証跡 `.claude/harness/evidence/issue-324/`

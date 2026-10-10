@@ -1,0 +1,16 @@
+running 2 tests from ./site/assets_test.ts
+running 21 tests from ./site/build_test.ts
+running 10 tests from ./site/check_test.ts
+running 8 tests from ./site/data_test.ts
+running 8 tests from ./site/hours_test.ts
+running 3 tests from ./site/html_test.ts
+running 3 tests from ./site/links_test.ts
+running 3 tests from ./site/prefectures_test.ts
+running 6 tests from ./site/seo_test.ts
+running 1 test from ./site/serve_test.ts
+running 9 tests from ./site/slugs_test.ts
+running 6 tests from ./site/static_test.ts
+AC-37: スクショ 8 枚は webp・幅が名前の数・縦横の比 1320:2868（±1%）・150KB 以下 ... ignored (0ms)
+AC-37: OGP の画像は 1200×630 の PNG ... ignored (0ms)
+AC-37: App Store のバッジは SVG ... ignored (0ms)
+ok | 77 passed | 0 failed | 3 ignored (21s)

@@ -26,6 +26,8 @@ App Store Connect / Google Play Console に入力する**確定版メタデー�
 | 問い合わせ先メール        | kj.11235813213455@gmail.com                                |
 
 > **注意**: 上記 URL は GitHub Pages（`main` ブランチ `/docs` フォルダ）有効化後に公開されます。設定手順は `docs/project/release-guide.md` を参照。
+>
+> 2026-10 から `kaiwa-jun.github.io/goshuin-app/…` は `goshuinsanpo.com/…` に転送される（#324）。App Store Connect の URL は次の提出で書き換える。
 
 ---
 
