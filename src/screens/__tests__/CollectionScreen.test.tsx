@@ -82,6 +82,15 @@ jest.mock('@hooks/useCollectionStats', () => ({
   useCollectionStats: () => mockCollectionStats,
 }));
 
+// あゆみの一言の県（#327）。位置と寺社を取りにいかない
+const mockUseNearestPrefecture = jest.fn(() => ({
+  prefecture: null as string | null,
+  isResolved: false,
+}));
+jest.mock('@hooks/useNearestPrefecture', () => ({
+  useNearestPrefecture: () => mockUseNearestPrefecture(),
+}));
+
 const mockRemoveFromWishlist = jest.fn().mockResolvedValue(undefined);
 
 jest.mock('@services/wishlist', () => ({
@@ -831,5 +840,90 @@ describe('年報の入口', () => {
     };
     const tree = render(<CollectionScreen navigation={mockNavigation} route={mockRoute} />);
     expect(tree.queryByText(/年報/)).toBeNull();
+  });
+});
+
+/* Issue #327: ログインしていて 0 枚なら、凡例の代わりに「最初の1枚で、〇〇に色が差します。」 */
+describe('あゆみの一言（#327）', () => {
+  const baseStats = mockCollectionStats;
+  const renderAyumi = () =>
+    render(<CollectionScreen navigation={mockNavigation} route={mockRoute} />);
+
+  beforeEach(() => {
+    mockAuth = { user: { id: 'user-1' }, isAuthenticated: true };
+    mockCollectionStats = {
+      ...baseStats,
+      stampCount: 0,
+      regionStats: [],
+      isLoading: false,
+      error: null,
+    };
+    mockUseNearestPrefecture.mockReset();
+    mockUseNearestPrefecture.mockReturnValue({ prefecture: '京都府', isResolved: true });
+  });
+  afterEach(() => {
+    mockCollectionStats = baseStats;
+  });
+
+  it('AC-50: 0 枚なら凡例の代わりに一言。地図はそのまま', () => {
+    const r = renderAyumi();
+
+    const note = r.getByTestId('ayumi-first-stamp-note');
+    expect(note.props.children).toBe('最初の1枚で、京都府に色が差します。');
+    expect(StyleSheet.flatten(note.props.style)).toEqual(
+      expect.objectContaining({
+        fontSize: 15,
+        lineHeight: 22,
+        color: colors.gray[700],
+        textAlign: 'center',
+      })
+    );
+    expect(r.queryAllByTestId('ayumi-legend-swatch')).toHaveLength(0);
+    expect(r.getAllByTestId(/^prefecture-/)).toHaveLength(47);
+  });
+
+  it('AC-51: 県が分からなければ日本地図。決まるまでは一言も凡例も出さない', () => {
+    mockUseNearestPrefecture.mockReturnValue({ prefecture: null, isResolved: true });
+    const unknown = renderAyumi();
+    expect(unknown.getByTestId('ayumi-first-stamp-note').props.children).toBe(
+      '最初の1枚で、日本地図に色が差します。'
+    );
+    unknown.unmount();
+
+    mockUseNearestPrefecture.mockReturnValue({ prefecture: null, isResolved: false });
+    const pending = renderAyumi();
+    expect(pending.queryByTestId('ayumi-first-stamp-note')).toBeNull();
+    expect(pending.queryAllByTestId('ayumi-legend-swatch')).toHaveLength(0);
+  });
+
+  it('AC-52: 記録がある・読み込み中・読めなかったときは凡例。ゲストには出さない', () => {
+    mockCollectionStats = { ...baseStats, stampCount: 25 };
+    const withStamps = renderAyumi();
+    expect(withStamps.queryByTestId('ayumi-first-stamp-note')).toBeNull();
+    expect(withStamps.getAllByTestId('ayumi-legend-swatch')).toHaveLength(4);
+    expect(mockUseNearestPrefecture).toHaveBeenCalledTimes(0);
+    withStamps.unmount();
+
+    mockCollectionStats = { ...baseStats, stampCount: 0, regionStats: [], isLoading: true };
+    const loading = renderAyumi();
+    expect(loading.queryByTestId('ayumi-first-stamp-note')).toBeNull();
+    expect(loading.getAllByTestId('ayumi-legend-swatch')).toHaveLength(4);
+    loading.unmount();
+
+    mockCollectionStats = {
+      ...baseStats,
+      stampCount: 0,
+      regionStats: [],
+      error: 'x' as unknown as null,
+    };
+    const failed = renderAyumi();
+    expect(failed.queryByTestId('ayumi-first-stamp-note')).toBeNull();
+    expect(failed.getAllByTestId('ayumi-legend-swatch')).toHaveLength(4);
+    failed.unmount();
+
+    mockAuth = { user: null, isAuthenticated: false };
+    mockCollectionStats = { ...baseStats, stampCount: 0, regionStats: [] };
+    const guest = renderAyumi();
+    expect(guest.queryByTestId('ayumi-first-stamp-note')).toBeNull();
   });
 });

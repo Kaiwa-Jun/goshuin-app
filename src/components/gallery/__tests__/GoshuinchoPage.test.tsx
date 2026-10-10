@@ -79,7 +79,7 @@ describe('GoshuinchoPage', () => {
 
     it('案内文を表示する', () => {
       const { getByText } = render(<GoshuinchoPage {...blankProps} />);
-      expect(getByText('ここに御朱印を追加する')).toBeTruthy();
+      expect(getByText('次の1枚を撮る')).toBeTruthy();
     });
 
     it('タップすると onPress が呼ばれる', () => {
@@ -127,7 +127,7 @@ describe('GoshuinchoPage', () => {
 
     it('白紙ページの案内文が gray[400] / bodySmall である', () => {
       const { getByText } = render(<GoshuinchoPage {...blankProps} />);
-      const style = flatten(getByText('ここに御朱印を追加する'));
+      const style = flatten(getByText('次の1枚を撮る'));
       expect(style.color).toBe(colors.gray[400]);
       expect(style.fontSize).toBe(typography.bodySmall.fontSize);
     });
@@ -536,5 +536,30 @@ describe('GoshuinchoPage 表示の切り替えの受け口（Issue #276）', () 
     expect(flatten(getByTestId('flip-page-footer-stamp-1'))).not.toHaveProperty('transform');
     expect(flatten(getByTestId('flip-page-footer-stamp-1'))).not.toHaveProperty('opacity');
     expect(flatten(getByTestId('flip-page-surface-stamp-1'))).not.toHaveProperty('opacity');
+  });
+});
+
+/* Issue #327: 白紙の言葉は記録の枚数で分ける（白紙は何枚あっても最後に付くため） */
+describe('白紙ページの言葉（#327）', () => {
+  const blank = {
+    variant: 'blank' as const,
+    width: 300,
+    isCurrent: true,
+    onPress: jest.fn(),
+  };
+
+  it('AC-54: first なら「最初の1枚を撮る」、なければ「次の1枚を撮る」。今の白紙の文字と同じ形', () => {
+    for (const [first, text] of [
+      [true, '最初の1枚を撮る'],
+      [false, '次の1枚を撮る'],
+    ] as const) {
+      const r = render(<GoshuinchoPage {...blank} {...(first ? { first: true } : {})} />);
+      const style = StyleSheet.flatten(r.getByText(text).props.style);
+      expect(style.color).toBe(colors.gray[400]);
+      expect(style.fontSize).toBe(typography.bodySmall.fontSize);
+      // 前の言葉（品質基準 Q-8 の grep に掛からないよう、つないで作る）
+      expect(r.queryByText(['ここに御朱印を', '追加する'].join(''))).toBeNull();
+      r.unmount();
+    }
   });
 });
