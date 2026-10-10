@@ -43,6 +43,16 @@ eas login
 
 ## 2.1 GitHub Pages の有効化
 
+> **#324（2026-10）から**: 公開ページはホームページ `goshuinsanpo.com` と一緒に、**GitHub Actions**（`.github/workflows/site.yml`）で **`develop`** から出す（公開元は「GitHub Actions」・独自ドメイン `goshuinsanpo.com`）。
+>
+> - プライバシーポリシー・利用規約の**正は `docs/legal/*.html` のまま**。生成器 `site/` が `</head>` の前に canonical と description の2行を足して `https://goshuinsanpo.com/legal/privacy.html`・`/legal/terms.html` に写す（`<body>` は変えない）
+> - **`docs/legal/` の変更は `develop` に入った時点で公開される**（`develop` への push でワークフローが作り直して出す）。下の「`main` の `/docs` から出す」手順と `release/legal-*` を `main` に出す手順は要らなくなる
+> - 独自ドメインにすると `https://kaiwa-jun.github.io/goshuin-app/<パス>` は `https://goshuinsanpo.com/<パス>` に転送されるので、App Store とアプリから張った URL はそのまま届く。App Store Connect の URL は次の版の提出のときに書き換える
+> - `docs/index.html` は消した（中のリンクはホームページの足もとに移した）
+> - 切り替えの手順・戻し方は `docs/issues/issue-324-homepage.md` の「手順」と「戻すとき」、コマンドは `site/README.md`
+>
+> 以下は #324 より前の手順（`main` の `/docs` から出していた頃。戻すときに使う）。
+
 プライバシーポリシー・利用規約は `docs/legal/*.html` に格納されており、GitHub Pages で公開する。初回のみリポジトリ設定から有効化が必要。
 
 ### 設定手順
@@ -60,12 +70,12 @@ eas login
 
 ### 公開対象ファイル
 
-| パス                      | 用途                                                        |
-| ------------------------- | ----------------------------------------------------------- |
-| `docs/index.html`         | トップページ（各ドキュメントへのリンク集）                  |
-| `docs/legal/privacy.html` | プライバシーポリシー                                        |
-| `docs/legal/terms.html`   | 利用規約                                                    |
-| `docs/.nojekyll`          | Jekyll 処理を無効化（`_` で始まるファイルを配信可能にする） |
+| パス                      | 用途                                                                                                        |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `docs/index.html`         | トップページ（各ドキュメントへのリンク集）。**#324 で消した**（`main` には次に `develop` を入れるまで残る） |
+| `docs/legal/privacy.html` | プライバシーポリシー                                                                                        |
+| `docs/legal/terms.html`   | 利用規約                                                                                                    |
+| `docs/.nojekyll`          | Jekyll 処理を無効化（`_` で始まるファイルを配信可能にする）                                                 |
 
 > **注意**: `docs/` 配下の `.md` ファイル（本ガイド等）も公開される点に留意すること。機密情報は `docs/` に置かない。
 

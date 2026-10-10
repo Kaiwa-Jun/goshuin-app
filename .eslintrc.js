@@ -44,5 +44,6 @@ module.exports = {
     '*.config.js',
     'supabase/functions/',
     'supabase/scripts/',
+    'site/',
   ],
 };
