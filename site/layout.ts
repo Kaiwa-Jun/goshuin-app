@@ -15,6 +15,8 @@ export interface PageMeta {
   path: string | null;
   title: string;
   description: string | null;
+  /** OGP の画像（https:// の絶対 URL）。無ければ OGP と Twitter のカードを出さない */
+  ogImage?: string;
   /** <head> の最後に足す HTML（JSON-LD など） */
   head?: string[];
   /** トップは中身の幅を 1080px まで */
@@ -37,6 +39,19 @@ function headTags(meta: PageMeta): string[] {
   if (meta.noindex) out.push('<meta name="robots" content="noindex">');
   if (meta.path !== null)
     out.push(`<link rel="canonical" ${attr('href', canonicalUrl(meta.path))}>`);
+  if (meta.path !== null && meta.ogImage && meta.description !== null) {
+    const og: [string, string][] = [
+      ['og:title', meta.title],
+      ['og:description', meta.description],
+      ['og:url', canonicalUrl(meta.path)],
+      ['og:image', meta.ogImage],
+      ['og:type', 'website'],
+      ['og:site_name', SITE_NAME],
+      ['og:locale', 'ja_JP'],
+    ];
+    for (const [k, v] of og) out.push(`<meta ${attr('property', k)} ${attr('content', v)}>`);
+    out.push('<meta name="twitter:card" content="summary_large_image">');
+  }
   out.push(
     '<link rel="icon" href="/favicon.png" type="image/png">',
     '<link rel="apple-touch-icon" href="/apple-touch-icon.png">',

@@ -2,39 +2,26 @@
 // 中身は renderSite（ファイルに書く前の Map）で、ファイルの数・CNAME・2回作った差は CLI の build で見る
 import { assert, assertEquals, assertNotEquals } from 'jsr:@std/assert@1';
 
-import { type Assets, FORBIDDEN_WORDS, forbiddenWordsIn, renderSite } from './build.ts';
-import { CONTACT_EMAIL, DEFAULT_CONFIG, type SiteConfig } from './config.ts';
-import { buildSiteData, type SiteData } from './data.ts';
-import { captureIo, makeRoot, readRepo, realInputs, snapshot } from './fixtures/load.ts';
+import { FORBIDDEN_WORDS, forbiddenWordsIn, renderSite } from './build.ts';
+import { CONTACT_EMAIL, DEFAULT_CONFIG } from './config.ts';
+import {
+  ALL_ASSETS,
+  captureIo,
+  makeRoot,
+  NO_ASSETS,
+  readRepo,
+  realData,
+  realLegal,
+  realSite,
+  snapshot,
+} from './fixtures/load.ts';
 import { appStoreUrl } from './links.ts';
 import { runCli } from './main.ts';
 import { inner, inners, metaContents, tags, text } from './scan.ts';
 
-const NO_ASSETS: Assets = { screens: false, badge: null };
-const ALL_ASSETS: Assets = { screens: true, badge: { width: 135, height: 40 } };
 const LEGAL_PATHS = ['legal/privacy.html', 'legal/terms.html'];
-
-let data: Promise<SiteData> | null = null;
-function realData(): Promise<SiteData> {
-  data ??= realInputs().then(buildSiteData);
-  return data;
-}
-
-async function legal() {
-  return {
-    privacy: await readRepo('docs/legal/privacy.html'),
-    terms: await readRepo('docs/legal/terms.html'),
-  };
-}
-
-const sites = new Map<string, Promise<Map<string, string>>>();
-function site(config: SiteConfig = DEFAULT_CONFIG, assets: Assets = NO_ASSETS) {
-  const key = JSON.stringify([config, assets]);
-  if (!sites.has(key)) {
-    sites.set(key, (async () => renderSite(await realData(), config, assets, await legal()))());
-  }
-  return sites.get(key)!;
-}
+const site = realSite;
+const legal = realLegal;
 
 function get(files: Map<string, string>, path: string): string {
   const t = files.get(path);

@@ -1,6 +1,8 @@
 // テストで読む本物の入力（seed・写真の台帳・座標の台帳・受付時間の seed・slug の台帳）。ネットに出ない。
 // 読むのは一度だけ（deno test site/ は全部のテストのファイルを1つのプロセスで流す）
-import { loadInputs, type SiteInputs } from '../data.ts';
+import { type Assets, renderSite } from '../build.ts';
+import { DEFAULT_CONFIG, type SiteConfig } from '../config.ts';
+import { buildSiteData, loadInputs, type SiteData, type SiteInputs } from '../data.ts';
 
 export const REPO = new URL('../../', import.meta.url);
 export const REPO_DIR = decodeURIComponent(REPO.pathname).replace(/\/$/, '');
@@ -14,6 +16,52 @@ let inputs: Promise<SiteInputs> | null = null;
 export function realInputs(): Promise<SiteInputs> {
   inputs ??= loadInputs(readRepo);
   return inputs;
+}
+
+let data: Promise<SiteData> | null = null;
+
+/** 本物の入力から作った寺社の一覧（一度だけ作る。テストで書き換えない。書き換えるなら structuredClone） */
+export function realData(): Promise<SiteData> {
+  data ??= realInputs().then(buildSiteData);
+  return data;
+}
+
+export const NO_ASSETS: Assets = { screens: false, badge: null };
+export const ALL_ASSETS: Assets = { screens: true, badge: { width: 135, height: 40 } };
+
+export async function realLegal() {
+  return {
+    privacy: await readRepo('docs/legal/privacy.html'),
+    terms: await readRepo('docs/legal/terms.html'),
+  };
+}
+
+const sites = new Map<string, Promise<Map<string, string>>>();
+
+/** 本物の入力から renderSite で作った生成物（config・素材ごとに一度だけ作る） */
+export function realSite(
+  config: SiteConfig = DEFAULT_CONFIG,
+  assets: Assets = NO_ASSETS
+): Promise<Map<string, string>> {
+  const key = JSON.stringify([config, assets]);
+  if (!sites.has(key)) {
+    sites.set(key, (async () => renderSite(await realData(), config, assets, await realLegal()))());
+  }
+  return sites.get(key)!;
+}
+
+/** 生成物を一時のディレクトリに書く（検査のフィクスチャ）。extra はテストだけの仮の素材 */
+export async function writeDist(
+  files: Map<string, string>,
+  extra: Record<string, string> = {}
+): Promise<string> {
+  const dir = await Deno.makeTempDir({ prefix: 'site-dist-' });
+  for (const [p, t] of [...files, ...Object.entries(extra)]) {
+    const to = `${dir}/${p}`;
+    await Deno.mkdir(to.slice(0, to.lastIndexOf('/')), { recursive: true });
+    await Deno.writeTextFile(to, t);
+  }
+  return dir;
 }
 
 /** フォルダの下の全ファイルと中身（書いていないことを確かめる） */

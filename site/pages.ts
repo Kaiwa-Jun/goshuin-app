@@ -49,6 +49,12 @@ export interface Assets {
   badge: { width: number; height: number } | null;
 }
 
+/** <head> に足すもの（OGP の画像・JSON-LD）。build.ts が seo.ts から作って渡す */
+export interface Seo {
+  ogImage?: string;
+  head?: string[];
+}
+
 export interface PageContext {
   config: SiteConfig;
   assets: Assets;
@@ -195,9 +201,9 @@ export function spotMain(s: Spot, ctx: PageContext): string {
   ].join('\n');
 }
 
-export function spotPage(s: Spot, ctx: PageContext, head: string[] = []): string {
+export function spotPage(s: Spot, ctx: PageContext, seo: Seo = {}): string {
   return page(
-    { path: spotPath(s), title: spotTitle(s), description: spotDescription(s), head },
+    { path: spotPath(s), title: spotTitle(s), description: spotDescription(s), ...seo },
     spotMain(s, ctx),
     ctx.config
   );
@@ -243,13 +249,13 @@ export function prefectureMain(p: Prefecture, data: SiteData): string {
   ].join('\n');
 }
 
-export function prefecturePage(p: Prefecture, ctx: PageContext, head: string[] = []): string {
+export function prefecturePage(p: Prefecture, ctx: PageContext, seo: Seo = {}): string {
   return page(
     {
       path: prefecturePath(p),
       title: prefectureTitle(p, ctx.data),
       description: prefectureDescription(p, ctx.data),
-      head,
+      ...seo,
     },
     prefectureMain(p, ctx.data),
     ctx.config
@@ -306,9 +312,9 @@ export function topMain(ctx: PageContext): string {
   ].join('\n');
 }
 
-export function topPage(ctx: PageContext, head: string[] = []): string {
+export function topPage(ctx: PageContext, seo: Seo = {}): string {
   return page(
-    { path: '/', title: TOP_TITLE, description: TOP_DESCRIPTION, wide: true, head },
+    { path: '/', title: TOP_TITLE, description: TOP_DESCRIPTION, wide: true, ...seo },
     topMain(ctx),
     ctx.config
   );
@@ -340,9 +346,14 @@ export function sitePrivacyMain(): string {
   ].join('\n');
 }
 
-export function sitePrivacyPage(ctx: PageContext): string {
+export function sitePrivacyPage(ctx: PageContext, seo: Seo = {}): string {
   return page(
-    { path: '/legal/site.html', title: SITE_PRIVACY_TITLE, description: SITE_PRIVACY_DESCRIPTION },
+    {
+      path: '/legal/site.html',
+      title: SITE_PRIVACY_TITLE,
+      description: SITE_PRIVACY_DESCRIPTION,
+      ...seo,
+    },
     sitePrivacyMain(),
     ctx.config
   );

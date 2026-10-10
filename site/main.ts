@@ -1,10 +1,12 @@
 // ホームページ goshuinsanpo.com（Issue #324）の CLI。リポジトリの直下で打つ。
 //
 //   deno run -A --node-modules-dir=none site/main.ts build [--production] [--root <dir>]
+//   deno run -A --node-modules-dir=none site/main.ts check [--production] [--root <dir>]
 //   deno run -A --node-modules-dir=none site/main.ts serve [--port 8324] [--root <dir>]
 //   deno run -A --node-modules-dir=none site/main.ts slugs [--check] [--root <dir>]
 //
 // build は site/dist の中を消してから作る。--production は APP_STORE_PT と CF_BEACON_TOKEN（site/config.ts）が要る。
+// check は生成物を検査する（AC-26）。--production は beacon と App Store の印（pt=・ct=web）も見る。
 // serve は 127.0.0.1 だけで待つ。slugs は slug の台帳に無い寺社を末尾に足す（既存の行は変えない）。
 // --check は書かずに比べ、足りなければ終了コード 1。
 // --root の既定はカレントディレクトリ。止めるときは標準エラーに理由（寺社なら「名前（都道府県）」、ファイルならパス）を出して終了コード 1。
@@ -13,6 +15,7 @@ import { SEED_FILES } from '../supabase/scripts/spot-coords/coords.ts';
 import { readSeedRows } from '../supabase/scripts/spot-wikidata/match.ts';
 import { BADGE_FILE, detectAssets, STATIC_DIR } from './assets.ts';
 import { LEGAL_FILES, renderSite } from './build.ts';
+import { checkSite } from './check.ts';
 import { DEFAULT_CONFIG, DEFAULT_PORT, OUT_DIR, type SiteConfig } from './config.ts';
 import { buildSiteData, loadInputs } from './data.ts';
 import { serve } from './serve.ts';
@@ -171,6 +174,30 @@ async function buildCommand(io: CliIo, a: Args, config: SiteConfig): Promise<num
   return 0;
 }
 
+// --- check ---
+
+async function checkCommand(io: CliIo, a: Args, config: SiteConfig): Promise<number> {
+  if (a.production) {
+    const missing = missingProductionConfig(config);
+    if (missing.length > 0) {
+      io.stderr(
+        `--production には site/config.ts の ${missing.join('・')} が要る（null のまま）\n`
+      );
+      return 1;
+    }
+  }
+  const dir = joinPath(a.root, OUT_DIR);
+  const errors = await checkSite({ dir, root: a.root, config, production: a.production });
+  if (errors.length > 0) {
+    io.stderr(errors.map(e => `${e}\n`).join(''));
+    io.stderr(`検査に通らない: ${errors.length} 件（${OUT_DIR}）\n`);
+    return 1;
+  }
+  const html = (await listFiles(dir)).filter(f => f.endsWith('.html')).length;
+  io.stdout(`検査に通った: ${OUT_DIR}（HTML ${html}${a.production ? '・--production' : ''}）\n`);
+  return 0;
+}
+
 // --- serve ---
 
 async function serveCommand(io: CliIo, a: Args): Promise<number> {
@@ -226,6 +253,7 @@ type Command = (io: CliIo, a: Args, config: SiteConfig) => Promise<number>;
 
 const COMMANDS: Record<string, Command> = {
   build: buildCommand,
+  check: checkCommand,
   serve: serveCommand,
   slugs: slugsCommand,
 };

@@ -13,7 +13,19 @@ import {
   spotPage,
   topPage,
 } from './pages.ts';
+import { jsonLdScript } from './html.ts';
 import { PREFECTURES } from './prefectures.ts';
+import {
+  llmsTxt,
+  OGP_IMAGE,
+  prefectureBreadcrumb,
+  ROBOTS_TXT,
+  sitemapXml,
+  spotBreadcrumb,
+  spotJsonLd,
+  spotOgImage,
+  topJsonLd,
+} from './seo.ts';
 
 export type { Assets } from './pages.ts';
 
@@ -56,7 +68,7 @@ export function pageContext(data: SiteData, config: SiteConfig, assets: Assets):
   return { data, config, assets, byIdx: new Map(data.spots.map(s => [s.idx, s])) };
 }
 
-/** 生成物（dist からの相対パス → 中身）。site/static の写しは含まない */
+/** 生成物（dist からの相対パス → 中身）。HTML・sitemap.xml・robots.txt・llms.txt。site/static の写しは含まない */
 export function renderSite(
   data: SiteData,
   config: SiteConfig,
@@ -65,17 +77,33 @@ export function renderSite(
 ): Map<string, string> {
   const ctx = pageContext(data, config, assets);
   const files = new Map<string, string>();
-  files.set('index.html', topPage(ctx));
-  for (const p of PREFECTURES)
-    files.set(`prefectures/${p.slug}/index.html`, prefecturePage(p, ctx));
+  const og = { ogImage: OGP_IMAGE };
+  files.set('index.html', topPage(ctx, { ...og, head: topJsonLd().map(jsonLdScript) }));
+  for (const p of PREFECTURES) {
+    files.set(
+      `prefectures/${p.slug}/index.html`,
+      prefecturePage(p, ctx, { ...og, head: [jsonLdScript(prefectureBreadcrumb(p))] })
+    );
+  }
   for (const s of data.spots) {
-    if (s.hasPage) files.set(`spots/${s.slug}/index.html`, spotPage(s, ctx));
+    if (!s.hasPage) continue;
+    files.set(
+      `spots/${s.slug}/index.html`,
+      spotPage(s, ctx, {
+        ogImage: spotOgImage(s),
+        head: [jsonLdScript(spotJsonLd(s)), jsonLdScript(spotBreadcrumb(s))],
+      })
+    );
   }
   for (const k of ['privacy', 'terms'] as const) {
     const f = LEGAL_FILES[k];
     files.set(f.out, legalCopy(legal[k], `/${f.out}`, LEGAL_DESCRIPTIONS[k], f.src));
   }
-  files.set('legal/site.html', sitePrivacyPage(ctx));
+  files.set('legal/site.html', sitePrivacyPage(ctx, og));
   files.set('404.html', notFoundPage(ctx));
+  const html = [...files.keys()].filter(p => p.endsWith('.html'));
+  files.set('sitemap.xml', sitemapXml(html));
+  files.set('robots.txt', ROBOTS_TXT);
+  files.set('llms.txt', llmsTxt(data));
   return files;
 }
