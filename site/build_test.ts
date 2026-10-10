@@ -292,7 +292,7 @@ Deno.test('AC-21: トップ（見出し・バッジ・都道府県から探す 4
     t.attrs.href?.startsWith('https://apps.apple.com/')
   );
   assert(badgeLink.length >= 1);
-  assert(badgeLink.every(t => t.attrs.href === appStoreUrl(DEFAULT_CONFIG.APP_STORE_PT)));
+  assert(badgeLink.every(t => t.attrs.href === appStoreUrl(null)));
   const prefLinks = new Set(
     tags(html, 'a')
       .map(t => t.attrs.href)

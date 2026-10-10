@@ -38,9 +38,12 @@ export async function realLegal() {
 
 const sites = new Map<string, Promise<Map<string, string>>>();
 
+/** pt も token も無い設定。テストは site/config.ts に入れた本番の値に左右されない（値は H-0d で入った） */
+export const NO_CONFIG: SiteConfig = { APP_STORE_PT: null, CF_BEACON_TOKEN: null };
+
 /** 本物の入力から renderSite で作った生成物（config・素材ごとに一度だけ作る） */
 export function realSite(
-  config: SiteConfig = DEFAULT_CONFIG,
+  config: SiteConfig = NO_CONFIG,
   assets: Assets = NO_ASSETS
 ): Promise<Map<string, string>> {
   const key = JSON.stringify([config, assets]);

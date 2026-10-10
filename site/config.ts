@@ -5,9 +5,9 @@ export const SITE_ORIGIN = 'https://goshuinsanpo.com';
 export const SITE_NAME = '御朱印さんぽ';
 export const APP_STORE_ID = '6797201465';
 /** App Store Connect のキャンペーンリンクの pt（公開の値）。H-0 でオーナーが取った数字の文字に置き換える */
-export const APP_STORE_PT: string | null = null;
+export const APP_STORE_PT: string | null = '128757072';
 /** Cloudflare Web Analytics のサイトの token（公開の値）。H-0 でオーナーが作った値に置き換える */
-export const CF_BEACON_TOKEN: string | null = null;
+export const CF_BEACON_TOKEN: string | null = '79050b7b341c4e5f83ab8acbf359d0b2';
 /** 帯の写真と同じ変換（#227 D-6「幅は 400 / 1200 だけ」） */
 export const SPOT_PHOTO_TRANSFORM =
   'https://img.goshuinsanpo.com/cdn-cgi/image/width=1200,quality=78,format=webp/';
