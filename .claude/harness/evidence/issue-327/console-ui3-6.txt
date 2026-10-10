@@ -1,0 +1,41 @@
+[ui3][info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[ui3][warning] "shadow*" style props are deprecated. Use "boxShadow".
+[ui3][warning] RNGoogleSignIn: you are calling a not-implemented method on web platform. Web support is only available to sponsors. 
+If you are a sponsor, please follow the installation instructions carefully to obtain the implementation.
+[ui3][log] Running application "main" with appParams:
+ {rootTag: #root, hydrate: undefined} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+[ui3][warning] Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md
+[ui3][error] Received `%s` for a non-boolean attribute `%s`.
+
+If you want to write it to the DOM, pass a string instead: %s="%s" or %s={value.toString()}.
+
+If you used to conditionally omit it with %s={condition && value}, pass %s={condition ? value : undefined} instead. false collapsable collapsable false collapsable collapsable collapsable
+[ui3][warning] props.pointerEvents is deprecated. Use style.pointerEvents
+[ui3][info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[ui3][warning] "shadow*" style props are deprecated. Use "boxShadow".
+[ui3][warning] RNGoogleSignIn: you are calling a not-implemented method on web platform. Web support is only available to sponsors. 
+If you are a sponsor, please follow the installation instructions carefully to obtain the implementation.
+[ui3][log] Running application "main" with appParams:
+ {rootTag: #root, hydrate: undefined} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+[ui3][warning] Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md
+[ui3][warning] props.pointerEvents is deprecated. Use style.pointerEvents
+[ui4][info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[ui4][warning] "shadow*" style props are deprecated. Use "boxShadow".
+[ui4][warning] RNGoogleSignIn: you are calling a not-implemented method on web platform. Web support is only available to sponsors. 
+If you are a sponsor, please follow the installation instructions carefully to obtain the implementation.
+[ui4][log] Running application "main" with appParams:
+ {rootTag: #root, hydrate: undefined} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+[ui4][warning] Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md
+[ui4][error] Received `%s` for a non-boolean attribute `%s`.
+
+If you want to write it to the DOM, pass a string instead: %s="%s" or %s={value.toString()}.
+
+If you used to conditionally omit it with %s={condition && value}, pass %s={condition ? value : undefined} instead. false collapsable collapsable false collapsable collapsable collapsable
+[ui4][warning] props.pointerEvents is deprecated. Use style.pointerEvents
+[ui4][error] A component is changing an uncontrolled input to be controlled. This is likely caused by the value changing from undefined to a defined value, which should not happen. Decide between using a controlled or uncontrolled input element for the lifetime of the component. More info: https://react.dev/link/controlled-components

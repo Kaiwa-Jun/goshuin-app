@@ -1,0 +1,45 @@
+[ui1][info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[ui1][warning] "shadow*" style props are deprecated. Use "boxShadow".
+[ui1][warning] RNGoogleSignIn: you are calling a not-implemented method on web platform. Web support is only available to sponsors. 
+If you are a sponsor, please follow the installation instructions carefully to obtain the implementation.
+[ui1][log] Running application "main" with appParams:
+ {rootTag: #root, hydrate: undefined} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+[ui1][warning] Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md
+[ui1][error] Received `%s` for a non-boolean attribute `%s`.
+
+If you want to write it to the DOM, pass a string instead: %s="%s" or %s={value.toString()}.
+
+If you used to conditionally omit it with %s={condition && value}, pass %s={condition ? value : undefined} instead. false collapsable collapsable false collapsable collapsable collapsable
+[ui1][warning] props.pointerEvents is deprecated. Use style.pointerEvents
+[ui2-375][info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[ui2-375][warning] "shadow*" style props are deprecated. Use "boxShadow".
+[ui2-375][warning] RNGoogleSignIn: you are calling a not-implemented method on web platform. Web support is only available to sponsors. 
+If you are a sponsor, please follow the installation instructions carefully to obtain the implementation.
+[ui2-375][log] Running application "main" with appParams:
+ {rootTag: #root, hydrate: undefined} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+[ui2-375][warning] Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md
+[ui2-375][error] Received `%s` for a non-boolean attribute `%s`.
+
+If you want to write it to the DOM, pass a string instead: %s="%s" or %s={value.toString()}.
+
+If you used to conditionally omit it with %s={condition && value}, pass %s={condition ? value : undefined} instead. false collapsable collapsable false collapsable collapsable collapsable
+[ui2-375][warning] props.pointerEvents is deprecated. Use style.pointerEvents
+[ui2-440][info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[ui2-440][warning] "shadow*" style props are deprecated. Use "boxShadow".
+[ui2-440][warning] RNGoogleSignIn: you are calling a not-implemented method on web platform. Web support is only available to sponsors. 
+If you are a sponsor, please follow the installation instructions carefully to obtain the implementation.
+[ui2-440][log] Running application "main" with appParams:
+ {rootTag: #root, hydrate: undefined} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+[ui2-440][warning] Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md
+[ui2-440][error] Received `%s` for a non-boolean attribute `%s`.
+
+If you want to write it to the DOM, pass a string instead: %s="%s" or %s={value.toString()}.
+
+If you used to conditionally omit it with %s={condition && value}, pass %s={condition ? value : undefined} instead. false collapsable collapsable false collapsable collapsable collapsable
+[ui2-440][warning] props.pointerEvents is deprecated. Use style.pointerEvents
