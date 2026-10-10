@@ -1,0 +1,69 @@
+# ホームページ goshuinsanpo.com（Issue #324）を site/ から作り、GitHub Pages に出す。
+# develop への push と手動（workflow_dispatch）で作って出す。PR では作って検査するだけ（出さない）。
+# 入力が site/ の外（seed・台帳・docs/legal）にもあるので、パスで絞り込まない。
+# 契約書: docs/issues/issue-324-homepage.md（D-2・D-16・D-24）
+name: site
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.9.4
+
+      - name: テスト
+        run: deno test -A --node-modules-dir=none site/
+
+      - name: 作る（PR）
+        if: github.event_name == 'pull_request'
+        run: deno run -A --node-modules-dir=none site/main.ts build
+
+      - name: 検査（PR）
+        if: github.event_name == 'pull_request'
+        run: deno run -A --node-modules-dir=none site/main.ts check
+
+      - name: 作る（本番）
+        if: github.event_name != 'pull_request'
+        run: deno run -A --node-modules-dir=none site/main.ts build --production
+
+      - name: 検査（本番）
+        if: github.event_name != 'pull_request'
+        run: deno run -A --node-modules-dir=none site/main.ts check --production
+
+      - name: Pages に渡す生成物
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/dist
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/develop'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - name: Pages に出す
+        id: deployment
+        uses: actions/deploy-pages@v4
