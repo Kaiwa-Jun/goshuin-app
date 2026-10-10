@@ -1,0 +1,421 @@
+{
+  "schemaVersion": 1,
+  "issue": 320,
+  "note": "#301 の対応表で結べなかった（none / low）rank 5 の寺社を、リーダーが Wikidata の項目と確かめて結んだもの。supabase/scripts/spot-photos/main.ts manual-link で作る。手で直さない",
+  "attribution": {
+    "wikidata": "Wikidata（CC0 1.0）https://www.wikidata.org/"
+  },
+  "entries": [
+    {
+      "idx": 2,
+      "name": "札幌諏訪神社",
+      "prefecture": "北海道",
+      "qid": "Q20045170",
+      "label": "諏訪神社",
+      "matchedName": "諏訪神社",
+      "nameLevel": "partial",
+      "p625": {
+        "lat": 43.075972,
+        "lng": 141.354056
+      },
+      "distanceKm": 0,
+      "p18": ["Suwa Shrine of Sapporo.JPG"],
+      "p373": "Suwa-jinja (Sapporo)",
+      "basis": "ラベル「諏訪神社」が seed の名前と一部が同じ。P625 は seed から 0.0 km"
+    },
+    {
+      "idx": 64,
+      "name": "太平山三吉神社総本宮",
+      "prefecture": "秋田県",
+      "qid": "Q11443949",
+      "label": "太平山三吉神社",
+      "matchedName": "太平山三吉神社",
+      "nameLevel": "partial",
+      "p625": {
+        "lat": 39.726167,
+        "lng": 140.144389
+      },
+      "distanceKm": 0,
+      "p18": ["Taiheizan Miyoshi Jinja Shaden.jpg"],
+      "p373": "Taiheizan-Miyoshi-jinja",
+      "basis": "ラベル「太平山三吉神社」が seed の名前と一部が同じ。P625 は seed から 0.0 km"
+    },
+    {
+      "idx": 83,
+      "name": "宝珠山立石寺",
+      "prefecture": "山形県",
+      "qid": "Q1760419",
+      "label": "立石寺",
+      "matchedName": "立石寺",
+      "nameLevel": "partial",
+      "p625": {
+        "lat": 38.312556,
+        "lng": 140.437389
+      },
+      "distanceKm": 0.2,
+      "p18": [
+        "211029 Risshaku-ji Yamagata Yamagata pref Japan107s3.jpg",
+        "Risshaku-ji konponchudo.jpg"
+      ],
+      "p373": "Risshaku-ji",
+      "basis": "ラベル「立石寺」が seed の名前と一部が同じ。P625 は seed から 0.2 km"
+    },
+    {
+      "idx": 129,
+      "name": "常磐神社",
+      "prefecture": "茨城県",
+      "qid": "Q3530470",
+      "label": "常磐神社",
+      "matchedName": "常磐神社",
+      "nameLevel": "exact",
+      "p625": {
+        "lat": 36.3746,
+        "lng": 140.456
+      },
+      "distanceKm": 0,
+      "p18": ["Tokiwa-jinja haiden.jpg"],
+      "p373": "Tokiwa Jinja",
+      "basis": "ラベル「常磐神社」が seed の名前と同じ。P625 は seed から 0.0 km"
+    },
+    {
+      "idx": 145,
+      "name": "足利織姫神社",
+      "prefecture": "栃木県",
+      "qid": "Q3356369",
+      "label": "織姫神社",
+      "matchedName": "織姫神社",
+      "nameLevel": "partial",
+      "p625": {
+        "lat": 36.339201,
+        "lng": 139.444918
+      },
+      "distanceKm": 0,
+      "p18": ["Ashikaga Orihime-jinja, Worship Hall and Main Sanctuary 001.jpg"],
+      "p373": "Ashikaga Orihime-jinja",
+      "basis": "ラベル「織姫神社」が seed の名前と一部が同じ。P625 は seed から 0.0 km"
+    },
+    {
+      "idx": 149,
+      "name": "下野星宮神社",
+      "prefecture": "栃木県",
+      "qid": "Q135260811",
+      "label": "星宮神社",
+      "matchedName": "星宮神社",
+      "nameLevel": "partial",
+      "p625": {
+        "lat": 36.451805,
+        "lng": 139.852753
+      },
+      "distanceKm": 0.1,
+      "p18": [],
+      "p373": null,
+      "basis": "ラベル「星宮神社」が seed の名前と一部が同じ。P625 は seed から 0.1 km"
+    },
+    {
+      "idx": 161,
+      "name": "榛名神社",
+      "prefecture": "群馬県",
+      "qid": "Q3128007",
+      "label": "榛名神社",
+      "matchedName": "榛名神社",
+      "nameLevel": "exact",
+      "p625": {
+        "lat": 36.454237,
+        "lng": 138.850161
+      },
+      "distanceKm": 0.5,
+      "p18": ["Haruna Honden.JPG"],
+      "p373": "Haruna-jinja",
+      "basis": "ラベル「榛名神社」が seed の名前と同じ。P625 は seed から 0.5 km"
+    },
+    {
+      "idx": 185,
+      "name": "川越熊野神社",
+      "prefecture": "埼玉県",
+      "qid": "Q121278322",
+      "label": "熊野神社",
+      "matchedName": "熊野神社",
+      "nameLevel": "partial",
+      "p625": {
+        "lat": 35.919111,
+        "lng": 139.483083
+      },
+      "distanceKm": 0,
+      "p18": ["熊野神社拝殿 川越市 2019-12-21.jpg"],
+      "p373": "Kawagoe Kumano-jinja",
+      "basis": "ラベル「熊野神社」が seed の名前と一部が同じ。P625 は seed から 0.0 km"
+    },
+    {
+      "idx": 226,
+      "name": "高徳院（鎌倉大仏）",
+      "prefecture": "神奈川県",
+      "qid": "Q672056",
+      "label": "高徳院",
+      "matchedName": "高徳院",
+      "nameLevel": "exact",
+      "p625": {
+        "lat": 35.316861,
+        "lng": 139.535722
+      },
+      "distanceKm": 0,
+      "p18": ["230128 Kamakura Daibutsu Japan01s3.jpg"],
+      "p373": "Kōtoku-in",
+      "basis": "ラベル「高徳院」が seed の名前と同じ。P625 は seed から 0.0 km"
+    },
+    {
+      "idx": 241,
+      "name": "彌彦神社",
+      "prefecture": "新潟県",
+      "qid": "Q195684",
+      "label": "彌彦神社",
+      "matchedName": "彌彦神社",
+      "nameLevel": "exact",
+      "p625": {
+        "lat": 37.7066,
+        "lng": 138.826
+      },
+      "distanceKm": 0,
+      "p18": ["Iyahiko-jinja 1.JPG"],
+      "p373": "Iyahiko-jinja",
+      "basis": "ラベル「彌彦神社」が seed の名前と同じ。P625 は seed から 0.0 km"
+    },
+    {
+      "idx": 347,
+      "name": "戸隠神社中社",
+      "prefecture": "長野県",
+      "qid": "Q218828",
+      "label": "戸隠神社",
+      "matchedName": "戸隠神社",
+      "nameLevel": "partial",
+      "p625": {
+        "lat": 36.742504,
+        "lng": 138.085128
+      },
+      "distanceKm": 0,
+      "p18": ["160430 Togakushi-jinja Chusha Nagano Japan02n.jpg"],
+      "p373": "Togakushi Shrine",
+      "basis": "ラベル「戸隠神社」が seed の名前と一部が同じ。P625 は seed から 0.0 km"
+    },
+    {
+      "idx": 350,
+      "name": "戸隠神社宝光社",
+      "prefecture": "長野県",
+      "qid": "Q218828",
+      "label": "戸隠神社",
+      "matchedName": "戸隠神社",
+      "nameLevel": "partial",
+      "p625": {
+        "lat": 36.742504,
+        "lng": 138.085128
+      },
+      "distanceKm": 1.4,
+      "p18": ["160430 Togakushi-jinja Chusha Nagano Japan02n.jpg"],
+      "p373": "Togakushi Shrine",
+      "basis": "ラベル「戸隠神社」が seed の名前と一部が同じ。P625 は seed から 1.4 km"
+    },
+    {
+      "idx": 388,
+      "name": "小國神社",
+      "prefecture": "静岡県",
+      "qid": "Q421597",
+      "label": "小国神社",
+      "matchedName": "小国神社",
+      "nameLevel": "exact",
+      "p625": {
+        "lat": 34.8475,
+        "lng": 137.899167
+      },
+      "distanceKm": 0,
+      "p18": ["Okunijinja-Haiden, Mori-machi Shuchi-gun Shizuoka Japan 2013.06.29.JPG"],
+      "p373": "Okuni-jinja (Mori)",
+      "basis": "ラベル「小国神社」が seed の名前と同じ。P625 は seed から 0.0 km"
+    },
+    {
+      "idx": 421,
+      "name": "伊勢神宮内宮（皇大神宮）",
+      "prefecture": "三重県",
+      "qid": "Q11581011",
+      "label": "皇大神宮",
+      "matchedName": "皇大神宮",
+      "nameLevel": "exact",
+      "p625": {
+        "lat": 34.454982,
+        "lng": 136.725163
+      },
+      "distanceKm": 0.5,
+      "p18": ["Naiku 04.jpg"],
+      "p373": "Naiku",
+      "basis": "ラベル「皇大神宮」が seed の名前と同じ。P625 は seed から 0.5 km"
+    },
+    {
+      "idx": 422,
+      "name": "伊勢神宮外宮（豊受大神宮）",
+      "prefecture": "三重県",
+      "qid": "Q11633343",
+      "label": "豊受大神宮",
+      "matchedName": "豊受大神宮",
+      "nameLevel": "exact",
+      "p625": {
+        "lat": 34.487219,
+        "lng": 136.703328
+      },
+      "distanceKm": 0,
+      "p18": ["Geku Maine sanctuary Ise-jingu Grand Shrine 01-r.jpg"],
+      "p373": "Geku",
+      "basis": "ラベル「豊受大神宮」が seed の名前と同じ。P625 は seed から 0.0 km"
+    },
+    {
+      "idx": 427,
+      "name": "伊勢の国 四天王寺",
+      "prefecture": "三重県",
+      "qid": "Q11419820",
+      "label": "四天王寺 (津市)",
+      "matchedName": "四天王寺 (津市)",
+      "nameLevel": "partial",
+      "p625": {
+        "lat": 34.727778,
+        "lng": 136.509722
+      },
+      "distanceKm": 0,
+      "p18": ["Shitennō-ji in Tsu.jpg"],
+      "p373": null,
+      "basis": "ラベル「四天王寺 (津市)」が seed の名前と一部が同じ。P625 は seed から 0.0 km"
+    },
+    {
+      "idx": 528,
+      "name": "高野山金剛峯寺奥の院",
+      "prefecture": "和歌山県",
+      "qid": "Q4333366",
+      "label": "奥之院",
+      "matchedName": "奥の院",
+      "nameLevel": "partial",
+      "p625": {
+        "lat": 34.2175,
+        "lng": 135.605
+      },
+      "distanceKm": 0.4,
+      "p18": ["Gobyoubasi.jpg"],
+      "p373": "Okunoin, Koyasan",
+      "basis": "別名「奥の院」が seed の名前と一部が同じ。P625 は seed から 0.4 km"
+    },
+    {
+      "idx": 669,
+      "name": "讃岐宮香川縣護國神社",
+      "prefecture": "香川県",
+      "qid": "Q11667575",
+      "label": "香川縣護國神社",
+      "matchedName": "香川縣護國神社",
+      "nameLevel": "partial",
+      "p625": {
+        "lat": 34.224444,
+        "lng": 133.78
+      },
+      "distanceKm": 1.6,
+      "p18": ["Kagawaken-Gokoku-jinja shaden.jpg"],
+      "p373": "Kagawaken-Gokoku-jinja",
+      "basis": "ラベル「香川縣護國神社」が seed の名前と一部が同じ。P625 は seed から 1.6 km"
+    },
+    {
+      "idx": 683,
+      "name": "湯神社",
+      "prefecture": "愛媛県",
+      "qid": "Q11563773",
+      "label": "湯神社",
+      "matchedName": "湯神社",
+      "nameLevel": "exact",
+      "p625": {
+        "lat": 33.851268,
+        "lng": 132.786913
+      },
+      "distanceKm": 0.2,
+      "p18": ["湯神社 (松山市) 拝殿.JPG"],
+      "p373": "Yu-jinja (Matsuyama)",
+      "basis": "ラベル「湯神社」が seed の名前と同じ。P625 は seed から 0.2 km"
+    },
+    {
+      "idx": 684,
+      "name": "石鎚神社口之宮本社",
+      "prefecture": "愛媛県",
+      "qid": "Q11587273",
+      "label": "石鎚神社",
+      "matchedName": "石鎚神社",
+      "nameLevel": "partial",
+      "p625": {
+        "lat": 33.889806,
+        "lng": 133.1555
+      },
+      "distanceKm": 1.9,
+      "p18": ["Ishizuchi Jinja Honsha 01.jpg"],
+      "p373": "Ishizuchi-jinja",
+      "basis": "ラベル「石鎚神社」が seed の名前と一部が同じ。P625 は seed から 1.9 km"
+    },
+    {
+      "idx": 781,
+      "name": "阿蘇神社",
+      "prefecture": "熊本県",
+      "qid": "Q715639",
+      "label": "阿蘇神社",
+      "matchedName": "阿蘇神社",
+      "nameLevel": "exact",
+      "p625": {
+        "lat": 32.947778,
+        "lng": 131.115972
+      },
+      "distanceKm": 0.1,
+      "p18": ["Aso Shrine Main Hall.jpg"],
+      "p373": "Aso-jinja",
+      "basis": "ラベル「阿蘇神社」が seed の名前と同じ。P625 は seed から 0.1 km"
+    },
+    {
+      "idx": 801,
+      "name": "宇佐神宮",
+      "prefecture": "大分県",
+      "qid": "Q715632",
+      "label": "宇佐神宮",
+      "matchedName": "宇佐神宮",
+      "nameLevel": "exact",
+      "p625": {
+        "lat": 33.526019,
+        "lng": 131.374627
+      },
+      "distanceKm": 0.4,
+      "p18": ["Usa Shrine Nanchu Romon.JPG"],
+      "p373": "Usa Shrine",
+      "basis": "ラベル「宇佐神宮」が seed の名前と同じ。P625 は seed から 0.4 km"
+    },
+    {
+      "idx": 865,
+      "name": "護国寺（那覇）",
+      "prefecture": "沖縄県",
+      "qid": "Q3109955",
+      "label": "護国寺",
+      "matchedName": "護国寺",
+      "nameLevel": "exact",
+      "p625": {
+        "lat": 26.213109,
+        "lng": 127.678943
+      },
+      "distanceKm": 1.1,
+      "p18": ["Gokokuji, Naha.JPG"],
+      "p373": "Gokokuji (Naha)",
+      "basis": "ラベル「護国寺」が seed の名前と同じ。P625 は seed から 1.1 km"
+    },
+    {
+      "idx": 1006,
+      "name": "北野天満宮",
+      "prefecture": "京都府",
+      "qid": "Q662176",
+      "label": "北野天満宮",
+      "matchedName": "北野天満宮",
+      "nameLevel": "exact",
+      "p625": {
+        "lat": 35.029195,
+        "lng": 135.735008
+      },
+      "distanceKm": 0.1,
+      "p18": ["Kitano-tenmangu Kyoto Japan41s3s4592.jpg"],
+      "p373": "Kitano Tenman-gū",
+      "basis": "ラベル「北野天満宮」が seed の名前と同じ。P625 は seed から 0.1 km"
+    }
+  ]
+}

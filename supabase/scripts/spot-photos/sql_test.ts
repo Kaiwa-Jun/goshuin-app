@@ -19,10 +19,12 @@ import {
   buildCheckSql,
   buildMigrationSql,
   CHECK_SQL_PATH,
+  CHECK_SQL_PATH_BATCH2,
   LEDGER_PATH,
   type Ledger302,
   type LedgerEntry302,
   MIGRATION_PATH,
+  MIGRATION_PATH_BATCH2,
   parseLedger302,
 } from './select.ts';
 
@@ -782,7 +784,14 @@ Deno.test(
       await readRepo('supabase/data/spot-photos-301.json'),
       await realMapping()
     );
-    const ledger = parseLedger302(await readRepo(LEDGER_PATH), photos, await realSeedRows());
+    // コミットした第1弾の migration と確かめる SQL は第1弾の行だけから作る。台帳に #320 の第2弾の
+    // 行が入ったので、第1弾の行だけを読む（第2弾は下の #320 AC-24 で見る）
+    const raw = JSON.parse(await readRepo(LEDGER_PATH));
+    const ledger = parseLedger302(
+      { ...raw, entries: raw.entries.filter((e: { batch: number }) => e.batch === 1) },
+      photos,
+      await realSeedRows()
+    );
     const n = ledger.entries.length;
     const migration = await readRepo(MIGRATION_PATH);
     const check = await readRepo(CHECK_SQL_PATH);
@@ -1039,3 +1048,54 @@ Deno.test(
     });
   }
 );
+
+Deno.test('#320 AC-24: 本物の第1弾688件と第2弾89件を適用し、両方の検査と再適用を通す', async () => {
+  const ledger = JSON.parse(await readRepo(LEDGER_PATH));
+  const n = ledger.entries.filter((e: { batch: number }) => e.batch === 2).length;
+  assertEquals(n, 89);
+  const migration1 = await readRepo(MIGRATION_PATH);
+  const migration2 = await readRepo(MIGRATION_PATH_BATCH2);
+  const check1 = await readRepo(CHECK_SQL_PATH);
+  const check2 = await readRepo(CHECK_SQL_PATH_BATCH2);
+  await withDb(async db => {
+    await seedAll(db);
+    assertEquals(await raised(db, migration1), null);
+    assertEquals(await raised(db, migration2), null);
+    assertEquals(
+      await raised(db, check2),
+      resultLine2({
+        table: 'present',
+        rls: 'on',
+        total: 1109,
+        listed: n,
+        not_one: 0,
+        present: n,
+        differ: 0,
+        missing: 0,
+        others: 688,
+        anon_select: 688 + n,
+        anon_insert: 'denied',
+      })
+    );
+    assertEquals(
+      await raised(db, check1),
+      resultLine({
+        table: 'present',
+        rls: 'on',
+        total: 1109,
+        listed: 688,
+        not_one: 0,
+        present: 688,
+        differ: 0,
+        missing: 0,
+        extra: n,
+        anon_select: 688 + n,
+        anon_insert: 'denied',
+      })
+    );
+    const once = await attached(db);
+    assertEquals(await raised(db, migration2), null);
+    assertEquals(await attached(db), once);
+    assertEquals(await masterCount(db), 1109);
+  });
+});
