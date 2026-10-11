@@ -15,6 +15,12 @@ export function useWishlist(): UseWishlistReturn {
   const [wishlistSpotIds, setWishlistSpotIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [isToggling, setIsToggling] = useState(false);
+  // いまの Set が誰の行きたいか（ゲストは null）。ゲスト → ログインに切り替わった描画から、
+  // そのユーザーの最初の取得が終わるまで isLoading を立てる。地図で「行きたい」から
+  // ログインした寺社を足すのは、これが下りてから（早く足すと、あとから届いた取得の
+  // 結果で足した印が消える。Issue #327 D-7・D-9）
+  const [settledUserId, setSettledUserId] = useState<string | null | undefined>(undefined);
+  const currentUserId = isAuthenticated && user ? user.id : null;
 
   // 他の画面（行きたい一覧など）で増減しうるので、フォーカスのたびに取り直す。
   // マウント時の useEffect だけだと、削除して地図に戻ったときにピンの色と
@@ -24,6 +30,7 @@ export function useWishlist(): UseWishlistReturn {
       if (!isAuthenticated || !user) {
         setWishlistSpotIds(new Set());
         setIsLoading(false);
+        setSettledUserId(null);
         return;
       }
 
@@ -36,7 +43,10 @@ export function useWishlist(): UseWishlistReturn {
         } catch {
           if (!cancelled) setWishlistSpotIds(new Set());
         } finally {
-          if (!cancelled) setIsLoading(false);
+          if (!cancelled) {
+            setIsLoading(false);
+            setSettledUserId(user.id);
+          }
         }
       })();
 
@@ -79,5 +89,10 @@ export function useWishlist(): UseWishlistReturn {
     [user, wishlistSpotIds]
   );
 
-  return { wishlistSpotIds, toggleWishlist, isLoading, isToggling };
+  return {
+    wishlistSpotIds,
+    toggleWishlist,
+    isLoading: isLoading || settledUserId !== currentUserId,
+    isToggling,
+  };
 }

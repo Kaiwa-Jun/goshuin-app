@@ -14,6 +14,9 @@ process.env.TZ = 'Asia/Tokyo';
 module.exports = {
   preset: 'jest-expo',
   testEnvironment: 'node',
+  // 既定（コア数 − 1）だと 10 コアの Mac で load average が 120 を超え、時間を測るテスト
+  // （RootNavigator の AC-31・MapScreen の FAB の引っ込みなど）が時間切れになる（Issue #327 の push 前）
+  maxWorkers: '50%',
   transformIgnorePatterns: [
     'node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@react-native-async-storage/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg|@supabase/.*|react-native-url-polyfill)',
   ],

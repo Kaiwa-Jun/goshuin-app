@@ -771,9 +771,7 @@ export function GalleryScreen({ navigation }: Props) {
                   <View style={styles.centerContainer} testID="empty-state">
                     <MaterialIcons name="photo-library" size={48} color={colors.gray[400]} />
                     <Text style={styles.emptyText}>御朱印がまだありません</Text>
-                    <Text style={styles.emptySubText}>
-                      御朱印を記録して、コレクションを始めましょう
-                    </Text>
+                    <Text style={styles.emptySubText}>参拝したら、ここに1枚ずつ並びます</Text>
                     {/* めくり表示は白紙ページが記録の入口になるが、グリッドには入口が無い（監査 A-10） */}
                     <Button
                       title="御朱印を記録する"

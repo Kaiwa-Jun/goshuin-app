@@ -65,7 +65,14 @@ type GoshuinchoPageProps = {
       spotName: string;
       visitedAt: string;
     }
-  | { variant: 'blank' }
+  | {
+      variant: 'blank';
+      /**
+       * 記録が 0 枚か。白紙は記録が何枚あっても最後に付くので、言葉を枚数で分ける
+       * （0 枚「最初の1枚を撮る」・1 枚以上「次の1枚を撮る」。Issue #327 D-11）
+       */
+      first?: boolean;
+    }
 );
 
 export function GoshuinchoPage(props: GoshuinchoPageProps) {
@@ -115,7 +122,9 @@ export function GoshuinchoPage(props: GoshuinchoPageProps) {
         {props.variant === 'blank' ? (
           <View style={styles.blankSlot}>
             <MaterialIcons name="photo-camera" size={BLANK_ICON_SIZE} color={colors.gray[400]} />
-            <Text style={styles.blankLabel}>ここに御朱印を追加する</Text>
+            <Text style={styles.blankLabel}>
+              {props.first ? '最初の1枚を撮る' : '次の1枚を撮る'}
+            </Text>
           </View>
         ) : (
           <>

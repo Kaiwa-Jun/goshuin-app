@@ -236,6 +236,7 @@ export function RecordCompleteScreen({ navigation, route }: Props) {
                 spotType={spotType}
                 width={layout.mapWidth}
                 onSettled={startCountUp}
+                firstStamp={totalStampCount !== undefined && totalStampCount - stampCount === 0}
               />
             )}
 

@@ -12,7 +12,8 @@ import {
 import { MaterialIcons } from '@expo/vector-icons';
 
 import type { Spot } from '@/types/supabase';
-import { calculateDistance } from '@utils/geo';
+import { calculateDistance, formatDistance } from '@utils/geo';
+import { nearbySheetTitle } from '@utils/firstStamp';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { borderRadius, spacing } from '@theme/spacing';
@@ -24,8 +25,13 @@ const MAX_HEIGHT_RATIO = 0.4;
 const ENTER_MS = 300;
 
 interface RegionSpotSheetProps {
-  /** 寄せた地域の言葉（例「横浜」） */
-  label: string;
+  /**
+   * 'region'（既定）: 検索の場所の帯から寄せた地域の一覧（rank の高い順）。
+   * 'nearby': 地図のカードの［近くの寺社を見る］から出す一覧（今いる所から近い順・距離つき。Issue #327 D-6）
+   */
+  variant?: 'region' | 'nearby';
+  /** 寄せた地域の言葉（例「横浜」）。'region' のときだけ使う */
+  label?: string;
   spots: Spot[];
   /** 今いる所。位置情報が許可されていなければ null（同じ rank は名前順） */
   origin: { latitude: number; longitude: number } | null;
@@ -48,12 +54,31 @@ export function sortRegionSpots(
   );
 }
 
+/** 今いる所から近い順（rank を見ない）、同じ距離なら名前順。入力は並べ替えない */
+function sortNearbySpots(
+  spots: Spot[],
+  origin: { latitude: number; longitude: number } | null
+): { spot: Spot; distanceKm: number | null }[] {
+  return spots
+    .map(spot => ({
+      spot,
+      distanceKm: origin
+        ? calculateDistance(origin.latitude, origin.longitude, spot.lat, spot.lng)
+        : null,
+    }))
+    .sort(
+      (a, b) =>
+        (a.distanceKm ?? 0) - (b.distanceKm ?? 0) || a.spot.name.localeCompare(b.spot.name, 'ja')
+    );
+}
+
 /**
  * 検索の場所の帯から寄せた地図の下に出す、その地域の寺社の一覧（Issue #311。S0 でオーナーが選んだ 3）。
  * 行を押すと寺社を選んだときと同じ（呼び出し側が SpotBottomSheet を出して一覧を閉じる）
  */
 export function RegionSpotSheet({
-  label,
+  variant = 'region',
+  label = '',
   spots,
   origin,
   reduceMotion,
@@ -62,7 +87,17 @@ export function RegionSpotSheet({
 }: RegionSpotSheetProps) {
   const { height: windowHeight } = useWindowDimensions();
   const maxHeight = windowHeight * MAX_HEIGHT_RATIO;
-  const sorted = useMemo(() => sortRegionSpots(spots, origin), [spots, origin]);
+  const rows = useMemo(
+    () =>
+      variant === 'nearby'
+        ? sortNearbySpots(spots, origin)
+        : sortRegionSpots(spots, origin).map(spot => ({ spot, distanceKm: null })),
+    [variant, spots, origin]
+  );
+  const title =
+    variant === 'nearby'
+      ? nearbySheetTitle(rows.length)
+      : `${label}のあたりの寺社（${rows.length}）`;
   // 一覧の高さは maxHeight を超えないので、その分だけ下げておけば画面の外から出てくる
   const translateY = useRef(new Animated.Value(reduceMotion ? 0 : maxHeight)).current;
 
@@ -88,12 +123,12 @@ export function RegionSpotSheet({
       onLayout={e => onLayout?.(e.nativeEvent.layout.height)}
     >
       <View style={styles.handle} />
-      <Text style={styles.title}>{`${label}のあたりの寺社（${sorted.length}）`}</Text>
+      <Text style={styles.title}>{title}</Text>
       <FlatList
-        data={sorted}
-        keyExtractor={spot => spot.id}
+        data={rows}
+        keyExtractor={row => row.spot.id}
         style={styles.list}
-        renderItem={({ item, index }) => {
+        renderItem={({ item: { spot: item, distanceKm }, index }) => {
           const isShrine = item.type === 'shrine';
           return (
             <Pressable
@@ -118,6 +153,11 @@ export function RegionSpotSheet({
                   {item.address ?? ''}
                 </Text>
               </View>
+              {distanceKm !== null && (
+                <Text testID={`region-spot-${index}-distance`} style={styles.distance}>
+                  {formatDistance(distanceKm)}
+                </Text>
+              )}
             </Pressable>
           );
         }}
@@ -189,6 +229,10 @@ const styles = StyleSheet.create({
   },
   address: {
     ...typography.bodySmall,
+    color: colors.gray[500],
+  },
+  distance: {
+    fontSize: 13,
     color: colors.gray[500],
   },
 });

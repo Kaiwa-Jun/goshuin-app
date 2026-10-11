@@ -18,6 +18,7 @@ import { Button } from '@components/common/Button';
 import { AnnualReportCard } from '@components/collection/AnnualReportCard';
 import { AnnualReportShelf } from '@components/collection/AnnualReportShelf';
 import { Card } from '@components/common/Card';
+import { FirstStampNote } from '@components/collection/FirstStampNote';
 import { FrequentAreaSheet } from '@components/collection/FrequentAreaSheet';
 import { JapanMap } from '@components/collection/JapanMap';
 import { MouSukoshiCard } from '@components/collection/MouSukoshiCard';
@@ -53,6 +54,7 @@ export function CollectionScreen({ navigation }: Props) {
     mouSukoshi,
     annualReports,
     isLoading,
+    error,
   } = useCollectionStats();
 
   // 「もう少し」のエリアの行を押したときのシート
@@ -211,15 +213,23 @@ export function CollectionScreen({ navigation }: Props) {
                 />
               </View>
 
-              <View style={styles.legend}>
-                <LegendItem
-                  color={colors.prefectureFill.empty}
-                  text={`まだ ${47 - paintedCount}`}
-                />
-                <LegendItem color={colors.prefectureFill.tier1} text="1〜2枚" />
-                <LegendItem color={colors.prefectureFill.tier2} text="3〜5枚" />
-                <LegendItem color={colors.prefectureFill.tier3} text="6枚〜" />
-              </View>
+              {/*
+               * 記録 0 枚の間は、凡例の代わりに最初の 1 枚で何が起きるかを言う（Issue #327）。
+               * 読み込み中・読めなかったときは凡例（記録のある人に「最初の1枚で…」と言わない）
+               */}
+              {!isLoading && error === null && stampCount === 0 ? (
+                <FirstStampNote />
+              ) : (
+                <View style={styles.legend}>
+                  <LegendItem
+                    color={colors.prefectureFill.empty}
+                    text={`まだ ${47 - paintedCount}`}
+                  />
+                  <LegendItem color={colors.prefectureFill.tier1} text="1〜2枚" />
+                  <LegendItem color={colors.prefectureFill.tier2} text="3〜5枚" />
+                  <LegendItem color={colors.prefectureFill.tier3} text="6枚〜" />
+                </View>
+              )}
             </View>
 
             <RecentVisits stamps={recentStamps} onSeeAll={handleSeeAllStamps} />

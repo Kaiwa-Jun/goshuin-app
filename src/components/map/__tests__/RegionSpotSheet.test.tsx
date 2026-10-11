@@ -4,6 +4,7 @@ import { fireEvent, render, within } from '@testing-library/react-native';
 import { RegionSpotSheet, sortRegionSpots } from '@components/map/RegionSpotSheet';
 import type { Spot } from '@/types/supabase';
 import { colors } from '@theme/colors';
+import { calculateDistance, formatDistance } from '@utils/geo';
 
 function makeSpot(overrides: Partial<Spot> & Pick<Spot, 'id'>): Spot {
   return {
@@ -129,5 +130,67 @@ describe('sortRegionSpots', () => {
     const input = [a, b, c];
     sortRegionSpots(input, null);
     expect(input.map(s => s.id)).toEqual(['a', 'b', 'c']);
+  });
+});
+
+/* Issue #327: 地図のカードの［近くの寺社を見る］から出す、近い順・距離つきの一覧 */
+describe('RegionSpotSheet（#327 近くの寺社）', () => {
+  const O = { latitude: 35, longitude: 135 };
+  // 近い順に rank 1・5・3（rank の高い順とは違う並び）
+  const near = [
+    makeSpot({ id: 'n3', name: '三番目', rank: 3, lat: 35.02, lng: 135 }),
+    makeSpot({ id: 'n1', name: '一番目', rank: 1, lat: 35.003, lng: 135 }),
+    makeSpot({ id: 'n2', name: '二番目', rank: 5, lat: 35.01, lng: 135 }),
+  ];
+  const order = ['n1', 'n2', 'n3'];
+  const byId = (id: string) => near.find(s => s.id === id)!;
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('AC-12: variant を渡さなければ距離を出さない', () => {
+    const r = renderSheet();
+    expect(r.queryAllByTestId(/^region-spot-\d+-distance$/)).toHaveLength(0);
+  });
+
+  it('AC-13: 見出しは「近くの寺社（N）」、行は距離の近い順（rank を見ない）', () => {
+    const r = renderSheet({ variant: 'nearby', spots: near, origin: O });
+
+    expect(r.getByText('近くの寺社（3）')).toBeTruthy();
+    expect(r.queryByText(/のあたりの寺社/)).toBeNull();
+    order.forEach((id, i) => {
+      expect(within(r.getByTestId(`region-spot-${i}`)).getByText(byId(id).name)).toBeTruthy();
+    });
+  });
+
+  it('AC-14: 各行の右に距離（13・gray500）', () => {
+    const r = renderSheet({ variant: 'nearby', spots: near, origin: O });
+
+    order.forEach((id, i) => {
+      const spot = byId(id);
+      const label = r.getByTestId(`region-spot-${i}-distance`);
+      expect(label.props.children).toBe(
+        formatDistance(calculateDistance(O.latitude, O.longitude, spot.lat, spot.lng))
+      );
+      expect(
+        within(r.getByTestId(`region-spot-${i}`)).getByTestId(`region-spot-${i}-distance`)
+      ).toBe(label);
+      expect(StyleSheet.flatten(label.props.style)).toEqual(
+        expect.objectContaining({ fontSize: 13, color: colors.gray[500] })
+      );
+    });
+  });
+
+  it('AC-15: 行を押すとその寺社を選ぶ。「視差効果を減らす」なら動かさない', () => {
+    const onSelectSpot = jest.fn();
+    const r = renderSheet({ variant: 'nearby', spots: near, origin: O, onSelectSpot });
+    fireEvent.press(r.getByTestId('region-spot-0'));
+    expect(onSelectSpot).toHaveBeenCalledTimes(1);
+    expect(onSelectSpot).toHaveBeenCalledWith('n1');
+
+    const timing = jest.spyOn(Animated, 'timing');
+    renderSheet({ variant: 'nearby', spots: near, origin: O, reduceMotion: true });
+    expect(timing).not.toHaveBeenCalled();
   });
 });

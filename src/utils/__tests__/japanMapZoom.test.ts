@@ -142,3 +142,31 @@ describe('prefectureScreenPoint', () => {
     }
   });
 });
+
+describe('zoomToPrefecture（倍率を固定する）', () => {
+  // 地図のカードの小さな日本地図は、どの県でも同じ寄り（1.8 倍）で見せる（#327）
+  it('3 つ目を渡すと倍率がそれになり、移動量は同じ式で頭打ちにする', () => {
+    const width = 84;
+    const height = (width * JAPAN_MAP_HEIGHT) / JAPAN_MAP_WIDTH;
+    const k = width / JAPAN_MAP_WIDTH;
+    const scale = 1.8;
+    const clamp = (v: number, lim: number) => Math.min(lim, Math.max(-lim, v));
+
+    for (const name of ['京都府', '北海道', '沖縄県']) {
+      const box = JAPAN_PREFECTURE_BOXES[name];
+      const px = (box.x + box.width / 2) * k;
+      const py = (box.y + box.height / 2) * k;
+      const zoom = zoomToPrefecture(name, width, scale);
+
+      expect(zoom.scale).toBe(1.8);
+      expect(zoom.translateX).toBeCloseTo(
+        clamp(-scale * (px - width / 2), ((scale - 1) * width) / 2),
+        6
+      );
+      expect(zoom.translateY).toBeCloseTo(
+        clamp(-scale * (py - height / 2), ((scale - 1) * height) / 2),
+        6
+      );
+    }
+  });
+});

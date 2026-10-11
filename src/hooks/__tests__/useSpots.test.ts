@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react-native';
+import { act, renderHook, waitFor } from '@testing-library/react-native';
 import { useSpots } from '@hooks/useSpots';
 import type { Spot } from '@/types/supabase';
 
@@ -122,5 +122,47 @@ describe('useSpots', () => {
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     expect(result.current.spots).toEqual([]);
+  });
+});
+
+/* Issue #327 D-9: 位置が届いた描画から、その位置の取得が終わるまで isLoading（空の一覧を「読み終えた」と見せない） */
+describe('useSpots（#327 位置が届いた描画）', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('AC-11: 位置が null から値に変わったその描画から、取れるまで isLoading', async () => {
+    const O = { latitude: 35, longitude: 135 };
+    const seen: { loc: unknown; isLoading: boolean }[] = [];
+    const { result, rerender } = renderHook(
+      ({ loc }: { loc: { latitude: number; longitude: number } | null }) => {
+        const r = useSpots(loc);
+        seen.push({ loc, isLoading: r.isLoading });
+        return r;
+      },
+      { initialProps: { loc: null as { latitude: number; longitude: number } | null } }
+    );
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    let resolveFetch: (spots: Spot[]) => void = () => {};
+    mockFetchAllActiveSpots.mockReturnValueOnce(
+      new Promise<Spot[]>(resolve => {
+        resolveFetch = resolve;
+      })
+    );
+    rerender({ loc: O });
+
+    const before = seen.filter(s => s.loc === O);
+    expect(before.length).toBeGreaterThan(0);
+    expect(before.filter(s => !s.isLoading)).toEqual([]);
+
+    const spots = [makeFakeSpot()];
+    await act(async () => {
+      resolveFetch(spots);
+    });
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.allSpots).toEqual(spots);
   });
 });

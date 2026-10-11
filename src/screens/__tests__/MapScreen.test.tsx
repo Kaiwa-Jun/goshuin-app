@@ -2,6 +2,9 @@ import React from 'react';
 import { render, fireEvent, waitFor, act, within } from '@testing-library/react-native';
 import { MapScreen } from '@screens/MapScreen';
 import { SpotBottomSheet } from '@components/spot-detail/SpotBottomSheet';
+import { SpotMapLayers } from '@components/map/SpotMapLayers';
+import { LoginPromptModal } from '@components/common/LoginPromptModal';
+import { calculateDistance, formatDistance } from '@utils/geo';
 import { AccessibilityInfo, Animated, StyleSheet } from 'react-native';
 import { colors } from '@theme/colors';
 import { shadows } from '@theme/shadows';
@@ -97,12 +100,15 @@ jest.mock('@hooks/useAuth', () => ({
 const mockLocation = { latitude: 38.2682, longitude: 140.8694 };
 
 let mockPermissionStatus: string = 'granted';
+// #327 の地図のカードのテストだけ差し替える（既定は今の値）
+let mockLocationLoading = false;
+let mockLocationError: string | null = null;
 
 jest.mock('@hooks/useLocation', () => ({
   useLocation: () => ({
     location: mockLocation,
-    isLoading: false,
-    error: null,
+    isLoading: mockLocationLoading,
+    error: mockLocationError,
     permissionStatus: mockPermissionStatus,
     refreshLocation: jest.fn(),
   }),
@@ -140,8 +146,10 @@ const mockSpots = [
   },
 ];
 
-// テストごとに差し替え可能なオーバーライド(null なら mockSpots を使用)
-let mockSpotsOverride: typeof mockSpots | null = null;
+// テストごとに差し替え可能なオーバーライド(null なら mockSpots を使用)。#327 は prefecture を付ける
+let mockSpotsOverride: ((typeof mockSpots)[number] & { prefecture?: string | null })[] | null =
+  null;
+let mockSpotsLoading = false;
 
 jest.mock('@hooks/useSpots', () => ({
   // 絞り込みは実装と同じ形で再現する。素通しにすると
@@ -162,7 +170,7 @@ jest.mock('@hooks/useSpots', () => ({
     return {
       spots: ids ? allSpots.filter(s => ids.has(s.id)) : allSpots,
       allSpots,
-      isLoading: false,
+      isLoading: mockSpotsLoading,
       error: null,
     };
   },
@@ -172,21 +180,27 @@ jest.mock('@hooks/useSpots', () => ({
 const DEFAULT_VISITED_SPOT_IDS = new Set(['spot-1']);
 let mockVisitedSpotIds = DEFAULT_VISITED_SPOT_IDS;
 let mockUserStampsLoading = false;
+let mockUserStampsRefreshing = false;
+let mockUserStampsLoadFailed = false;
 
 jest.mock('@hooks/useUserStamps', () => ({
   useUserStamps: () => ({
     visitedSpotIds: mockVisitedSpotIds,
     isLoading: mockUserStampsLoading,
+    isRefreshing: mockUserStampsRefreshing,
+    loadFailed: mockUserStampsLoadFailed,
   }),
 }));
 
 let mockWishlistSpotIds = new Set<string>();
+const mockToggleWishlist = jest.fn();
+let mockWishlistLoading = false;
 
 jest.mock('@hooks/useWishlist', () => ({
   useWishlist: () => ({
     wishlistSpotIds: mockWishlistSpotIds,
-    toggleWishlist: jest.fn(),
-    isLoading: false,
+    toggleWishlist: mockToggleWishlist,
+    isLoading: mockWishlistLoading,
     isToggling: false,
   }),
 }));
@@ -195,6 +209,13 @@ afterEach(() => {
   mockSpotsOverride = null;
   mockWishlistSpotIds = new Set<string>();
   mockVisitedSpotIds = DEFAULT_VISITED_SPOT_IDS;
+  mockLocationLoading = false;
+  mockLocationError = null;
+  mockSpotsLoading = false;
+  mockUserStampsLoading = false;
+  mockUserStampsRefreshing = false;
+  mockUserStampsLoadFailed = false;
+  mockWishlistLoading = false;
 });
 
 const mockParentNavigate = jest.fn();
@@ -1115,6 +1136,7 @@ describe('MapScreen', () => {
       });
 
       it('一覧が出ている間は、記録の FAB を引っ込める（引っ込む動きのあとで消える）', async () => {
+        mockVisitedSpotIds = new Set(['spot-1']);
         const r = renderWith({ focusRegion: region });
         await waitFor(() => expect(r.queryByTestId('fab-button')).toBeNull());
 
@@ -1171,6 +1193,441 @@ describe('MapScreen', () => {
         expect(spotIds(r, 'goshuin-pinned')).toEqual([]);
         expect(r.queryByTestId('region-sheet')).toBeNull();
       });
+    });
+  });
+});
+
+/* Issue #327: 記録 0 枚の間だけ地図にカードを出し、最初の 1 枚へ連れていく */
+describe('地図のカード（#327）', () => {
+  /** F0: ゲスト・0 枚・寺社 2 つに県・位置情報は許可済みで取れている */
+  const F0_SPOTS = mockSpots.map(s => ({ ...s, prefecture: '宮城県' }));
+  const renderMap = (params?: object) =>
+    render(
+      <MapScreen navigation={mockNavigation as never} route={{ ...mockRoute, params } as never} />
+    );
+  const rerenderMap = (r: Rendered, params?: object) =>
+    r.rerender(
+      <MapScreen navigation={mockNavigation as never} route={{ ...mockRoute, params } as never} />
+    );
+  const logIn = () => {
+    mockUseAuthReturn = { ...mockUseAuthReturn, isAuthenticated: true };
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockUseAuthReturn = {
+      user: null,
+      session: null,
+      isLoading: false,
+      isAuthenticated: false,
+      isSigningIn: false,
+      signInWithGoogle: jest.fn(),
+      signOut: jest.fn(),
+    };
+    mockFetchSpotsByPrefecture.mockResolvedValue([]);
+    mockPermissionStatus = 'granted';
+    mockVisitedSpotIds = new Set<string>();
+    mockSpotsOverride = F0_SPOTS;
+  });
+
+  it('AC-24: 0 枚のゲストにカードを出し、＋は出さない', async () => {
+    const r = renderMap();
+
+    expect(r.getByTestId('first-stamp-card')).toBeTruthy();
+    expect(r.getByTestId('first-stamp-card-subtitle').props.children).toBe(
+      '撮ると、宮城県に色が差します'
+    );
+    expect(r.getByTestId('first-stamp-nearby')).toBeTruthy();
+    await waitFor(() => expect(r.queryByTestId('fab-button')).toBeNull());
+  });
+
+  it('AC-25: ログインしていても 0 枚なら同じ', async () => {
+    logIn();
+    const r = renderMap();
+
+    expect(r.getByTestId('first-stamp-card')).toBeTruthy();
+    expect(r.getByTestId('first-stamp-card-subtitle').props.children).toBe(
+      '撮ると、宮城県に色が差します'
+    );
+    expect(r.getByTestId('first-stamp-nearby')).toBeTruthy();
+    await waitFor(() => expect(r.queryByTestId('fab-button')).toBeNull());
+  });
+
+  it('AC-26: 記録があればカードを出さず＋', () => {
+    logIn();
+    mockVisitedSpotIds = new Set(['spot-1']);
+    const r = renderMap();
+
+    expect(r.queryByTestId('first-stamp-card')).toBeNull();
+    expect(r.getByTestId('fab-button')).toBeTruthy();
+  });
+
+  describe('AC-27: 0 枚と言い切れない間はカードを出さず＋', () => {
+    it.each([
+      [
+        '(a) ログインの確かめ中',
+        () => {
+          mockUseAuthReturn = { ...mockUseAuthReturn, isLoading: true };
+        },
+      ],
+      [
+        '(b) 記録を読んでいる',
+        () => {
+          mockUserStampsLoading = true;
+        },
+      ],
+      [
+        '(c) 記録を読めなかった',
+        () => {
+          mockUserStampsLoadFailed = true;
+        },
+      ],
+    ])('%s', (_label, arrange) => {
+      arrange();
+      const r = renderMap();
+
+      expect(r.queryByTestId('first-stamp-card')).toBeNull();
+      expect(r.getByTestId('fab-button')).toBeTruthy();
+    });
+  });
+
+  describe('AC-28: いる県を決めている間は、カードも＋も出さない', () => {
+    it.each([
+      [
+        '(a) 位置を取っている',
+        () => {
+          mockLocationLoading = true;
+        },
+      ],
+      [
+        '(b) 寺社を読んでいる',
+        () => {
+          mockSpotsLoading = true;
+        },
+      ],
+    ])('%s', (_label, arrange) => {
+      arrange();
+      const r = renderMap();
+
+      expect(r.queryByTestId('first-stamp-card')).toBeNull();
+      expect(r.queryByTestId('fab-button')).toBeNull();
+    });
+  });
+
+  describe('AC-29: いる県が分からなければ「その県」・空押しなし', () => {
+    it.each([
+      [
+        '(a) 位置情報が許可されていない',
+        () => {
+          mockPermissionStatus = 'denied';
+        },
+        false,
+      ],
+      [
+        '(b) 位置が取れなかった',
+        () => {
+          mockLocationError = 'x';
+        },
+        false,
+      ],
+      [
+        '(c) 寺社が 50km より遠い（約 111km）',
+        () => {
+          mockSpotsOverride = F0_SPOTS.map(s => ({ ...s, lat: s.lat + 1.0 }));
+        },
+        false,
+      ],
+      [
+        '(d) 寺社の県が分からない',
+        () => {
+          mockSpotsOverride = F0_SPOTS.map(s => ({ ...s, prefecture: null }));
+        },
+        true,
+      ],
+    ])('%s', (_label, arrange, nearby) => {
+      arrange();
+      const r = renderMap();
+
+      expect(r.getByTestId('first-stamp-card')).toBeTruthy();
+      expect(r.getByTestId('first-stamp-card-subtitle').props.children).toBe(
+        '撮ると、その県に色が差します'
+      );
+      expect(r.queryByTestId('first-stamp-card-emboss')).toBeNull();
+      if (nearby) expect(r.getByTestId('first-stamp-nearby')).toBeTruthy();
+      else expect(r.queryByTestId('first-stamp-nearby')).toBeNull();
+    });
+  });
+
+  it('AC-30: ログインしていれば［御朱印を撮る］で記録の画面へ', () => {
+    logIn();
+    const r = renderMap();
+
+    fireEvent.press(r.getByTestId('first-stamp-shoot'));
+
+    expect(mockParentNavigate).toHaveBeenCalledTimes(1);
+    expect(mockParentNavigate).toHaveBeenCalledWith('Record', { spotId: undefined, origin: 'map' });
+  });
+
+  it('AC-31: ゲストは［御朱印を撮る］でログインを聞き、ログインできたら記録の画面へ', () => {
+    const r = renderMap();
+
+    fireEvent.press(r.getByTestId('first-stamp-shoot'));
+    expect(r.getByTestId('modal-later-button')).toBeTruthy();
+
+    act(() => {
+      r.UNSAFE_getByType(LoginPromptModal).props.onLoginSuccess();
+    });
+    expect(mockParentNavigate).toHaveBeenCalledTimes(1);
+    expect(mockParentNavigate).toHaveBeenCalledWith('Record', { spotId: undefined, origin: 'map' });
+  });
+
+  it('AC-32: ✕ はその回だけ。＋を押すとカードに戻り、開き直すとまた出る', async () => {
+    // native driver の動きは Jest では終わりの callback が来ない。ここで見たいのは畳んだあとの
+    // 出し分けなので、動きはその場で終わらせる（動きそのものは FirstStampCard.test.tsx の AC-21）
+    const timing = jest.spyOn(Animated, 'timing').mockImplementation(
+      (value, config) =>
+        ({
+          start: (cb?: Animated.EndCallback) => {
+            (value as Animated.Value).setValue(config.toValue as number);
+            cb?.({ finished: true });
+          },
+          stop: jest.fn(),
+          reset: jest.fn(),
+        }) as unknown as Animated.CompositeAnimation
+    );
+    const r = renderMap();
+
+    fireEvent.press(r.getByTestId('first-stamp-close'));
+    await waitFor(() => expect(r.queryByTestId('first-stamp-card')).toBeNull());
+    timing.mockRestore();
+    await waitFor(() => expect(r.getByTestId('fab-button')).toBeTruthy());
+
+    rerenderMap(r);
+    expect(r.queryByTestId('first-stamp-card')).toBeNull();
+
+    fireEvent.press(r.getByTestId('fab-button'));
+    await waitFor(() => expect(r.getByTestId('first-stamp-card')).toBeTruthy());
+    expect(mockParentNavigate).toHaveBeenCalledTimes(0);
+    expect(r.queryByTestId('modal-later-button')).toBeNull();
+
+    r.unmount();
+    const again = renderMap();
+    expect(again.getByTestId('first-stamp-card')).toBeTruthy();
+  });
+
+  it('AC-33: 寺社を選ぶとカードを外し、シートを閉じると戻る', () => {
+    const r = renderMap();
+
+    act(() => {
+      r.UNSAFE_getByType(SpotMapLayers).props.onPressSpot('spot-1');
+    });
+    expect(r.queryByTestId('first-stamp-card')).toBeNull();
+
+    act(() => {
+      r.UNSAFE_getByType(SpotBottomSheet).props.onDismiss();
+    });
+    expect(r.getByTestId('first-stamp-card')).toBeTruthy();
+  });
+
+  describe('近くの寺社', () => {
+    const openNearby = () => {
+      const r = renderMap();
+      fireEvent.press(r.getByTestId('first-stamp-nearby'));
+      return r;
+    };
+
+    it('AC-34: 近い順・距離つきの一覧を出す。カードも＋も出さず、カメラは動かさない', async () => {
+      const r = renderMap();
+      const before = {
+        flyTo: cameraMocks.flyTo.mock.calls.length,
+        fitBounds: cameraMocks.fitBounds.mock.calls.length,
+        easeTo: cameraMocks.easeTo.mock.calls.length,
+      };
+
+      fireEvent.press(r.getByTestId('first-stamp-nearby'));
+
+      expect(r.getByTestId('region-sheet')).toBeTruthy();
+      expect(r.getByText('近くの寺社（2）')).toBeTruthy();
+      expect(within(r.getByTestId('region-spot-0')).getByText('Test Shrine')).toBeTruthy();
+      expect(r.getByTestId('region-spot-0-distance').props.children).toBe(
+        formatDistance(calculateDistance(38.2682, 140.8694, 38.27, 140.87))
+      );
+      expect(r.queryByTestId('first-stamp-card')).toBeNull();
+      await waitFor(() => expect(r.queryByTestId('fab-button')).toBeNull());
+      expect({
+        flyTo: cameraMocks.flyTo.mock.calls.length,
+        fitBounds: cameraMocks.fitBounds.mock.calls.length,
+        easeTo: cameraMocks.easeTo.mock.calls.length,
+      }).toEqual(before);
+    });
+
+    it('AC-35: 一覧の寺社を押すと、一覧を閉じてその寺社のシート', () => {
+      const r = openNearby();
+
+      fireEvent.press(r.getByTestId('region-spot-0'));
+
+      expect(r.queryByTestId('region-sheet')).toBeNull();
+      expect(r.UNSAFE_getByType(SpotBottomSheet).props.spotId).toBe('spot-1');
+      expect(r.queryByTestId('first-stamp-card')).toBeNull();
+    });
+
+    it('AC-36: 地図を押すと一覧を閉じ、カードが戻る', () => {
+      const r = openNearby();
+
+      fireEvent(r.getByTestId('map-view'), 'press', { nativeEvent: {} });
+
+      expect(r.queryByTestId('region-sheet')).toBeNull();
+      expect(r.getByTestId('first-stamp-card')).toBeTruthy();
+    });
+
+    it('AC-37: 検索から寺社が来たら一覧を閉じる', () => {
+      const r = openNearby();
+
+      rerenderMap(r, { focusSpotId: 'spot-2' });
+
+      expect(r.queryByText('近くの寺社（2）')).toBeNull();
+    });
+  });
+
+  describe('AC-38: 「行きたい」からログインしたら、地図に留まってその寺社を行きたいに入れる', () => {
+    const wishThenLogin = () => {
+      const r = renderMap();
+      act(() => {
+        r.UNSAFE_getByType(SpotMapLayers).props.onPressSpot('spot-1');
+      });
+      act(() => {
+        r.UNSAFE_getByType(SpotBottomSheet).props.onWishlistToggle('spot-1');
+      });
+      expect(r.getByTestId('modal-later-button')).toBeTruthy();
+      return r;
+    };
+
+    it('行きたいを読み終えてから 1 回だけ入れる', () => {
+      const r = wishThenLogin();
+
+      act(() => {
+        r.UNSAFE_getByType(LoginPromptModal).props.onLoginSuccess();
+      });
+      expect(mockParentNavigate).toHaveBeenCalledTimes(0);
+      expect(r.queryByTestId('modal-later-button')).toBeNull();
+      expect(r.UNSAFE_getByType(SpotBottomSheet).props.spotId).toBe('spot-1');
+
+      logIn();
+      mockWishlistLoading = true;
+      rerenderMap(r);
+      expect(mockToggleWishlist).toHaveBeenCalledTimes(0);
+
+      mockWishlistLoading = false;
+      rerenderMap(r);
+      expect(mockToggleWishlist).toHaveBeenCalledTimes(1);
+      expect(mockToggleWishlist).toHaveBeenCalledWith('spot-1');
+
+      rerenderMap(r);
+      expect(mockToggleWishlist).toHaveBeenCalledTimes(1);
+    });
+
+    it('(a) もう行きたいに入っていれば入れない', () => {
+      const r = wishThenLogin();
+      act(() => {
+        r.UNSAFE_getByType(LoginPromptModal).props.onLoginSuccess();
+      });
+      mockWishlistSpotIds = new Set(['spot-1']);
+      logIn();
+      rerenderMap(r);
+
+      expect(mockToggleWishlist).toHaveBeenCalledTimes(0);
+    });
+
+    it('(b) 「あとにする」で閉じたら忘れる', () => {
+      const r = wishThenLogin();
+      fireEvent.press(r.getByTestId('modal-later-button'));
+      logIn();
+      rerenderMap(r);
+
+      expect(mockToggleWishlist).toHaveBeenCalledTimes(0);
+    });
+  });
+
+  it('AC-39: シートの「記録する」からログインしたら、その寺社の記録の画面へ', () => {
+    const r = renderMap();
+    act(() => {
+      r.UNSAFE_getByType(SpotMapLayers).props.onPressSpot('spot-2');
+    });
+    act(() => {
+      r.UNSAFE_getByType(SpotBottomSheet).props.onRecord('spot-2');
+    });
+    act(() => {
+      r.UNSAFE_getByType(LoginPromptModal).props.onLoginSuccess();
+    });
+
+    expect(mockParentNavigate).toHaveBeenCalledTimes(1);
+    expect(mockParentNavigate).toHaveBeenCalledWith('Record', { spotId: 'spot-2', origin: 'map' });
+  });
+
+  describe('AC-40: 記録して戻った直後は、取り直しが終わるまでカードを出さない', () => {
+    const shootAndReturn = () => {
+      logIn();
+      const r = renderMap();
+      fireEvent.press(r.getByTestId('first-stamp-shoot'));
+      expect(r.queryByTestId('first-stamp-card')).toBeNull();
+      rerenderMap(r);
+      expect(r.queryByTestId('first-stamp-card')).toBeNull();
+      return r;
+    };
+
+    it.each([
+      [
+        'isRefreshing',
+        (v: boolean) => {
+          mockUserStampsRefreshing = v;
+        },
+      ],
+      [
+        'isLoading',
+        (v: boolean) => {
+          mockUserStampsLoading = v;
+        },
+      ],
+    ])('%s が true → false', async (_label, setFetching) => {
+      // (a) 1 枚目を記録した
+      const a = shootAndReturn();
+      setFetching(true);
+      rerenderMap(a);
+      expect(a.queryByTestId('first-stamp-card')).toBeNull();
+      await waitFor(() => expect(a.getByTestId('fab-button')).toBeTruthy());
+      setFetching(false);
+      mockVisitedSpotIds = new Set(['spot-1']);
+      rerenderMap(a);
+      expect(a.queryByTestId('first-stamp-card')).toBeNull();
+      expect(a.getByTestId('fab-button')).toBeTruthy();
+      a.unmount();
+
+      // (b) 記録せずに戻った
+      mockVisitedSpotIds = new Set<string>();
+      const b = shootAndReturn();
+      setFetching(true);
+      rerenderMap(b);
+      expect(b.queryByTestId('first-stamp-card')).toBeNull();
+      setFetching(false);
+      rerenderMap(b);
+      expect(b.getByTestId('first-stamp-card')).toBeTruthy();
+    });
+  });
+
+  it('AC-41: カードの間は地図の出典をカードの上へ逃がす', () => {
+    const r = renderMap();
+    fireEvent(r.getByTestId('first-stamp-card'), 'layout', {
+      nativeEvent: { layout: { x: 0, y: 0, width: 361, height: 180 } },
+    });
+    expect(r.getByTestId('map-view').props.attributionPosition).toEqual({ bottom: 204, left: 8 });
+    r.unmount();
+
+    logIn();
+    mockVisitedSpotIds = new Set(['spot-1']);
+    const withStamp = renderMap();
+    expect(withStamp.getByTestId('map-view').props.attributionPosition).toEqual({
+      bottom: 78,
+      left: 8,
     });
   });
 });

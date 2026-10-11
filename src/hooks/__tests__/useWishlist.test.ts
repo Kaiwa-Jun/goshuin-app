@@ -203,3 +203,42 @@ describe('useWishlist フォーカス復帰時の再取得（Issue #125）', () 
     expect(mockFetchWishlistSpotIds).toHaveBeenCalledTimes(2);
   });
 });
+
+/* Issue #327 D-9: 「行きたい」からログインしたら、そのユーザーの行きたいを読み終えてから足す */
+describe('useWishlist（#327 ログインに切り替わった描画）', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockUser = null;
+  });
+
+  it('AC-10: ゲスト → ログインに切り替わったその描画から、取れるまで isLoading', async () => {
+    const seen: { auth: boolean; isLoading: boolean }[] = [];
+    const { result, rerender } = renderHook(() => {
+      const r = useWishlist();
+      seen.push({ auth: mockUser !== null, isLoading: r.isLoading });
+      return r;
+    });
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    let resolveFirst: (ids: Set<string>) => void = () => {};
+    mockFetchWishlistSpotIds.mockReturnValueOnce(
+      new Promise<Set<string>>(resolve => {
+        resolveFirst = resolve;
+      })
+    );
+    mockUser = { id: 'u1' };
+    rerender({});
+
+    const before = seen.filter(s => s.auth);
+    expect(before.length).toBeGreaterThan(0);
+    expect(before.filter(s => !s.isLoading)).toEqual([]);
+
+    await act(async () => {
+      resolveFirst(new Set(['s']));
+    });
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.wishlistSpotIds.has('s')).toBe(true);
+  });
+});

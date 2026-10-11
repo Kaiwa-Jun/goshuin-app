@@ -238,6 +238,12 @@
       "title": "ホームページ goshuinsanpo.com（アプリの紹介と寺社ごとのページ）",
       "note": "契約書 docs/issues/issue-324-homepage.md。site/ の Deno の生成器（S1〜S5）。HTML 829（寺社 777・都道府県 47）・sitemap 828・robots・llms.txt・JSON-LD・check・serve・site.yml。deno test 77 通過（素材の 3 つは ignored）。スクショ 8 枚・ogp.png・App Store のバッジはリーダーが入れる（無い間 check はバッジで止まる）。APP_STORE_PT・CF_BEACON_TOKEN は H-0。goshuin-evaluator PASS（AC-1〜39・UI-1〜12）。PR #326。本番は 2026-10-10 に https://goshuinsanpo.com/ で公開（HTTPS・旧 URL の 301・beacon・Search Console の確認とサイトマップの送信まで。H の記録は契約書）。未確認: サイトマップの読み込み（送った直後は「取得できませんでした」）・UI-13（オーナーの iPhone で App Store が開くか）・H-13（Bing。任意）",
       "passes": true
+    },
+    {
+      "id": "ISSUE-327",
+      "title": "記録0枚の人の最初の1枚: 地図のカード・近くの寺社・保存直後に県が空押しから色が差す・あゆみと御朱印帳の空の言葉",
+      "note": "契約書 docs/issues/issue-327-first-stamp.md・試作 docs/design/mockups/2026-10-first-stamp-v1/（オーナーが案①＋案③の言葉＋保存直後の空押しを選んだ。案②は次の候補）。S1〜S7（8 コミット）。jest 2,682・lint・typecheck 通過。goshuin-evaluator PASS（AC 55/55・UI 9/9・Q 11/11。Expo Web・京都の位置）。証跡 .claude/harness/evidence/issue-327/。基準外: 寺社のシートを開くと Web だけ uncontrolled input の警告（#157 の検索バーの value={searchLabel ?? undefined}。#327 の差分ではない）。オーナーが 2026-10-11 に実機（開発用アプリ）で H-1〜H-6 を確認（問題なし。H-5・H-6 は記録 0 枚のアカウントで）。ボタンの字は 14pt のまま（決めること #4）。H-7（視差効果を減らす）は任意で、結果の報告なし",
+      "passes": true
     }
   ]
 }

@@ -65,7 +65,7 @@ export function computePageLayout(screenWidth: number): PageLayout {
 
 type Page =
   | { key: string; kind: 'stamp'; stamp: StampWithSpot; sourceIndex: number }
-  | { key: 'blank'; kind: 'blank' };
+  | { key: 'blank'; kind: 'blank'; first: boolean };
 
 interface GoshuinchoFlipViewProps {
   /** useGalleryStamps と同じ visited_at 降順。表示時に昇順へ反転する */
@@ -234,6 +234,7 @@ const FlipPageItem = memo(function FlipPageItem({
       {page.kind === 'blank' ? (
         <GoshuinchoPage
           variant="blank"
+          first={page.first}
           width={pageWidth}
           isCurrent={isCurrent}
           onPress={onPress}
@@ -315,7 +316,7 @@ export const GoshuinchoFlipView = memo(function GoshuinchoFlipView({
       stamp,
       sourceIndex,
     }));
-    return [...ascending, { key: 'blank', kind: 'blank' }];
+    return [...ascending, { key: 'blank', kind: 'blank', first: stamps.length === 0 }];
   }, [stamps]);
 
   /*

@@ -27,6 +27,7 @@ import { MAP_STYLE } from '@components/map/mapStyle';
 import { SpotMapLayers } from '@components/map/SpotMapLayers';
 import { CurrentLocationLayer } from '@components/map/CurrentLocationLayer';
 import { RegionSpotSheet } from '@components/map/RegionSpotSheet';
+import { FirstStampCard } from '@components/map/FirstStampCard';
 import { SpotBottomSheet } from '@components/spot-detail/SpotBottomSheet';
 import { useAuth } from '@hooks/useAuth';
 import { useLocation } from '@hooks/useLocation';
@@ -38,6 +39,7 @@ import { useWishlist } from '@hooks/useWishlist';
 import type { FocusRegion, MapStackScreenProps } from '@/navigation/types';
 import type { Spot } from '@/types/supabase';
 import { buildSpotSources, spotFilterIds } from '@utils/spotGeoJson';
+import { nearbySpots, nearestPrefecture } from '@utils/firstStamp';
 import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { spacing, borderRadius } from '@theme/spacing';
@@ -66,14 +68,35 @@ const FILTER_CLOSE_MS = 130;
 const FAB_OPEN_MS = 160;
 const FAB_CLOSE_MS = 110;
 
+/** 地図の出典（ⓘ）の今の位置。カードを出している間はカードの上へ逃がす（Issue #327 D-12） */
+const ATTRIBUTION_POSITION = { bottom: 78, left: 8 };
+
+/** ログインを聞いたきっかけ。ログインできたあとの行き先を決める（Issue #327 D-7） */
+type PendingAfterLogin = { kind: 'record'; spotId?: string } | { kind: 'wish'; spotId: string };
+
 export function MapScreen({ navigation, route }: Props) {
-  const { isAuthenticated } = useAuth();
-  const { location, permissionStatus, refreshLocation } = useLocation();
-  const { visitedSpotIds, isLoading: isVisitedLoading } = useUserStamps();
-  const { wishlistSpotIds, toggleWishlist } = useWishlist();
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  const {
+    location,
+    permissionStatus,
+    refreshLocation,
+    isLoading: isLocationLoading,
+    error: locationError,
+  } = useLocation();
+  const {
+    visitedSpotIds,
+    isLoading: isVisitedLoading,
+    isRefreshing: isVisitedRefreshing,
+    loadFailed: visitedLoadFailed,
+  } = useUserStamps();
+  const { wishlistSpotIds, toggleWishlist, isLoading: isWishlistLoading } = useWishlist();
   const [prefectureSpots, setPrefectureSpots] = useState<Spot[]>([]);
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
-  const { spots } = useSpots(location, filterMode, visitedSpotIds, wishlistSpotIds);
+  const {
+    spots,
+    allSpots,
+    isLoading: isSpotsLoading,
+  } = useSpots(location, filterMode, visitedSpotIds, wishlistSpotIds);
   const filterIds = spotFilterIds(filterMode, visitedSpotIds, wishlistSpotIds);
   const displaySpots = useMemo(() => {
     if (prefectureSpots.length === 0) return spots;
@@ -106,10 +129,50 @@ export function MapScreen({ navigation, route }: Props) {
     [activeRegion, displaySpots, focusIds]
   );
   const showRegionSheet = activeRegion !== null && regionSheetOpen && regionSpots.length > 0;
+
+  // ── 記録 0 枚の人の地図のカード（Issue #327） ──
+  // 今いる所。許可がない・取れないときの location は仙台の既定値なので、県を名指すのに使わない（D-5）
+  const origin =
+    permissionStatus === PermissionStatus.GRANTED && locationError === null ? location : null;
+  // いる県は絞り込みに関係なく全寺社から、近くの寺社は地図に出ている寺社から（D-5・D-6）
+  const firstStampPrefecture = useMemo(
+    () => nearestPrefecture(allSpots, origin),
+    [allSpots, origin]
+  );
+  const nearby = useMemo(() => nearbySpots(displaySpots, origin), [displaySpots, origin]);
+  // 位置と寺社を読み終えるまで言葉を決めない（最初に描いた言葉が後から変わらないように）
+  const prefectureResolved = !isLocationLoading && (origin === null || !isSpotsLoading);
+  // 0 枚と言い切れるときだけ（ログインの確かめ中・読み込み中・読めなかったときは出さない。D-2）
+  const firstStampEligible =
+    !isAuthLoading && !isVisitedLoading && !visitedLoadFailed && visitedSpotIds.size === 0;
+  // 記録の画面へ進んだら、戻って取り直しが終わるまで出さない（1 枚目を記録した人に一瞬出さない。D-8）
+  const [awaitingStampsRefresh, setAwaitingStampsRefresh] = useState(false);
+  // ✕ はその回だけ（覚えない。D-4）
+  const [cardDismissed, setCardDismissed] = useState(false);
+  const [nearbyOpen, setNearbyOpen] = useState(false);
+  const [cardHeight, setCardHeight] = useState<number | null>(null);
+  const cardWanted = firstStampEligible && !awaitingStampsRefresh;
+  const overlay = selectedSpotId !== null || showRegionSheet || nearbyOpen;
+  const showFirstStampCard = cardWanted && !cardDismissed && prefectureResolved && !overlay;
+
+  const visitedFetching = isVisitedLoading || isVisitedRefreshing;
+  const sawStampsFetchRef = useRef(false);
+  useEffect(() => {
+    if (!awaitingStampsRefresh) return;
+    if (visitedFetching) {
+      sawStampsFetchRef.current = true;
+      return;
+    }
+    if (!sawStampsFetchRef.current) return;
+    sawStampsFetchRef.current = false;
+    setAwaitingStampsRefresh(false);
+  }, [awaitingStampsRefresh, visitedFetching]);
+
   // FAB はスポットを選ぶと引っ込む（地域の一覧と重なるので、一覧が出ている間も）。
+  // 記録 0 枚でカードを出したい間も出さない（県の判定待ちの間も。入れ替わりのちらつきを避ける）。
   // 瞬時に消えると唐突なので出入りを描く
   const { mounted: fabMounted, progress: fabAnim } = useMountTransition(
-    !selectedSpotId && !showRegionSheet,
+    !overlay && !(cardWanted && !cardDismissed),
     { openMs: FAB_OPEN_MS, closeMs: FAB_CLOSE_MS }
   );
   // 地域の一覧は出たあとに mount されるので、一覧の中で読むと設定が間に合わない
@@ -197,6 +260,7 @@ export function MapScreen({ navigation, route }: Props) {
     setSearchLabel(spot.name);
     setActiveRegion(null);
     setRegionSheetOpen(false);
+    setNearbyOpen(false);
   }, [route.params?.focusSpotId, displaySpots]);
 
   // 検索の場所の行・エンターから来た地域（Issue #311）。参照が変わるたびに1回だけ寄せる。
@@ -216,6 +280,7 @@ export function MapScreen({ navigation, route }: Props) {
       setSearchLabel(focusRegion.label);
       setActiveRegion(focusRegion);
       setRegionSheetOpen(true);
+      setNearbyOpen(false);
 
       const [west, south, east, north] = focusRegion.bounds;
       // 1件だけだと矩形が潰れるので、fitBounds ではなく寄せる
@@ -320,28 +385,65 @@ export function MapScreen({ navigation, route }: Props) {
   const navigateToRecord = (spotId?: string) => {
     const parent = navigation.getParent();
     if (parent) {
+      setAwaitingStampsRefresh(true);
+      sawStampsFetchRef.current = false;
       parent.navigate('Record', { spotId, origin: 'map' });
     }
   };
 
+  // ログインを聞いたきっかけ（D-7）。「行きたい」からなら、ログインのあと記録の画面へ行かない
+  const pendingAfterLoginRef = useRef<PendingAfterLogin | null>(null);
+  // ログインのあと行きたいに入れる寺社。そのユーザーの行きたいを読み終えてから入れる
+  const [pendingWishSpotId, setPendingWishSpotId] = useState<string | null>(null);
+
+  const askLogin = (pending: PendingAfterLogin) => {
+    pendingAfterLoginRef.current = pending;
+    setShowLoginModal(true);
+  };
+
+  const startRecord = (spotId?: string) => {
+    if (isAuthenticated) navigateToRecord(spotId);
+    else askLogin({ kind: 'record', spotId });
+  };
+
   const handleFABPress = () => {
-    if (isAuthenticated) {
-      navigateToRecord();
-    } else {
-      setShowLoginModal(true);
+    // ✕ で畳んだカードは＋の中にある。押すと記録へ進まずカードに戻す（試作どおり。D-4）
+    if (cardWanted && cardDismissed) {
+      setCardDismissed(false);
+      return;
     }
+    startRecord();
   };
 
   const handleLoginSuccess = () => {
     setShowLoginModal(false);
-    navigateToRecord();
+    const pending = pendingAfterLoginRef.current;
+    pendingAfterLoginRef.current = null;
+    if (pending?.kind === 'wish') {
+      setPendingWishSpotId(pending.spotId);
+      return;
+    }
+    navigateToRecord(pending?.spotId);
   };
+
+  const handleLoginClose = () => {
+    setShowLoginModal(false);
+    pendingAfterLoginRef.current = null;
+  };
+
+  // 早く入れると、あとから届いた取得の結果で入れた印が消える。読み終えてから 1 回だけ（D-7・D-9）
+  useEffect(() => {
+    if (!pendingWishSpotId || !isAuthenticated || isWishlistLoading) return;
+    setPendingWishSpotId(null);
+    if (!wishlistSpotIds.has(pendingWishSpotId)) toggleWishlist(pendingWishSpotId);
+  }, [pendingWishSpotId, isAuthenticated, isWishlistLoading, wishlistSpotIds, toggleWishlist]);
 
   // ピンを押したときも、地域の一覧の行を押したときもここ。一覧は閉じ、地域のピンは残す
   const handleSpotPress = useCallback(
     (spotId: string) => {
       setSelectedSpotId(spotId);
       setRegionSheetOpen(false);
+      setNearbyOpen(false);
 
       const spot = displaySpots.find(s => s.id === spotId);
       if (spot) {
@@ -363,6 +465,7 @@ export function MapScreen({ navigation, route }: Props) {
       const features = (event.nativeEvent as Partial<PressEventWithFeatures>).features;
       if (features && features.length > 0) return;
       setSelectedSpotId(null);
+      setNearbyOpen(false);
     },
     []
   );
@@ -379,20 +482,12 @@ export function MapScreen({ navigation, route }: Props) {
     refitRegionRef.current = null;
   }, []);
 
-  const handleBottomSheetRecord = useCallback(
-    (spotId: string) => {
-      if (isAuthenticated) {
-        navigateToRecord(spotId);
-      } else {
-        setShowLoginModal(true);
-      }
-    },
-    [isAuthenticated]
-  );
+  const handleBottomSheetRecord = (spotId: string) => startRecord(spotId);
 
   const handleWishlistToggle = useCallback(
     (spotId: string) => {
       if (!isAuthenticated) {
+        pendingAfterLoginRef.current = { kind: 'wish', spotId };
         setShowLoginModal(true);
         return;
       }
@@ -551,7 +646,11 @@ export function MapScreen({ navigation, route }: Props) {
         onPress={handleMapPress}
         logo={false}
         compass={false}
-        attributionPosition={{ bottom: 78, left: 8 }}
+        attributionPosition={
+          showFirstStampCard && cardHeight !== null
+            ? { bottom: spacing.lg + cardHeight + spacing.sm, left: ATTRIBUTION_POSITION.left }
+            : ATTRIBUTION_POSITION
+        }
       >
         <Camera
           ref={cameraRef}
@@ -614,6 +713,29 @@ export function MapScreen({ navigation, route }: Props) {
         />
       )}
 
+      {/* 開いてもカメラは動かさない（D-6） */}
+      {nearbyOpen && !showRegionSheet && (
+        <RegionSpotSheet
+          variant="nearby"
+          spots={nearby.map(n => n.spot)}
+          origin={origin}
+          reduceMotion={reduceMotion}
+          onSelectSpot={handleSpotPress}
+        />
+      )}
+
+      {showFirstStampCard && (
+        <FirstStampCard
+          prefecture={firstStampPrefecture}
+          showNearby={nearby.length > 0}
+          reduceMotion={reduceMotion}
+          onShoot={() => startRecord()}
+          onNearby={() => setNearbyOpen(true)}
+          onDismiss={() => setCardDismissed(true)}
+          onHeightChange={setCardHeight}
+        />
+      )}
+
       <SpotBottomSheet
         spotId={selectedSpotId}
         visitedSpotIds={visitedSpotIds}
@@ -626,7 +748,7 @@ export function MapScreen({ navigation, route }: Props) {
 
       <LoginPromptModal
         visible={showLoginModal}
-        onClose={() => setShowLoginModal(false)}
+        onClose={handleLoginClose}
         onLoginSuccess={handleLoginSuccess}
       />
     </View>

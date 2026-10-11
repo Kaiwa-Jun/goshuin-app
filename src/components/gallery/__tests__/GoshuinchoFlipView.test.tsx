@@ -713,3 +713,17 @@ describe('GoshuinchoFlipView 表示の切り替えの受け口（Issue #276）',
     });
   });
 });
+
+/* Issue #327: 白紙の言葉は記録の枚数で分ける */
+describe('白紙の言葉（#327）', () => {
+  it('AC-55: 0 枚なら「最初の1枚を撮る」、1 枚以上なら「次の1枚を撮る」', () => {
+    const empty = renderFlipView({ stamps: [] });
+    expect(empty.getByText('最初の1枚を撮る')).toBeTruthy();
+    expect(empty.queryByText('次の1枚を撮る')).toBeNull();
+    empty.unmount();
+
+    const one = renderFlipView({ stamps: [makeStamp({ id: 'only' })] });
+    expect(one.getByText('次の1枚を撮る')).toBeTruthy();
+    expect(one.queryByText('最初の1枚を撮る')).toBeNull();
+  });
+});

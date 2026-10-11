@@ -2176,3 +2176,24 @@ describe('表示の切り替わりの動き（Issue #276）', () => {
     }
   });
 });
+
+/* Issue #327: 空の表示の言葉。「コレクション」は使わない */
+describe('空の表示の言葉（#327）', () => {
+  it('AC-53: 並べる表示・0 枚の下の行は「参拝したら、ここに1枚ずつ並びます」', () => {
+    mockUseGalleryStamps.mockReturnValue({
+      stamps: [],
+      totalCount: 0,
+      isLoading: false,
+      error: null,
+      removeStamp: jest.fn(),
+      updateStamp: jest.fn(),
+    });
+
+    const { getByText, getByTestId, queryByText } = renderGalleryScreenInGrid();
+
+    expect(getByText('参拝したら、ここに1枚ずつ並びます')).toBeTruthy();
+    expect(getByText('御朱印がまだありません')).toBeTruthy();
+    expect(getByTestId('gallery-record-cta')).toBeTruthy();
+    expect(queryByText(/コレクション/)).toBeNull();
+  });
+});
