@@ -25,6 +25,7 @@ docs/
 │   ├── store-metadata.md      # ストア掲載メタデータ（確定版）
 │   ├── roadmap.md             # ⚠ 旧ロードマップ（direction.md で置き換え済み）
 │   ├── growth-metrics-routine.md # ルーティンから growth-metrics（グロースの集計）を呼ぶ手順
+│   ├── ig-shrine-watch.md     # Instagram で関わってくれた寺社の公式を、アプリに足す（定期の確かめ・#330）
 │   └── development-workflow.md # 開発ワークフロー
 └── issues/                    # Issue別詳細設計
     └── README.md              # Issue設計ドキュメントの運用ガイド
