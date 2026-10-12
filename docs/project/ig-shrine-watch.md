@@ -1,0 +1,44 @@
+# Instagram で関わってくれた寺社の公式を、アプリに足す（定期の確かめ）
+
+Issue #330。2026-10-12 にオーナーが依頼（承認なしで進めてよい）。
+
+Instagram @goshuinsampo をフォローしたり、投稿にいいねしたりしてくれたアカウントの中から寺社の公式を見つけ、その寺社が御朱印さんぽにあるか（地図に出るか・検索で出るか）を確かめる。無ければ寺社のマスタ（`spots`）に足す。
+
+## いつ・だれが
+
+- **毎日 1 回（10 時台）**、Claude Code のセッションの定期実行（CronCreate）で Claude が回す
+- CronCreate はセッションの中だけ・7 日で切れる。新しいセッションを始めたら、記憶（`ig-shrine-watch-routine`）を見て入れ直す
+- Claude と話していない日は回らない。その場合は次に話したときに、前回からの分をまとめて見る（通知のページは数週間ぶん残る）
+
+## 手順
+
+1. **新しく関わってくれたアカウントを集める**（読むだけ）: Playwright のブラウザ（@goshuinsampo でログイン済み）で https://www.instagram.com/notifications/ を開き、「あなたをフォローしました」「いいね！しました」「メンションしました」の名前を集める。Instagram の API にはフォロワーの一覧が無いため。1 日 1 回、通知のページを開くだけにする（何度も読み込まない）
+2. **寺社の公式か分ける**: `python3 ~/goshuin-work/ig-325/shrine_watch.py classify <名前> ...`。公開の情報（API の business_discovery）で名前と自己紹介を見て、`shrine_or_temple`（寺社の名前 + 公式・鎮座・社務所・御朱印などの言葉）・`maybe`・`other`・`personal`（個人）に分ける。結果は台帳 `~/goshuin-work/ig-325/shrine-watch.json` に残り、同じアカウントは調べ直さない
+3. **アプリにあるか確かめる**（`shrine_or_temple` と `maybe` だけ。`maybe` はプロフィールを読んで人が判断する）: 本番の `spots` を名前と住所で引く（読むだけ）
+
+   ```sql
+   SELECT name, status, prefecture, address, rank FROM public.spots
+   WHERE name ILIKE '%<名前の中心の語>%' OR address ILIKE '%<市区町村と町名>%';
+   ```
+
+   アプリの検索は、読み込んだ全部の寺社を名前と住所・県で当てる（`src/utils/placeSearch.ts`）。マスタに `active` であれば、地図にも検索にも出る
+4. **無ければ足す**
+   - 住所を **2 つ以上の情報源**で確かめる（公式のプロフィール・公式サイト・ホトカミなど）。食い違えば足さずにオーナーに聞く
+   - 座標は Wikidata・OpenStreetMap → 無ければ国土地理院の住所検索（`https://msearch.gsi.go.jp/address-search/AddressSearch?q=<住所>`）。小数 4 桁
+   - rank は 3（地域の寺社。地図はズーム 12.5 から出る）。ホトカミの県のランキングで上位 20 に入る寺社なら 4・5
+   - migration（`supabase/migrations/<日時>_add_spot_<名前>.sql`。同じ名前・同じ県があれば足さない形）→ PR → develop にマージ → 本番に当てる:
+     `supabase db query --linked -f <migration>` → `supabase migration repair --status applied <version>`
+   - 当てたあと、手順 3 の SQL で 1 行あること、`status = 'active'` を確かめる
+5. **記録**: 台帳の `in_app`（あった・足した）と `spot_name` を書き、`.claude/harness/progress.md` に 1 行。オーナーへの報告は「報告と承認」（見られないときはチャット）
+
+## やらないこと
+
+- フォロー返し・いいね・コメントを自動ではしない（Instagram の規約。いいねは別の計画）
+- 個人のアカウントの情報を台帳以外に残さない（台帳も名前と分けた結果だけ。リポには入れない）
+- 寺社の写真を足す（写真は Commons のライセンスを確かめる別の作業。#302 / #320 の手順）
+
+## 記録
+
+| 日 | アカウント | 寺社 | 結果 |
+| --- | --- | --- | --- |
+| 2026-10-12 | @itachibeiinari（いいね） | 鼬幣稲荷神社（岩手県花巻市石神町336） | マスタに無かった → `20261012000000_add_spot_itachibe_inari.sql` で足した |
