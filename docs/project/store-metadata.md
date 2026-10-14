@@ -6,24 +6,25 @@ App Store Connect / Google Play Console に入力する**確定版メタデー�
 >
 > - 2026-04-10 初版作成
 > - 2026-09-27 1.2.0 の言葉（アプリ名・サブタイトル・キーワード・説明文・プロモーションテキスト・What's New）。アプリ名とサブタイトルはオーナーが選んだ
+> - 2026-10-15 1.3.0 の準備: 英語（en-US）の掲載文を足した（下の「App Store（英語 en-US）」。オーナーが「段階0はすぐやってOK」）。日本語のキーワードを 10/11 に承認された入れ替えにした。どちらも App Store Connect の 1.3.0（提出準備中）に入れた。審査にはまだ出していない
 
 ---
 
 ## 共通情報
 
-| 項目                      | 内容                                                       |
-| ------------------------- | ---------------------------------------------------------- |
-| アプリ名                  | 御朱印さんぽ                                               |
-| バージョン                | 1.0.0                                                      |
-| バンドルID / パッケージ名 | `com.goshuin.app`                                          |
-| カテゴリ                  | プライマリ: ライフスタイル / セカンダリ: 旅行              |
-| 対象年齢                  | 4+（全年齢）                                               |
-| 価格                      | 無料                                                       |
-| 対応言語                  | 日本語                                                     |
-| サポートURL               | https://github.com/Kaiwa-Jun/goshuin-app/issues            |
-| プライバシーポリシーURL   | https://kaiwa-jun.github.io/goshuin-app/legal/privacy.html |
-| 利用規約URL               | https://kaiwa-jun.github.io/goshuin-app/legal/terms.html   |
-| 問い合わせ先メール        | kj.11235813213455@gmail.com                                |
+| 項目                      | 内容                                                                        |
+| ------------------------- | --------------------------------------------------------------------------- |
+| アプリ名                  | 御朱印さんぽ                                                                |
+| バージョン                | 1.0.0                                                                       |
+| バンドルID / パッケージ名 | `com.goshuin.app`                                                           |
+| カテゴリ                  | プライマリ: ライフスタイル / セカンダリ: 旅行                               |
+| 対象年齢                  | 4+（全年齢）                                                                |
+| 価格                      | 無料                                                                        |
+| 対応言語                  | 日本語（ストアの掲載文は 1.3.0 から日本語と英語。アプリの画面は日本語だけ） |
+| サポートURL               | https://github.com/Kaiwa-Jun/goshuin-app/issues                             |
+| プライバシーポリシーURL   | https://kaiwa-jun.github.io/goshuin-app/legal/privacy.html                  |
+| 利用規約URL               | https://kaiwa-jun.github.io/goshuin-app/legal/terms.html                    |
+| 問い合わせ先メール        | kj.11235813213455@gmail.com                                                 |
 
 > **注意**: 上記 URL は GitHub Pages（`main` ブランチ `/docs` フォルダ）有効化後に公開されます。設定手順は `docs/project/release-guide.md` を参照。
 >
@@ -140,10 +141,13 @@ https://github.com/Kaiwa-Jun/goshuin-app/issues
 ### キーワード（100文字以内、カンマ区切り）
 
 ```
-ご朱印,朱印帳,朱印,寺院,寺社,神社仏閣,お参り,巡り,巡礼,巡拝,霊場,札所,七福神,一の宮,パワースポット,初詣,夏詣,限定,コレクション,スタンプラリー,旅行,観光,お遍路
+ご朱印,朱印帳,朱印,寺社,寺院,神社仏閣,お参り,巡り,巡礼,巡拝,霊場,札所,お遍路,七福神,一の宮,初詣,夏詣,限定,マップ,アプリ,集め,ノート,スタンプ,塗りつぶし,行ったところ,都道府県
 ```
 
-（90文字。**1.2.0 から**）
+（99文字。**1.3.0 から**。2026-10-11 にオーナーが承認した入れ替え。App Store Connect の 1.3.0 に入れた）
+
+- 外した語: パワースポット・コレクション・スタンプラリー・旅行・観光。足した語: マップ・アプリ・集め・ノート・スタンプ・塗りつぶし・行ったところ・都道府県（入れ替える前の順位は `~/goshuin-work/aso/rank-2026-10-11*.json`。次の版の公開から 2 週間後に同じ語で測り直す）
+- 1.2.0 のときは `ご朱印,朱印帳,朱印,寺院,寺社,神社仏閣,お参り,巡り,巡礼,巡拝,霊場,札所,七福神,一の宮,パワースポット,初詣,夏詣,限定,コレクション,スタンプラリー,旅行,観光,お遍路`（90文字）
 
 - アプリ名・サブタイトルにある語（御朱印・御朱印帳・参拝記録・神社・お寺・めぐり・日本地図）は繰り返さない（Apple の決まり。同じ語を入れても効かない）
 - 1.1.0 までは `御朱印,神社,寺院,参拝,巡礼,御朱印帳,地図,コレクション,旅行,お寺,神社仏閣,記録,スタンプラリー`（名前・サブタイトルと重なる語があり、約40字余っていた）
@@ -296,6 +300,122 @@ App Store は**最初の2枚しかスクロールせずに見えない**ので�
 **1枚目の地図が南から北へ染まっていくところ**が一番映える。オンボーディングの1画目そのものなので、
 設定の「オンボーディングをもう一度見る」（`__DEV__` 限定）から何度でも撮り直せる。
 ⚠️ **本番ビルドにはその導線が無い**ので、動画は dev build で撮ること。
+
+## App Store（英語 en-US）
+
+**1.3.0 から**（2026-10-15）。集客の「多言語の段階 0」。アプリの画面は日本語のままで、ストアの掲載文だけを英語でも出す。
+
+- **ねらい**: ① 英語の設定の iPhone で見る人に、英語で中身が伝わる ② 日本のストアは英語（en-US）の掲載文の語も検索に使うので、キーワードの枠がもう 1 つ増える。②は ASO の解説（AppTweak など）にある話で、Apple の説明では確かめていない。公開のあとに順位で確かめる
+- **いまの基準**: 2026-10-15 に日本のストアで英語の 12 語を測り、どの語でも圏外（`~/goshuin-work/aso/rank-2026-10-15-en.json`）。「goshuin」で 38 件、「shrine stamp」で 17 件が出る。1.3.0 の公開から 2 週間後に、同じ語で測り直す
+- **配信は日本だけのまま**。海外のストアに広げるのは段階 1（下の「この先」）
+- 名前のローマ字はホームページのドメイン（goshuinsanpo.com）に合わせて **Sanpo**（Instagram の @goshuinsampo とは違う）
+- アプリの画面が日本語だけであることを、説明文とプロモーションテキストに書いた（英語で読んだ人が、入れてから驚かないように）
+- 名前・サブタイトルにある語（goshuin・sanpo・temple・shrine・stamp・book・japan・travel・map）はキーワードに入れない。「shrine」「temple」だけの検索はゲームが上を占めるので、「goshuin」「stamp book」「japan travel map」との組み合わせで拾う
+- スクショは英語版を用意していない。言語ごとのスクショが無いときは日本語（主の言語）のものが出る（App Store Connect のヘルプ）
+- サポート URL・マーケティング URL・プライバシーポリシーの URL は日本語と同じ
+- App Store Connect に入れたスクリプト: `~/goshuin-work/asc/asc-add-en-us-1.3.0.mjs`（元の文は `~/goshuin-work/aso/en-us/meta.json`）
+
+### アプリ名（30文字以内）
+
+```
+Goshuin Sanpo: Temple & Shrine
+```
+
+（30文字）
+
+### サブタイトル（30文字以内）
+
+```
+Stamp book & Japan travel map
+```
+
+（29文字）
+
+### キーワード（100文字以内）
+
+```
+goshuincho,shuin,seal,pilgrimage,jinja,tera,visited,tracker,journal,trip,prefecture,kyoto,shinto
+```
+
+（96文字）
+
+### プロモーションテキスト（170文字以内）
+
+```
+Take one photo of a goshuin you received, and your map of Japan fills in, prefecture by prefecture. An ad-free goshuin book. (The app is in Japanese.)
+```
+
+（150文字）
+
+### 説明文（4000文字以内）
+
+```
+"Every goshuin you collect turns the map into your journey."
+
+Goshuin Sanpo is a goshuin book app that keeps the photos of the goshuin (temple and shrine seals) you receive, together with your visits, on a map of Japan. Take a photo and choose the shrine or temple. That's it. The more you record, the more the map of Japan fills in with your color.
+
+The app's screens are currently in Japanese only.
+
+
+■ What you can do
+
+◎ Record with one photo
+Take a photo of your goshuin where you visit. Shrines and temples around your current location appear as choices, so just pick one. You can also keep the date of your visit and a note.
+
+◎ A map of Japan in your color
+Each goshuin deepens the color of the prefecture you visited. Tap a pin on the map to look back on your visits.
+
+◎ Monthly visits
+Visit the same shrine or temple every month and it counts as a monthly visit (tsukimairi). Twelve months completes the cycle (mangan).
+
+◎ Visit plans
+Choose the shrines and temples you want to visit, and the app suggests an order. Look back on your plans in a calendar.
+
+◎ One goshuin book
+Your goshuin come together as a book you can flip through, or as a list.
+
+◎ Find places not on the map
+If a shrine or temple isn't on the map, search by its name and area to record it.
+
+◎ Carved seals for how and when you visit
+Carved seals gather not only for the number of places, but also for how often and in which season you visit.
+
+◎ Your year in review
+In December, look back on the year's visits.
+
+
+■ For people who
+
+- have just started collecting goshuin and want a simple way to keep track
+- want to keep photos of their goshuin alongside their paper goshuin book
+- want to look back on the shrines and temples they visited on trips and walks, on a map
+- enjoy returning to the same shrine or temple
+
+
+■ Privacy
+
+No ads. Location is used only while the app is open and is not stored on our servers. Deleting your account deletes all of your data.
+```
+
+（1939文字。日本語の 1.2.0 の説明文を訳し、「アプリの画面は日本語だけ」の一文と、広告が無いことを足した）
+
+### What's New（バージョン 1.3.0）
+
+```
+Recording your first goshuin is now easier.
+
+- Until you record one, a small card on the map shows how to start, with shrines and temples near you.
+- When you save your first goshuin, its prefecture gently colors in on the map of Japan.
+- Other small fixes.
+```
+
+- 1.3.0 の中身（#327 最初の 1 枚まで連れていく）に合わせた下書き。日本語の What's New を書くときに、中身をそろえて直す
+
+### この先（段階 1・2。まだやらない）
+
+- **段階 1**: 配信の地域を広げる（米国・英国・オーストラリア・カナダ・台湾・香港。EU は事業者の届け出が要るかを確かめてから）＋ホームページに英語のページを 1 枚。測るのはダウンロードのレポートの国（Territory）の欄
+- **段階 2**: アプリの画面の多言語化。段階 1 で日本の外からのダウンロードが出てから決める。重いのは画面の文字より、寺社 777 件の英語名（Wikidata のラベルが使える）
+- 方針の上では `docs/product/direction.md` の「Phase 4 インバウンド英語」にあたる
 
 ## Google Play
 
