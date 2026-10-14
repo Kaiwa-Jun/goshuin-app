@@ -334,10 +334,12 @@ Stamp book & Japan travel map
 ### キーワード（100文字以内）
 
 ```
-goshuincho,shuin,seal,pilgrimage,jinja,tera,visited,tracker,journal,trip,prefecture,kyoto,shinto
+goshuincho,shuin,seal,pilgrimage,jinja,tera,visited,tracker,journal,trip,prefecture,meguri,shinto
 ```
 
-（96文字）
+（97文字）
+
+- 最初は `kyoto` を入れたが、全国の寺社のアプリなので、審査で内容と関係の薄い語と見られないよう `meguri`（goshuin meguri の検索がある）に替えた（PR #333 のレビュー）
 
 ### プロモーションテキスト（170文字以内）
 
