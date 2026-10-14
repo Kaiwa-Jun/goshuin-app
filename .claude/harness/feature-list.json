@@ -244,6 +244,18 @@
       "title": "記録0枚の人の最初の1枚: 地図のカード・近くの寺社・保存直後に県が空押しから色が差す・あゆみと御朱印帳の空の言葉",
       "note": "契約書 docs/issues/issue-327-first-stamp.md・試作 docs/design/mockups/2026-10-first-stamp-v1/（オーナーが案①＋案③の言葉＋保存直後の空押しを選んだ。案②は次の候補）。S1〜S7（8 コミット）。jest 2,682・lint・typecheck 通過。goshuin-evaluator PASS（AC 55/55・UI 9/9・Q 11/11。Expo Web・京都の位置）。証跡 .claude/harness/evidence/issue-327/。基準外: 寺社のシートを開くと Web だけ uncontrolled input の警告（#157 の検索バーの value={searchLabel ?? undefined}。#327 の差分ではない）。オーナーが 2026-10-11 に実機（開発用アプリ）で H-1〜H-6 を確認（問題なし。H-5・H-6 は記録 0 枚のアカウントで）。ボタンの字は 14pt のまま（決めること #4）。H-7（視差効果を減らす）は任意で、結果の報告なし",
       "passes": true
+    },
+    {
+      "id": "P4-01",
+      "title": "英語圏への配信の試し（段階 1）: 配信地域を米・英・豪・加・台湾・香港に広げる＋ホームページに英語のページを 1 枚",
+      "note": "2026-10-15 オーナー合意の集客の段階。前提の段階 0（ストアの英語の掲載文）は 1.3.0 に入れた（docs/project/store-metadata.md の「App Store（英語 en-US）」）。今はアプリが日本のストアだけで配信なので、旅行者の自国の Apple ID からは見つからず入れられない。やること: App Store Connect の配信地域を広げる（EU は事業者の届け出が要るかを先に確かめる）・site/ に英語のページ（アプリの紹介・アプリの画面は日本語だけと書く・App Store へのリンクは ct=web-en など別の印）。測り方: ASC の Analytics Reports の App Downloads の Territory の欄（~/goshuin-work/marketing/effect/asc-dl.mjs）。始める時期は 1.3.0 の公開と段階 0 の順位の測り直し（公開から 2 週間）のあと。direction.md の Phase 4 インバウンド英語の入口",
+      "passes": false
+    },
+    {
+      "id": "P4-02",
+      "title": "アプリの画面の多言語化（段階 2・英語）",
+      "note": "2026-10-15 オーナー合意。P4-01 で日本の外からのダウンロードが出てから着手を決める（出なければやらない）。重いのは画面の文字より寺社 777 件の英語名（Wikidata のラベル・supabase/scripts/spot-wikidata/）と、検索で英語名・ローマ字を引けるようにすること。言葉づかいは DESIGN.md の考え方（競わせない・記念の語彙）を英語でも守る。契約書を作ってから",
+      "passes": false
     }
   ]
 }
