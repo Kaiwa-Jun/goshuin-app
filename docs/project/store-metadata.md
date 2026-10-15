@@ -7,6 +7,7 @@ App Store Connect / Google Play Console に入力する**確定版メタデー�
 > - 2026-04-10 初版作成
 > - 2026-09-27 1.2.0 の言葉（アプリ名・サブタイトル・キーワード・説明文・プロモーションテキスト・What's New）。アプリ名とサブタイトルはオーナーが選んだ
 > - 2026-10-15 1.3.0 の準備: 英語（en-US）の掲載文を足した（下の「App Store（英語 en-US）」。オーナーが「段階0はすぐやってOK」）。日本語のキーワードを 10/11 に承認された入れ替えにした。どちらも App Store Connect の 1.3.0（提出準備中）に入れた。審査にはまだ出していない
+> - 2026-10-15 1.3.0 の仕上げ: What's New（日本語・英語）を書いた。マーケティング URL・プライバシーポリシーの URL・説明文の中の URL を goshuinsanpo.com に書き換えた。スクショ 4 枚（下の「1.3.0 の4枚」）を入れた。どれも App Store Connect の 1.3.0（提出準備中）に入れた。審査にはまだ出していない
 
 ---
 
@@ -15,20 +16,20 @@ App Store Connect / Google Play Console に入力する**確定版メタデー�
 | 項目                      | 内容                                                                        |
 | ------------------------- | --------------------------------------------------------------------------- |
 | アプリ名                  | 御朱印さんぽ                                                                |
-| バージョン                | 1.0.0                                                                       |
+| バージョン                | 1.3.0                                                                       |
 | バンドルID / パッケージ名 | `com.goshuin.app`                                                           |
 | カテゴリ                  | プライマリ: ライフスタイル / セカンダリ: 旅行                               |
 | 対象年齢                  | 4+（全年齢）                                                                |
 | 価格                      | 無料                                                                        |
 | 対応言語                  | 日本語（ストアの掲載文は 1.3.0 から日本語と英語。アプリの画面は日本語だけ） |
 | サポートURL               | https://github.com/Kaiwa-Jun/goshuin-app/issues                             |
-| プライバシーポリシーURL   | https://kaiwa-jun.github.io/goshuin-app/legal/privacy.html                  |
-| 利用規約URL               | https://kaiwa-jun.github.io/goshuin-app/legal/terms.html                    |
+| プライバシーポリシーURL   | https://goshuinsanpo.com/legal/privacy.html                                 |
+| 利用規約URL               | https://goshuinsanpo.com/legal/terms.html                                   |
 | 問い合わせ先メール        | kj.11235813213455@gmail.com                                                 |
 
 > **注意**: 上記 URL は GitHub Pages（`main` ブランチ `/docs` フォルダ）有効化後に公開されます。設定手順は `docs/project/release-guide.md` を参照。
 >
-> 2026-10 から `kaiwa-jun.github.io/goshuin-app/…` は `goshuinsanpo.com/…` に転送される（#324）。App Store Connect の URL は次の提出で書き換える。
+> 2026-10 から `kaiwa-jun.github.io/goshuin-app/…` は `goshuinsanpo.com/…` に転送される（#324）。App Store Connect の URL は 1.3.0 で goshuinsanpo.com に書き換えた（2026-10-15）。サポート URL は GitHub の Issues のまま（ホームページのお問い合わせも同じ先。goshuinsanpo.com にサポートのページは無い）。
 
 ---
 
@@ -120,7 +121,7 @@ App Store Connect / Google Play Console に入力する**確定版メタデー�
 位置情報はアプリ使用中のみ取得し、サーバーには保存しません。アカウント削除でご自身のデータをすべて削除できます。
 
 詳細はプライバシーポリシーをご確認ください。
-https://kaiwa-jun.github.io/goshuin-app/legal/privacy.html
+https://goshuinsanpo.com/legal/privacy.html
 
 
 ■ ご意見・ご要望
@@ -136,6 +137,7 @@ https://github.com/Kaiwa-Jun/goshuin-app/issues
 （982文字。4000文字以内）
 
 - 問い合わせ先のメールは、提出するときに「共通情報」の表のアドレスを入れる（今のストアの文面と同じ）
+- 1.3.0 で、文中のプライバシーポリシーの URL を goshuinsanpo.com に書き換えた（ほかの文は 1.2.0 と同じ）
 - 「位置情報は…サーバーには保存しません」は、1.2.0 のコードで確かめて残した（寺社を探すときに送るのは本人が書いた県・市の名前だけで、端末の位置は送らない）
 
 ### キーワード（100文字以内、カンマ区切り）
@@ -163,8 +165,25 @@ https://github.com/Kaiwa-Jun/goshuin-app/issues
 ### マーケティングURL（任意）
 
 ```
-https://kaiwa-jun.github.io/goshuin-app/
+https://goshuinsanpo.com/
 ```
+
+### What's New（バージョン 1.3.0）
+
+```
+はじめての1枚を、記録しやすくしました。
+
+・まだ御朱印の記録が無いあいだ、地図の下に始め方のカードが出ます。近くの寺社を、近い順に見られます
+・最初の1枚を保存すると、日本地図でその県にそっと色が差します
+・記録が無いときの、あゆみと御朱印帳の案内をわかりやすくしました
+・細かな不具合を直しました
+
+皆さまからのご意見・ご要望をお待ちしております。
+```
+
+- 2026-10-15 に App Store Connect の 1.3.0 に入れた。アプリの中身で 1.2.0（ビルド 24）から変わったのは、#327（記録 0 枚の人を最初の 1 枚へ）と #319（空の ID で問い合わせない）の 2 つ
+- 寺社の写真（#320）や寺社の追加（#330）はデータだけの変更で、1.2.0 にもう出ているので書かない
+- 地図のカードや色の差し方は記録 0 枚の人にしか出ないので、「まだ記録が無いあいだ」「最初の1枚」と書き、記録のある人が探さないようにした
 
 ### What's New（バージョン 1.2.0）
 
@@ -228,6 +247,25 @@ https://kaiwa-jun.github.io/goshuin-app/
 ⚠️ **実機（iPhone 16 = 1179×2556 / 6.1インチ）では撮れない。** 必須サイズに足りないので、
 **iPhone 16 Pro Max のシミュレータ**で撮る。`eas build --profile preview-simulator --platform ios`
 でビルドしてから。Apple が要求する「実機での画面録画」は別件で、そちらだけ実機が要る。
+
+### 1.3.0 の4枚（2026-10-15 オーナー承認）
+
+**画像は `~/goshuin-work/store-next/out/01-ayumi.png`・`02-saved.png`・`03-map.png`・`04-book.png`（1320×2868）。Git には入れない**（本アカウントの記録が写るため）。
+2026-10-15 に App Store Connect の 1.3.0（日本語・6.9 インチの枠 `APP_IPHONE_67`）に入れた。英語（en-US）にはスクショを入れていないので、日本語の 4 枚が出る。
+
+| #   | 画面                 | 見出し                            |
+| --- | -------------------- | --------------------------------- |
+| 1   | あゆみの日本地図     | 参拝したら、写真1枚で日本地図に。 |
+| 2   | 保存直後（明治神宮） | 写真を1枚。それだけ。             |
+| 3   | 地図タブ             | 近くの寺社が、すぐ見つかる。      |
+| 4   | 御朱印帳             | 集めた御朱印は、一冊になる。      |
+
+決めたこと:
+
+- 1.2.0 の4枚の決めごと（縦・枠・見出しの位置と大きさ）と撮り方は同じ。組み方は `~/goshuin-work/store-next/compose.py`
+- 1 枚目はあゆみの日本地図。見出しは #327 の地図のカードと同じ言葉。集計の数字は 1.2.0 と同じく見本（25都道府県・91枚）
+- 2 枚目の見出しはオーナーが案 A「写真を1枚。それだけ。」を選んだ（案 B「撮って、寺社を選ぶだけ。」は使わない）
+- 2 枚目は本アカウントに明治神宮を 1 件記録して撮り、撮ったあと削除した
 
 ### 1.2.0 の4枚（2026-09-26 オーナー承認）
 
@@ -406,12 +444,13 @@ No ads. Location is used only while the app is open and is not stored on our ser
 ```
 Recording your first goshuin is now easier.
 
-- Until you record one, a small card on the map shows how to start, with shrines and temples near you.
+- Until you record your first goshuin, a small card on the map shows how to start, with a list of shrines and temples near you, nearest first.
 - When you save your first goshuin, its prefecture gently colors in on the map of Japan.
-- Other small fixes.
+- Clearer guidance on the empty screens before your first record.
+- Small bug fixes.
 ```
 
-- 1.3.0 の中身（#327 最初の 1 枚まで連れていく）に合わせた下書き。日本語の What's New を書くときに、中身をそろえて直す
+- 日本語の What's New と中身をそろえた（2026-10-15。App Store Connect の 1.3.0 に入れた）
 
 ### この先（段階 1・2。まだやらない）
 
