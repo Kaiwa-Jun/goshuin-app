@@ -27,6 +27,7 @@ docs/
 │   ├── growth-metrics-routine.md # ルーティンから growth-metrics（グロースの集計）を呼ぶ手順
 │   ├── ig-shrine-watch.md     # Instagram で関わってくれた寺社の公式を、アプリに足す（定期の確かめ・#330）
 │   └── development-workflow.md # 開発ワークフロー
+├── ops/                       # ★ 運用の引き継ぎ（2026-10-17。Instagram・App Store・集客・履歴。入口は ops/README.md）
 └── issues/                    # Issue別詳細設計
     └── README.md              # Issue設計ドキュメントの運用ガイド
 ```
