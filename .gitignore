@@ -67,3 +67,6 @@ deno.lock
 # Python のキャッシュ（scripts/*.py）
 __pycache__/
 *.pyc
+
+# 運用の覚え書き（鍵のありか・ID。手元だけ。公開のリポには上げない。docs/ops/README.md）
+docs/ops/PRIVATE.md
