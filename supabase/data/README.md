@@ -294,7 +294,7 @@ deno test -A --node-modules-dir=none supabase/scripts/spot-photos/
 
 - 1 寺社を出さなくする: 台帳のその行を `status: "withdrawn"` にして `generate` し直し、コミットしてから、同じ migration をもう一度 `supabase db query --linked -f` で流す（upsert なので上書き。行は消さず、RLS で見えなくなる）
 - 全部をやめる: `UPDATE public.spot_photos SET status = 'withdrawn';`（アプリは写真の無い帯に戻る）。R2 の `spot-photos/` は残してよい
-- 外したもの: 平等院（idx 1007・2026-10-17）。平等院の「掲載・撮影許可に関する規約」（2025-04 改訂）に、掲載する写真はいずれも平等院の許可が要り、トリミングも許可なくしないでとあるため（オーナーの決定）。ホームページのページは受付時間があるので、写真なしで残る
+- 外したもの: 平等院（idx 1007・2026-10-17）。平等院の「掲載・撮影許可に関する規約」（2025-04 改訂）に、掲載する写真はいずれも平等院の許可が要り、トリミングも許可なくしないでとあるため（オーナーの決定）。ホームページのページは受付時間があるので、写真なしで残る。本番は `UPDATE public.spot_photos SET status = 'withdrawn' WHERE r2_key = 'spot-photos/9eab7dfec22b11f05a67f3252bd38a8e108fcbf0.jpg';` で当てた。**R2 の元のファイルは残る**ので、URL を知っていれば今も見られる。消すには、オーナーが R2 のトークンを作って `spot-photos/<sha1>.jpg` を消す
 
 ### 出典
 
