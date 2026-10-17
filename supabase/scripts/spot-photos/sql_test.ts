@@ -793,13 +793,16 @@ Deno.test(
       await realSeedRows()
     );
     const n = ledger.entries.length;
+    // 外した行（withdrawn）も行としては入るが、listed と anon で見える数には入らない
+    const approved = ledger.entries.filter(e => e.status === 'approved').length;
+    assertEquals(n - approved, 1);
     const migration = await readRepo(MIGRATION_PATH);
     const check = await readRepo(CHECK_SQL_PATH);
     const base = {
       table: 'present',
       rls: 'on',
       total: 1109,
-      listed: n,
+      listed: approved,
       not_one: 0,
       extra: 0,
       anon_insert: 'denied',
@@ -811,7 +814,13 @@ Deno.test(
         resultLine({ ...base, present: 0, differ: 0, missing: n, anon_select: 0 })
       );
       assertEquals(await raised(db, migration), null);
-      const after = resultLine({ ...base, present: n, differ: 0, missing: 0, anon_select: n });
+      const after = resultLine({
+        ...base,
+        present: n,
+        differ: 0,
+        missing: 0,
+        anon_select: approved,
+      });
       assertEquals(await raised(db, check), after);
       assertEquals(await photoCount(db), n);
       const once = await attached(db);
@@ -1073,7 +1082,8 @@ Deno.test('#320 AC-24: 本物の第1弾688件と第2弾89件を適用し、両�
         differ: 0,
         missing: 0,
         others: 688,
-        anon_select: 688 + n,
+        // 第1弾の平等院は外した（withdrawn）ので、anon で見えるのは 687 + n
+        anon_select: 687 + n,
         anon_insert: 'denied',
       })
     );
@@ -1083,13 +1093,13 @@ Deno.test('#320 AC-24: 本物の第1弾688件と第2弾89件を適用し、両�
         table: 'present',
         rls: 'on',
         total: 1109,
-        listed: 688,
+        listed: 687,
         not_one: 0,
         present: 688,
         differ: 0,
         missing: 0,
         extra: n,
-        anon_select: 688 + n,
+        anon_select: 687 + n,
         anon_insert: 'denied',
       })
     );

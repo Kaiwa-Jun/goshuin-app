@@ -43,7 +43,8 @@
 
 ## 4. ホームページ（goshuinsanpo.com）
 
-- リポジトリの `site/`（Deno）で作る。トップ・47 都道府県・写真のある寺社 777・法務・sitemap（828）・`llms.txt`・構造化データ
+- リポジトリの `site/`（Deno）で作る。トップ・47 都道府県・寺社 777（写真か受付時間のある寺社。写真は 776。平等院は 2026-10-17 に写真を外した）・法務・sitemap（828）・`llms.txt`・構造化データ
+- **寺社の写真（Wikimedia Commons）を、投稿や宣伝の見本に使う前に、その寺社の公式サイトで写真の掲載の決まりを確かめる。** 平等院は「掲載する写真はいずれも許可が要る」としていた（2026-10-17）
 - **develop に push すると**、GitHub Actions（`.github/workflows/site.yml`）が作って GitHub Pages に出す。PR では作って検査するだけ
 - ドメインと DNS は Cloudflare（アカウントの ID は PRIVATE.md）。写真は R2 の `img.goshuinsanpo.com`
 - Search Console はドメインで確認済み。サイトマップは 10/14 に「成功しました」・828 ページを検出。インデックスの登録はまだ少ない

@@ -5,8 +5,8 @@
 --
 -- ⚠ 必ずエラーで終わる。それで正しい。最後に RAISE EXCEPTION して、何も残さない（読むだけ）。
 --   期待値:
---   H-7（第2弾を入れる前）: RESULT table=present rls=on total=1109 listed=89 not_one=0 present=0 differ=0 missing=89 others=688 anon_select=688 anon_insert=denied
---   H-11（第2弾を入れたあと）: RESULT table=present rls=on total=1109 listed=89 not_one=0 present=89 differ=0 missing=0 others=688 anon_select=777 anon_insert=denied
+--   H-7（第2弾を入れる前）: RESULT table=present rls=on total=1109 listed=89 not_one=0 present=0 differ=0 missing=89 others=688 anon_select=687 anon_insert=denied
+--   H-11（第2弾を入れたあと）: RESULT table=present rls=on total=1109 listed=89 not_one=0 present=89 differ=0 missing=0 others=688 anon_select=776 anon_insert=denied
 --   第1弾の行がこの migration で変わらないことは、第1弾の確かめる SQL（supabase/validation/spot_photos_302_check.sql）も流して見る（H-8・H-12）
 --
 -- table       = 表 public.spot_photos があるか（absent ならほかは出さない）
