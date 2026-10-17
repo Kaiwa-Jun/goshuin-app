@@ -18,6 +18,8 @@ import {
 
 /** S6 で採った数（main.ts status の「採る」。progress.md に書いた値） */
 export const APPROVED = 688;
+/** あとから外した（status: withdrawn）寺社。平等院は 2026-10-17、平等院の規約（掲載する写真はいずれも許可が要る）に合わせて外した */
+export const WITHDRAWN = ['平等院'];
 /** そのうち結びつきが medium の数 */
 export const APPROVED_MEDIUM = 19;
 export const APPROVED_BATCH2 = 89;
@@ -57,7 +59,11 @@ Deno.test(
     const ledger = { ...all, entries: all.entries.filter(e => e.batch === 1) };
     assert(ledger.entries.length > 0);
     assertEquals(ledger.entries.length, APPROVED);
-    assert(ledger.entries.every(e => e.batch === 1 && e.status === 'approved'));
+    assert(ledger.entries.every(e => e.batch === 1));
+    assertEquals(
+      ledger.entries.filter(e => e.status !== 'approved').map(e => [e.name, e.status]),
+      WITHDRAWN.map(n => [n, 'withdrawn'])
+    );
     assertEquals(ledger.entries.filter(e => e.linkConfidence === 'medium').length, APPROVED_MEDIUM);
     assert(ledger.entries.every(e => e.linkConfidence === 'high' || e.linkChecked));
     assert(ledger.entries.every(e => e.isCropped));
@@ -113,7 +119,7 @@ Deno.test(
       assertEquals(await runCli(['upload', '--dry-run', '--root', root, '--work', work], io), 0);
       assertEquals(
         out,
-        '台帳 777 件 / R2 に既にある 688 件 / 置く 89 件 / キャッシュに無い 0 件\n'
+        '台帳 776 件 / R2 に既にある 687 件 / 置く 89 件 / キャッシュに無い 0 件\n'
       );
     } finally {
       await Deno.remove(work, { recursive: true });

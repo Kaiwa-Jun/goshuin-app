@@ -62,7 +62,8 @@ Deno.test(
       assertEquals(img.length, 1, p);
       if (p.startsWith('spots/')) {
         const s = d.spots.find(x => p === `spots/${x.slug}/index.html`)!;
-        assertEquals(img[0], s.photo!.url, p);
+        // 写真を外した寺社（平等院）は、サイトの OGP の画像になる
+        assertEquals(img[0], s.photo?.url ?? `${ORIGIN}/img/ogp.png`, p);
       } else {
         assertEquals(img[0], `${ORIGIN}/img/ogp.png`, p);
       }
@@ -158,8 +159,18 @@ Deno.test(
     assertEquals(mp.geo, { '@type': 'GeoCoordinates', latitude: 35.676111, longitude: 139.699167 });
     assert(!('openingHoursSpecification' in mp));
 
+    const mphoto = d.spots.find(s => s.slug === 'tokyo-002')!.photo!;
+    assertEquals(mp.image, {
+      '@type': 'ImageObject',
+      contentUrl: mphoto.url,
+      creditText: 'Tokuzo in Edomura',
+      license: mphoto.licenseUrl,
+      acquireLicensePage: mphoto.sourceUrl,
+    });
+
+    // 平等院は写真を外した（2026-10-17。平等院の規約で、掲載する写真はいずれも許可が要る）。image を書かない
     const byodoin = ld(page('kyoto-008')).find(x => x['@type'] === 'BuddhistTemple')!;
-    const photo = d.spots.find(s => s.slug === 'kyoto-008')!.photo!;
+    assertEquals(d.spots.find(s => s.slug === 'kyoto-008')!.photo, null);
     assertEquals(byodoin, {
       '@context': 'https://schema.org',
       '@type': 'BuddhistTemple',
@@ -170,13 +181,6 @@ Deno.test(
         addressCountry: 'JP',
         addressRegion: '京都府',
         streetAddress: '宇治市宇治蓮華116',
-      },
-      image: {
-        '@type': 'ImageObject',
-        contentUrl: photo.url,
-        creditText: 'Martin Falbisoner',
-        license: photo.licenseUrl,
-        acquireLicensePage: photo.sourceUrl,
       },
     });
 
