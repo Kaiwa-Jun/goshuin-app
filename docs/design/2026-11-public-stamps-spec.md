@@ -78,6 +78,9 @@
 契約書では、この節を受入基準の先頭に置き、取得を戻すより先に終える。
 
 - **取得の関数を自分の分に絞る。** `fetchStampsBySpotId`・`fetchVisitedSpotIds`（`src/services/stamps.ts`）は `user_id` で絞らず、RLS だけを頼りにしている。RLS には「公開の御朱印は誰でも見られる」が残っているので、公開が 1 枚でも出ると、他の人の分が自分の分としてドロワーに混ざり、行っていない寺社が訪問済みになる。今は公開にする手段が無いので起きていない（2026-11-07 の本番は全部非公開）
+- **止めてある表示の経路から、名前とメモを外す。** `useSpotStamps.ts` は「取得の呼び出しに戻すだけで復帰できる」と書いているが、戻すと `SpotThumbnailStrip`（`buildSpotGalleryImages`）と `SpotDetailContent.tsx:82-89` が名前（`display_name`）とメモを `ImageGalleryModal` に渡し、そのまま画面に出る（§0 の 7 と逆）。`fetchPublicStampsBySpotId` の select からも `display_name` と `memo` を外し、テストも直す
+- **ブロック・運営が隠した・寺社が出さない一覧の絞り込みは RLS に入れる。** アプリの取得の側だけで絞ると、別の経路から見えてしまう
+- **写真の位置情報（EXIF）を消す（§5）。** 写真は公開・非公開にかかわらず誰でも開ける置き場所にあるので、公開を始める前に必ず終える
 - **profiles を他の人に読ませるときは列を絞る。** 今の RLS は自分の行だけで、`email` の列もある。`SpotDetailContent.tsx:86` は他の人の profiles が null だと落ちる
 - **規約とプライバシーポリシーを書き直す。** `docs/legal/`・`src/constants/legal.ts` は昔の公開の機能を書いたまま（「表示名およびプロフィール画像とともに」「メモ」）で、今の作りと合わないところもある（「RLS で自分のデータだけ」・画質 0.8 と 0.85）
 - **ストアの申告を書き直す。** App Store のプライバシーの申告と、Google Play のデータの申告（今は「写真の共有なし」。`docs/project/store-metadata.md`）
